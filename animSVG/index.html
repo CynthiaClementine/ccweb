@@ -1,0 +1,177 @@
+<!doctype html>
+<!-- Copyright Cynthia Clementine
+August-23-2021 -->
+<html>
+    <head>
+        <title>Animation Program thing</title>
+        <meta charset="utf-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+        <style>
+            body {
+                background-color: slateblue;
+            }
+            #c {
+                margin: auto;
+                display: block;
+            }
+            .timelineButton {
+                cursor: pointer;
+                stroke: #FFFFFF;
+                fill: transparent;
+            }
+            .timelineText {
+                font: 15px Ubuntu; 
+                fill: #FFFFFF;
+                dominant-baseline: middle;
+                text-align: left;
+                text-anchor: end;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+        </style>
+        <script src="../common/functions-color.js"></script>
+        <script src="../common/functions-DOMnode.js"></script>
+        <script src="../common/functions-drawing.js"></script>
+        <script src="../common/functions-math.js"></script>
+        <script src="../common/functions-bezier.js"></script>
+        <script src="../common/functions-2dVector.js"></script>
+        <script src="../common/collision-2d.js"></script>
+        
+        <script src="functions-api.js"></script>
+        <script src="functions-helper.js"></script>
+        <script src="functions-drawing.js"></script>
+        <script src="objects.js"></script>
+        <script src="modes.js"></script>
+		
+    </head>
+    <body>
+        <!-- <div id="outside_container" width="90%" height="90%"> -->
+        <svg id="base" xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+            <defs id="globalDefs">
+                <!--timeline types
+                empty, frame, keyframe
+                -->
+                <clipPath id="MASTER_frameBox">
+                    <rect id="MASTER_frameBoxPath" width="10" height="20"/>
+                </clipPath>
+                <rect id="MASTER_frameEmpty" width="10" height="20" stroke="#FFFFFF" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
+                <svg id="MASTER_frameEmptyKey" overflow="visible">
+                    <rect width="10" height="20" stroke="#FFFFFF" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
+                    <circle r="3" cx="5" cy="10" stroke-width="0" fill="#000000"/>
+                </svg>
+                <rect id="MASTER_frameFull" width="10" height="20" stroke="#FFFFFF" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
+                <svg id="MASTER_frameFullKey" overflow="visible">
+                    <rect width="10" height="20" stroke="#FFFFFF" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
+                    <circle r="3" cx="5" cy="10" stroke-width="0" fill="#000000"/>
+                </svg>
+
+                <!--color picker-->
+                <svg id="MASTER_picker" width="100" height="110" viewBox="0 0 100 110" variable="color_selected" overflow="hidden">
+                    <defs>
+                        <linearGradient id="gradientLR">
+                            <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
+                            <stop offset="100%" stop-color="rgba(0, 255, 0, 1)"/>
+                        </linearGradient>
+                        <linearGradient id="gradientUD" gradientTransform="rotate(90)">
+                            <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
+                            <stop offset="100%" stop-color="rgba(255, 0, 0, 1)"/>
+                        </linearGradient>
+                        <linearGradient id="gradientC">
+                            <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
+                            <stop offset="100%" stop-color="rgba(0, 0, 255, 1)"/>
+                        </linearGradient>
+                        <linearGradient id="gradientD">
+                            <stop offset="0"  stop-color="rgba(255, 255, 255, 0)"/>
+                            <stop offset="100%" stop-color="rgba(255, 255, 255, 1)"/>
+                        </linearGradient>
+                    </defs>
+                    <!--background lines-->
+                    <rect x="0" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="10" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="20" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="30" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="40" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="50" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="60" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="70" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="80" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="90" y="0" width="10" height="110" fill="#000000"/>
+
+                    <rect id="picker_rectMain" x="0" y="0" width="100" height="100" fill="url('#gradientLR')" onmousedown="setDownType('pickerAB');"/>
+                    <rect x="0" y="0" width="100" height="100" fill="url('#gradientUD')" style="mix-blend-mode: screen" onmousedown="setDownType('pickerAB');"/>
+                    <rect id="picker_rectC" x="0" y="100" width="100" height="5" fill="url('#gradientC')" onmousedown="setDownType('pickerC');"/>
+                    <rect id="picker_rectD" x="0" y="105" width="100" height="5" fill="url('#gradientD')" onmousedown="setDownType('pickerD');"/>
+                    <circle id="picker_selectorAB" cx="100" cy="100" r="4" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerAB');"/>
+                    <rect id="picker_selectorC" x="-2" y="100" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerC');"/>
+                    <rect id="picker_selectorD" x="98" y="105" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerD');"/>
+                  </svg>
+            </defs>
+
+            <rect id="bg" fill="#000000"/>
+
+
+            <!--The main workspace (where the lines go)-->
+            <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1">
+                <rect id="workspace_background" width="1000" height="600" stroke="#FFFFFF" stroke-width="2"/>
+                <!--where temporary overlays created by tools go-->
+                <g id="workspace_toolTemp"></g>
+                <!--where the permanent drawings go-->
+                <g id="workspace_permanent"></g>
+            </svg>
+
+            <svg id="sidebar_container" width="300">
+                <rect id="sidebar_background" fill="#363636" stroke="none" height="600" width="300"/>
+                <use id="sidebar_colorPicker" width="250" height="275" ignoredown="true" href="#MASTER_picker"/>
+                
+                <svg id="toolbar_container" x="250">
+                    <rect id="toolbar_background" fill="#525261" width="50" height="600"/>
+                </svg>
+
+                <line id="sidebar_edge" stroke="#FFFFFF" stroke-width="2" x1="300" x2="300" y1="0" y2="600"/>
+                <rect id="sidebar_edge_detector" stroke="transparent" fill="#FFFFFF" x="294" y="-12" width="12" height="600" cursor="ew-resize"/>
+            </svg>
+
+
+            <svg id="timeline_container" y="400" hinv="200" overflow="visible">
+                <rect id="timeline_background" fill="#363636" y="0" width="1000" height="400"/>
+                <line id="timeline_edge" stroke="#FFFFFF" stroke-width="2" x1="0" x2="1000" y1="0" y2="0"/>
+                <rect id="timeline_edge_detector" stroke="transparent" fill="#FFFFFF" x="0" y="-12" width="1000" height="12" cursor="ns-resize"/>
+
+                <!--buttons and the like -->
+                <svg id="timeline_button_add" x="10" y="10">
+                    <line class="timelineButton" x1="10" y1="4" x2="10" y2="16"/>
+                    <line class="timelineButton" x1="4" y1="10" x2="16" y2="10"/>
+                    <rect class="timelineButton" width="20" height="20" onclick="addLayer();"/>
+                </svg>
+                <rect class="timelineButton" x="10" y="40" width="20" height="20" onclick="changeAnimLength_user();"/>
+
+                <!-- the main timeline rectangle bit -->
+                <!--The outer container is for the highlight rectangle, the inner one is for all the regular blocks-->
+                <svg id="timeline_main_container" x="150" y="5" overflow="visible">
+                    <svg id="timeline_blocks_container">
+                        <g id="timeline_blocks"></g>
+                        <rect id="timeline_playbody" width="10" height="15" fill="#8A0D0D" stroke="#8A0D0D"/>
+                        <rect id="timeline_playhead" width="10" fill="transparent" y="15" stroke="#8A0D0D" frame="0"/>
+                    </svg>
+                    <svg id="timeline_text_container" overflow="visible">
+                    </svg>
+                    <rect id="timeline_selector" y="15" width="10" height="20" stroke-width="2" stroke="#26F8FF" fill="none"/>
+                </svg>
+
+            </svg>
+
+            <svg id="settings_container">
+            </svg>
+            <!--canvas so ctx is accessible, in case-->
+        </svg>
+        <canvas id="convos"></canvas>
+        <!-- </div> -->
+        <script src="main.js"></script>
+    </body>
+</html>
