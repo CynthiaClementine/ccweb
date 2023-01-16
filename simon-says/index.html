@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel='icon' href='button.png' type='image/png'/>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width">
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+		<title>Simon Says v1.3</title>
+		<style>
+
+		body {
+			background-color: slateblue;
+		}
+		#canvas {
+			border-style: double;
+			border-color: slateblue;
+			cursor: none;
+		}
+		#mid {
+			text-align: center;
+		}
+		</style>
+	</head>
+	<body>
+		<!--audio time-->
+		<audio id="audioPositive">
+			<source src="happy1.mp3" type="audio/mpeg">
+			Audio [positive] is not loading correctly right now :(
+		</audio>
+
+		<audio id="audioNeutral">
+			<source src="normal1.mp3" type="audio/mpeg">
+			Audio [normal] is not loading correctly right now :(
+		</audio>
+
+		<audio id="audioNegative">
+			<source src="sad1.mp3" type="audio/mpeg">
+			Audio [sad] is not loading correctly right now :(
+		</audio>
+
+		<script src="../common/functions-math.js"></script>
+		<script src="functions-helper.js"></script>
+		<script src="main.js"></script>
+		<div id="mid">
+			<canvas id="canvas" width="640" height="480"></canvas>
+		</div>
+	</body>
+</html>

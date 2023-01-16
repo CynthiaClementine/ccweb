@@ -1,0 +1,147 @@
+
+
+V1.25 - PENDING
+
+    TODO:
+        improved jump arcs
+        change character constructor to use jump heights instead of jump gravity
+        stars for cutscenes at end of tunnels?
+        back / forward buttons for switching between levels
+        while duplicator's in void, duplicates don't interact with tiles
+        dy should have a min value when on the ground
+
+
+
+V1.24 - January-31-2022
+    bug fixes:
+        fixed crash when loading cutscenes with no frames
+        fixed error where IM-259 would never appear
+        improved tunnel rotation
+
+
+
+
+V1.23 - January-14-2022
+    bug fixes:
+        Fixed text alignment issues in edit mode
+        Fixed cutscene exporting bugs in edit mode
+
+    misc:
+        tunnels can now safely be loaded without a set spawn point
+        you can now use the Space song from Run 1 in custom levels
+        in World Edit mode, tunnels will now be created directly in the center of the screen
+
+
+
+
+V1.22 - January-6-2022
+    bug fixes:
+        duplicator duplicates can no longer just walk through tunnel blockers
+        tunnel blockers will no longer cause player to flicker
+        ringed boxes in cutscene mode no longer have dark rings
+        boxes in challenge mode no longer fall apart when pushed
+        fixed crashing in Bridge Building when touching crumbling tiles
+        fixed rare crash with gentleman in explore mode
+        fixed crash when creating a tunnel with 3 sides
+
+    misc:
+        unvisited infinite mode levels are now more likely to appear than visited infinite mode levels
+        improved box collision
+        improved low-precision tunnel rendering
+        Hovering over the song name in Property Edit mode now plays the song
+
+
+V1.21 - December-28-2021
+    bug fixes:
+        fixed ocassional crash when transferring between tunnels of different sets
+        corrected the displayed number of infinite mode levels from 328 to 327
+        fixed errors in selecting a character to enter a tunnel with
+
+    misc:
+        tile editing is less laggy
+        improved angel checklist interactions
+        fixed directionality weirdness when transferring between levels
+
+
+V1.2 - THE VISUAL UPDATE - December-24-2021
+    bug fixes:
+        tunnels made in the editor no longer reset their music to "Travel The Galaxy" every time you load them
+        editing tunnel triggers will no longer crash the level editor (so sorry about this one, that should have been found + fixed waay earlier)
+        Fixed animation timing bug when strafing right on some characters
+        duplicator duplicates will now no longer be seen through tiles
+        Fixed skater + lizard encounters continually showing during their respective cutscenes
+        fixed lighting not working when tunnels were far away in cutscenes
+        Going backwards in infinite mode will no longer add to the meter count
+        Fixed issue with objects not being selected correctly when the map scrolled
+        Fixed falling through various ramps
+        you can no longer activate angelVBunny before completing the going home checklist
+
+    Gameplay:
+        adjusted the postion of the G-tunnel
+        Nerfed the bunny's speed and strafing a little bit from their uncontrollably fast earlier speed.
+        Nerfed the gentleman's grab distance, but the gentleman can now grab powercells across tunnel boundaries.
+        The Lizard is now allowed into part 1 of the memory evaluation tunnel.
+        Buffed the lizard's speed slightly
+        Buffed the skater's jump slightly
+
+    Editor:
+        editor knobs will now show a little pull tab if their path is constrained
+        improved cutscene editing camera
+            controls are different
+            when moving around, but not modifying the camera position, a green indicator shows the position of the true camera.
+        you can now rotate the tile editing camera
+        you can now make cutscenes relative to a tunnel, meaning they will move if the tunnel is moved.
+        Sprite type can now be modified without requiring creation of a new sprite object
+        Sprites won't reset their rotation when you change their frame
+        Added the ability to lock worlds on export to a file
+
+    misc:
+        improved wormhole rendering, especially in corners of the screen
+        improved player rendering, especially in corners of the screen
+        improved low-precision tunnel rendering
+        improved high-precision tunnel rendering
+        the stats page now shows a count of how many times you've died, as well as a count of how many levels you've visited
+
+    misc development:
+        switched from using .keyCode to .key for inputs, as .keyCode is different for firefox.
+        changed editor files to support versioning and cutscene relativity
+
+
+
+
+
+V1.15 - November-16-2021
+    bug fixes:
+        player is no longer reset to runner after every cutscene
+        I accidentally removed the cutscene "Join Us" in the last update! I apologize for the inconvience. It's now back, at the end of A-4.
+        In the editor, loading a level will no longer cause the player to temporarily dissapear during playtesting.
+
+    quality-of-life:
+        the level editor will now detect if you have old run 3 level data and convert it. This can be in the form of kongregate object data or individual level data from player_03's website.
+
+
+V1.14 - November-11-2021
+    bug fixes:
+        entering backwards levels is now more consistient
+        exiting out of a cutscene into challenge mode no longer makes the camera wacky
+        exiting out of a cutscene no longer allows you to play as locked characters
+        there is no longer a phantom child in the cutscene "You Think"
+
+    quality-of-life:
+        holding escape for 5 seconds will now trigger a soft reset of the game, hopefully fixing crashes while keeping all data intact
+        holding alt while moving the camera in cutscene edit mode will now slowly pan it
+        improved audio of Unsafe Speeds and Wormhole to Somewhere
+        you now have the option to halve the framerate of gameplay
+        tunnels you have walked by but not entered now show up on the map
+        Added levels so that A-tunnel now connects to L tunnel, as it should have in the first place
+
+    misc development:
+        cutscene coordinates can now be relative to a tunnel. This makes it easier to move tunnels around (no longer have to re-do the entire cutscene)
+        improved readability in placing of cutscenes
+
+
+V1.13 - October-22-2021
+fixed issue where framerate would double on 120Hz monitors
+
+
+V1.1 - FINAL MAIN RELEASE - June-1-2021

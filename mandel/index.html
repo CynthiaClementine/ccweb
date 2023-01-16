@@ -1,0 +1,259 @@
+<html>
+	<head>
+		<title>Mandelbrot set render! (But cooler)</title>
+		<style>
+			body {
+				background-color: slateblue;
+			}
+
+			#cavo {
+				margin: auto;
+				text-align: center;
+				display: block;
+			}
+			#centerModule {
+				text-align: center;
+				margin: auto;
+				display: block;
+			}
+
+		</style>
+		<script>
+			window.onload = setup;
+			document.onmousedown = handlePress;
+
+			//global variables
+			var scale = 100;
+			var scaleFactor = 1.5;
+			var pixelSize = 1;
+
+			var funcLock = false;
+
+			var xCenter = 0;
+			var yCenter = 0;
+			var cornerCoords = [];
+			var computationLine = 0;
+			var maxIterations = 255;
+			var minIterations = 20;
+
+			//page_animation is the animation handler
+			var page_animation;
+			//number of workers to split the drawing into
+			var numWorkers = 4;
+
+			var performance_log = [];
+
+			var highestI = 0;
+			var secondHighestI = 0;
+
+			var canvas;
+			var ctx;
+
+			var workerStorage = [];
+			var completeStorage = [];
+
+			//setup function
+			function setup() {
+				canvas = document.getElementById("cavo");
+				ctx = canvas.getContext("2d");
+				document.getElementById("zoomRange").oninput = updateScaleFactor;
+				document.getElementById("resolutionRange").oninput = updateResolution;
+				console.log(`allotting ${20 * (canvas.height / pixelSize) / numWorkers}ms for each frame`);
+
+				cornerCoords = [xCenter - (canvas.width / scale) / 2, yCenter - (canvas.height / scale) / 2, xCenter + (canvas.width / scale) / 2, yCenter + (canvas.height / scale) / 2];
+				draw();
+			}
+
+			//drawing function
+			function draw() {
+				//logging highest i value
+				highestI = 0;
+				secondHighestI = 0;
+				performance_log = [performance.now(), 0];
+				startCycle();
+			}
+
+			//starts all the workers up
+			function startCycle() {
+				funcLock = false;
+				//make sure the tracker array is ready
+				completeStorage = new Array(canvas.height / pixelSize).fill(false);
+				var workIndex = 0;
+				var jump = Math.floor((canvas.height / pixelSize) / numWorkers);
+				for (var y=0; y<canvas.height/pixelSize; y+=jump) {
+					//if the worker doesn't exist, create it
+					if (!workerStorage[workIndex]) {
+						workerStorage[workIndex] = new Worker("worker-doLine.js");
+						workerStorage[workIndex].onmessage = continueCycle;
+					}
+					//start the worker up
+					workerStorage[workIndex].postMessage([cornerCoords[0], cornerCoords[1], scale, pixelSize, maxIterations, canvas.width, y, workIndex]);
+					workIndex += 1;
+				}
+			}
+
+			function continueCycle(a) {
+				//grab the object from the worker
+				var dat = a.data;
+
+				//process worker data
+				if (dat.ultI > highestI) {
+					secondHighestI = highestI;
+					highestI = dat.ultI;
+
+					if (dat.penUltI > secondHighestI) {
+						secondHighestI = dat.penUltI;
+					}
+				} else if (dat.ultI > secondHighestI) {
+					secondHighestI = dat.ultI;
+				}
+				
+				
+				//fill out the canvas
+				var y = dat.index * pixelSize;
+				for (var x=0; x<canvas.width/pixelSize; x++) {
+					ctx.fillStyle = dat.arr[x];
+					ctx.fillRect(x * pixelSize, y, pixelSize, pixelSize);
+				}
+
+				//mark this index as completed
+				completeStorage[dat.index] = true;
+
+				//move on to the next index in the parity if necessary
+				if (completeStorage[dat.index+1] == false) {
+					workerStorage[dat.workIndex].postMessage([cornerCoords[0], cornerCoords[1], scale, pixelSize, maxIterations, canvas.width, dat.index+1, dat.workIndex]);
+					return;
+				}
+				
+				//if all the indeces are completed, finalize the cycle
+				if (completeStorage.indexOf(false) == -1) {
+					finalizeCycle();
+					return;
+				}
+			}
+
+			function finalizeCycle() {
+				//make sure weird thread stuff doesn't happen
+				if (funcLock) {
+					return;
+				}
+				funcLock = true;
+				//update position text at the end
+				var text = `(${xCenter}, ${yCenter}, ${(scale / 100).toFixed(3)})`;;
+				document.getElementById("totalPos").innerHTML = text;
+
+				//updating dynamic maxIterations so that computation and accuracy is preserved
+				var updateBy = 20;
+
+				//failsafe in case secondHighestI is 0, just so the mandelbrot set doesn't get stuck in a loop of reducing computation
+				if (secondHighestI == 0) {
+					secondHighestI = highestI;
+				}
+				//as a final failsafe, if highestI is 0, maxIterations will not update. 
+
+				if (highestI != 0) {
+					//update max iterations
+					if (secondHighestI >= maxIterations - 5) {
+						maxIterations = highestI + updateBy;
+					} else if (maxIterations >= secondHighestI) {
+						//if maxIterations is more than 100 above the highest pixel, then reduce maxIterations by 20
+						maxIterations -= updateBy;
+
+						//keep a minimum number of iterations
+						if (maxIterations < minIterations) {
+							maxIterations = minIterations;
+						}
+					}
+				}
+
+				//checking performance
+				performance_log[1] = performance.now();
+				var totalTime = performance_log[1] - performance_log[0];
+				
+				console.log(`rendering took ${Math.round(totalTime)}ms`);
+				updateDownloadImage();
+			}
+
+			function handlePress(v) {
+				//don't allow the user to press if a cycle is going
+				if (completeStorage.indexOf(false) > -1) {
+					console.log('cannot start while a render is going!');
+					return;
+				}
+				canvasArea = canvas.getBoundingClientRect();
+				//getting pixel x and y of mouse
+				var mousePosX = Math.round(v.clientX - canvasArea.left);
+				var mousePosY = Math.round(v.clientY - canvasArea.top);
+
+				//only continue if the coords are inside the canvas
+				var isInside = (mousePosX > 0 && mousePosX < canvas.width) && (mousePosY > 0 && mousePosY < canvas.height);
+
+				if (isInside) {
+					//converting pixel coords to fractal coords
+					mousePosX = (mousePosX / scale) + cornerCoords[0];
+					mousePosY = (mousePosY / scale) + cornerCoords[1];
+					//setting center coords to that
+					xCenter = mousePosX;
+					yCenter = mousePosY;
+					//adjusting scale
+					scale *= scaleFactor;
+					cornerCoords = [xCenter - (canvas.width / scale) / 2, yCenter - (canvas.height / scale) / 2, xCenter + (canvas.width / scale) / 2, yCenter + (canvas.height / scale) / 2];
+					//redrawing
+					draw();
+				}
+			}
+
+			function updateScaleFactor(bb) {
+				//updating value
+				scaleFactor = this.value;
+				//updating text, multiplying by a little more than 1 so that toFixed will work properly
+				document.getElementById("zoomOutput").innerHTML = (scaleFactor * 1.000001).toFixed(1);
+			}
+
+			function updateResolution(bb) {
+				//same as in scale factor function
+				pixelSize = +this.value;
+				console.log(`allotting ${20 * (canvas.height / pixelSize) / numWorkers}ms for each frame`);
+				document.getElementById("resolutionOutput").innerHTML = pixelSize;
+
+				//redraw after a set amount of time
+				setTimeout(draw, 200);
+			}
+
+			function updateDownloadImage() {
+				var url = canvas.toDataURL();
+				pictureLink.href = url;
+			}
+
+			function updateCanvasSize() {
+				try {
+					canvas.width = document.getElementById("xSizeValue").value;
+				} catch (e) {}
+
+				try {
+					canvas.height = document.getElementById("ySizeValue").value;
+				} catch (e) {}
+
+				draw();
+			}
+		</script>
+	</head>
+	<body>
+		<div id="centerModule">
+			<canvas id="cavo" width="640" height="480"></canvas><br>
+			<p>Click to zoom in, and use the elements below to control draw factors</p>
+			<input type="range" min="1" max="5" value="1" class="slider" id="resolutionRange"><br>
+			<p>Current pixel size: <span id="resolutionOutput">1</span></p>
+			<input type="range" min="0.5" max="3" value="1.5" step="0.1" class="slider" id="zoomRange"><br>
+			<p>Current zoom scale multiplier: <span id="zoomOutput">1.5</span></p>
+			<p>Current position in (x, y, zoom): <span id="totalPos">1</span></p>
+
+			<p> 
+				<input type="number" id="xSizeValue" value="640"> x 
+				<input type="number" id="ySizeValue" value="480"> 
+				<button onclick="updateCanvasSize()">Update Canvas Size</button>
+			</p>
+			<a id="pictureLink" download="mandelImage.png">download current drawing as a PNG</a>
+		</div>
+	</body>
+</html>

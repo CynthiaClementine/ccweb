@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Copyright Cynthia Clementine
+Dec-26-2020 -->
+
+<html>
+  <head>
+    <title>space 2d v0.vjkf</title>
+    <meta charset="utf-8">
+    <style>
+      body {
+        background-color: slateblue;
+      }
+      #canvas {
+        border-style: double;
+        border-color: slateblue;
+        margin: auto;
+        display: block;
+      }
+    </style>
+    <script src="../common/functions-color.js"></script>
+    <script src="../common/functions-math.js"></script>
+
+    <script src="functions-shop.js"></script>
+    <script src="functions-drawing.js"></script>
+    <script src="functions-helper.js"></script>
+    <script src="game-states.js"></script>
+    <script src="objects-nonPhysical.js"></script>
+    <script src="objects.js"></script>
+    <script src="systems.js"></script>
+    <script src="main.js"></script>
+  </head>
+  <body>
+    <div>
+      <canvas id="canvas" width="640" height="480">
+      </canvas>
+      <input type="checkbox" id="haveHighResolution" onchange="updateColor"><label for="haveHighResolution">High resolution</label><br>
+      <p>Controls:<br>
+         W A D / arrow keys for ship movement<br>
+         shift / space for camera scale<br>
+         < / > for time scaling, L to reset time to normal<br>
+         M to access map, (within the map, camera can be moved with WASD / arrow keys),<br>
+         and Z to begin<br>
+      </p>
+    </div>
+  </body>
+</html>

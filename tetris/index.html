@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <!--
+            Code copyright Cynthia Clementine, November 2021.
+            This edition is not an official tetris copy.
+            Tetris© ̧copyright 1985, Tetris Holding
+            Game design by Alexey Pajitnov.
+        -->
+        <title>Tetris v1.02</title>
+        <!--fonts-->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Ubuntu&family=VT323&display=swap" rel="stylesheet">
+        <style>
+            body {
+                background-color: slateblue;
+            }
+
+            #cromer {
+                margin: auto;
+                display: block;
+            }
+
+            #centerModule {
+                margin: auto;
+                text-align: center;
+            }
+
+            #downloadBox, #uploadBox {
+                display: none;
+            }
+        </style>
+        <script src="../common/functions-color.js"></script>
+        <script src="../common/functions-math.js"></script>
+        <script src="data.js"></script>
+        <script src="functions-helper.js"></script>
+        <script src="functions-input.js"></script>
+        <script src="functions-ai.js"></script>
+        <script src="main.js"></script>
+        <script src="objects.js"></script>
+    </head>
+    <body>
+        <div id="centerModule">
+            <canvas id="cromer" width="640" height="480"></canvas><br>
+            <a download="tetrisAiPopulation.txt" id="downloadBox">[no peeking]</a>
+            <input type="file" id="uploadBox" onChange="file_import();">
+        </div>
+    </body>
+</html>

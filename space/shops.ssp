@@ -1,0 +1,84 @@
+/*
+CUSTOM SHOP SYNTAX
+¶ - defines the start of a conversation
+§ - defines the start of sections
+† - says to go to a sections
+‹› - a code block
+~~ ~~ - an eval block, will be evaluated and then the result will be displayed
+there's also whitespace syntax in general for lines
+
+line1
+	option1
+	option2
+	option3
+
+if there are no options, moving forwards will simply go to the next line.
+*/
+
+
+
+¶Test
+§start
+Hi! Welcome to my shop, what can I do for you?
+	Buy items†itemList
+	talk†talkList
+	leave‹console.log("leaving");›
+
+§start2
+Welcome back to my shop! How can I help you this time?
+	Buy items†itemList
+	talk†talkList
+	leave‹console.log("leaving");›
+
+§start3
+Anything else?
+	Buy items†itemList
+	talk†talkList
+	leave‹console.log("leaving");›
+
+§itemList
+What are you looking for? You have ~~character.gold~~ coins.
+	fuel
+	hyperdrive
+	item4
+	nevermind†start3
+
+§talkList
+Any topics in mind?
+	no
+	piloting a ship
+	about you
+	the world
+
+§talkNo
+I don't blame you, there's so much going on nowadays. Times are changing! I'll tell you, I'm looking forward to cheap space travel. You've seen the news, right? It's just around the corner.
+Did you see the recent sports ball? You like sports?
+Yeah, I didn't think so. You don't seem like the sportsy type.
+Oh! This is a strange story. So the other day I'm just standing here, y'know, running the shop, as I'm supposed to, and this pal, this frendo, they walk into my shop.
+This person's really sharply dressed, a whole suit, they've got their hair greased up which is strange, because usually people spend multiple days in space, but you would think this
+person hadn't arrived more than a day after leaving. Anyways, this person asks me if I sold hyperdrives, and I do in fact sell hyperdrives, but I had to tell 'em that I was out, they asked 
+when I would get more, but in a very insistent way. They were just a really annoying customer as a whole. Didn't even buy anything else.
+
+§talkPilot
+
+§talkAbout
+
+§talkWorld
+
+
+
+
+¶ArtCollector
+§start
+They said I was crazy. They said an outpost next to a black hole would never work. Well guess who's laughing now?
+Art doesn't have to be permanent. We enter being, we are, we exit being, and y'know, that's ok. 
+
+I just,
+I want to live a million lives. I want to go out and experience the world. I want to create art. I want to impact people. I want to be the vessel through which that beautiful, universal, current of human emotion flows. 
+And I want to feel like myself, and if you bought something from my shop that would really make me feel.
+
+
+
+
+
+Love this, and relate completely.  I was having a go on some vamped Latin changes a million pre-emoji years ago and it was just not happening (bunch of sixth chords.) Cat running the group looks at me and says "too much blue- give me more red." He didn't need to say anything more- next chorus was red as a Spanish sunrise and happy as can be. It worked like a charm.
