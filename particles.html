@@ -1,0 +1,210 @@
+<html>
+    <head>
+        <title>Particles!</title>
+        <style>
+            body {
+                background-color: slateblue;
+            }
+
+            #cavalier {
+                margin: auto;
+                text-align: center;
+                display: block;
+            }
+
+            #centerModule {
+                text-align: center;
+                margin: auto;
+            }
+        </style>
+        <script>
+            window.onload = setup;
+
+            //global variables
+            var canvas;
+            var ctx;
+            var centerX;
+            var centerY;
+            var density = 3000;
+            var numOfParticles;
+            var friction = 0.95;
+
+            //list of all possible colors, I could make this generated but I don't feel like it
+            var possibleColors = ["#888", "#88F", "#8F8", "#8FF", "#F88", "#F8F", "#FF8", "#FFF"];
+            //associations will be the forces that are generated
+            var associations = {};
+
+            let particles = [];
+            let timer;
+
+            //particle class
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.r = 3;
+                    this.dx = Math.random() - 0.5;
+                    this.dy = Math.random() - 0.5;
+                    this.color = this.pickColor();
+
+                    this.sightR = 100;
+                    this.s = 0.6;
+                }
+
+                tick() {
+                    //update position, stay in bounds
+                    this.x += this.dx;
+                    this.y += this.dy;
+
+                    //keeping x/y in bounds
+                    if (this.x > canvas.width || this.x < 0) {
+                        if (this.x < 0) {
+                            this.x = canvas.width;
+                        } else {
+                            this.x = 0;
+                        }
+                    }
+
+                    if (this.y > canvas.height || this.y < 0) {
+                        if (this.y < 0) {
+                            this.y = canvas.height;
+                        } else {
+                            this.y = 0;
+                        }
+                    }
+
+                    //friction
+                    this.dx *= friction;
+                    this.dy *= friction;
+
+                    for (var h=0;h<particles.length;h++) {
+                        if (particles[h] != this) {
+                            //get pythagorean distance to them
+                            var distX = Math.abs(particles[h].x - this.x);
+                            var distY = Math.abs(particles[h].y - this.y);
+                            var totalDist = Math.sqrt((distX * distX) + (distY * distY));
+                        
+                            //if it's less than the sight distance, act based on it
+                            if (totalDist < this.sightR) {
+                                //finding the right force
+                                var force = associations[this.color][particles[h].color];
+                                force *= this.r / totalDist;
+                                
+                                //if a particle sees it's own color, it will end up being NaN, so this corrects for that
+                                if (Number.isNaN(force)) {
+                                    force = 0.2;
+                                }
+                                //if the particle is intersecting with the other, make the force negative
+                                if (totalDist < this.r + particles[h].r) {
+                                    force -= (Math.abs(force) * 2);
+                                }
+
+                                //applying force
+                                this.force(particles[h].x, particles[h].y, force);
+                            }
+                        }
+                    }
+                }
+
+                force(x, y, strength) {
+                    //x and y are where to apply it from. If strength is positive it means go towards force, if it's negative it means go away
+
+                    //get parameters
+                    var xDist = x - this.x;
+                    var yDist = y - this.y;
+                    var angle = Math.atan2(xDist, yDist);
+
+                    //apply force in terms of dx and dy
+                    this.dx += (this.s * strength) * Math.sin(angle);
+                    this.dy += (this.s * strength) * Math.cos(angle);
+                }
+
+                beDrawn() {
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.ellipse(this.x, this.y, this.r, this.r, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                pickColor() {
+                    //this is it's own function because I didn't want to write it in the constructor
+                    var index = Math.floor(Math.random() * possibleColors.length);
+                    return possibleColors[index];
+                }
+            }
+
+            //setup function
+            function setup() {
+                canvas = document.getElementById("cavalier");
+                ctx = canvas.getContext("2d");
+
+                //changing canvas size for window
+                canvas.width = window.innerWidth * 0.8;
+                canvas.height = window.innerHeight * 0.8;
+
+                centerX = canvas.width * 0.5;
+                centerY = canvas.height * 0.5;
+
+                //getting numOfParticles and then generating
+                numOfParticles = (canvas.height * canvas.width) / density;
+                numOfParticles = Math.floor(numOfParticles);
+
+                document.getElementById("partiCount").innerHTML = numOfParticles;
+
+                generateForces();
+                for (var z=0;z<numOfParticles;z++) {
+                    particles.push(new Particle());
+                }
+                timer = setInterval(iterate, 20);
+            }
+
+            function iterate() {
+                //drawing background
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                //drawing and ticking everything
+                for (var n=0;n<particles.length;n++) {
+                    particles[n].tick();
+                    particles[n].beDrawn();
+                }
+            }
+
+            function generateForces() {
+                //iterate over every color
+                for (var a=0;a<possibleColors.length;a++) {
+                    //create a dictionary
+                    var nowColor = possibleColors[a];
+                    var temp = {};
+                    for (var b=0;b<possibleColors.length;b++) {
+                        //into the dictionary put every color except the color picked by a (because a is the color that will use this)
+                        if (b != a) {
+                            var keyColor = possibleColors[b];
+                            //pick random values between -1 and 1 for each color
+                            var strength = (Math.random() - 0.5) * 2;
+                            temp[keyColor] = strength;
+                        }
+                    }
+                    //push the forces dictionary to associations
+                    associations[nowColor] = temp;
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="centerModule">
+        <canvas id="cavalier" width="640" height="480"></canvas><br>
+        <p id="explanText">
+            How does this work?<br>
+            An certain amount of particles that varies based on your screen size (In your case there are <span id="partiCount">[error, number load failed]</span>) <br>
+            are generated in random positions on the canvas, which also scales with your screen.<br>
+
+            Particles have different colors (8 in total), and those colors determine the rules that they follow when being attracted or repelled from other particles. <br>
+            Every color has randomly generated strengths for the other 7 colors, between -1 and 1. The lower the strength, the more repulsed that color will be. <br>
+            For example, red could have a strength of 0.5 for blue, but blue has a strength of -0.5 for red. This would cause red to chase after blue, and blue to run away. <br>
+            All the rules are randomly generated, and change each time you refresh the page. In addition to this force, which gets weaker as the particles get farther away from each other, <br>
+            there is an extra force to stop the particles from intersecting, which works some of the time. Finally, all the particles experience friction, to slow them down over time.<br>
+        </p>
+        </div>
+    </body>
+</html>

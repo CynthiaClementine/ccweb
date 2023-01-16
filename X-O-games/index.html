@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+
+        <title>Peace Games</title>
+        <style>
+
+        body {
+            background-color: #9788f7;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        input {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #9788f7;
+            color: #4A0153;
+        }
+        #terminal {
+            text-align: left;
+            margin-left: 10%;
+            margin-right: 10%;
+            color: #4A0153;
+        }
+        #terminal-input {
+            position:absolute;
+            bottom: 10%;
+            margin-top: auto;
+            border-radius: 2;
+        }
+        #terminal-output {
+            font-size: x-large;
+        }
+        </style>
+    </head>
+    <body>
+        <script src="games.js"></script>
+        <script src="main.js"></script>
+        <div id="terminal">
+            <p><pre id="terminal-output"></pre></p>
+            <p id="terminal-input">-><input type="text" id="terminal-input-true" onsubmit="acceptTextCommand()"></p>
+        </div>
+    </body>
+</html>

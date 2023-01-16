@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+
+    <head>
+        <title>Clementine home page</title>
+
+        <!-- search engine optimization (: -->
+        <meta charset="UTF-8">
+        <meta name="author" content="Cynthia Clementine">
+        <meta name="keywords" content="1994, Cynthia Clementine, website">
+        <style>
+            body {
+                background-color: slateblue;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            #top-text {
+                color: white;
+                font-size: 30px;
+                text-align: center;
+            }
+            #localStorage-text {
+                color: white;
+                font-size: 20px;
+                text-align: center;
+                position: absolute;
+                bottom: 0;
+            }
+
+            #games-list {
+                color: white;
+                font-size: 20px;
+                text-align: center;
+                float: left;
+            }
+
+            #interact-list {
+                color: white;
+                font-size: 20px;
+                text-align: center;
+                float: right;
+            }
+
+            #display-list {
+                color: white;
+                font-size: 20px;
+                text-align: center;
+            }
+
+            a:link {
+                color: purple;
+            }
+
+            a:visited {
+                color: brown;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="top-text">
+            <p>
+                Welcome to Clementine!
+            </p>
+        </div>
+
+        <div id="games-list">
+            <p>
+                <b>Games:</b>
+                <br>
+                <a href="The-ascent.html">The ascent</a><br>
+                <a href="The-ascent-2/The-ascent-2.html">The ascent 2</a><br>
+                <a href="heaven-ascension/index.html">Heaven's price</a><br>
+                <br>
+                <a href="package-parsing.html">Package Parsing</a><br>
+                <a href="present-finder.html">Present Finder</a><br>
+                <a href="simon-says/index.html">Simon Says</a><br>
+                <a href="minimal-flappy.html">Flutter poultry</a><br>
+                <a href="tetris/index.html">Tetris</a><br>
+                <br>
+                <a href="sun-survivor.html">Sun survivor</a><br>
+                <a href="rotate/index.html">Rotate</a><br>
+                <a href="seasonalGrid/index.html">Tile World</a><br>
+                <a href="run-3-clone/index.html">Javascript-based Run 3 remake</a><br>
+                <a href="circles/index.html">Circle System</a><br>
+                <a href="monarchy/index.html">Monarch</a><br>
+                
+            </p>
+        </div>
+
+        <div id="interact-list">
+            <p>
+                <b>Other interactables:</b>
+                <br>
+                <a href="mandelbrot-set.html">Interactive Mandelbrot set</a><br>
+                <a href="maze-generator.html">Square Maze Generator</a><br>
+                <a href="prime-spiral.html">A Plot of Primes in Polar Coordinates</a><br>
+                <a href="run-3-map-visualizer.html">Run 3 Tunnel visualizer</a><br>
+                <a href="monopoly-board.html">Monopoly probability distribution</a><br>
+                <a href="solar-eclipse.html">Solar eclipse visualizer</a><br>
+                <a href="matrix-visualizer.html">Matrix Visualization Helper</a><br>
+                <a href="pascal-triangle.html">Pascal's triangle</a><br>
+                <a href="pain-peko/index.html">Neural Network field coloring</a><br>
+                <br>
+                <a href="raymarch/index.html">Ray marching demo</a><br>
+                <a href="plains/index.html">The Desert</a><br>
+                <a href="X-O-games/index.html">XO games</a><br>
+            </p>
+        </div>
+
+        <div id="display-list">
+            <p>
+                <b>Graphics displays:</b>
+                <br>
+                <a href="lovely-linies.html">1d random walk</a><br>
+                <a href="lovely-linies-2d.html">2d random walk (snakes?)</a><br>
+                <a href="metaballs.html">Metamorph circles</a><br>
+                <a href="particles.html">Particles!</a><br>
+                <a href="cursordance.html">Cursor dance</a><br>
+                <a href="noise/axis-noise.html">2-axis noise generation</a><br>
+                <a href="noise/wave-noise.html">Sine wave noise generation</a><br>
+                <a href="noise/perlin-noise.html">Perlin noise generation</a><br>
+                <br>
+                <a href="spinning-shapes.html">spinning 3d wireframes</a><br>
+                <a href="spinning-shapes-4d.html">spinning 4d wireframes</a><br>
+            </p>
+        </div>
+
+        <!--
+        <div id="extras-list">
+            <p>
+                <b>Extras:</b><br>
+                <a
+
+            </p>
+        </div>-->
+
+        <!--display storage size-->
+        <div id="localStorage-text">
+            <p id="storageNotifier">Persistent storage used: <span id="storageCalculator">[uncalculated]</span>%</p>
+            <p id="storageExtra"></p>
+        </div>
+    </body>
+
+    <script type="text/javascript">
+        //calculate amount of localstorage remaining
+        var size = 0; 
+        Object.keys(window.localStorage).forEach(d => {
+            size += window.localStorage[d].length * 2;
+        });
+         //max is theoretically 5MB, but in testing it's a bit more and I don't want this counter to ever go over 100%
+        var percent = (size / (1048576 * 5.075));
+        var toWrite = "All is well.";
+
+        switch (true) {
+            case (percent > 0.99):
+                toWrite = "Oh dear goodness please just get rid of something, the pages aren't going to be able to save, please I'm begging you";
+                break;
+            case (percent > 0.95):
+                toWrite = "You need to clear some storage. It will be full soon.";
+                break;
+            case (percent > 0.75):
+                toWrite = "You should probably clear some storage.";
+                break;
+            case (percent > 0.5):
+                toWrite = "Hi, just wanted to draw attention to the amount of storage that you have used.";
+                break;
+        }
+
+        document.getElementById("storageCalculator").textContent = percent.toFixed(5);
+        document.getElementById("storageExtra").textContent = toWrite;
+    </script>
+</html>
