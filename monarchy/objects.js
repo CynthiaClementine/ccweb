@@ -269,6 +269,9 @@ class MagicSphere extends Orb {
 		world_entities.forEach(e => {
 			//make sure the entity is actually hittable and isn't the player
 			if (e != player && e.health != undefined && distSquared(e.x - this.x, e.y - this.y) < lifetimeDist) {
+				if (e.constructor.name == "Horse") {
+					console.log(`horse`);
+				}
 				ar.push(e);
 			}
 		});
@@ -994,6 +997,8 @@ class InvisibleTexter extends NPC {
 class Horse extends NPC {
 	constructor(x, y, conversations, id) {
 		super(x, y, 0, daTex.NPCS.yellow, "#834f1b", conversations, id);
+		this.health = 1e1001;
+		this.maxHealth = 1e1001;
 		this.dMax = 0.18;
 		this.r = 2;
 
@@ -1071,16 +1076,16 @@ class Horse extends NPC {
 		if (!isOnScreen(this.x - 2, this.y - 2, 4, 4)) {
 			return;
 		}
+		var coords = spaceToScreen(this.x, this.y);
 
 		if (this.blockA != undefined) {
-			this.textureBlock.draw(coords[0], coords[1], this.blockA, this.r * camera.scale);
+			this.textureBlock.draw(coords[0], coords[1], this.blockA, 2 * this.r * camera.scale);
 			if (this.textureBlock.frame >= this.textureBlock.frames.length - 1) {
 				this.textureBlock.reset();
 				this.blockA = undefined;
 			}
 		}
 
-		var coords = spaceToScreen(this.x, this.y);
 		this.textureActive.draw(coords[0], coords[1], this.a, this.r * camera.scale);
 
 		this.drawConversation();
