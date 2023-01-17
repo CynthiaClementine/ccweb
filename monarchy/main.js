@@ -416,9 +416,11 @@ var entities = [
 			[true, 'witch-intro'],
 			[false, 'witch-outside'],
 			[() => {return data_persistent.wRoom}, 'witch-seenRoom'],
-			[() => {return (data_persistent.pastBoss > 1)}, 'witch-pastQueen']], "spellGiver"),
+			[() => {return (data_persistent.boss > 1)}, 'witch-pastQueen'],
+			[false, 'witch-pastQueen2']], "spellGiver"),
 	new InvisibleTexter(44, 102, 1, 1, [[() => {return player.magicLearned;}, 'witchDoor'], 
 										[() => {return (player.weapon > 0);}, 'witchDoor-weapon']]),
+	new InvisibleTexter(42, 114, 5, 2, 'witchFirewood'),
 	new Tile_Music(44, 102, 1, 0.5, 'witchHouse'),
 	new Tile_Music(43.5, 101.5, 2, 0.5, 'outside'),
 	
@@ -436,6 +438,9 @@ var entities = [
 	new InvisibleTexter(98, 37, 5, 1, 'storageSpices'),
 	new InvisibleTexter(103, 39, 1, 4, 'storageBread'),
 	//castle kitchen
+	new InvisibleTexter(111, 27, 2, 2, 'kitchenBarrel'),
+	new InvisibleTexter(119, 27, 2.5, 1.5, 'kitchenTray'),
+	new InvisibleTexter(108, 25.5, 4, 1.5, 'kitchenFireplace'),
 	new InvisibleTexter(121.5, 32.5, 1.5, 1.5, [[true, 'binChocolate-1'], [false, 'binChocolate-2'], [false, 'binChocolate-3'], [false, 'binChocolate-4']], 'chocolateBin'),
 	
 	//castle hallways
@@ -452,7 +457,7 @@ var entities = [
 	new Gate(134.4, 47.8, 3),
 
 	//castle armory
-	new TileEntity(98.5, 21, 0, daTex.TileEntities.sword, 'swordPickup'),
+	new TileEntity(98.5, 21, 0, daTex.TileEntities.sword, [[true, 'swordPickup'], [() => {return player.magicLearned}, 'swordIgnore']], 'sword'),
 	new NPC(136.4, 48.4, 1.5, daTex.NPCS.yellow, "#c4bd89", 'npcGhost', 'ghost'),
 	new InvisibleTexter(97, 23, 5.5, 2, 'armoryCannon'),
 	new InvisibleTexter(97, 17, 9, 2, 'armoryArmor'),
@@ -1315,7 +1320,7 @@ function handleKeyUp(a) {
 		case 'Down':
 			player.ay = Math.min(player.ay, 0);
 			break;
-		case 'Space':
+		case 'Magic':
 			if (!player.locked) {
 				player.discharge();
 			}

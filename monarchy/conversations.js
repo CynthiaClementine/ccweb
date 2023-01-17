@@ -60,6 +60,11 @@ var data_conversations = {
 		`|EXECUTE~player.changeWeaponTo(2);`,
 		`|PROPERTY~DELETE~true`,
 	],
+	"swordIgnore": [
+		`This is a sword.`,
+		`If you knew how to use a sword,
+		maybe it would be worth collecting.`
+	],
 
 	//guard
 	"guard-noWeapon": [
@@ -313,6 +318,10 @@ var data_conversations = {
 		`.\t\t.\t\t.\t\t.\t\t`,
 		`Ha! Silly old me, spoiling the mood.
 		You run along now! Not much left to do!`,
+		`|UNLOCK`
+	],
+	"witch-pastQueen2": [
+		`Run along now~`
 	],
 	"witchDoor": [
 		`It's locked.`,
@@ -323,6 +332,10 @@ var data_conversations = {
 		`It's locked.`,
 		`There's a sign on the door.`,
 		`"No weapons permitted!"`,
+	],
+	"witchFirewood": [
+		`Chopped wood, most likely intended
+		to be burnt in a fire.`
 	],
 	"a witches diary": [
 		`(This book is written in flowing cursive.)`,
@@ -707,6 +720,20 @@ var data_conversations = {
 		`Bread and cheese.`,
 		`The cheese looks like it's a gift.
 		That's because it's so gouda`
+	],
+
+	"kitchenBarrel": [
+		`This barrel is filled with water.`
+	],
+	"kitchenTray": [
+		`A tray. It's a little dirty,
+		but not too dirty.`,
+		`A reasonable amount of dirty. 
+		Y'know, the amount of dirty that a once used kitchen tray
+		would be if it was half-washed.`
+	],
+	"kitchenFireplace": [
+		`Fireplace`
 	],
 
 

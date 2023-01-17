@@ -92,6 +92,11 @@ function prepareWorld() {
 		}
 	}
 
+	//remove the sword
+	if (depe.weapon > 1) {
+		getEntityFromID("sword").DELETE = true;
+	}
+
 	//witch starting
 	if (depe.magic) {
 		getEntityFromID('spellGiver').conversations[1][0] = true;
