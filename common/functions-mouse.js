@@ -31,7 +31,11 @@ function handleMouseDown(a) {
 function handleMouseDown_custom() {}
 
 function handleMouseMove(a) {
-	updateCursorPos(a);
+	try {
+		updateCursorPos(a);
+	} catch(error) {
+		console.log(`can't update cursor position!`);
+	}
 	handleMouseMove_custom();
 }
 
