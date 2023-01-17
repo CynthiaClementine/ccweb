@@ -256,12 +256,12 @@ var data_conversations = {
 		`,
 		`You should be able to feel the energy all around you.`,
 		`The space, filled with potential.`,
-		`|ACCEPT~down~Space~{
+		`|ACCEPT~down~Magic~{
 			player.charge();
 			player.convoPartner.finishConversationCommand();
 		}`,
 		`Try holding space.`,
-		`|ACCEPT~up~Space~{
+		`|ACCEPT~up~Magic~{
 			player.discharge();
 			player.convoPartner.finishConversationCommand();
 		}`,
