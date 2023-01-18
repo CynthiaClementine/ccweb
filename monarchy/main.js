@@ -333,18 +333,18 @@ var castleHallPoly = [[106.8,21.7],[131,21.7],[131,24.3],[128.3,24.3],[128.2,27.
 [129.3,43.8],[129.3,46.3],[127.3,46.3],[127.3,50.2],[124.8,50.3],[124.7,46.3],[117.3,46.2],[117.3,53.3],[114.7,53.2],[114.7,46.3],[103.7,46.2],[103.7,43.7],[114.7,43.7],[114.7,37.8],
 [117.3,37.7],[117.3,43.8],[124.8,43.8],[124.8,31.8],[149.7,31.7],[149.7,30.3],[125.8,30.2],[125.7,24.3],[106.7,24.3]];
 var world_backgrounds = [
-	new Texture_Terrain(getImage(`img/terrain-1-1.png`), bgts, -80, -60),
-	new Texture_Terrain(getImage(`img/terrain-10.png`), bgts, -80, 0),
-	new Texture_Terrain(getImage(`img/terrain-11.png`), bgts, -80, 60),
+	new Texture_Terrain(getImage(`img/terrain-1-1.png`, true), bgts, -80, -60),
+	new Texture_Terrain(getImage(`img/terrain-10.png`, true), bgts, -80, 0),
+	new Texture_Terrain(getImage(`img/terrain-11.png`, true), bgts, -80, 60),
 	
-	new Texture_Terrain(getImage(`img/terrain0-1.png`), bgts, 0, -60),
-	new Texture_Terrain(getImage(`img/terrain00.png`), bgts, 0, 0),
-	new Texture_Terrain(getImage(`img/terrain01.png`), bgts, 0, 60),
-	new Texture_Terrain(getImage(`img/terrain02.png`), bgts, 0, 120),
+	new Texture_Terrain(getImage(`img/terrain0-1.png`, true), bgts, 0, -60),
+	new Texture_Terrain(getImage(`img/terrain00.png`, true), bgts, 0, 0),
+	new Texture_Terrain(getImage(`img/terrain01.png`, true), bgts, 0, 60),
+	new Texture_Terrain(getImage(`img/terrain02.png`, true), bgts, 0, 120),
 	
 	new Texture_Terrain(wildder, 8, 80, -60),
-	new Texture_Terrain(getImage(`img/terrain10.png`), bgts, 80, 0),
-	new Texture_Terrain(getImage(`img/terrain11.png`), bgts, 80, 60),
+	new Texture_Terrain(getImage(`img/terrain10.png`, true), bgts, 80, 0),
+	new Texture_Terrain(getImage(`img/terrain11.png`, true), bgts, 80, 60),
 ];
 
 var chocolateConvos = [

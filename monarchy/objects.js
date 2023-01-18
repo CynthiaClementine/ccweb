@@ -72,7 +72,7 @@ class AudioChannel {
 	reset() {
 		if (this.playObj != undefined) {
 			this.playObj.currentTime = 0;
-			this.playObj.play();
+			// this.playObj.play();
 		}
 	}
 }
@@ -1977,39 +1977,18 @@ class Texture_Terrain {
 		//width and height in tiles
 		this.w = 0;
 		this.h = 0;
-		
-		this.canvas = document.createElement('canvas');
-		this.ctx = this.canvas.getContext('2d');
-		
-		this.setupDimensions();
-
-		/*
-		canvasDecode = document.createElement('canvas');
-		ctz = canvasDecode.getContext('2d');
-
-		canvasDecode.width = world_backgrounds[1].sheet.width;
-		canvasDecode.height = world_backgrounds[1].sheet.height;
-		for (var g=0; g<world_backgrounds.length; g++) {
-			ctz.drawImage(world_backgrounds[g].sheet, 0, 0);
-		}
-		*/
 	}
 
 	setupDimensions() {
 		if (this.w == 0) {
 			this.w = this.sheet.width / this.scale;
 			this.h = this.sheet.height / this.scale;
-
-			this.canvas.width = this.sheet.width;
-			this.canvas.height = this.sheet.height;
-			this.ctx.drawImage(this.sheet, 0, 0);
 		}
 	}
 
 	draw() {
 		//first make sure image exists
 		this.setupDimensions();
-
 
 
 		//don't draw if not on the screen
@@ -2022,14 +2001,17 @@ class Texture_Terrain {
 		//sx, sy, sWidth, and sHeight are all in img pixel units
 		var sx = (camera.cornerUL[0] - this.x) * this.scale;
 		var sy = (camera.cornerUL[1] - this.y) * this.scale;
-		var sWidth = canvas.width * screenPsheetP;//(canvas.width / camera.scale) * this.scale;
-		var sHeight = canvas.height * screenPsheetP;//(canvas.height / camera.scale) * this.scale;
+		var sWidth = Math.min(canvas.width * screenPsheetP, Math.floor(this.sheet.width - sx));//(canvas.width / camera.scale) * this.scale;
+		var sHeight = Math.min(canvas.height * screenPsheetP, Math.floor(this.sheet.height - sy));//(canvas.height / camera.scale) * this.scale;
 
 		var px = 0;
 		var py = 0;
-		var pWidth = canvas.width;
-		var pHeight = canvas.height;
-		ctx.drawImage(this.canvas, sx, sy, sWidth, sHeight, px, py, pWidth, pHeight);
+		var pWidth = sWidth / screenPsheetP;
+		var pHeight = sHeight / screenPsheetP;
+		if (Math.random() < 0.01) {
+			console.log(sy + sHeight, this.sheet.height);
+		}
+		ctx.drawImage(this.sheet, sx, sy, sWidth, sHeight, px, py, pWidth, pHeight);
 	}
 }
 

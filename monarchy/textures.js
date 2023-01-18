@@ -295,7 +295,7 @@ var data_textures = {
 	Roofs: {
 		//the texture data here is different. Since none of the roofs are animated, there's no animation time or center.
 		//Instead it's just [xPos, yPos], [xSize, ySize]
-		sheet: getImage(`img/roofs.png`),
+		sheet: getImage(`img/roofs.png`, true),
 		tileSize: 60,
 		pHouse: [
 			[0, 0],
