@@ -72,7 +72,7 @@ class AudioChannel {
 	reset() {
 		if (this.playObj != undefined) {
 			this.playObj.currentTime = 0;
-			// this.playObj.play();
+			this.playObj.play();
 		}
 	}
 }
@@ -2008,9 +2008,6 @@ class Texture_Terrain {
 		var py = 0;
 		var pWidth = sWidth / screenPsheetP;
 		var pHeight = sHeight / screenPsheetP;
-		if (Math.random() < 0.01) {
-			console.log(sy + sHeight, this.sheet.height);
-		}
 		ctx.drawImage(this.sheet, sx, sy, sWidth, sHeight, px, py, pWidth, pHeight);
 	}
 }
