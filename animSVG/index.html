@@ -12,9 +12,15 @@ August-23-2021 -->
             body {
                 background-color: slateblue;
             }
-            #c {
-                margin: auto;
+            #base {
+                position: absolute;
+            }
+            #convos {
                 display: block;
+                position: absolute;
+            }
+            #timeline_blocks {
+                overflow-x: scroll;
             }
             .timelineButton {
                 cursor: pointer;
@@ -22,6 +28,7 @@ August-23-2021 -->
                 fill: transparent;
             }
             .timelineText {
+                cursor: text;
                 font: 15px Ubuntu; 
                 fill: #FFFFFF;
                 dominant-baseline: middle;
@@ -34,7 +41,54 @@ August-23-2021 -->
                 -ms-user-select: none;
                 user-select: none;
             }
+
+            /*Top bar dropdown styling*/
+            .dropButton {
+                background-color: #333333;
+                color: white;
+                padding: 2px;
+                font: 16px Ubuntu;
+                border: none;
+            }
+            .dropdown {
+                position: relative;
+                display: inline-block;
+            }
+
+            .dropdownContent {
+                display: none;
+                position: absolute;
+                background-color: #f1f1f1;
+                min-width: 160px;
+                font: 12px Ubuntu;
+                box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+                z-index: 1;
+            }
+
+            .dropdownContent a {
+                color: black;
+                padding: 12px 16px;
+                text-decoration: none;
+                display: block;
+            }
+
+            .dropdownContent a:hover {
+                background-color: #ddd;
+            }
+
+            .dropdown:hover .dropdownContent {
+                display: block;
+            }
+
+            .dropdown:hover .dropButton {
+                background-color: #463646;
+            }
         </style>
+        <!--other people's code-->
+        <script src="CCapture.all.min.js"></script> <!-- https://github.com/spite/ccapture.js -->
+        <script src="ffmpeg.min.js"></script> <!-- https://github.com/ffmpegwasm/ffmpeg.wasm -->
+
+        <!--my common code-->
         <script src="../common/functions-color.js"></script>
         <script src="../common/functions-DOMnode.js"></script>
         <script src="../common/functions-drawing.js"></script>
@@ -43,14 +97,54 @@ August-23-2021 -->
         <script src="../common/functions-2dVector.js"></script>
         <script src="../common/collision-2d.js"></script>
         
+        <!--my app-specific code-->
         <script src="functions-api.js"></script>
         <script src="functions-helper.js"></script>
+        <script src="functions-files.js"></script>
         <script src="functions-drawing.js"></script>
         <script src="objects.js"></script>
         <script src="modes.js"></script>
 		
     </head>
     <body>
+        <div class="dropdown" id="top_file">
+            <button class="dropButton">File</button>
+            <div class="dropdownContent" id="top_file_contents">
+                <a onclick="console.log('hi');">Test 1</a>
+                <a href="#">Test 2</a>
+                <a href="#">Test 3</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_view">
+            <button class="dropButton">View</button>
+            <div class="dropdownContent" id="top_view_contents">
+                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 1.1);">Zoom in</a>
+                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 0.9);">Zoom out</a>
+                <a onclick="zoom(0, 0, 0.5);">Zoom to 50%</a>
+                <a onclick="zoom(0, 0, 1);">Zoom to 100%</a>
+                <a onclick="zoom(0, 0, 2);">Zoom to 200%</a>
+                <a onclick="zoom(0, 0, 4);">Zoom to 400%</a>
+                <a onclick="toggleOnionSkin();">Toggle Onion Skin</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_import">
+            <button class="dropButton">Import (-fin)</button>
+            <div class="dropdownContent" id="top_import_contents">
+                <a href="#">Import image</a>
+                <a href="#">Import video</a>
+                <a href="#">Import audio</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_export">
+            <button class="dropButton">Export</button>
+            <div class="dropdownContent" id="top_export_contents">
+                <a onclick="downloadTimelineAsImage(1080, 'frame.png')">Export current frame as PNG</a>
+                <a onclick="downloadTimelineAsVideo(1080, 'anim.webm')">Export timeline as webm</a>
+            </div>
+        </div>
+
+        <br>
+
         <!-- <div id="outside_container" width="90%" height="90%"> -->
         <svg id="base" xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
             <defs id="globalDefs">
@@ -60,14 +154,14 @@ August-23-2021 -->
                 <clipPath id="MASTER_frameBox">
                     <rect id="MASTER_frameBoxPath" width="10" height="20"/>
                 </clipPath>
-                <rect id="MASTER_frameEmpty" width="10" height="20" stroke="#FFFFFF" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
+                <rect id="MASTER_frameEmpty" width="10" height="20" stroke="#CCCCCC" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
                 <svg id="MASTER_frameEmptyKey" overflow="visible">
-                    <rect width="10" height="20" stroke="#FFFFFF" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
+                    <rect width="10" height="20" stroke="#CCCCCC" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
                     <circle r="3" cx="5" cy="10" stroke-width="0" fill="#000000"/>
                 </svg>
-                <rect id="MASTER_frameFull" width="10" height="20" stroke="#FFFFFF" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
+                <rect id="MASTER_frameFull" width="10" height="20" stroke="#CCCCCC" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
                 <svg id="MASTER_frameFullKey" overflow="visible">
-                    <rect width="10" height="20" stroke="#FFFFFF" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
+                    <rect width="10" height="20" stroke="#CCCCCC" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
                     <circle r="3" cx="5" cy="10" stroke-width="0" fill="#000000"/>
                 </svg>
 
@@ -111,6 +205,22 @@ August-23-2021 -->
                     <rect id="picker_selectorC" x="-2" y="100" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerC');"/>
                     <rect id="picker_selectorD" x="98" y="105" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerD');"/>
                   </svg>
+
+                  <!--Onion skin filters-->
+                  <filter id="onionPast">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="1 1 1 1 0
+                              0 0 0 0 0
+                              0 0 0 0 0
+                              0 0 0 1 0"/>
+                  </filter>
+                  <filter id="onionFuture">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="0 0 0 0 0
+                              0 0 0 0 0
+                              1 1 1 1 0
+                              0 0 0 1 0"/>
+                  </filter>
             </defs>
 
             <rect id="bg" fill="#000000"/>
@@ -168,8 +278,8 @@ August-23-2021 -->
 
             <svg id="settings_container">
             </svg>
-            <!--canvas so ctx is accessible, in case-->
         </svg>
+        <!--canvas so ctx is accessible, in case-->
         <canvas id="convos"></canvas>
         <!-- </div> -->
         <script src="main.js"></script>
