@@ -5,12 +5,69 @@ functions that can accomplish the same tasks as user input, but with the benefit
 
 INDEX
 
+toggleOnionSkin()
+fill(workspaceX, workspaceY)
+makeKeyframe(layerIndex, frame, frameNode)
+makeUnkeyframe(layer, frame)
+
+removeLayer(id)
+select(layer, frame)
+
 */
 
+/**
+ * Toggles the onion skin on or off, and then returns whether the onion skin is newly active
+ * @returns the new onion skin state
+ */
+function toggleOnionSkin() {
+	timeline.onionActive = !timeline.onionActive; 
+	return timeline.onionActive;
+}
+
+/**
+ * Toggles whether the timeline is playing
+ */
+function toggleTimelinePlayback() {
+	if (autoplay == undefined) {
+		//if at the end, go to the start
+		if (timeline.t == timeline.len - 1) {
+			timeline.changeFrameTo(0);
+		}
+		
+		autoplay = window.setInterval(() => {
+			timeline.changeFrameTo(timeline.t + 1);
+			if (timeline.t == timeline.len-1) {
+				handleKeyPress({code: "Enter"})
+			}
+		}, 1000 / timeline.fps);
+	} else {
+		window.clearInterval(autoplay);
+		autoplay = undefined;
+	}
+}
 
 
+/**
+ * Attempts to fill a region with the current fill color that includes the specified X and Y. Will start with the currently selected layer and then try fill layers top to bottom.
+ * 
+ * @param {Number} workspaceX the X, in workspace coordinates, to fill at
+ * @param {Number} workspaceY the Y, in workspace coordinates, to fill at
+ * @returns {Boolean} whether the operation succeeded or not
+ */
 function fill(workspaceX, workspaceY) {
+	var layers = timeline.layerIDs.slice(0);
+	//prioritize the selected layer
+	var selected = layers[timeline.s];
+	layers.splice(timeline.s, 1);
+	layers.splice(0, 0, selected);
 
+	//try to fill each layer and go with the first one that succeeds
+	for (var k=0; k<layers.length; k++) {
+		if (timeline.l[layers[k]][timeline.t].fill(workspaceX, workspaceY)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function findLoops(pathObj) {
@@ -25,15 +82,15 @@ function findLoops(pathObj) {
  */
  function makeKeyframe(layerIndex, frame, frameNode) {
 	timeline.makeInvisible();
+	console.log(layerIndex, frame, frameNode);
 
 	var layerID = timeline.layerIDs[layerIndex];
 	//first create the new layer object
 	var arrRef = timeline.l[layerID];
 	var oldObj = arrRef[frame];
-	var newObj = (frameNode == undefined) ? layer_create(createUid()) : layer_copy(frameNode);
+	var newObj = (frameNode == undefined) ? frame_create(createUid(), layerID) : frame_copy(frameNode, layerID);
 	var frameID = φGet(newObj, 'uid');
 
-	document.getElementById(`layer_${layerID}`).appendChild(newObj);
 	var theBin = document.getElementById(`layer_${layerID}_group`);
 	
 	//move forwards, replacing all the timeline blocks and array references
@@ -58,30 +115,64 @@ function findLoops(pathObj) {
  * @param {Number} frame The frame which is being converted to a non-keyframe
  */
 function makeUnKeyframe(layer, frame) {
-	//don't do it if the frame is the first one
-	if (frame == 0) {
-		return;
-	}
-
 	layer = timeline.layerIDs[layer];
+	var isFirst = (frame == 0);
 	var arrRef = timeline.l[layer];
 	var readObj = arrRef[frame];
-	var writeObj = arrRef[frame-1];
+	//if the frame's 0 there's no previous frame and one must be created
+	var writeObj = isFirst ? frame_create(createUid(), layer) : arrRef[frame-1];
 	var writeID = φGet(writeObj, 'uid');
 	var theBin = document.getElementById(`layer_${layer}_group`);
 
 	//find the next spot where a keyframe is, replacing the layers and timeline blocks along the way
 	
 	var nextKeyIndex = frame;
+
+	//if it's the very first frame, removing the keyframe still leaves a keyframe
+	if (isFirst) {
+		φSet(theBin.children[`layer_${layer}_frame_${nextKeyIndex}`], {'href': `#MASTER_layerKey_${writeID}`});
+		arrRef[nextKeyIndex] = writeObj;
+		nextKeyIndex += 1;
+	}
+
+	//all the other removed frames will always be set to non-keys
 	while (arrRef[nextKeyIndex] == readObj) {
 		φSet(theBin.children[`layer_${layer}_frame_${nextKeyIndex}`], {'href': `#MASTER_layer_${writeID}`});
 		arrRef[nextKeyIndex] = writeObj;
 		nextKeyIndex += 1;
 	}
 
-	//delete that frame from the workspace
+	//delete the removed frame from the workspace
 	var layerObj = workspace_permanent.children[`layer_${layer}`];
 	layerObj.removeChild(readObj);
+}
+
+/**
+ * 
+ * @param {String} id The ID of the layer to remove. IDs are always an x followed by one or more letters.
+ */
+ function removeLayer(id) {
+	console.log(`removing ${id}`)
+	timeline.makeInvisible();
+	//move timeline objects afterwards to fill the gap
+	var moveH = -(timeline_blockH + 1);
+	var startIndex = timeline.layerIDs.indexOf(id);
+	for (var v=startIndex; v<timeline.layerIDs.length; v++) {
+		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_group`), {'y': moveH});
+		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_text`), {'y': moveH});
+	}
+
+	//remove all the frame objects
+	workspace_permanent.removeChild(document.getElementById(`layer_${id}`));
+
+	//remove the timeline objects
+	timeline_blocks.removeChild(document.getElementById(`layer_${id}_group`));
+	timeline_text_container.removeChild(document.getElementById(`layer_${id}_text`));
+
+	//remove from the timeline object
+	delete timeline.l[id];
+	timeline.layerIDs.splice(startIndex, 1);
+	timeline.makeVisible();
 }
 
 /**
