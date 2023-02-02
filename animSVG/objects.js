@@ -14,7 +14,8 @@ class Timeline {
 		this.layerIDs = [];
 		this.names = {};
 		this.layerDisplayTop = 0;
-		this.onionBounds = [0, 0];
+		this.onionBounds = [1, 1];
+		this.onionActive = false;
 		
 		//t is the time in frames the timeline is at
 		this.t = 0;
@@ -44,22 +45,49 @@ class Timeline {
 		this.makeVisible();
 	}
 
-	makeInvisible() {
-		var counter = "";
+	setPropertiesForTime(t, propertyObj) {
 		for (var f=this.layerIDs.length-1; f>-1; f--) {
-			φSet(this.l[this.layerIDs[f]][this.t], {'display': 'none'});
-			counter += this.l[this.layerIDs[f]][this.t].id + ", ";
+			φSet(this.l[this.layerIDs[f]][t], propertyObj);
 		}
-		console.log(`${counter} invisible`);
+	}
+
+	makeInvisible() {
+		var min = Math.max(this.t - (this.onionActive * this.onionBounds[0]), 0);
+		var max = Math.min(this.t + (this.onionActive * this.onionBounds[1]), this.len-1);
+
+		for (var f=min; f<=max; f++) {
+			this.setPropertiesForTime(f, {'display': "none"});
+		}
 	}
 
 	makeVisible() {
-		var counter = "";
-		for (var f=this.layerIDs.length-1; f>-1; f--) {
-			φSet(this.l[this.layerIDs[f]][this.t], {'display': 'inline-block'});
-			counter += this.l[this.layerIDs[f]][this.t].id + ", ";
+		//if no onion skin just do present and be done
+		if (!this.onionActive) {
+			this.setPropertiesForTime(this.t, {'display': "inline-block", 'filter': undefined, 'opacity': 1});
+			return;
 		}
-		console.log(`${counter} visible`);
+		
+		//past onion
+		for (var f=Math.min(this.onionBounds[0]+1, this.t); f>0; f--) {
+			this.setPropertiesForTime(this.t - f, {
+				'display': "inline-block", 
+				'filter': "url(#onionPast)",
+				'opacity': 0.8 * (1 - f / this.onionBounds[0])
+			});
+		}
+		
+		var maxF = Math.min(this.onionBounds[1]+1, this.len - 1 - this.t);
+		
+		//future onion
+		for (var f=maxF-1; f>0; f--) {
+			this.setPropertiesForTime(this.t + f, {
+				'display': "inline-block", 
+				'filter': "url(#onionFuture)",
+				'opacity': 0.8 * (1 - f / this.onionBounds[1])
+			});
+		}
+		//present
+		this.setPropertiesForTime(this.t, {'display': "inline-block", 'filter': undefined, 'opacity': 1});
 	}
 
 	togglePlayback() {
