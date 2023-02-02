@@ -14,6 +14,7 @@ window.addEventListener("wheel", handleWheel, {passive: false});
 
 //misc
 window.onresize = handleResize;
+window.onbeforeunload = handleUnload;
 
 //the storage for interval event during timeline playback 
 var autoplay;
@@ -59,7 +60,21 @@ var cursor = {
 
 var debug_active = false;
 
+//changes required to get to the present time
+var editDeltas = [];
+//changes required to get to the past
+var editInverseDeltas = [];
+var editDeltasMax = 100;
+
+var ends = {};
 var starts = {};
+
+var fps_limitMin = 1;
+//I figure 100 is a good max number, you can't really see any individual frame less than 10ms anyways, but 144 divides better so that's the limit
+var fps_limitMax = 144;
+
+//the decimal point to quantize to
+var quantizeTo = 1;
 
 var timer;
 var timeline = new Timeline();
@@ -172,11 +187,7 @@ function testTimeline() {
 		[363,306],[356,287],[341,269],[335,265],[321,265],[315,268],[309,274],[304,282],[304,285],[297,298],[288,308],[262,323],[258,324],[253,325],[229,324],[223,319],[222,315],[219,313],[218,310],
 		[205,300],[197,287],[190,283],[174,283],[168,290],[166,294],[166,299]]);
 	polyCollider = potrace([[166,299],[162,306],[159,318],[159,362],[167,383],[175,394],[185,403],[213,414],[233,418],[257,419],[293,412],[311,406],[329,397],[344,385],[350,378],[355,368],
-		[360,353],[363,338],[363,306],[356,287],[341,269],[335,265],[321,265],[315,268],[309,274],[304,282],[304,285],[297,298],[288,308],[262,323],[258,324],[253,325],[229,324],[223,319],[222,315],[219,313],[218,310],[205,300],[197,287],[190,283],[174,283],[168,290],[166,294],[166,299]])
-	polyHandler = window.setInterval(() => {
-		var workspaceArea = workspace_background.getBoundingClientRect();
-		console.log(inCurvedPoly([cursor.x - workspaceArea.left, cursor.y - workspaceArea.top], polyCollider));
-	}, 50);
+		[360,353],[363,338],[363,306],[356,287],[341,269],[335,265],[321,265],[315,268],[309,274],[304,282],[304,285],[297,298],[288,308],[262,323],[258,324],[253,325],[229,324],[223,319],[222,315],[219,313],[218,310],[205,300],[197,287],[190,283],[174,283],[168,290],[166,294],[166,299]]);
 
 }
 
@@ -198,6 +209,15 @@ function handleKeyPress(a) {
 	}
 
 	switch (a.code) {
+		//letter hotkeys
+		case "KeyO":
+			toggleOnionSkin();
+			return;
+		case "KeyZ":
+			if (button_command || button_control) {
+
+			}
+			return;
 		//changing frame
 		case "ArrowLeft":
 			timeline.changeFrameTo(timeline.t - 1);
@@ -212,22 +232,7 @@ function handleKeyPress(a) {
 			return;
 		case "Enter":
 			//toggle timeline playback
-			if (autoplay == undefined) {
-				//if at the end, go to the start
-				if (timeline.t == timeline.len - 1) {
-					timeline.changeFrameTo(0);
-				}
-				
-				autoplay = window.setInterval(() => {
-					timeline.changeFrameTo(timeline.t + 1);
-					if (timeline.t == timeline.len-1) {
-						handleKeyPress({code: "Enter"})
-					}
-				}, 1000 / timeline.fps);
-			} else {
-				window.clearInterval(autoplay);
-				autoplay = undefined;
-			}
+			toggleTimelinePlayback();
 			return;
 		case "Digit1":
 			var identify = timeline.layerIDs[timeline.s];
@@ -293,9 +298,6 @@ function handleKeyRelease(a) {
 }
 
 function handleMouseDown(a) {
-	window.setTimeout(() => {
-		console.log(cursor.downType);
-	}, 30);
 	cursor.down = true;
 	cursor.x = a.clientX;
 	cursor.y = a.clientY;
@@ -309,6 +311,7 @@ function handleMouseDown(a) {
 	//use element to decide the type of being down
 	cursor.downType = undefined;
 	if (!φOver(base)) {
+		console.log('returning');
 		return;
 	}
 
@@ -316,6 +319,11 @@ function handleMouseDown(a) {
 	//this method makes sure that the user can resize the timeline when they think they can
 	if (a.target.id == "timeline_edge_detector") {
 		cursor.downType = "timeEdge";
+		return;
+	}
+
+	if (a.target.id == "timeline_extender") {
+		cursor.downType = "timeExtend";
 		return;
 	}
 
@@ -345,9 +353,13 @@ function handleMouseDown(a) {
 		//change selection
 		select(newH, newW);
 		cursor.downType = "timeBlockzone";
+		return;
 	}
 	if (φOver(timeline_container)) {
 		cursor.downType = "time";
+		return;
+	}
+	if (φOver(sidebar_container)) {
 		return;
 	}
 
@@ -357,13 +369,8 @@ function handleMouseDown(a) {
 		return;
 	}
 
-
-
-	if (φOver(workspace_container)) {
-		toolCurrent.mouseDown(a);
-		cursor.downType = "work";
-		return;
-	}
+	cursor.downType = "work";
+	toolCurrent.mouseDown(a);
 }
 
 function handleMouseMove(a) {
@@ -407,6 +414,13 @@ function handleMouseMove(a) {
 				resizeTimeline(box.width, box.height);
 				resizeSidebar(box.width, box.height);
 				break;
+			case "timeExtend":
+				var xRel = cursorRelativeTo(timeline_extender)[0] - 3;
+				if (Math.abs(xRel) > timeline_blockW) {
+					var extraFrames = Math.round(xRel / timeline_blockW);
+					changeAnimationLength(clamp(timeline.len + extraFrames, 1, 1e1001));
+				}
+				break;
 			case "timePlayhead":
 				updatePlayheadPosition();
 				break;
@@ -415,7 +429,6 @@ function handleMouseMove(a) {
 			case "work":
 				toolCurrent.mouseMove(a);
 				break;
-
 			case "pickerAB":
 				var box = sidebar_colorPicker.getBoundingClientRect();
 				var cx = (cursor.x - box.x) / box.width;
@@ -440,7 +453,6 @@ function handleMouseMove(a) {
 				break;
 			default:
 				console.log(`unknown down type: ${cursor.downType}`);
-
 		}
 	}
 }
@@ -489,6 +501,15 @@ function handleMouseUp(a) {
 function handleResize(a) {
 	var spaceW = window.innerWidth * 0.96;
 	var spaceH = window.innerHeight * 0.95;
+	
+	resizeWorkspace(spaceW, spaceH);
+	resizeTimeline(spaceW, spaceH);
+	resizeSidebar(spaceW, spaceH);
+
+	clampWorkspace();
+}
+
+function resizeWorkspace(spaceW, spaceH) {
 	φSet(bg, {
 		'width': spaceW,
 		'height': spaceH
@@ -498,12 +519,6 @@ function handleResize(a) {
 		'height': spaceH,
 		'viewBox': `0 0 ${spaceW} ${spaceH}`,
 	});
-
-	//timeline
-	resizeTimeline(spaceW, spaceH);
-	resizeSidebar(spaceW, spaceH);
-
-	clampWorkspace();
 }
 
 function handleWheel(a) {
@@ -539,17 +554,24 @@ function resizeTimeline(spaceW, spaceH) {
 		'width': spaceW,
 		'height': timeH,
 	});
-	φSet(timeline_edge, {
-		'x2': spaceW,
-	});
 	φSet(timeline_edge_detector, {
 		'width': spaceW,
-		'height': tol,
-		'y': -tol / 3,
 	});
 	φSet(timeline_playhead, {
 		'height': timeH
 	});
+}
+
+function updateTimelineExtender() {
+	//always set it to the end of the timeline, with the height of the number of layers
+	φSet(timeline_extender, {
+		'x': (timeline_blockW + 1) * (timeline.len + 0.5),
+		'height': (timeline_blockH + 1) * timeline.layerIDs.length
+	});
+}
+
+function resizeSidebar(spaceW, spaceH) {
+
 }
 
 function cursorTimelinePos() {
@@ -565,4 +587,10 @@ function updatePlayheadPosition() {
 	if (hoverPos[0] != timeline.t) {
 		select(timeline.s, hoverPos[0]);
 	}
+}
+
+function handleUnload(e) {
+	//in the unlikely event that a browser is being used which allows custom escape messages
+	(e || window.event).returnValue = `Are you sure you want to exit? You may have unsaved changes.`;
+	return `Are you sure you want to exit? You may have unsaved changes.`;
 }
