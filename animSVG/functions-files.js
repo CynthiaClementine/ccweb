@@ -15,19 +15,19 @@ function copyStyles(destinationNode, sourceNode) {
 	}
 }
 
-function downloadImage(imgURI, fileName) {
+function downloadData(URI, fileName) {
 	var evt = new MouseEvent("click", {
 		view: window,
 		bubbles: false,
 		cancelable: true
 	});
-	var a = document.createElement("a");
-	φSet(a, {
+	var link = document.createElement("a");
+	φSet(link, {
 		'download': fileName,
-		'href': imgURI,
+		'href': URI,
 		'target': '_blank'
 	});
-	a.dispatchEvent(evt);
+	link.dispatchEvent(evt);
 }
 
 /**
@@ -53,29 +53,20 @@ function downloadTimelineAsImage(imageHeight, fileName) {
 
 	//turn the svg into image data
 	var data = new XMLSerializer().serializeToString(workspace_container);
-	var DOMURL = window.URL || window.webkitURL || window;
 	var img = new Image();
 	var svgBlob = new Blob([data], {type: "image/svg+xml;charset=utf-8"});
-	var url = DOMURL.createObjectURL(svgBlob);
+	var url = URL.createObjectURL(svgBlob);
 	
 	//draw image to canvas then download
+	img.src = url;
 	img.onload = () => {
-		console.log(bbox, img.width, img.height);
 		ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas.width / scaling, canvas.height / scaling);
-		DOMURL.revokeObjectURL(url);
-		if (typeof navigator !== "undefined" && navigator.msSaveOrOpenBlob) {
-			var blob = canvas.msToBlob();
-			navigator.msSaveOrOpenBlob(blob, fileName);
-		} else {
-			var imgURI = canvas.toDataURL("image/png");
-			downloadImage(imgURI, fileName);
-		}
-		document.removeChild(canvas);
+		URL.revokeObjectURL(url);
+		downloadData(canvas.toDataURL("image/png"), fileName);
+		// document.removeChild(canvas);
 		//let it be visible again
 	};
-	img.src = url;
 	φSet(workspace_background, {"stroke": "#FFFFFF"});
-
 }
 
 /**
@@ -92,34 +83,91 @@ function downloadTimelineAsVideo(videoHeight, fileName) {
 	timeline.onionActive = false;
 	timeline.changeFrameTo(0);
 	φSet(workspace_background, {"stroke": "none"});
-	var fixFunc = () => {
-		timeline.changeFrameTo(saveTime);
-		timeline.onionActive = saveOnion;
-		φSet(workspace_background, {"stroke": "#FFFFFF"});
-	}
-
+	
 	//canvas
 	var svgFrom = workspace_container;
 	var vidCanvas = document.createElement("canvas");
 	var vtx = vidCanvas.getContext("2d");
-	var [w, h] = φGet(svgFrom, ["width", "height"]);
+	var [w, h, scaling] = φGet(svgFrom, ["width", "height", "scaling"]);
 	var scaleFactor = videoHeight / h;
 	vidCanvas.width = w * scaleFactor;
 	vidCanvas.height = videoHeight;
-	var stream = vidCanvas.captureStream(0);
+	var recorder = new CCapture({
+		name: fileName,
+		format: 'webm',
+		framerate: timeline.fps,
+	});
+
 	var frames = [];
+	var framesToLoad = timeline.len;
+	//make sure the frame array is already long enough (for optimization)
+	frames[timeline.len-1] = undefined;
 
-	// stream.addTrack(audioTrack)	Add audio track here
+	
+	//this function has to go in here because it makes reference to local variables
+	var finishVideo = () => {
+		//append each frame to the video
+		recorder.start();
+		for (var b=0; b<timeline.len; b++) {
+			vtx.drawImage(frames[b], 0, 0, frames[b].width, frames[b].height, 0, 0, vidCanvas.width / scaling, vidCanvas.height / scaling);
+			recorder.capture(vidCanvas);
+		}
+		recorder.stop();
+		recorder.save();
 
+		//undo workspace + timeline changes
+		timeline.changeFrameTo(saveTime);
+		timeline.onionActive = saveOnion;
+		φSet(workspace_background, {"stroke": "#FFFFFF"});
 
-	//split the rendering up into parts executed by a function
-	//that way it can give progress updates
-	var renderFrame = (t) => {
-		
+		//yoink from ffmpeg docs
+		// const {createFFmpeg, fetchFile} = FFmpeg;
+		// const ffmpeg = createFFmpeg({ log: true });
+		// const transcode = async ({target: {files}}) => {
+		// 	const {name} = files[0];
+		// 	await ffmpeg.load();
+		// 	ffmpeg.FS('writeFile', name, await fetchFile(files[0]));
+		// 	await ffmpeg.run('-i', name, `${fileName}.mp4`);
+		// 	const data = ffmpeg.FS('readFile', `${fileName}.mp4`);
+		// 	const video = document.getElementById('player');
+		// 	video.src = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+		// }
+		// transcode()
+		// document.getElementById('uploader').addEventListener('change', transcode);
 	}
 
 
+	//svg setup
+
+	//split the rendering up into parts executed by a function
+	//that way it can give progress updates
+	var DOMURL = window.URL || window.webkitURL || window;
+	var setupFrame = (t) => {
+		timeline.changeFrameTo(t);
+		var data = new XMLSerializer().serializeToString(svgFrom);
+		var img = new Image();
+		var svgBlob = new Blob([data], {type: "image/svg+xml;charset=utf-8"});
+		var url = DOMURL.createObjectURL(svgBlob);
+		img.src = url;
+		
+		//draw image to canvas then download
+		img.onload = () => {
+			frames[t] = img;
+			framesToLoad -= 1;
+			console.log(framesToLoad);
+			if (framesToLoad <= 0) {
+				finishVideo();
+			}
+		};
+	}
+
+	for (var b=0; b<timeline.len; b++) {
+		setupFrame(b);
+	}
+}
 
 
-	//fix
+
+function video_renderFrame(t, svgFrom, drawCanvas, scaling, ) {
+
 }
