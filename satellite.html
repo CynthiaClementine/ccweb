@@ -1,0 +1,62 @@
+<html>
+    <head>
+        <title>Particles!</title>
+        <style>
+            body {
+                background-color: slateblue;
+            }
+
+            #cavalier {
+                margin: auto;
+                text-align: center;
+                display: block;
+            }
+
+            #centerModule {
+                text-align: center;
+                margin: auto;
+            }
+        </style>
+        <script src="../common/functions-coordinate.js"></script>
+        <script src="../common/functions-math.js"></script>
+        <script>
+            window.onload = setup;
+
+            //global variables
+            var canvas;
+            var ctx;
+            var centerX;
+            var centerY;
+
+            var earthColor = "#000088";
+
+
+            //setup function
+            function setup() {
+                canvas = document.getElementById("caviar");
+                ctx = canvas.getContext("2d");
+
+                //changing canvas size for window
+                canvas.width = window.innerWidth * 0.8;
+                canvas.height = window.innerHeight * 0.8;
+
+                centerX = canvas.width * 0.5;
+                centerY = canvas.height * 0.5;
+
+                generateForces();
+                for (var z=0;z<numOfParticles;z++) {
+                    particles.push(new Particle());
+                }
+                timer = setInterval(iterate, 20);
+            }
+        </script>
+    </head>
+    <body>
+        <div id="centerModule">
+        <canvas id="caviar" width="640" height="480"></canvas><br>
+        <p id="explanText">
+            How does this work?<br>
+        </p>
+        </div>
+    </body>
+</html>
