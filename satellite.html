@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Satellite!</title>
+		<title>Space Space Space Space</title>
 		<style>
 			body {
 				background-color: slateblue;
@@ -29,7 +29,7 @@
 			var centerY;
 
 
-			var cameraDist = 45000000;
+			var cameraDist = 450000000;
 			var camera = {
 				x: 0,
 				y: 0,
@@ -37,16 +37,21 @@
 				theta: 0,
 				phi: 0,
 				rot: 0,
-				scale: 1200,
+				scale: 2200,
 
 				dt: 0,
 				dp: 0,
 			};
 
 			var colorEarth = "#45f6ff";
+			var colorEarthBack = "#11959C";
 			var colorGround = "#ffd500";
-			var colorSat = "#fbd1ff";
 			var colorLink = "#0afa16";
+			var colorMoon = "#DDCCCC";
+			var colorOverlay = "#FFFFFF";
+			var colorRing = "#888888";
+			var colorSat = "#fbd1ff";
+			var colorStar = "#FFFCE9";
 
 			//seconds per frame
 			var dt = 30;
@@ -57,34 +62,100 @@
 			//earth's rotational period, in seconds
 			var earthPeriod = 23 * 60*60 + 56 * 60 + 4.09;
 			var earthMarkPos = [0, 0, 0];
-			var earthRingNum = 21;
+			var earthRingNum = 25;
+			var earthPolyPoints = 20;
+
+			var graphVar = "none";
+			var graph = [];
+			var graphMargin = 0.01;
+			var graphYMin = 1e1001;
+			var graphYMax = 0;
+			var graphTime = earthPeriod;
+			var graphTimeMoon = graphTime * 30;
+			var graphWidth = 0.34;
+			var graphHeight = 0.35;
+			var graphFrameWidth = 0.24;
 			
 			var gravityConstant = 6.6743E-11;
 
-			//orbit presets are in the format [satellite position, satellite velocity, ground position]
+			var moonRadius = 1737400;
+			var moonRingNum = 8;
+			var moonPolyPoints = 12;
+
+			var rectRadius = 5;
+
+			//orbit presets are in the format [satellite position, satellite velocity, ground position, camera scale, camera distance]
 			var orbitPresets = {
 				"ISS-WASH": [
 					polToCart(0, 0, earthRadius + 408000),
 					polToCart(Math.PI / 2, radians(51.65), 7660),
 					// polToCart(Math.PI / 2, 0, 7660),
-					polToCart(radians(77.0369), radians(38.9072), earthRadius)
+					polToCart(radians(77.0369), radians(38.9072), earthRadius),
+					1200,
+					3.6E7
+				],
+				"GEO-EQTR": [
+					polToCart(0, 0, earthRadius + 35786000),
+					polToCart(Math.PI / 2, 0, -3078),
+					polToCart(0, 0, earthRadius),
+					1000,
+					9E7
+				],
+				"GES-EQTR": [
+					polToCart(0, 0, earthRadius + 35786000),
+					//I have no idea why this velocity needs to be different but here we are
+					polToCart(Math.PI / 2, radians(15), -3078),
+					polToCart(0, 0, earthRadius),
+					1000,
+					9E7
+				],
+				"POL-ALSK": [
+					polToCart(0, 0, earthRadius + 830000),
+					polToCart(0, Math.PI / 2, 7450),
+					polToCart(radians(147.72), radians(64.8401), earthRadius),
+					1200,
+					3.6E7
+				],
+				"MON-PARS": [
+					polToCart(0, radians(5.145), earthRadius + 362600000),
+					polToCart(Math.PI / 2, 0, 1068),
+					polToCart(radians(2.3522), radians(48.8566), earthRadius),
+					400,
+					4.275E8
 				]
 			}
 		
 			var satPos = [0, 0, 0];
 			var satVel = [0, 0, 0];
 			var satFOV = radians(45);
+			var satMinDist;
+
+			//navigational star list, courtesy of wikipedia
+			var stars = [
+				[358,29],[354,-42],[350,56],[349,-18],[336,-57],[328,23],[316,-40],[316,4],[309,50],
+				[291,16],[282,-8],[281,46],[279,6],[279,29],[276,-1],[271,7],[264,-53],[259,-17],[256,-29],[245,5],[244,28],[234,-59],[223,-43],[222,-70],[218,-9],[208,12],
+				[194,62],[183,15],[176,-17],[174,-63],[172,-57],[167,56],[159,-11],[153,49],[149,-60],[149,-36],[140,-61],[146,19],[138,-16],[137,74],[127,27],[113,-26],[108,-69],[103,-16],
+				[97,-37],[96,13],[91,51],[84,-34],[81,39],[76,-26],[63,9],[54,-57],[50,45],[34,10],[28,-47],[16,-30],[14,15],
+				[319,89] //polaris!
+			];
+
+			stars = stars.map(s => polToCart(radians(s[0]), radians(s[1]), cameraDist));
 
 			var timer;
+			var timestamp = 0;
 
 			//setup function
 			function setup() {
 				canvas = document.getElementById("caviar");
 				ctx = canvas.getContext("2d");
-
+				ctx.lineWidth = Math.floor(canvas.height / 200);
+				ctx.lineJoin = "round";
 				
 				centerX = canvas.width * 0.5;
 				centerY = canvas.height * 0.5;
+
+				displayFOV.innerHTML = sliderFOV.value;
+				displayTime.innerHTML = sliderTime.value;
 				
 				loadPreset("ISS-WASH");
 				timer = window.requestAnimationFrame(main);
@@ -96,28 +167,103 @@
 				timer = window.requestAnimationFrame(main);
 			}
 
-			//the earth is located at 0,0,0, so gravity strength is just proportional to distance
-			function gravitate(x, y, z) {
-				var dist = Math.sqrt(x*x + y*y + z*z);
-				var g = (gravityConstant * earthMass) / (dist*dist);
-				//g pulls towards the center, so it now must be converted into a vector
+			//determines whether a point is visible from the satellite or not
+			function pointIsVisible(point, changeTheWorld) {
+				//first transform the point to the satellite's POV
+				var satNormal = cartToPol(satPos[0], satPos[1], satPos[2]);
+				satNormal[0] = Math.PI - satNormal[0];
+				satNormal[1] = -satNormal[1];
 
-				console.log(dist, g);
+				//if following the satellite, move the camera
+				if (changeTheWorld && satTrackCheck.checked) {
+					camera.theta = satNormal[0];
+					camera.phi = -satNormal[1];
+					syncCameraPos();
+				}
 
-				return [-x / dist * g, -y / dist * g, -z / dist * g];
+				var pRel = spaceToRelative(point, satPos, [satNormal[0], -satNormal[1]]);
+				var pRelMagni = Math.hypot(...pRel);
+
+				//graphing distance
+				if (changeTheWorld && graphVar == "distance") {
+					graph.push([timestamp, pRelMagni]);
+				}
+
+				//if the point is outside of the field of view, discount it
+				var perpDist = Math.hypot(pRel[0], pRel[1]);
+				var angleToPoint = Math.atan(perpDist / pRel[2]);
+				var degrees = (angleToPoint / Math.PI) * 180;
+				if (degrees > 180) {
+					degrees = 360 - degrees;
+				}
+				if (changeTheWorld && graphVar == "angle") {
+					graph.push([timestamp, degrees]);
+				}
+				if (degrees > satFOV) {
+					return false;
+				}
+
+				//move towards the point
+				var pointVec = [
+					(point[0] - satPos[0]) / pRelMagni,
+					(point[1] - satPos[1]) / pRelMagni,
+					(point[2] - satPos[2]) / pRelMagni,
+				];
+				var movePoint = [...satPos];
+				var completionTolerance = 10;
+				var distTolerance = 1;
+				var moveTolerance;
+				var iter = 100;
+				//if the movement point is ever inside the ground, the point is unreachable
+				while (iter > 0) {
+					moveTolerance = Math.hypot(movePoint[0], movePoint[1], movePoint[2]) - earthRadius;
+					if (moveTolerance < 0) {
+						return false;
+					}
+
+					moveTolerance = Math.max(moveTolerance, 1);
+
+					//move
+					movePoint[0] += pointVec[0] * moveTolerance;
+					movePoint[1] += pointVec[1] * moveTolerance;
+					movePoint[2] += pointVec[2] * moveTolerance;
+
+					//if the movement point is close enough to the target, return
+					if (Math.hypot(movePoint[0] - point[0], movePoint[1] - point[1], movePoint[2] - point[2]) < completionTolerance) {
+						return true;
+					}
+					iter -= 1;
+				}
+				return false;
 			}
 
 			function tick() {
-				//move satellite
-				satPos[0] += satVel[0] * dt;
-				satPos[1] += satVel[1] * dt;
-				satPos[2] += satVel[2] * dt;
+				//remove graph points that are too old
+				if (graph.length > 0) {
+					var acceptableTime = (orbitSelection.value == "MON-PARS") ? graphTimeMoon : graphTime;
+					while (graph.length > 0 && graph[0][0] + acceptableTime < timestamp) {
+						graph.splice(0, 1);
+					}
+				}
 
+				//to be precise, the satellite will only ever move 10 steps forwards. This means when dt > 10 it needs to be split
+				var allottedDt = dt;
+				var subAmount;
+				while (allottedDt > 0) {
+					subAmount = Math.min(10, allottedDt);
+					//move satellite
+					satPos[0] += satVel[0] * subAmount;
+					satPos[1] += satVel[1] * subAmount;
+					satPos[2] += satVel[2] * subAmount;
+	
+	
+					var gravVec = gravitate(...satPos);
+					satVel[0] += gravVec[0] * subAmount;
+					satVel[1] += gravVec[1] * subAmount;
+					satVel[2] += gravVec[2] * subAmount;
 
-				var gravVec = gravitate(...satPos);
-				satVel[0] += gravVec[0] * dt;
-				satVel[1] += gravVec[1] * dt;
-				satVel[2] += gravVec[2] * dt;
+					allottedDt -= subAmount;
+				}
 
 				//rotate the earth
 				[earthMarkPos[0], earthMarkPos[2]] = rotate(earthMarkPos[0], earthMarkPos[2], (2 * Math.PI / earthPeriod) * dt);
@@ -128,10 +274,26 @@
 				camera.theta += camera.dt * 0.01;
 				camera.phi = clamp(camera.phi + camera.dp * 0.01, -Math.PI * 0.5, Math.PI * 0.5);
 
-				[camera.x, camera.y, camera.z] = polToCart(-camera.theta, -camera.phi, -cameraDist);
+				syncCameraPos();
+
+				timestamp += dt;
 			}
 
+			//I know this function is too long but at this point it doesn't matter - the project's not going to be expanded
 			function draw() {
+				//background
+				ctx.fillStyle = "#000";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				ctx.fillStyle = colorStar;
+				stars.forEach(s => {
+					ctx.beginPath();
+					ctx.arc(...spaceToScreen(s), 4, 0, Math.PI * 2);
+					ctx.fill();
+				});
+
+				var camPos = [camera.x, camera.y, camera.z];
+				var camNorm = [camera.theta, camera.phi];
 				//to make the drawing layer correctly, some objects need to be binned behind the earth and some need to be binned in front of the earth. 
 				//Which objects these are exactly depends on their z-position
 				//so my solution is to calculate everything's z position, bin that, and then draw the bins
@@ -140,55 +302,203 @@
 				var backBin = [];
 				var frontBin = [];
 
+				//ground-sat connection
+				var ring1, ring2;
+				var visible = pointIsVisible(earthMarkPos, true);
+				if (graphVar != "none") {
+					graph[graph.length-1][2] = visible;
+				}
+				if (visible) {
+					ring1 = spaceToRelative(earthMarkPos, camPos, camNorm);
+					ring2 = spaceToRelative(satPos, camPos, camNorm);
+					((ring1[2] > cameraDist || ring2[2] > cameraDist) ? backBin : frontBin).push([...relativeToScreen(ring1), ...relativeToScreen(ring2), colorLink]);
+				}
+
 				//ground waypoint position
-				// var spaceToRelative()
+				var groundCPos = spaceToRelative(earthMarkPos, camPos, camNorm);
+				((groundCPos[2] > cameraDist) ? backBin : frontBin).push([...relativeToScreen(groundCPos), colorGround]);
 
 				//satellite ring
-				
-				//satellite position
+				var steps = 100;
+				var stop = false;
+				var futureSPos = [...satPos];
+				var futureSPos2 = [];
+				var futureSVel = [...satVel];
+				while (steps > 0 && !stop) {
+					//take a time step forwards
+					futureSPos2 = [
+						futureSPos[0] + futureSVel[0] * dt,
+						futureSPos[1] + futureSVel[1] * dt,
+						futureSPos[2] + futureSVel[2] * dt,
+					];
 
+					var grav = gravitate(futureSPos2[0], futureSPos2[1], futureSPos2[2]);
+					futureSVel[0] += grav[0] * dt;
+					futureSVel[1] += grav[1] * dt;
+					futureSVel[2] += grav[2] * dt;
 
+					//generate ring segment
+					ring1 = spaceToRelative(futureSPos, camPos, camNorm);
+					ring2 = spaceToRelative(futureSPos2, camPos, camNorm);
+					((ring1[2] > cameraDist || ring2[2] > cameraDist) ? backBin : frontBin).push([...relativeToScreen(ring1), ...relativeToScreen(ring2), colorRing]);
 
-				//background
-				ctx.fillStyle = "#000";
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
+					//finish and prepare for the next step
+					steps -= 1;
+					futureSPos = futureSPos2;
+				}
+
+				//satellite location
+				var phiPerRing;
+				if (orbitSelection.value == "MON-PARS") {
+					var isBack = spaceToRelative(satPos, camPos, camNorm)[2] > cameraDist;
+					phiPerRing = Math.PI / moonRingNum;
+
+					for (var r=1; r<moonRingNum; r++) {
+						var pos;
+						var pastPos = polToCart(0, (Math.PI / -2) + r * phiPerRing, moonRadius);
+						pastPos = spaceToScreen([pastPos[0] + satPos[0], pastPos[1] + satPos[1], pastPos[2] + satPos[2]]);
+						for (var s=1; s<=moonPolyPoints; s++) {
+							pos = polToCart(Math.PI * s * 2 / moonPolyPoints, (Math.PI / -2) + r * phiPerRing, moonRadius);
+							pos = spaceToScreen([pos[0] + satPos[0], pos[1] + satPos[1], pos[2] + satPos[2]]);
+							(isBack ? backBin : frontBin).push([...pastPos, ...pos, colorMoon]);
+							pastPos = pos;
+						}
+					}
+				} else {
+					var satCPos = spaceToRelative(satPos, camPos, camNorm);
+					((satCPos[2] > cameraDist) ? backBin : frontBin).push([...relativeToScreen(satCPos), colorSat]);
+				}
+
+				//sort the earth's lines
+				phiPerRing = Math.PI / earthRingNum;
+
+				for (var r=1; r<earthRingNum; r++) {
+					var pos;
+					var pastPos = spaceToRelative(polToCart(0, (Math.PI / -2) + r * phiPerRing, earthRadius), camPos, camNorm);
+					for (var s=1; s<=earthPolyPoints; s++) {
+						pos = spaceToRelative(polToCart(Math.PI * s * 2 / earthPolyPoints, (Math.PI / -2) + r * phiPerRing, earthRadius), camPos, camNorm);
+						if (pos[2] > cameraDist || pastPos[2] > cameraDist) {
+							backBin.push([...relativeToScreen(pastPos), ...relativeToScreen(pos), colorEarthBack]);
+						} else {
+							frontBin.splice(0, 0, [...relativeToScreen(pastPos), ...relativeToScreen(pos), colorEarth]);
+						}
+						pastPos = pos;
+					}
+				}
 
 
 				//draw all pre-earth objects
-				
-				//draw the earth, with all its rings
-				ctx.fillStyle = colorEarth;
-				ctx.strokeStyle = colorEarth;
-				var phiPerRing = Math.PI / earthRingNum;
-				var sidePos;
-				var midPos;
-				var backPos;
+				ctx.beginPath();
+				drawBin(backBin);
+				ctx.stroke();
 
-				for (var r=0; r<earthRingNum; r++) {
-					ctx.beginPath();
-					var pos;
-					for (var s=0; s<=20; s++) {
-						pos = polToCart(Math.PI * s * 2 / 20, (Math.PI / -2) + r * phiPerRing, earthRadius);
-						pos = spaceToScreen(pos);
-						ctx.lineTo(pos[0], pos[1]);
+				//post-earth objects
+				drawBin(frontBin);
+
+				//the graph
+				if (graphVar != "none") {
+					drawGraph();
+				}
+			}
+
+			function drawBin(bin) {
+				for (var m=0; m<bin.length; m++) {
+					if (bin[m].length == 3) {
+						ctx.fillStyle = bin[m][2];
+						ctx.fillRect(bin[m][0] - rectRadius, bin[m][1] - rectRadius, rectRadius * 2, rectRadius * 2);
+					} else {
+						ctx.beginPath();
+						ctx.strokeStyle = bin[m][4];
+						ctx.moveTo(bin[m][0], bin[m][1]);
+						ctx.lineTo(bin[m][2], bin[m][3]);
+						ctx.stroke();
 					}
+				}
+			}
 
+			function drawGraph() {
+				//establish drawing coordinates
+				var mg = graphMargin * canvas.height;
+				var gPW = graphWidth * canvas.width;
+				var gPH = graphHeight * canvas.height;
+				var gx = 0;
+				var gy = canvas.height;
+				var gFW = graphFrameWidth * canvas.width;
+				var gFH = gPH - mg * 4;
 
-					// ctx.ellipse(midPos[0], midPos[1], Math.abs(sidePos[0] - midPos[0]), Math.abs(backPos[1] - midPos[1]), 0, 0, Math.PI * 2);
-					ctx.stroke();
+				var frameX = gPW - mg - gFW;
+				var frameY = gy - (mg * 2);
+
+				//update the bounds of the graph - 
+				//since the graph is drawn every frame, only the most recent data points need to be processed
+				//I'm doing length-5 just to be safe though 
+				for (var h=Math.max(graph.length - 5, 0); h<graph.length; h++) {
+					graphYMax = Math.max(graphYMax, graph[h][1] * 1.05);
+					graphYMin = Math.min(graphYMin, graph[h][1] * 0.95);
 				}
 
-				//draw the earth's highlighted location
-				var pos = spaceToScreen(earthMarkPos);
-				ctx.fillStyle = colorGround;
-				ctx.fillRect(pos[0] - 2, pos[1] - 2, 4, 4);
+				//actual drawing uwu
+				var timeMax = (orbitSelection.value == "MON-PARS") ? graphTimeMoon : graphTime;
+				var timeScale = timeMax / gFW;
+				var varScale = (graphYMax - graphYMin) / gFH;
 
-				//draw the satellite ring
+				ctx.strokeStyle = colorOverlay;
+				ctx.fillStyle = colorOverlay;
+				//axes + text
+				ctx.beginPath();
+				ctx.moveTo(frameX, frameY - gFH);
+				ctx.lineTo(frameX, frameY);
+				ctx.lineTo(frameX + gFW, frameY);
+				ctx.stroke();
 
-				//draw the satellite
-				pos = spaceToScreen(satPos);
-				ctx.fillStyle = colorSat;
-				ctx.fillRect(pos[0] - 2, pos[1] - 2, 4, 4);
+				var dists = [graphYMax, graphYMin];
+
+				if (graphVar == "distance") {
+					//distance processing
+					dists = dists.map(a => (a / 1000).toPrecision(4) + " km");
+				} else {
+					dists = dists.map(a => a.toPrecision(4) + "°");
+					//angle processing
+				}
+
+				ctx.font = `${canvas.height / 50}px Ubuntu`;
+				ctx.textAlign = "right";
+				ctx.fillText(dists[0], frameX, frameY - gFH);
+				ctx.fillText(dists[1], frameX, frameY);
+				
+				ctx.textAlign = "center";
+				ctx.fillText(`0`, frameX + gFW, frameY + (canvas.height / 50));
+				ctx.fillText((orbitSelection.value == "MON-PARS") ? `-30 days` : `-24 hours`, frameX, frameY + (canvas.height / 50));
+
+				//data portion
+				var colorBlocked = "#F00";
+
+				ctx.strokeStyle = graph[0][2] ? colorLink : colorBlocked;
+				ctx.beginPath();
+				var pastPoint = [];
+				for (var x=0; x<graph.length; x++) {
+					//if the color is changing, finish the line and start a new one
+					if (x > 0 && graph[x][2] != graph[x-1][2]) {
+						ctx.stroke();
+						ctx.beginPath();
+						ctx.moveTo(pastPoint[0], pastPoint[1]);
+						ctx.strokeStyle = graph[x][2] ? colorLink : colorBlocked;
+					}
+
+					pastPoint = [frameX + gFW + (graph[x][0] - timestamp) / timeScale, frameY - (graph[x][1] - graphYMin) / varScale];
+					ctx.lineTo(pastPoint[0], pastPoint[1]);
+				}
+				ctx.stroke();
+
+			}
+
+			//the earth is located at 0,0,0, so gravity strength is just proportional to distance
+			function gravitate(x, y, z) {
+				var dist = Math.sqrt(x*x + y*y + z*z);
+				var g = (gravityConstant * earthMass) / (dist*dist);
+				//g pulls towards the center, so it now must be converted into a vector
+
+				return [-x / dist * g, -y / dist * g, -z / dist * g];
 			}
 
 			function loadPreset(preset) {
@@ -198,12 +508,21 @@
 				satPos = orbDat[0];
 				satVel = orbDat[1];
 				earthMarkPos = orbDat[2];
+				camera.scale = orbDat[3];
+				cameraDist = orbDat[4];
+				syncCameraPos();
 
-				console.log(satPos, gravitate(...satPos));
+				graphYMin = 1e1001;
+				graphYMax = 0;
+				graph = [];
 			}
 
 			function radians(degree) {
 				return degree * Math.PI / 180;
+			}
+
+			function syncCameraPos() {
+				[camera.x, camera.y, camera.z] = polToCart(-camera.theta, -camera.phi, -cameraDist);
 			}
 
 			//takes a point in relative camera coords and puts it on the screen
@@ -212,14 +531,14 @@
 				if (tCoords[2] < 0) {
 					return [NaN, NaN];
 				}
-				tCoords[0] /= tCoords[2];
-				tCoords[1] /= tCoords[2];
+				var x = tCoords[0] / tCoords[2];
+				var y = tCoords[1] / tCoords[2];
 
-				tCoords[0] *= camera.scale;
-				tCoords[1] *= -1 * camera.scale;
+				x *= camera.scale;
+				y *= -1 * camera.scale;
 
 				//account for screen coordinates and return
-				return [tCoords[0] + canvas.width / 2, tCoords[1] + canvas.height / 2];
+				return [x + canvas.width / 2, y + canvas.height / 2];
 			}
 
 			function spaceToRelative(pointToChange, point, normal) {
@@ -270,14 +589,50 @@
 						break;
 				}
 			}
+
+			function updateFOV() {
+				satFOV = +sliderFOV.value;
+				displayFOV.innerHTML = sliderFOV.value;
+			}
+
+			function updateDt() {
+				dt = +sliderTime.value;
+				displayTime.innerHTML = sliderTime.value;
+			}
+
+			function setGraph(val) {
+				graphVar = val;
+				graphYMin = 1e1001;
+				graphYMax = 0;
+				graph = [];
+			}
 		</script>
 	</head>
 	<body>
 		<div id="centerModule">
 		<canvas id="caviar" width="1280" height="960"></canvas><br>
-		<p id="explanText">
-			How does this work?<br>
+		<input type="checkbox" id="satTrackCheck"><label for="satTrackCheck">Track the Satellite's position</label>
+		<p>
+			Satellite FOV: <span id="displayFOV">[num]</span><br>
+			<input type="range" min="1" max="180" value="45" class="slider" id="sliderFOV" oninput="updateFOV()"></input><br>
+			Timescale: <span id="displayTime">[num]</span><br>
+			<input type="range" min="1" max="180" value="30" class="slider" id="sliderTime" oninput="updateDt()"></input><br>
 		</p>
+		<label for="orbitSelection">Choose an orbit preset:</label>
+		<select id="orbitSelection" onchange="loadPreset(orbitSelection.value);">
+			<option value="ISS-WASH">the International Space Station communicating with Washington D.C.</option>
+			<option value="GEO-EQTR">a Geostationary Satellite</option>
+			<option value="GES-EQTR">a Geosynchronous Satellite</option>
+			<option value="POL-ALSK">a polar satellite communicating with a station in Alaska</option>
+			<option value="MON-PARS">the Moon and Paris</option>
+		</select>
+		<label for="graphSelection">graphing</label>
+		<select id="graphSelection" onchange="setGraph(graphSelection.value);">
+			<option value="none">none</option>
+			<option value="distance">distance to the ground point</option>
+			<option value="angle">angle to the ground point</option>
+		</select>
+		<p>The arrow keys can be used to pan the camera.</p>
 		</div>
 	</body>
 </html>
