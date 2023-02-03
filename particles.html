@@ -77,30 +77,43 @@
                     this.dx *= friction;
                     this.dy *= friction;
 
-                    for (var h=0;h<particles.length;h++) {
+                    var calcX, calcY, distX, distY, totalDist, force;
+
+                    //square sightR for faster checking
+                    var sightRSquared = this.sightR * this.sightR;
+                    for (var h=0; h<particles.length; h++) {
                         if (particles[h] != this) {
                             //get pythagorean distance to them
-                            var distX = Math.abs(particles[h].x - this.x);
-                            var distY = Math.abs(particles[h].y - this.y);
-                            var totalDist = Math.sqrt((distX * distX) + (distY * distY));
+                            calcX = particles[h].x;
+                            calcY = particles[h].y;
+                            distX = Math.abs(particles[h].x - this.x);
+                            distY = Math.abs(particles[h].y - this.y);
+
+                            //wrap screen
+                            if (distX > canvas.width - this.sightR) {
+                                distX -= canvas.width;
+                                calcX += boolToSigned(calcX < canvas.width * 0.5) * canvas.width;
+                            }
+                            if (distY > canvas.height - this.sightR) {
+                                distY -= canvas.height;
+                                calcY += boolToSigned(calcY < canvas.height * 0.5) * canvas.height;
+                            }
+                            totalDist = (distX * distX) + (distY * distY);
                         
                             //if it's less than the sight distance, act based on it
-                            if (totalDist < this.sightR) {
+                            if (totalDist < sightRSquared) {
+                                //now need to do the square root
+                                totalDist = Math.sqrt(totalDist);
                                 //finding the right force
-                                var force = associations[this.color][particles[h].color];
-                                force *= this.r / totalDist;
+                                force = associations[this.color][particles[h].color] * this.r / totalDist;
                                 
-                                //if a particle sees it's own color, it will end up being NaN, so this corrects for that
-                                if (Number.isNaN(force)) {
-                                    force = 0.2;
-                                }
                                 //if the particle is intersecting with the other, make the force negative
-                                if (totalDist < this.r + particles[h].r) {
-                                    force -= (Math.abs(force) * 2);
+                                if (totalDist < this.r + particles[h].r && force > 0) {
+                                    force = -force;
                                 }
 
                                 //applying force
-                                this.force(particles[h].x, particles[h].y, force);
+                                this.force(calcX, calcY, force);
                             }
                         }
                     }
@@ -158,6 +171,10 @@
                 timer = setInterval(iterate, 20);
             }
 
+            function boolToSigned(val) {
+                return val * 2 - 1;
+            }
+
             function iterate() {
                 //drawing background
                 ctx.fillStyle = "#000000";
@@ -183,6 +200,9 @@
                             //pick random values between -1 and 1 for each color
                             var strength = (Math.random() - 0.5) * 2;
                             temp[keyColor] = strength;
+                        } else {
+                            //every color attracts itself with a force of 0.2
+                            temp[possibleColors[b]] = 0.2;
                         }
                     }
                     //push the forces dictionary to associations
