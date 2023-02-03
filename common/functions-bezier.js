@@ -6,8 +6,9 @@ requires:
 	functions-math.js
 
 
-	
+lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1)
 pointBezierIntersect(p1, bezp0, bezc0, bezc1, bezp1, halfTolerance)
+inCurvedPoly(xyPoint, polyLines)
 bezierBounds(p0, c0, c1, p1)
 bezierPointFromT(p0, c0, c1, p1, t)
 quadraticPointFromT(p0, c, p1, t)
@@ -17,9 +18,35 @@ bezierSplit(p0, c0, c1, p1, percentage)
 
 */
 //Says whether a line segment and a bezier curve intersect
-function lineBezierIntersect(linp1, linp2, bezp1, bezp2, bezc1, bezc2) {
+function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1) {
+	var tolerance = 0.04;
 	//rotate the line and curve together so the line is always directly on the +x axis
-	var lineAngle = Math.atan2(linp2[1] - linp1[1], linp2[0] - linp1[0])
+	var lineAngle = Math.atan2(linp2[1] - linp1[1], linp2[0] - linp1[0]);
+	bezp0 = rotate(bezp0[0] - linp1[0], bezp0[1] - linp1[1], -lineAngle);
+	bezc0 = rotate(bezc0[0] - linp1[0], bezc0[1] - linp1[1], -lineAngle);
+	bezc1 = rotate(bezc1[0] - linp1[0], bezc1[1] - linp1[1], -lineAngle);
+	bezp1 = rotate(bezp1[0] - linp1[0], bezp1[1] - linp1[1], -lineAngle);
+	linp2 = rotate(linp2[0] - linp1[0], linp2[1] - linp1[1], -lineAngle);
+	linp2[0] += tolerance;
+
+	console.log(bezp0, bezc0, bezc1, bezp1, linp2);
+
+	//the bezier curve can only intersect the line if the rotated curve intersects the x-axis
+	var polyCoefs = coefficientsForBezier(bezp0[1], bezc0[1], bezc1[1], bezp1[1]);
+	var intercepts = rootsCubic(polyCoefs[0], polyCoefs[1], polyCoefs[2], polyCoefs[3], tolerance, 0, 1);
+	console.log(intercepts);
+	if (intercepts.length == 0) {
+		return false;
+	}
+
+	//check if the intersection(s) happen anywhere the line is
+	var xList = intercepts.map(t => bezierPointFromT(bezp0, bezc0, bezc1, bezp1, t)[0]);
+	for (var k=0; k<xList.length; k++) {
+		if (xList[k] < linp2[0] && xList[k] > -tolerance) {
+			return true;
+		}
+	}
+	return false;
 }
 
 //says whether a point intersects the bezier, with some tolerance
@@ -44,23 +71,6 @@ function pointBezierIntersect(p1, bezp0, bezc0, bezc1, bezp1, halfTolerance) {
 	return pointBezierIntersect(p1, slices[0][0], slices[0][1], slices[0][2], slices[0][3], halfTolerance) || 
 			pointBezierIntersect(p1, slices[1][0], slices[1][1], slices[1][2], slices[1][3], halfTolerance);
 }
-
-//like inPoly, but works on polygons with some or all curved lines
-//if the line has 2 points, it will be assumed to be straight. If it instead has 4 points, it will be assumed to be a bezier curve
-// function inCurvedPoly(xyPoint, polyLines) {
-// 	var polyPath = new Path2D();
-// 	var linP2 = [xyPoint[0] + 1e7, xyPoint[1]];
-// 	var intersectNum = 0;
-
-// 	for (var a=0; a<polyLines.length; a++) {
-// 		//len 2 is just a regular line
-// 		intersectNum += (polyLines[a].length == 2) ? 
-// 			lineIntersect(polyLines[a][0], polyLines[a][1], xyPoint, linP2) : 
-// 			lineBezierIntersect(xyPoint, linP2, polyLines[a][0], polyLines[a][1], polyLines[a][2], polyLines[a][3]);
-// 	}
-
-// 	return (intersectNum % 2 == 1);
-// }
 
 function inCurvedPoly(xyPoint, polyLines) {
 	ctx.beginPath();
@@ -93,6 +103,15 @@ function bezierPointFromT(p0, c0, c1, p1, t) {
 		p0[0] * (-t*t*t + 3*t*t - 3*t + 1) + c0[0] * 3*(t*t*t - 2*t*t + t) + c1[0] * 3*(-t*t*t + t*t) + p1[0] * (t*t*t),
 		p0[1] * (-t*t*t + 3*t*t - 3*t + 1) + c0[1] * 3*(t*t*t - 2*t*t + t) + c1[1] * 3*(-t*t*t + t*t) + p1[1] * (t*t*t),
 	]
+}
+
+//given a set of cubic bezier numbers, returns the equation coefficients that make those points
+function coefficientsForBezier(x0, c0, c1, x1) {
+	return [x1 - x0 + 3*c0 - 3*c1, 3*c1 + 3*x0 - 6*c0, 3*c0 - 3*x0, x0];
+}
+
+function quadraticBounds(p0, c, p1) {
+
 }
 
 //given 3 points of a quadratic curve / t value, gives the point on the curve corresponding to the t valuez
@@ -163,8 +182,8 @@ function bezierMinMax(p0, x1, y1, x2, y2, x3, y3) {
 	yvalues.push(p0[1],y3);
 
 	return [
-		[Math.min.apply(0, xvalues), Math.min.apply(0, yvalues)],
-		[Math.max.apply(0, xvalues), Math.max.apply(0, yvalues)]
+		[Math.min(...xvalues), Math.min(...yvalues)],
+		[Math.max(...xvalues), Math.max(...yvalues)]
 	];
 }
 
