@@ -161,7 +161,6 @@ function rootsCubic(a, b, c, d, tolerance, rangeMin, rangeMax) {
 	}
 	
 	//if they're on opposite sides of the line, there's certainly a zero in between somewhere
-	console.log(rangeMin, middleX, rangeMax);
 	return [].concat(rootsCubic(a, b, c, d, tolerance, rangeMin, middleX), rootsCubic(a, b, c, d, tolerance, middleX, rangeMax));
 }
 
