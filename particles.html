@@ -25,9 +25,16 @@
             var ctx;
             var centerX;
             var centerY;
-            var density = 3000;
+            var density = 2000;
             var numOfParticles;
             var friction = 0.95;
+            var sightR = 100;
+            var binSize = sightR;
+            var particleBins = [];
+            var binOffsets = [[0,0], [-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]];
+            var drawFramerate = false;
+            var frameTimes = [];
+            var frameTimesMax = 30;
 
             //list of all possible colors, I could make this generated but I don't feel like it
             var possibleColors = ["#888", "#88F", "#8F8", "#8FF", "#F88", "#F8F", "#FF8", "#FFF"];
@@ -51,50 +58,76 @@
                     this.s = 0.6;
                 }
 
-                tick() {
+                calculateBin() {
+                    //returns which bin self is inside
+                    return [Math.floor(this.x / binSize), Math.floor(this.y / binSize)];
+                }
+
+                move() {
                     //update position, stay in bounds
+                    var bin1 = this.calculateBin();
                     this.x += this.dx;
                     this.y += this.dy;
 
                     //keeping x/y in bounds
-                    if (this.x > canvas.width || this.x < 0) {
+                    if (this.x > canvas.width - 1 || this.x < 0) {
                         if (this.x < 0) {
-                            this.x = canvas.width;
+                            this.x = canvas.width - 1;
                         } else {
                             this.x = 0;
                         }
                     }
 
-                    if (this.y > canvas.height || this.y < 0) {
+                    if (this.y > canvas.height - 1 || this.y < 0) {
                         if (this.y < 0) {
-                            this.y = canvas.height;
+                            this.y = canvas.height - 1;
                         } else {
                             this.y = 0;
                         }
                     }
 
+                    //if the bin's changed, resolve that conflict
+                    var bin2 = this.calculateBin();
+                    if (bin1[0] != bin2[0] || bin1[1] != bin2[1]) {
+                        particleBins[bin1[0]][bin1[1]].splice(particleBins[bin1[0]][bin1[1]].indexOf(this), 1);
+                        particleBins[bin2[0]][bin2[1]].push(this);
+                    }
+                }
+
+                tick() {
                     //friction
                     this.dx *= friction;
                     this.dy *= friction;
 
-                    var calcX, calcY, distX, distY, totalDist, force;
+                    var binLoc = this.calculateBin();
 
+                    //tick with all nearby bins
+                    this.tickForParticlesList(particles);
+                    // for (var o=-1; o<=1; o++) {
+                    //     for (var p=-1; p<=1; p++) {
+                    //         this.tickForParticlesList(particleBins[modulate(binLoc[0] + o, particleBins.length)][modulate(binLoc[1] + p, particleBins[0].length)]);
+                    //     }
+                    // }
+                }
+
+                tickForParticlesList(list) {
                     //square sightR for faster checking
-                    var sightRSquared = this.sightR * this.sightR;
-                    for (var h=0; h<particles.length; h++) {
-                        if (particles[h] != this) {
+                    var sightRSquared = sightR * sightR;
+                    var calcX, calcY, distX, distY, totalDist, force;
+                    for (var h=0; h<list.length; h++) {
+                        if (list[h] != this) {
                             //get pythagorean distance to them
-                            calcX = particles[h].x;
-                            calcY = particles[h].y;
-                            distX = Math.abs(particles[h].x - this.x);
-                            distY = Math.abs(particles[h].y - this.y);
+                            calcX = list[h].x;
+                            calcY = list[h].y;
+                            distX = Math.abs(list[h].x - this.x);
+                            distY = Math.abs(list[h].y - this.y);
 
                             //wrap screen
-                            if (distX > canvas.width - this.sightR) {
+                            if (distX > canvas.width - sightR) {
                                 distX -= canvas.width;
                                 calcX += boolToSigned(calcX < canvas.width * 0.5) * canvas.width;
                             }
-                            if (distY > canvas.height - this.sightR) {
+                            if (distY > canvas.height - sightR) {
                                 distY -= canvas.height;
                                 calcY += boolToSigned(calcY < canvas.height * 0.5) * canvas.height;
                             }
@@ -102,13 +135,17 @@
                         
                             //if it's less than the sight distance, act based on it
                             if (totalDist < sightRSquared) {
+                                if (totalDist == 0) {
+                                    console.log("distance problems");
+                                    totalDist = 0.1;
+                                }
                                 //now need to do the square root
                                 totalDist = Math.sqrt(totalDist);
                                 //finding the right force
-                                force = associations[this.color][particles[h].color] * this.r / totalDist;
+                                force = associations[this.color][list[h].color] * this.r / totalDist;
                                 
                                 //if the particle is intersecting with the other, make the force negative
-                                if (totalDist < this.r + particles[h].r && force > 0) {
+                                if (totalDist < this.r + list[h].r && force > 0) {
                                     force = -force;
                                 }
 
@@ -152,8 +189,8 @@
                 ctx = canvas.getContext("2d");
 
                 //changing canvas size for window
-                canvas.width = window.innerWidth * 0.8;
-                canvas.height = window.innerHeight * 0.8;
+                canvas.width = Math.floor(window.innerWidth * 0.9 / binSize) * binSize;
+                canvas.height = Math.floor(window.innerHeight * 0.85 / binSize) * binSize;
 
                 centerX = canvas.width * 0.5;
                 centerY = canvas.height * 0.5;
@@ -165,6 +202,7 @@
                 document.getElementById("partiCount").innerHTML = numOfParticles;
 
                 generateForces();
+                generateBins();
                 for (var z=0;z<numOfParticles;z++) {
                     particles.push(new Particle());
                 }
@@ -176,16 +214,47 @@
             }
 
             function iterate() {
+                //performance logging
+                frameTimes.push(performance.now());
+                if (frameTimes.length > frameTimesMax) {
+                    frameTimes.shift();
+                }
+
                 //drawing background
-                ctx.fillStyle = "#000000";
+                ctx.fillStyle = "#102";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                //drawing and ticking everything
+                //tick, move, then draw
                 for (var n=0;n<particles.length;n++) {
                     particles[n].tick();
+                    particles[n].move();
                     particles[n].beDrawn();
                 }
+
+                //draw text
+                if (drawFramerate) {
+                    ctx.font = `${canvas.height / 30}px Century Gothic`;
+                    ctx.fillStyle = "#FFF";
+                    ctx.fillText(Math.round(1000 * frameTimes.length / (frameTimes[frameTimes.length-1] - frameTimes[0])) + ` fps`, 10, canvas.height * 0.95);
+                }
+
+                // ctx.globalAlpha = 0.5;
+                // ctx.beginPath();
+                // ctx.fillStyle = "#F0F";
+                // ctx.beginPath();
+                // ctx.ellipse(particles[0].x, particles[0].y, particles[0].r, particles[0].r, 0, 0, Math.PI * 2);
+                // ctx.fill();
+                // var s = particles[0].calculateBin();
+                // ctx.fillRect(s[0] * binSize, s[1] * binSize, binSize, binSize);
+                // ctx.globalAlpha = 1;
             }
+
+            function modulate(n, modulus) {
+                    while (n < 0) {
+                        n += modulus;
+                    }
+                    return (n % modulus);
+                }
 
             function generateForces() {
                 //iterate over every color
@@ -208,6 +277,24 @@
                     //push the forces dictionary to associations
                     associations[nowColor] = temp;
                 }
+            }
+
+            function generateBins() {
+                particleBins = [];
+                //rows
+                for (var x=0; x<Math.round(canvas.width/binSize); x++) {
+                    particleBins.push([]);
+                    for (var y=0; y<Math.round(canvas.height/binSize); y++) {
+                        particleBins[x].push([]);
+                    }
+                }
+
+                //put every particle in its bin
+                var bin;
+                particles.forEach(p => {
+                    bin = p.calculateBin();
+                    particleBins[bin[0]][bin[1]].push(p);
+                });
             }
         </script>
     </head>
