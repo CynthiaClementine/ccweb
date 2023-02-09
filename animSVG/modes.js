@@ -1,14 +1,153 @@
 
 //the different application modes, essentially
-class Pen {
+
+
+//abstract class for tools where the user inputs by clicking and then dragging
+class ToolDragShape {
 	constructor() {
-		this.bufferCurve = [];
+		this.shape = undefined;
+		this.downPos = [];
+		this.r = 8;
+		this.type = "undefined";
 	}
 
-	drawOverlay() {
-		//loop through all layers
-		//draw points + control points
-		
+	mouseDown(a) {
+		//create a shape if there isn't one already
+		if (this.shape == undefined) {
+			//get properties - delete type so it doesn't become an attribute
+			var coords = cursorWorkspaceCoordinates();
+			this.downPos = [coords[0], coords[1]];
+			var props = this.givePropertiesFor(coords[0], coords[1], 0, 0);
+
+			//actual creation
+			this.shape = φCreate(this.type, props);
+			workspace_toolTemp.appendChild(this.shape);
+		}
+	}
+
+	//gives the properties of the ideal shape with specified bounding box. Also returns a property that contains the name of the shape
+	givePropertiesFor(x, y, w, h) {
+		console.log(`unimplemented!`);
+	}
+	
+	givePathsFor(x, y, w, h) {
+		console.log(`unimplemented!`);
+	}
+
+	calculateBoundingBox() {
+		var coords = cursorWorkspaceCoordinates();
+		var targetW = coords[0] - this.downPos[0];
+		var targetH = coords[1] - this.downPos[1];
+
+		//update the position and size of the rectangle
+		if (button_shift) {
+			//shift locks the aspect ratio of the rectangle
+			targetW = Math.max(targetW, targetH);
+			targetH = targetW;
+		}
+
+		var x = this.downPos[0] - targetW * button_alt;
+		var y = this.downPos[1] - targetH * button_alt;
+		var w = targetW * (1 + button_alt);
+		var h = targetH * (1 + button_alt);
+
+		//negative widths and heights are BANNED so they must be reconfigured
+		if (w < 0) {
+			w = -w;
+			x -= w;
+		}
+		if (h < 0) {
+			h = -h;
+			y -= h;
+		}
+
+		return [x, y, w, h];
+	}
+
+	mouseMove(a) {
+		if (this.shape == undefined) {
+			return;
+		}
+
+		var [x, y, w, h] = this.calculateBoundingBox();
+
+		var props = this.givePropertiesFor(x, y, w, h);
+		φSet(this.shape, props);
+	}
+
+	mouseUp(a) {
+		if (this.shape == undefined) {
+			return;
+		}
+	
+		//move the rectangle to the workspace
+
+		//since the workspace expects to work with paths, convert the rectangle into a set of paths
+		var [x, y, w, h] = this.calculateBoundingBox();
+		var layerObj = timeline.l[timeline.layerIDs[timeline.s]][timeline.t];
+		frame_addPath(layerObj, this.givePathsFor(x, y, w, h), this.r / 2, color_selected);
+
+		workspace_toolTemp.innerHTML = "";
+		this.downPos = [];
+		this.shape = undefined;
+	}
+}
+
+
+class ToolCircle extends ToolDragShape {
+	constructor() {
+		super();
+		this.type = "ellipse";
+		this.curves = 4;
+		//k is the ratio of radius to distance each control point is away from the start / end points
+		//it's calculated here for ease of access
+		this.theta = Math.PI * 2 / this.curves;
+		this.k = 4 * (2 * Math.sin(this.theta / 2) - Math.sin(this.theta)) / (3 * (1 - Math.cos(this.theta)));
+	}
+
+	givePathsFor(x, y, w, h) {
+		var th = this.theta;
+		var cs = Math.cos;
+		var sn = Math.sin;
+		//if the bounding box has certain x, y, w, h the circle will have different x y w h
+		var rx = w / 2;
+		var ry = h / 2;
+		var cx = x + w/2;
+		var cy = y + h/2;
+
+		//set up the path each curve should take on a unit curve
+		var template = [[1, 0], [1, this.k], [cs(th) + this.k * sn(th), sn(th) - this.k * cs(th)], [cs(th), sn(th)]];
+		var curves = [];
+
+		//make each curve transformed to the current circle / ellipse
+		for (var c=0; c<this.curves; c++) {
+			curves.push((template.map(a => rotate(a[0], a[1], th * c))).map(a => [cx + a[0] * rx, cy + a[1] * ry]));
+		}
+
+		return curves;
+	}
+
+	givePropertiesFor(x, y, w, h) {
+		return {
+			'cx': x + w/2,
+			'cy': y + h/2,
+			'rx': w/2,
+			'ry': h/2,
+			'stroke': color_selected,
+			'fill': 'transparent'
+
+		}
+	}
+
+
+}
+
+
+
+
+class ToolPen {
+	constructor() {
+		this.bufferCurve = [];
 	}
 
 	mouseDown(a) {
@@ -24,7 +163,35 @@ class Pen {
 	}
 }
 
-class Pencil {
+class ToolRectangle extends ToolDragShape {
+	constructor() {
+		super();
+		this.type = "rect";
+	}
+
+	givePathsFor(x, y, w, h) {
+		return [
+			[[x, y], [x + w, y]], 
+			[[x + w, y], [x + w, y + h]],
+			[[x + w, y + h], [x, y + h]],
+			[[x, y + h], [x, y]]
+		]
+	}
+
+	givePropertiesFor(x, y, w, h) {
+		return {
+			'x': x,
+			'y': y,
+			'width': w,
+			'height': h,
+			'stroke': color_selected,
+			'fill': 'transparent'
+
+		}
+	}
+}
+
+class ToolPencil {
 	constructor() {
 		this.bufferPoints = [];
 		this.bufferStart = [];
@@ -78,9 +245,6 @@ class Pencil {
 			//smooth path
 
 
-
-
-
 			// var coords = cursorWorkspaceCoordinates();
 			// //update points
 			// this.cDataLast = this.cData;
@@ -117,18 +281,23 @@ class Pencil {
 
 	pushToWorkspace(toleranceOPTIONAL) {
 		var simp = simplifyLineRDP(this.bufferPoints, toleranceOPTIONAL ?? this.fitTolerance);
-		console.log(JSON.stringify(simp.map(a => [Math.round(a[0]), Math.round(a[1])])));
 		var curves = potrace(simp, false);
+
+		//quantize
+		curves = curves.map(a => {
+			return a.map(b => [+(b[0].toFixed(quantizeTo)), +(b[1].toFixed(quantizeTo))]);
+		});
+
+		var pushCurves = [curves[0]];
+		for (var z=1; z<curves.length; z++) {
+			// if (bezierBezierIntersect())
+		}
+
+		//make sure the curves don't self-intersect
 
 		var tln = timeline;
 		var layerObj = tln.l[tln.layerIDs[tln.s]][tln.t];
-		curves.forEach(c => {
-			//quantize this
-			
-			// console.log(c);
-			// pathConnections[]
-			layer_addPath(layerObj, c, this.r, color_selected);
-		});
+		frame_addPath(layerObj, curves, this.r, color_selected);
 	}
 
 	/*
@@ -246,13 +415,11 @@ class Pencil {
 	} */
 }
 
-class Shape {
+class ToolShape {
 	constructor() {
 		this.sides = 3;
 		this.sidesMin = 3;
 	}
-
-	drawOverlay() {}
 
 	mouseDown(a) {
 		//start
@@ -262,7 +429,7 @@ class Shape {
 	mouseUp(a) {}
 }
 
-class Fill {
+class ToolFill {
 	constructor() {
 		this.color = "#88FF88";
 	}
@@ -278,7 +445,7 @@ class Fill {
 	mouseUp(a) {}
 }
 
-class Move {
+class ToolMove {
 	constructor() {
 		this.selected = undefined;
 		this.tol = 5;
