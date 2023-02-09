@@ -14,7 +14,7 @@ class Timeline {
 		this.layerIDs = [];
 		this.names = {};
 		this.layerDisplayTop = 0;
-		this.onionBounds = [1, 1];
+		this.onionBounds = [4, 4];
 		this.onionActive = false;
 		
 		//t is the time in frames the timeline is at
