@@ -4,19 +4,24 @@ INDEX
 φOver(node)
 
 addLayer(name)
+appendToPath(pathNode, newPts)
 createTimelineBlocks(layerID, startFrame, endFrame)
 
 changeAnimLength_user()
 changeAnimLength()
+changeFPS_user()
+changeFramerate()
 clampWorkspace()
 createUID()
 cursorIsInBounds()
 cursorWorkspaceCoordinates()
-
-
+createSpline(curves, color, pathWidth)
+frame_addPath(layerNode, curves, width, color)
 makeUnKeyframe(layerIndex, frame)
 
 moveWorkspace(x, y)
+
+removeLayer(id)
 
 updateCursorPos(a)
 updateSelectedColor()
@@ -36,7 +41,7 @@ function addLayer(name) {
 	var frameID = createUid();
 
 	//create frame object
-	var frameObj = layer_create(frameID);
+	var frameObj = frame_create(frameID);
 	var layerObj = φCreate('g', {'id': `layer_${layerID}`});
 	var index = timeline.layerIDs.length;
 
@@ -49,7 +54,7 @@ function addLayer(name) {
 	timeline.l[layerID].fill(frameObj);
 
 	//put layer into the workspace
-	workspace_permanent.appendChild(layerObj);
+	workspace_permanent.insertBefore(layerObj, workspace_permanent.children[0]);
 	layerObj.appendChild(frameObj);
 	
 	//create group to store blocks in
@@ -67,42 +72,22 @@ function addLayer(name) {
 		'y': (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight,
 		'id': `layer_${layerID}_text`, 
 		'class': 'timelineText',
+		'text-anchor': 'end',
 		'innerHTML': name,
-		'noselect': 'on'
+		'noselect': 'on',
+		'onclick': `renameLayer("${layerID}")`
 	}));
 
 	createTimelineBlocks(layerID, 0, timeline.len-1);
+	updateTimelineExtender();
 	//update the timeline's visibility
 	timeline.makeVisible();
 	return true;
 }
 
-/**
- * 
- * @param {String} id The ID of the layer to remove. IDs are always an x followed by one or more letters.
- */
-function removeLayer(id) {
-	console.log(`removing ${id}`)
-	timeline.makeInvisible();
-	//move timeline objects afterwards to fill the gap
-	var moveH = -(timeline_blockH + 1);
-	var startIndex = timeline.layerIDs.indexOf(id);
-	for (var v=startIndex; v<timeline.layerIDs.length; v++) {
-		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_group`), {'y': moveH});
-		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_text`), {'y': moveH});
-	}
-
-	//remove all the frame objects
-	workspace_permanent.removeChild(document.getElementById(`layer_${id}`));
-
-	//remove the timeline objects
-	timeline_blocks.removeChild(document.getElementById(`layer_${id}_group`));
-	timeline_text_container.removeChild(document.getElementById(`layer_${id}_text`));
-
-	//remove from the timeline object
-	delete timeline.l[id];
-	timeline.layerIDs.splice(startIndex, 1);
-	timeline.makeVisible();
+function appendToPath(pathNode, newPts) {
+	var currentPath = φGet(pathNode, "d");
+	//figure out whether the new points should go at the start or the end
 }
 
 
@@ -145,8 +130,8 @@ function changeAnimLength_user() {
 
 	newLength = Math.floor(newLength);
 	changeAnimationLength(newLength);
-	
 }
+
 function changeAnimationLength(newLength) {
 	//break out if it's the same length
 	if (newLength == timeline.len) {
@@ -166,6 +151,7 @@ function changeAnimationLength(newLength) {
 				document.getElementById(`layer_${id}_frame_${z}`).remove();
 			}
 		});
+		updateTimelineExtender();
 		return;
 	}
 
@@ -180,6 +166,33 @@ function changeAnimationLength(newLength) {
 		timeline.l[lid].fill(copyFrame, oldLength, newLength-1);
 		createTimelineBlocks(lid, oldLength, newLength-1);
 	});
+	updateTimelineExtender();
+}
+
+function changeFPS_user() {
+	var newFPS = parseInt(prompt(`Enter new animation frames per second`, timeline.fps));
+	if (Number.isNaN(newFPS)) {
+		return;
+	}
+
+	//if the framerate is out of bounds
+	if (newFPS < fps_limitMin || newFPS > fps_limitMax) {
+		if (newFPS < fps_limitMin) {
+			alert(`This framerate is too low. The framerate must be at least ${fps_limitMin} and no more than ${fps_limitMax}.`);
+		} else {
+			alert(`This framerate is too high. The framerate must be at least ${fps_limitMin} and no more than ${fps_limitMax}.`);
+		}
+		newFPS = clamp(newFPS, fps_limitMin, fps_limitMax);
+	}
+
+	//actually changing the framerate
+	changeFramerate(newFPS);
+	
+}
+
+function changeFramerate(newFPS) {
+	timeline.fps = newFPS;
+	timeline_fps.innerHTML = `fps: ${newFPS}`;
 }
 
 function clampWorkspace() {
@@ -229,51 +242,166 @@ function cursorWorkspaceCoordinates() {
 	return [(cursor.x - box.x) / box.width * wh[0], (cursor.y - box.y) / box.height * wh[1]];
 }
 
+
 /**
- * Adds a path to a specified frame object.
- * @param {*} layerNode The frame object to add the path to
- * @param {Number[][]} pts The points that the path consists of
- * @param {Number} width How wide the path will be
- * @param {RGBAString} color the color of the path
+ * Creates a spline object to be added to the DOM
+ * @param {*} curves 
  */
-function layer_addPath(layerNode, pts, width, color) {
-	var uid = φGet(layerNode, 'uid');
-	var path;
-	switch (pts.length) {
-		case 2:
-			path = `M ${pts[0][0]} ${pts[0][1]} ${pts[1][0]} ${pts[1][1]}`;
-			break;
-		case 3:
-			path = `M ${pts[0][0]} ${pts[0][1]} Q ${pts[1][0]} ${pts[1][1]} ${pts[2][0]}`;
-			break;
-		case 4:
-			path = `M ${pts[0][0]} ${pts[0][1]} C ${pts[1][0]} ${pts[1][1]} ${pts[2][0]} ${pts[2][1]} ${pts[3][0]} ${pts[3][1]}`;
-			break;
-		default:
-			console.log(`don't know what to do with length: ${pts.length}`);
-	}
+function createSpline(curves, color, pathWidth) {
 	var node = φCreate("path", {
 		'stroke': color, 
 		'stroke-linecap': 'round',
 		'fill': 'none', 
-		'stroke-width': width, 
-		'd': path
+		'stroke-width': pathWidth, 
 	});
-	layerNode.children["lines"].appendChild(node);
+
+	//element functions
+	//I have to do this silly python-esque thing but I suppose I'll live with it
+	var self = node;
+	node.getPointFromT = (t) => {
+		var bRef = self.curves[Math.floor(t)];
+		switch (bRef.length) {
+			case 2:
+				return linterpMulti(bRef[0], bRef[1], t % 1);
+			case 3:
+				return quadraticPointFromT(bRef[0], bRef[1], bRef[2], t % 1);
+			case 4:
+				return bezierPointFromT(bRef[0], bRef[1], bRef[2], bRef[3], t % 1);
+			default:
+				console.error(`unknown number of points!`);
+		}
+	}
+	node.calculateBoundingBox = () => {
+		//take all the smaller bounding boxes and add them up
+		var initialBounds = [1e1001, 1e1001, -1e1001, -1e1001];
+		self.curves.forEach(c => {
+			var smolBound;
+			switch (c.length) {
+				case 2:
+					//it's short enough that I can sort manually
+					smolBound = [c[0][0], c[0][1], c[1][0], c[1][1]];
+					if (smolBound[0] > smolBound[2]) {
+						[smolBound[0], smolBound[2]] = [smolBound[2], smolBound[0]]
+					}
+					if (smolBound[1] > smolBound[3]) {
+						[smolBound[1], smolBound[3]] = [smolBound[3], smolBound[1]]
+					}
+					break;
+				case 3:
+					smolbound = quadraticBounds(c[0], c[1], c2);
+					break;
+				case 4:
+					smolBound = bezierBounds(c[0], c[1], c[2], c[3]);
+					break;
+			}
+			initialBounds[0] = Math.min(initialBounds[0], smolBound[0]);
+			initialBounds[1] = Math.min(initialBounds[1], smolBound[1]);
+			initialBounds[2] = Math.max(initialBounds[2], smolBound[2]);
+			initialBounds[3] = Math.max(initialBounds[3], smolBound[3]);
+		});
+	}
+	//uses curves array to recalculate the path
+	node.redraw = () => {
+		var path = `M ${curves[0][0][0]} ${curves[0][0][1]}`;
+		curves.forEach(j => {
+			switch (j.length) {
+				case 2:
+					path += ` L ${j[1][0]} ${j[1][1]}`;
+					break;
+				case 3:
+					path += ` Q ${j[1][0]} ${j[1][1]} ${j[2][0]}`;
+					break;
+				case 4:
+					path += ` C ${j[1][0]} ${j[1][1]} ${j[2][0]} ${j[2][1]} ${j[3][0]} ${j[3][1]}`;
+					break;
+				default:
+					console.log(`don't know what to do with length: ${j.length}`);
+			}
+		});
+		φSet(self, {'d': path});
+	}
+	node.splitAt = (t) => {
+		//if t is an integer this is extremely easy
+		if (t % 1 == 0) {
+			//trivial cases
+			if (t == 0) {
+				return [self, undefined];
+			}
+			if (t == self.curves.length - 1) {
+				return [undefined, self];
+			}
+
+			return [createSpline(self.curves.slice(0, t), self.color, self.pathWidth), createSpline(self.curves.slice(t), self.color, self.pathWidth)];
+		}
+
+		//if t isn't an integer have to cut the curve that it goes through
+		var cut = self.curves[Math.floor(t)];
+		switch (cut.length) {
+			case 2:
+				break;
+			case 3:
+				break;
+			case 4:
+				cut = bezierSplit(cut[0], cut[1], cut[2], cut[3], t % 1);
+				break;
+		}
+
+		//beginning
+		var start = self.curves.slice(0, Math.floor(t));
+		start.push(cut[0]);
+		start = createSpline(start, self.color, self.pathWidth);
+		//end
+		var end = end.curves.slice(Math.ceil(t));
+		end.splice(0, 0, cut[1]);
+		end = createSpline(end, self.color, self.pathWidth);
+	}
+	//give the element its properties
+	node.curves = curves;
+	node.color = color;
+	node.start = curves[0][0];
+	node.end = curves[curves.length-1][curves[curves.length-1].length-1];
+	node.redraw();
+	node.calculateBoundingBox();
+
+	return node;
+}
+
+//gives the cursor's [x, y] coordinates relative to a node
+function cursorRelativeTo(node) {
+	var box = node.getBoundingClientRect();
+	return [cursor.x - box.x, cursor.y - box.y];
+}
+
+
+
+/**
+ * Adds a path to a specified frame object.
+ * A path is made up of a set of curves that are either linear, quadratic, or bezier. This set of curves nominally does not intersect itself or other path objects.
+ * @param {*} layerNode The frame object to add the path to
+ * @param {Number[][][]} pts The points that the path consists of
+ * @param {Number} width How wide the path will be
+ * @param {RGBAString} color the color of the path
+ */
+function frame_addPath(layerNode, curves, width, color) {
+	var uid = φGet(layerNode, 'uid');
+	var node = createSpline(curves, color, width);
+
+	layerNode.lines.appendChild(node);
 
 	//if the layer was previously empty change to full
-	if (layerNode.children["lines"].children.length == 1) {
+	if (layerNode.lines.children.length == 1) {
 		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
 		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
 	}
 }
 
-function appendToPath(pathNode, newPts) {
-	var currentPath = φGet(pathNode, "d");
-	//figure out whether the new points should go at the start or the end
-}
-
-function layer_create(frameID) {
+/**
+ * Creates a frame g object that can hold svg content
+ * @param {String} frameID the ID for the frame to have
+ * @param {String} layerID OPTIONAL: the ID of the layer the frame should be placed into
+ * @returns the new frame
+ */
+function frame_create(frameID, layerID) {
 	console.log(`creating ${frameID}`);
 	ends[frameID] = {};
 	var temp = φCreate('svg');
@@ -286,22 +414,53 @@ function layer_create(frameID) {
 		<g id="lines"></g>
 		<g id="fills"></g>
 	</g>`;
-	return temp.children[0];
+	temp = temp.children[0];
+
+	//set reflecting properties
+	temp.lines = temp.children["lines"];
+	temp.fills = temp.children["fills"];
+
+	//set methods
+	temp.fill = (x, y) => {
+		//try to fill that space
+
+		//cast a ray to the right
+		// var rayCast =
+
+		//if there's no objects it won't work
+
+		//if there is, trace it around until the path gets back to the start
+
+		//that loop is the region to fill
+	}
+
+	if (layerID) {
+		document.getElementById(`layer_${layerID}`).appendChild(temp);
+	}
+	return temp;
 }
 
-//makes a copy of a layer
-function layer_copy(layerNode) {
-	var newLayer = layer_create(createUid());
+//makes a copy of a frame
+function frame_copy(frameNode, layerID) {
+	var newLayer = frame_create(createUid());
 
-	newLayer.children["lines"].innerHTML = layerNode.children["lines"].cloneNode(true).innerHTML;
-	newLayer.children["fills"].innerHTML = layerNode.children["fills"].cloneNode(true).innerHTML;
-	console.log(`copied from ${layerNode.id}`);
+	//have to reference children here to make sure the references don't get misaligned
+	
+	newLayer.children["lines"].innerHTML = frameNode.lines.cloneNode(true).innerHTML;
+	newLayer.children["fills"].innerHTML = frameNode.fills.cloneNode(true).innerHTML;
+	newLayer.lines = newLayer.children["lines"];
+	newLayer.fills = newLayer.children["fills"];
+	console.log(`copied from ${frameNode.id}`);
 
 	//make sure the frame models are correct
-	if (newLayer.children["lines"].children.length > 0 || newLayer.children["fills"].children.length > 0) {
+	if (newLayer.lines.children.length > 0 || newLayer.fills.children.length > 0) {
 		var uid = φGet(newLayer, 'uid');
 		φSet(newLayer.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
 		φSet(newLayer.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
+	}
+
+	if (layerID) {
+		document.getElementById(`layer_${layerID}`).appendChild(newLayer);
 	}
 	return newLayer;
 }
@@ -310,31 +469,7 @@ function layer_copy(layerNode) {
 function moveWorkspace(x, y) {
 	//holding control zooms instead of moving up/down
 	if (button_control) {
-		var [scale, w, h] = φGet(workspace_container, ["scaling", "width", "height"]);
-		var workB = workspace_container.getBoundingClientRect();
-		var hoverPos = [(cursor.x - workB.x) / scale, (cursor.y - workB.y) / scale];
-
-		//keep scaling in bounds
-		scale = clamp(scale * (1 + y * 0.001), ...workspace_scaleBounds);
-		φSet(workspace_container, {
-			'scaling': scale,
-			'viewBox': `0 0 ${w / scale} ${h / scale}`
-		});
-		φSet(workspace_background, {'stroke-width': 2 / scale});
-
-		workB = workspace_container.getBoundingClientRect();
-		var [contX, contY] = φGet(workspace_container, ['x', 'y']);
-		var newHoverPos = [(cursor.x - workB.x) / scale, (cursor.y - workB.y) / scale];
-
-		φSet(workspace_container, {
-			'x': +contX + (newHoverPos[0] - hoverPos[0]) * scale,
-			'y': +contY + (newHoverPos[1] - hoverPos[1]) * scale
-		});
-
-		// var newHoverPos = canvasToWorkspace(cursor.x, cursor.y);
-		// var delta = [newHoverPos[0] - hoverPos[0], newHoverPos[1] - hoverPos[1]];
-		// workspace_offsetX += delta[0] * workspace_scaling;
-		// workspace_offsetY += delta[1] * workspace_scaling;
+		zoom(cursor.x, cursor.y, clamp(φGet(workspace_container, "scaling") * (1 + y * 0.001), ...workspace_scaleBounds));
 
 	} else {
 		φAdd(workspace_container, {
@@ -877,4 +1012,43 @@ function updateCursorPos(a) {
 	cursor.dy = cursor.y - past[1];
 	cursor.dist += Math.sqrt((cursor.x - past[0]) ** 2 + (cursor.y - past[1]) ** 2);
 	cursor.a = Math.atan2(cursor.y - past[1], cursor.x - past[0]);
+}
+
+function zoom(x, y, newZoom) {
+	var [scale, w, h] = φGet(workspace_container, ["scaling", "width", "height"]);
+	var workB = workspace_container.getBoundingClientRect();
+	var hoverPos = [(x - workB.x) / scale, (y - workB.y) / scale];
+
+	φSet(workspace_container, {
+		'scaling': newZoom,
+		'viewBox': `0 0 ${w / newZoom} ${h / newZoom}`
+	});
+	φSet(workspace_background, {'stroke-width': 2 / newZoom});
+
+	workB = workspace_container.getBoundingClientRect();
+	var [contX, contY] = φGet(workspace_container, ['x', 'y']);
+	var newHoverPos = [(x - workB.x) / newZoom, (y - workB.y) / newZoom];
+
+	φSet(workspace_container, {
+		'x': +contX + (newHoverPos[0] - hoverPos[0]) * newZoom,
+		'y': +contY + (newHoverPos[1] - hoverPos[1]) * newZoom
+	});
+}
+
+function renameLayer(layerID) {
+	var illegalChars = ["\\", "\n", "\t", "<", ">"];
+	var newName = prompt(`Please enter the new layer name`, timeline.names[layerID]);
+	var newName2 = newName;
+	for (var v=0; v<illegalChars.length; v++) {
+		newName2 = newName2.replaceAll(illegalChars[v], "");
+	}
+	if (!newName || newName == "") {
+		return;
+	}
+	//do the actual changing
+	timeline.names[layerID] = newName2;
+	document.getElementById(`layer_${layerID}_text`).innerHTML = newName2;
+	if (newName2 != newName) {
+		alert(`Your layer name contained one or more illegal characters. These have been removed from the new name.`);
+	}
 }
