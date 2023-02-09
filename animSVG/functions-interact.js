@@ -17,3 +17,37 @@ function keyframe_user(n) {
 			break;
 	}
 }
+
+function changeToolTo(toolName) {
+	var pressColor = "#777777";
+	//first make sure all icons are unpressed
+	var icons = document.getElementsByClassName("toolIcon");
+	for (var i=0; i<icons.length; i++) {
+		φSet(icons[i].children[0], {"fill": "transparent"});
+	}
+
+	switch(toolName) {
+		case "Pencil":
+			toolCurrent = new ToolPencil();
+			φSet(tool_pencil.children[0], {"fill": pressColor});
+			break;
+		case "Rectangle":
+			toolCurrent = new ToolRectangle();
+			φSet(tool_rect.children[0], {"fill": pressColor});
+			break;
+		case "Circle":
+			toolCurrent = new ToolCircle();
+			φSet(tool_circle.children[0], {"fill": pressColor});
+			break;
+		case "":
+			break;
+		case "":
+			break;
+		case "":
+			break;
+		case "":
+			break;
+		case "":
+			break;
+	}
+}
