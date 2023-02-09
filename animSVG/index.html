@@ -33,13 +33,13 @@ August-23-2021 -->
                 fill: #FFFFFF;
                 dominant-baseline: middle;
                 text-align: left;
-                text-anchor: end;
-                -webkit-touch-callout: none;
-                -webkit-user-select: none;
-                -khtml-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
                 user-select: none;
+            }
+
+            .toolLine {
+                fill: transparent;
+                stroke: #FFFFFF;
+                stroke-width: 2;
             }
 
             /*Top bar dropdown styling*/
@@ -100,6 +100,7 @@ August-23-2021 -->
         <!--my app-specific code-->
         <script src="functions-api.js"></script>
         <script src="functions-helper.js"></script>
+        <script src="functions-interact.js"></script>
         <script src="functions-files.js"></script>
         <script src="functions-drawing.js"></script>
         <script src="objects.js"></script>
@@ -108,23 +109,21 @@ August-23-2021 -->
     </head>
     <body>
         <div class="dropdown" id="top_file">
-            <button class="dropButton">File</button>
+            <button class="dropButton">File (-fin)</button>
             <div class="dropdownContent" id="top_file_contents">
-                <a onclick="console.log('hi');">Test 1</a>
-                <a href="#">Test 2</a>
-                <a href="#">Test 3</a>
+                <a onclick="">Save</a>
             </div>
         </div>
         <div class="dropdown" id="top_view">
             <button class="dropButton">View</button>
             <div class="dropdownContent" id="top_view_contents">
-                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 1.1);">Zoom in</a>
-                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 0.9);">Zoom out</a>
-                <a onclick="zoom(0, 0, 0.5);">Zoom to 50%</a>
-                <a onclick="zoom(0, 0, 1);">Zoom to 100%</a>
-                <a onclick="zoom(0, 0, 2);">Zoom to 200%</a>
-                <a onclick="zoom(0, 0, 4);">Zoom to 400%</a>
-                <a onclick="toggleOnionSkin();">Toggle Onion Skin</a>
+                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 1.1)">Zoom in</a>
+                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 0.9)">Zoom out</a>
+                <a onclick="zoom(0, 0, 0.5)">Zoom to 50%</a>
+                <a onclick="zoom(0, 0, 1)">Zoom to 100%</a>
+                <a onclick="zoom(0, 0, 2)">Zoom to 200%</a>
+                <a onclick="zoom(0, 0, 4)">Zoom to 400%</a>
+                <a onclick="toggleOnionSkin()">Toggle Onion Skin</a>
             </div>
         </div>
         <div class="dropdown" id="top_import">
@@ -139,7 +138,25 @@ August-23-2021 -->
             <button class="dropButton">Export</button>
             <div class="dropdownContent" id="top_export_contents">
                 <a onclick="downloadTimelineAsImage(1080, 'frame.png')">Export current frame as PNG</a>
-                <a onclick="downloadTimelineAsVideo(1080, 'anim.webm')">Export timeline as webm</a>
+                <a onclick="downloadTimelineAsVideo(1080, 'anim')">Export timeline as webm</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_timeline">
+            <button class="dropButton">Timeline</button>
+            <div class="dropdownContent" id="top_timeline_contents">
+                <a onclick="changeAnimLength_user()">Change length</a>
+                <a onclick="changeFPS_user()">Change framerate</a>
+                <a onclick="addLayer()">Add layer</a>
+                <a onclick="removeLayer()">Remove selected layer</a>
+                <a onclick="keyframe_user(1)">Add blank keyframe</a>
+                <a onclick="keyframe_user(2)">Add copied keyframe</a>
+                <a onclick="keyframe_user(3)">Remove selected keyframe</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_help">
+            <button class="dropButton">Help (-fin)</button>
+            <div class="dropdownContent" id="top_help_contents">
+                <a onclick="changeAnimLength_user()">Explanation (-fin)</a>
             </div>
         </div>
 
@@ -235,31 +252,55 @@ August-23-2021 -->
                 <g id="workspace_permanent"></g>
             </svg>
 
-            <svg id="sidebar_container" width="300">
+            <svg id="sidebar_container" width="300" overflow="visible">
                 <rect id="sidebar_background" fill="#363636" stroke="none" height="600" width="300"/>
                 <use id="sidebar_colorPicker" width="250" height="275" ignoredown="true" href="#MASTER_picker"/>
                 
                 <svg id="toolbar_container" x="250">
-                    <rect id="toolbar_background" fill="#525261" width="50" height="600"/>
+                    <rect id="toolbar_background" fill="#555559" width="50" height="600"/>
+
+                    <!--tool icons-->
+                    <svg class="toolIcon" id="tool_pencil" x="5" y="5"  overflow="visible" onclick="changeToolTo('Pencil');">
+                        <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" stroke="#FFFFFF" d="M 5 10 25 30 30 30 30 25 10 5 5 10"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_rect" x="5" y="45" overflow="visible" onclick="changeToolTo('Rectangle');">
+                        <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" stroke="#FFFFFF" d="M 5 10 5 25 30 25 30 10 5 10"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_circle" x="5" y="85" overflow="visible" onclick="changeToolTo('Circle');">
+                        <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <circle class="toolLine" stroke="#FFFFFF" cx="17.5" cy="17.5" r="13"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_move" x="5" y="125" overflow="visible">
+                        <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" stroke="#FFFFFF" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_shape" x="5" y="165" overflow="visible">
+                        <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" stroke="#FFFFFF" d="M 7.5 12.5 7.5 22.5 17.5 30 27.5 22.5 27.5 12.5 17.5 5 7.5 12.5"/>
+                    </svg>
                 </svg>
 
-                <line id="sidebar_edge" stroke="#FFFFFF" stroke-width="2" x1="300" x2="300" y1="0" y2="600"/>
-                <rect id="sidebar_edge_detector" stroke="transparent" fill="#FFFFFF" x="294" y="-12" width="12" height="600" cursor="ew-resize"/>
+                <rect id="sidebar_edge_detector" stroke="transparent" fill="#FFFFFF" x="295" y="0" width="10" height="600" cursor="ew-resize"/>
             </svg>
 
 
             <svg id="timeline_container" y="400" hinv="200" overflow="visible">
                 <rect id="timeline_background" fill="#363636" y="0" width="1000" height="400"/>
-                <line id="timeline_edge" stroke="#FFFFFF" stroke-width="2" x1="0" x2="1000" y1="0" y2="0"/>
-                <rect id="timeline_edge_detector" stroke="transparent" fill="#FFFFFF" x="0" y="-12" width="1000" height="12" cursor="ns-resize"/>
+                <rect id="timeline_edge_detector" stroke="transparent" fill="#FFFFFF" x="0" y="-5" width="1000" height="10" cursor="ns-resize"/>
 
                 <!--buttons and the like -->
-                <svg id="timeline_button_add" x="10" y="10">
+                <text id="timeline_fps" class="timelineText" x="10" y="20" noselect="true" text-anchor="start" text-decoration="underline" onclick="changeFPS_user()">fps: 24</text>
+                <svg id="timeline_button_add" x="10" y="35">
                     <line class="timelineButton" x1="10" y1="4" x2="10" y2="16"/>
                     <line class="timelineButton" x1="4" y1="10" x2="16" y2="10"/>
                     <rect class="timelineButton" width="20" height="20" onclick="addLayer();"/>
                 </svg>
-                <rect class="timelineButton" x="10" y="40" width="20" height="20" onclick="changeAnimLength_user();"/>
+                <svg id="timeline_button_remove" x="10" y="60" >
+                    <line class="timelineButton" x1="5" y1="10" x2="15" y2="10"/>
+                    <rect class="timelineButton" width="20" height="20" onclick="removeLayer();"/>
+                </svg>
 
                 <!-- the main timeline rectangle bit -->
                 <!--The outer container is for the highlight rectangle, the inner one is for all the regular blocks-->
@@ -272,6 +313,7 @@ August-23-2021 -->
                     <svg id="timeline_text_container" overflow="visible">
                     </svg>
                     <rect id="timeline_selector" y="15" width="10" height="20" stroke-width="2" stroke="#26F8FF" fill="none"/>
+                    <rect id="timeline_extender" x="1" y="15" stroke="#FFFFFF" fill="transparent" x="-3" width="6" height="10" cursor="ew-resize"/>
                 </svg>
 
             </svg>
@@ -280,7 +322,7 @@ August-23-2021 -->
             </svg>
         </svg>
         <!--canvas so ctx is accessible, in case-->
-        <canvas id="convos"></canvas>
+        <canvas id="convos" width="1" height=1></canvas>
         <!-- </div> -->
         <script src="main.js"></script>
     </body>
