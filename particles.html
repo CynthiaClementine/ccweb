@@ -25,13 +25,18 @@
             var ctx;
             var centerX;
             var centerY;
-            var density = 2000;
+
+            var binOffsets = [[0,0], [-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]];
             var numOfParticles;
+
+            //simulation parameters
+            var density = 1000;
             var friction = 0.95;
             var sightR = 100;
+            var speedCap = sightR * 0.75;
+
             var binSize = sightR;
             var particleBins = [];
-            var binOffsets = [[0,0], [-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]];
             var drawFramerate = false;
             var frameTimes = [];
             var frameTimesMax = 30;
@@ -54,7 +59,6 @@
                     this.dy = Math.random() - 0.5;
                     this.color = this.pickColor();
 
-                    this.sightR = 100;
                     this.s = 0.6;
                 }
 
@@ -66,6 +70,12 @@
                 move() {
                     //update position, stay in bounds
                     var bin1 = this.calculateBin();
+                    //make sure speed isn't too great
+                    if (this.dx * this.dx + this.dy * this.dy > speedCap * speedCap) {
+                        var speed = Math.hypot(this.dx, this.dy);
+                        this.dx = this.dx / speed * speedCap;
+                        this.dy = this.dy / speed * speedCap;
+                    }
                     this.x += this.dx;
                     this.y += this.dy;
 
@@ -102,12 +112,12 @@
                     var binLoc = this.calculateBin();
 
                     //tick with all nearby bins
-                    this.tickForParticlesList(particles);
-                    // for (var o=-1; o<=1; o++) {
-                    //     for (var p=-1; p<=1; p++) {
-                    //         this.tickForParticlesList(particleBins[modulate(binLoc[0] + o, particleBins.length)][modulate(binLoc[1] + p, particleBins[0].length)]);
-                    //     }
-                    // }
+                    // this.tickForParticlesList(particles);
+                    for (var o=-1; o<=1; o++) {
+                        for (var p=-1; p<=1; p++) {
+                            this.tickForParticlesList(particleBins[modulate(binLoc[0] + o, particleBins.length)][modulate(binLoc[1] + p, particleBins[0].length)]);
+                        }
+                    }
                 }
 
                 tickForParticlesList(list) {
