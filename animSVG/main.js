@@ -82,11 +82,11 @@ var timeline = new Timeline();
 
 var toolCurrent;
 var toolMap = {
-	"KeyY": Pencil,
-	"KeyP": Pen,
-	"KeyS": Shape,
-	"KeyK": Fill,
-	"KeyV": Move,
+	"KeyY": ToolPencil,
+	"KeyP": ToolPen,
+	"KeyS": ToolShape,
+	"KeyK": ToolFill,
+	"KeyV": ToolMove,
 };
 
 var workspace_margin = 0.1;
@@ -104,7 +104,7 @@ function setup() {
 	base = document.getElementById("base");
 	canvas = document.getElementById("convos");
 	ctx = canvas.getContext("2d");
-	toolCurrent = new Pencil();
+	toolCurrent = new ToolPencil();
 
 	//populate cursor history with zeroes
 	cursor.pts[0] = [0, 0];
@@ -559,6 +559,17 @@ function resizeTimeline(spaceW, spaceH) {
 	});
 	φSet(timeline_playhead, {
 		'height': timeH
+	});
+
+	//also change the height of the sidebar
+	φSet(sidebar_background, {
+		'height': spaceH - timeH
+	});
+	φSet(toolbar_background, {
+		'height': spaceH - timeH
+	});
+	φSet(sidebar_edge_detector, {
+		'height': spaceH - timeH
 	});
 }
 
