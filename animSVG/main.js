@@ -43,6 +43,8 @@ var button_shift = false;
 var canvas;
 var ctx;
 
+var cubicBinSize = 20;
+
 var pathConnections = {
 
 };
@@ -205,6 +207,10 @@ function handleKeyPress(a) {
 			return;
 		case "Meta":
 			button_command = true;
+			return;
+		case "Escape":
+			toolCurrent.escape();
+			cursor.down = false;
 			return;
 	}
 
