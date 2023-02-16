@@ -11,6 +11,11 @@ class ToolDragShape {
 		this.type = "undefined";
 	}
 
+	escape() {
+		this.shape = undefined;
+		workspace_toolTemp.innerHTML = "";
+	}
+
 	mouseDown(a) {
 		//create a shape if there isn't one already
 		if (this.shape == undefined) {
@@ -85,7 +90,8 @@ class ToolDragShape {
 		//since the workspace expects to work with paths, convert the rectangle into a set of paths
 		var [x, y, w, h] = this.calculateBoundingBox();
 		var layerObj = timeline.l[timeline.layerIDs[timeline.s]][timeline.t];
-		frame_addPath(layerObj, this.givePathsFor(x, y, w, h), this.r / 2, color_selected);
+		var spline = createSpline(this.givePathsFor(x, y, w, h), color_selected, this.r / 2);
+		takeAction(() => {frame_addPath(layerObj, spline);}, () => {frame_removePath(layerObj, spline);});
 
 		workspace_toolTemp.innerHTML = "";
 		this.downPos = [];
@@ -138,8 +144,6 @@ class ToolCircle extends ToolDragShape {
 
 		}
 	}
-
-
 }
 
 
@@ -194,7 +198,6 @@ class ToolRectangle extends ToolDragShape {
 class ToolPencil {
 	constructor() {
 		this.bufferPoints = [];
-		this.bufferStart = [];
 		
 		this.r = 8;
 
@@ -207,6 +210,11 @@ class ToolPencil {
 		this.caTolerance = Math.PI / 10;
 
 		this.fitTolerance = 1;
+	}
+
+	escape() {
+		this.bufferPoints = [];
+		workspace_toolTemp.innerHTML = "";
 	}
 
 	appendPoint() {
@@ -297,7 +305,13 @@ class ToolPencil {
 
 		var tln = timeline;
 		var layerObj = tln.l[tln.layerIDs[tln.s]][tln.t];
-		frame_addPath(layerObj, curves, this.r, color_selected);
+		var spline = createSpline(curves, color_selected, this.r);
+		takeAction(() => {
+			frame_addPath(layerObj, spline);
+		}, () => {
+			frame_removePath(layerObj, spline);
+		});
+		
 	}
 }
 
@@ -318,9 +332,12 @@ class ToolShape {
 class ToolFill {
 	constructor() {
 		this.color = "#88FF88";
+		this.canvas = document.createElement("canvas");
+		this.ctx = this.canvas.getContext("2d");
+		[this.canvas.width, this.canvas.height] = φGet(workspace_background, ["width", "height"])
 	}
 
-	drawOverlay() {}
+	escape() {}
 
 	mouseDown(a) {
 		//detect if inside a shape, and if so give that shape self's fill
