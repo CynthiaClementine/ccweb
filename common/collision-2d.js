@@ -24,6 +24,11 @@ function lineIntersect(lin1p1, lin1p2, lin2p1, lin2p2) {
 	return (getOrientation(lin1p1, lin1p2, lin2p1) != getOrientation(lin1p1, lin1p2, lin2p2) && getOrientation(lin2p1, lin2p2, lin1p1) != getOrientation(lin2p1, lin2p2, lin1p2))
 }
 
+//for naming consistency
+function lineLineIntersect(l1p1, l1p2, l2p1, l2p2) {
+	return lineIntersect(l1p1, l1p2, l2p1, l2p2);
+}
+
 
 function inPoly(xyPoint, polyPoints) {
 	//to test if a point is in a polygon, a line is drawn out to infinity (or close enough)
