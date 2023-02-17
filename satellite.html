@@ -27,6 +27,7 @@
 			var ctx;
 			var centerX;
 			var centerY;
+			var opa = true;
 
 
 			var cameraDist = 450000000;
@@ -134,7 +135,7 @@
 		
 			var satPos = [0, 0, 0];
 			var satVel = [0, 0, 0];
-			var satFOV = radians(45);
+			var satFOV = 45;
 			var satMinDist;
 
 			//navigational star list, courtesy of wikipedia
@@ -991,8 +992,10 @@ var stars = [[0.269,-48.81,5.71],[0.334,-50.337,5.53],[0.399,-77.065,4.78],[0.40
 			//I know this function is too long but at this point it doesn't matter - the project's not going to be expanded
 			function draw() {
 				//background
-				ctx.fillStyle = "#000";
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				if (opa) {
+					ctx.fillStyle = "#000";
+					ctx.fillRect(0, 0, canvas.width, canvas.height);
+				}
 
 				ctx.fillStyle = colorStar;
 				stars.forEach(s => {
