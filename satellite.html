@@ -42,6 +42,7 @@
 
 				dt: 0,
 				dp: 0,
+				speed: 0.01
 			};
 
 			var colorEarth = "#45f6ff";
@@ -867,7 +868,7 @@ var stars = [[0.269,-48.81,5.71],[0.334,-50.337,5.53],[0.399,-77.065,4.78],[0.40
 				displayFOV.innerHTML = sliderFOV.value;
 				displayTime.innerHTML = sliderTime.value;
 				
-				loadPreset("ISS-WASH");
+				loadPreset(orbitSelection.value);
 				timer = window.requestAnimationFrame(main);
 			}
 
@@ -882,16 +883,8 @@ var stars = [[0.269,-48.81,5.71],[0.334,-50.337,5.53],[0.399,-77.065,4.78],[0.40
 				//first transform the point to the satellite's POV
 				var satNormal = cartToPol(satPos[0], satPos[1], satPos[2]);
 				satNormal[0] = Math.PI - satNormal[0];
-				satNormal[1] = -satNormal[1];
 
-				//if following the satellite, move the camera
-				if (changeTheWorld && satTrackCheck.checked) {
-					camera.theta = satNormal[0];
-					camera.phi = -satNormal[1];
-					syncCameraPos();
-				}
-
-				var pRel = spaceToRelative(point, satPos, [satNormal[0], -satNormal[1]]);
+				var pRel = spaceToRelative(point, satPos, [satNormal[0], satNormal[1]]);
 				var pRelMagni = Math.hypot(...pRel);
 
 				//graphing distance
@@ -978,12 +971,15 @@ var stars = [[0.269,-48.81,5.71],[0.334,-50.337,5.53],[0.399,-77.065,4.78],[0.40
 				//rotate the earth
 				[earthMarkPos[0], earthMarkPos[2]] = rotate(earthMarkPos[0], earthMarkPos[2], (2 * Math.PI / earthPeriod) * dt);
 
-				//move the connection line
-
+				//if following the satellite, move the camera
+				if (satTrackCheck.checked) {
+					var satNormal = cartToPol(satPos[0], satPos[1], satPos[2]);
+					camera.theta = Math.PI - satNormal[0];
+					camera.phi = satNormal[1];
+				}
 				//rotate the camera
-				camera.theta += camera.dt * 0.01;
-				camera.phi = clamp(camera.phi + camera.dp * 0.01, -Math.PI * 0.5, Math.PI * 0.5);
-
+				camera.theta += camera.dt * camera.speed;
+				camera.phi = clamp(camera.phi + camera.dp * camera.speed, -Math.PI * 0.5, Math.PI * 0.5);
 				syncCameraPos();
 
 				timestamp += dt;
