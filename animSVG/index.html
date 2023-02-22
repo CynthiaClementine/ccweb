@@ -5,10 +5,17 @@ August-23-2021 -->
     <head>
         <title>Animation Program thing</title>
         <meta charset="utf-8">
+        <link rel='icon' href='favicon.png' type='image/png'/>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
         <style>
+
+            /* variables for the whole program, doesn't seem to work but would be useful */
+            :root {
+                --uilines: "#FF00FF";
+            }
+
             body {
                 background-color: slateblue;
             }
@@ -91,7 +98,6 @@ August-23-2021 -->
         <!--my common code-->
         <script src="../common/functions-color.js"></script>
         <script src="../common/functions-DOMnode.js"></script>
-        <script src="../common/functions-drawing.js"></script>
         <script src="../common/functions-math.js"></script>
         <script src="../common/functions-bezier.js"></script>
         <script src="../common/functions-2dVector.js"></script>
@@ -101,8 +107,8 @@ August-23-2021 -->
         <script src="functions-api.js"></script>
         <script src="functions-helper.js"></script>
         <script src="functions-interact.js"></script>
+        <script src="functions-misc.js"></script>
         <script src="functions-files.js"></script>
-        <script src="functions-drawing.js"></script>
         <script src="objects.js"></script>
         <script src="modes.js"></script>
 		
@@ -112,6 +118,13 @@ August-23-2021 -->
             <button class="dropButton">File (-fin)</button>
             <div class="dropdownContent" id="top_file_contents">
                 <a onclick="">Save</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_pref">
+            <button class="dropButton">Preferences (-fin)</button>
+            <div class="dropdownContent" id="top_pref_contents">
+                <a onclick="">Change edit history length (-fin)</a>
+                <a onclick="">Change keyboard shortcuts (-fin)</a>
             </div>
         </div>
         <div class="dropdown" id="top_view">
@@ -148,9 +161,9 @@ August-23-2021 -->
                 <a onclick="changeFPS_user()">Change framerate</a>
                 <a onclick="addLayer()">Add layer</a>
                 <a onclick="removeLayer()">Remove selected layer</a>
-                <a onclick="keyframe_user(1)">Add blank keyframe</a>
-                <a onclick="keyframe_user(2)">Add copied keyframe</a>
-                <a onclick="keyframe_user(3)">Remove selected keyframe</a>
+                <a onclick="user_keyframe(1)">Add blank keyframe</a>
+                <a onclick="user_keyframe(2)">Add copied keyframe</a>
+                <a onclick="user_keyframe(3)">Remove selected keyframe</a>
             </div>
         </div>
         <div class="dropdown" id="top_help">
@@ -262,27 +275,32 @@ August-23-2021 -->
                     <!--tool icons-->
                     <svg class="toolIcon" id="tool_pencil" x="5" y="5"  overflow="visible" onclick="changeToolTo('Pencil');">
                         <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
-                        <path class="toolLine" stroke="#FFFFFF" d="M 5 10 25 30 30 30 30 25 10 5 5 10"/>
+                        <path class="toolLine" d="M 5 10 25 30 30 30 30 25 10 5 5 10"/>
                     </svg>
                     <svg class="toolIcon" id="tool_rect" x="5" y="45" overflow="visible" onclick="changeToolTo('Rectangle');">
                         <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
-                        <path class="toolLine" stroke="#FFFFFF" d="M 5 10 5 25 30 25 30 10 5 10"/>
+                        <path class="toolLine" d="M 5 10 5 25 30 25 30 10 5 10"/>
                     </svg>
                     <svg class="toolIcon" id="tool_circle" x="5" y="85" overflow="visible" onclick="changeToolTo('Circle');">
                         <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
-                        <circle class="toolLine" stroke="#FFFFFF" cx="17.5" cy="17.5" r="13"/>
+                        <circle class="toolLine" cx="17.5" cy="17.5" r="13"/>
                     </svg>
                     <svg class="toolIcon" id="tool_move" x="5" y="125" overflow="visible">
                         <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
-                        <path class="toolLine" stroke="#FFFFFF" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
+                        <path class="toolLine" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
                     </svg>
                     <svg class="toolIcon" id="tool_shape" x="5" y="165" overflow="visible">
                         <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
-                        <path class="toolLine" stroke="#FFFFFF" d="M 7.5 12.5 7.5 22.5 17.5 30 27.5 22.5 27.5 12.5 17.5 5 7.5 12.5"/>
+                        <path class="toolLine" d="M 7.5 12.5 7.5 22.5 17.5 30 27.5 22.5 27.5 12.5 17.5 5 7.5 12.5"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_eyedrop" x="5" y="205" overflow="visible" onclick="changeToolTo('Eyedropper');">
+                        <rect stroke="#FFFFFF" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 20 10 10 20 M 17.5 12.5 30 30 12.5 17.5 
+                        M 18 12 A 6 6 0 1 0 12 18"/>
                     </svg>
                 </svg>
 
-                <rect id="sidebar_edge_detector" stroke="transparent" fill="#FFFFFF" x="295" y="0" width="10" height="600" cursor="ew-resize"/>
+                <rect id="sidebar_edge_detector" stroke="transparent" fill="var(--uilines)" x="295" y="0" width="10" height="600" cursor="ew-resize"/>
             </svg>
 
 
@@ -306,7 +324,12 @@ August-23-2021 -->
                 <!--The outer container is for the highlight rectangle, the inner one is for all the regular blocks-->
                 <svg id="timeline_main_container" x="150" y="5" overflow="visible">
                     <svg id="timeline_blocks_container">
-                        <g id="timeline_blocks"></g>
+                        <g id="timeline_blocks">
+                        </g>
+                        <svg id="timeline_onionhead" overflow="visible" stroke-width="2" display="none">
+                            <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="#F66"/>
+                            <rect id="onionRight" width="0" height="11" y="2" x="10" fill="none" stroke="#66F"/>
+                        </svg>
                         <rect id="timeline_playbody" width="10" height="15" fill="#8A0D0D" stroke="#8A0D0D"/>
                         <rect id="timeline_playhead" width="10" fill="transparent" y="15" stroke="#8A0D0D" frame="0"/>
                     </svg>
