@@ -36,8 +36,7 @@ var colors_menu = {
 var base;
 
 var button_alt = false;
-var button_command = false;
-var button_control = false;
+var button_force = false;
 var button_shift = false;
 
 var canvas;
@@ -54,18 +53,13 @@ var cursor = {
 	downType: undefined,
 	x: 0,
 	y: 0,
-	trailLength: 3,
-	pts: [],
-	vels: [],
-	accs: [],
 }
 
 var debug_active = false;
 
-//changes required to get to the present time
-var editDeltas = [];
-//changes required to get to the past
-var editInverseDeltas = [];
+var editDeltaTracker = 0;
+var editDeltasFuture = [];		//changes required to get to the future (present time)
+var editDeltasPast = [];	//changes required to get to the past
 var editDeltasMax = 100;
 
 var ends = {};
@@ -74,6 +68,33 @@ var starts = {};
 var fps_limitMin = 1;
 //I figure 100 is a good max number, you can't really see any individual frame less than 10ms anyways, but 144 divides better so that's the limit
 var fps_limitMax = 144;
+
+var hotkeys = [
+	// ["Modifier1 Modifier2 Key.code", `function`, `description`],
+	// ["Key", `function`, `description`],
+	
+	//tools
+	["KeyC", `changeToolTo("Circle")`, `Circle tool`],
+	["KeyY", `changeToolTo("Pencil")`, `Pencil tool`],
+	["KeyR", `changeToolTo("Rectangle")`, `Rectangle tool`],
+	["KeyI", `changeToolTo("Eyedropper")`, `Eyedropper tool`],
+	
+	//timeline actions
+	["KeyO", `toggleOnionSkin()`, `Toggle onion skin`],
+	["Digit1", `user_keyframe(1)`, `Create blank keyframe`],
+	["Digit2", `user_keyframe(2)`, `Create keyframe from existing`],
+	["Shift Digit1", `user_keyframe(3)`, `Remove keyframe`],
+	
+	["Enter", `toggleTimelinePlayback()`, `Toggle timeline playback`],
+	["ArrowLeft", `timeline.changeFrameTo(timeline.t - 1)`, `Decrement timeline position`],
+	["ArrowRight", `timeline.changeFrameTo(timeline.t + 1)`, `Increment timeline position`],
+	["Force ArrowLeft", `timeline.changeFrameTo(0)`, `Move to timeline start`],
+	["Force ArrowRight", `timeline.changeFrameTo(timeline.len - 1)`, `Move to timeline end`],
+
+	//file-wide???
+	["Force KeyZ", `undo()`, `undo`],
+	["Shift Force KeyZ", `redo()`, `redo`],
+];
 
 //the decimal point to quantize to
 var quantizeTo = 1;
@@ -85,6 +106,7 @@ var timeline = new Timeline();
 var toolCurrent;
 var toolMap = {
 	"KeyY": ToolPencil,
+	"KeyO": ToolCircle,
 	"KeyP": ToolPen,
 	"KeyS": ToolShape,
 	"KeyK": ToolFill,
@@ -107,12 +129,6 @@ function setup() {
 	canvas = document.getElementById("convos");
 	ctx = canvas.getContext("2d");
 	toolCurrent = new ToolPencil();
-
-	//populate cursor history with zeroes
-	cursor.pts[0] = [0, 0];
-	cursor.vels[0] = [0, 0];
-	cursor.accs[0] = [0, 0];
-
 
 	//setting up variables that depend on document
 	[timeline_blockW, timeline_blockH] = φGet(MASTER_frameBoxPath, ["width", "height"]);
@@ -203,10 +219,8 @@ function handleKeyPress(a) {
 			button_alt = true;
 			return;
 		case "Control":
-			button_control = true;
-			return;
 		case "Meta":
-			button_command = true;
+			button_force = true;
 			return;
 		case "Escape":
 			toolCurrent.escape();
@@ -214,76 +228,34 @@ function handleKeyPress(a) {
 			return;
 	}
 
-	switch (a.code) {
-		//letter hotkeys
-		case "KeyO":
-			toggleOnionSkin();
-			return;
-		case "KeyZ":
-			if (button_command || button_control) {
+	var keys = [];
+	if (button_shift) {keys.push("Shift");}
+	if (button_alt) {keys.push("_Alt_");}
+	if (button_force) {keys.push("Force");}
+	keys.push(a.code);
+	keys.sort();
 
-			}
-			return;
-		//changing frame
-		case "ArrowLeft":
-			timeline.changeFrameTo(timeline.t - 1);
-			return;
-		case "ArrowRight":
-			timeline.changeFrameTo(timeline.t + 1);
-			return;
-		//change layer selected
-		case "ArrowUp":
-			return;
-		case "ArrowDown":
-			return;
-		case "Enter":
-			//toggle timeline playback
-			toggleTimelinePlayback();
-			return;
-		case "Digit1":
-			var identify = timeline.layerIDs[timeline.s];
-			var frameIsKey = timeline.l[identify][timeline.t] != timeline.l[identify][timeline.t - 1];
+	var possibleHots = hotkeys.filter(j => j[0].includes(a.code));
 
-			//destroy key frames
-			if (button_shift) {
-				if (frameIsKey) {
-					makeUnKeyframe(timeline.s, timeline.t);
-				}
-				//update what's visible by changing timeline to the same frame
-				timeline.changeFrameTo(timeline.t);
-				return;
-			}
+	//go through each possible hotkey and make sure it doesn't have a modifier that's not pressed
+	var split;
+	for (var h=0; h<possibleHots.length; h++) {
+		split = possibleHots[h][0].split(" ").sort();
 
-			var tStorage = timeline.t;
-			while (frameIsKey) {
-				timeline.t += 1;
-				frameIsKey = timeline.l[identify][timeline.t] != timeline.l[identify][timeline.t - 1];
-			}
-			//only count if not off the end of the timeline
-			if (timeline.t < timeline.len) {
-				var node;
-				if (button_alt) {
-					node = timeline.l[timeline.layerIDs[timeline.s]][timeline.t];
-				}
-				makeKeyframe(timeline.s, timeline.t, node);
-			} else {
-				//if off the end, ignore and revert changes
-				timeline.t = tStorage;
-			}
-			
-			timeline.changeFrameTo(timeline.t);
+		//if the exact same keys are pressed, great! Break out early
+		if (arrsAreSame(keys, split)) {
+			eval(possibleHots[h][1]);
 			return;
-		case "Digit3":
-			return;
-		case "Digit4":
-			return;
+		}
+
+		//checking for non-pressed modifiers
 	}
 
-	if (a.code == "BracketRight") {
-		debug_active = !debug_active;
-		// setCanvasPreferences();
-		return;
-	}
+	// eval(possibleHots[0][1]);
+
+	//sort the remaining hotkeys by number of buttons they require
+
+	//execute the command that requires the most buttons pressed, because it's probably what the user intended
 }
 
 function handleKeyRelease(a) {
@@ -295,10 +267,8 @@ function handleKeyRelease(a) {
 			button_alt = false;
 			return;
 		case "Control":
-			button_control = false;
-			return;
 		case "Meta":
-			button_command = false;
+			button_force = false;
 			return;
 	}
 }
@@ -382,18 +352,6 @@ function handleMouseDown(a) {
 function handleMouseMove(a) {
 	cursor.x = a.clientX;
 	cursor.y = a.clientY;
-
-	//update cursor derivatives
-	cursor.pts.push([cursor.x, cursor.y]);
-	var pen = cursor.pts.length - 1;
-	cursor.vels.push([cursor.pts[pen][0] - cursor.pts[pen-1][0], cursor.pts[pen][1] - cursor.pts[pen-1][1]]);
-	var ven = cursor.vels.length - 1;
-	cursor.accs.push([cursor.vels[ven][0] - cursor.vels[ven-1][0], cursor.vels[ven][1] - cursor.vels[ven-1][1]]);
-
-	//constrain all cursor data to the proper length
-	[cursor.pts, cursor.vels, cursor.accs].map(a => {
-		a.slice(0, cursor.trailLength);
-	});
 
 	//different behavior depending on the type of down-ness
 	if (cursor.down) {
