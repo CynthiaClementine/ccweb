@@ -13,16 +13,6 @@ function randomizeColorsFor(frame) {
 	}
 }
 
-// //adds a function to the history deltas that, when called, will reverse a taken action
-// function historyAdd(func) {
-
-// }
-
-// //adds a function to the inverse history deltas that, when called, will repeat an action
-// function historyActionsAdd(func) {
-
-// }
-
 /**
  * Runs and records a reversable action that could be undone with undo()
  * @param {Function} actionFunc The action to take
@@ -61,15 +51,6 @@ function recordAction(actionFunc, inverseFunc) {
 	//increment the counter
 	editDeltaTracker += 1;
 }
-
-// function historyStep() {
-// 	//create a new bin to put history functions in
-// 	editInverseDeltas
-
-// 	//get rid of the forward steps as they are now out of sync with history
-// 	editDeltas = [];
-
-// }
 
 function undo() {
 	//move the tracker back and perform an inverse action
