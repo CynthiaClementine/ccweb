@@ -15,6 +15,55 @@ function copyStyles(destinationNode, sourceNode) {
 	}
 }
 
+/**
+ * Creates a canvas with the data of a specified frame
+ * @param {Number} frame The 0-indexed number of the timeline's frame to turn into canvas data
+ * @param {Number} width the resulting canvas width in pixels
+ * @param {Number} height the resulting canvas height in pixels
+ * @param {0|1|2|3} detailLevel the level of detail from 0 to 3. CURRENTLY NOT WORKING, WILL ALWAYS BE 2
+ * 0 removes all styling, just returning raw paths and fills. 
+ * 1 includes colors and line width, but removes transparency.
+ * 2 is the normal level, keeping the look of the frame on-export.
+ * 3 also includes onion skins, tool overlays, and UI elements.
+ */
+function createCanvasFromFrame(frame, width, height, detailLevel) {
+	var largeContainer = φCreate("svg");
+	var canvas = document.createElement("canvas");
+	var atx = canvas.getContext("2d");
+	
+	//canvas will be all white to start, make sure to specify that isn't a true color
+	canvas.isValid = false;
+	
+	//put elements into the container
+
+	largeContainer.appendChild(workspace_background.cloneNode());
+	for (var f=timeline.layerIDs.length-1; f>-1; f--) {
+		largeContainer.appendChild(timeline.l[timeline.layerIDs[f]][frame].cloneNode(true));
+	}
+
+	var [w, h, scaling] = φGet(workspace_container, ["width", "height", "scaling"]);
+	var scaleFactor = height / h;
+	canvas.width = w * scaleFactor;
+	canvas.height = height;
+	atx.clearRect(0, 0, canvas.width, canvas.height);
+
+	//turn the svg into image data
+	var data = new XMLSerializer().serializeToString(workspace_container);
+	var img = new Image();
+	var svgBlob = new Blob([data], {type: "image/svg+xml;charset=utf-8"});
+	var url = URL.createObjectURL(svgBlob);
+	
+	//draw image to canvas then download
+	img.src = url;
+	img.onload = () => {
+		atx.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas.width / scaling, canvas.height / scaling);
+		URL.revokeObjectURL(url);
+		canvas.isValid = true;
+	};
+
+	return canvas;
+}
+
 function downloadData(URI, fileName) {
 	var evt = new MouseEvent("click", {
 		view: window,
@@ -52,7 +101,7 @@ function downloadTimelineAsImage(imageHeight, fileName) {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 	//turn the svg into image data
-	var data = new XMLSerializer().serializeToString(workspace_container);
+	var data = new XMLSerializer().serializeToString(svgFrom);
 	var img = new Image();
 	var svgBlob = new Blob([data], {type: "image/svg+xml;charset=utf-8"});
 	var url = URL.createObjectURL(svgBlob);
