@@ -20,7 +20,15 @@ select(layer, frame)
  * @returns the new onion skin state
  */
 function toggleOnionSkin() {
-	timeline.onionActive = !timeline.onionActive; 
+	var state = !timeline.onionActive;
+	timeline.onionActive = state;
+
+	if (state) {
+		φSet(timeline_onionhead, {"display": "inline-block"});
+	} else {
+		φSet(timeline_onionhead, {"display": "none"});
+	}
+	
 	return timeline.onionActive;
 }
 
@@ -188,6 +196,10 @@ function select(layer, frame) {
 		'x': frame * (timeline_blockW + 1),
 		'y': timeline_headHeight + layer * (timeline_blockH + 1)
 	});
+	φSet(timeline_onionhead, {
+		'x': frame * (timeline_blockW + 1)
+	});
+	setOnionWingLengths();
 }
 
 /**
