@@ -401,3 +401,72 @@ class ToolMove {
 		}
 	}
 }
+
+class ToolEyedrop {
+	constructor() {
+		this.canvasFrame;
+		this.canvas;
+		this.ctx;
+
+		this.pickHandler;
+	}
+
+	createCanvas() {
+		//height is proportional to how zoomed in user is
+		var whs = φGet(workspace_container, ['width', 'height', 'scaling']);
+		this.canvasFrame = timeline.t;
+		this.canvas = createCanvasFromFrame(timeline.t, whs[0] * whs[2], whs[1] * whs[2]);
+		this.ctx = this.canvas.getContext("2d");
+	}
+
+	pickColor() {
+		//don't pick if there's no canvas
+		if (this.canvas == undefined) {
+			return;
+		}
+
+		//if the canvas is good, pick it
+		if (this.canvas.isValid) {
+			this.pickColor_final();
+			return;
+		}
+
+		var self = this;
+		//if the canvas isn't good, retry later
+		this.pickHandler = window.setInterval(() => {
+			if (self.canvas.isValid) {
+				window.clearInterval(self.pickHandler);
+				self.pickColor_final();
+			}
+		}, 1);
+	}
+
+	pickColor_final() {
+		var xy = cursorWorkspaceCoordinates();
+		var pxDat = this.ctx.getImageData(floor(xy[0]), floor(xy[1]), 1, 1).data;
+		setColorRGBA(...pxDat);
+	}
+
+	mouseDown(a) {
+		//don't start if the timeline is playing - that could create bugs
+		if (autoplay != undefined) {
+			return;
+		}
+
+		//create rasterized version of the canvas to pick from
+		if (this.canvasFrame == undefined || this.canvasFrame != timeline.t) {
+			this.createCanvas();
+		}
+		this.pickColor();
+	}
+
+	mouseMove(a) {
+		if (this.canvas != undefined && cursor.down) {
+			this.pickColor();
+		}
+	}
+
+	mouseUp(a) {
+
+	}
+}
