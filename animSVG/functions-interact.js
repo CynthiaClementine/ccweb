@@ -4,18 +4,41 @@ This exists because often the inputs themselves need to be processed (a click co
 */
 
 //used because I can't pass in variable arguments to onclick functions
-function keyframe_user(n) {
-	switch (n) {
-		case 1:
-			makeKeyframe(timeline.s, timeline.t);
-			break;
-		case 2:
-			makeKeyframe(timeline.s, timeline.t, timeline.l[timeline.layerIDs[timeline.s]][timeline.t])
-			break;
-		case 3:
-			makeUnKeyframe(timeline.s, timeline.t);
-			break;
+function user_keyframe(n) {
+	var m = timeline;
+	var iden = m.layerIDs[m.s];
+	var frameIsKey = m.l[iden][m.t] != m.l[iden][m.t - 1];
+
+	//delete keyframe
+	if (n == 3) {
+		if (frameIsKey) {
+			makeUnKeyframe(m.s, m.t);
+		}
+		m.changeFrameTo(m.t);
+		return;
 	}
+
+	//create keyframe
+	//don't create a keyframe on the same frame as a non-keyframe
+	var tStorage = m.t;
+	while (frameIsKey) {
+		m.t += 1;
+		frameIsKey = timeline.l[iden][m.t] != timeline.l[iden][m.t - 1];
+	}
+	//only count if not off the end of the timeline
+	if (m.t < m.len) {
+		var node;
+		if (n == 2) {
+			node = m.l[iden][m.t];
+		}
+		makeKeyframe(timeline.s, timeline.t, node);
+	} else {
+		//if off the end, ignore and revert changes
+		m.t = tStorage;
+	}
+		
+	//update what's visible by changing timeline to the same frame
+	m.changeFrameTo(m.t);
 }
 
 function changeToolTo(toolName) {
@@ -39,7 +62,9 @@ function changeToolTo(toolName) {
 			toolCurrent = new ToolCircle();
 			φSet(tool_circle.children[0], {"fill": pressColor});
 			break;
-		case "":
+		case "Eyedropper":
+			toolCurrent = new ToolEyedrop();
+			φSet(tool_eyedrop.children[0], {"fill": pressColor});
 			break;
 		case "":
 			break;
