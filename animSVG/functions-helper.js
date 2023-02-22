@@ -17,6 +17,7 @@ cursorIsInBounds()
 cursorWorkspaceCoordinates()
 createSpline(curves, color, pathWidth)
 frame_addPath(layerNode, curves, width, color)
+frame_removePath(layerNode, spline)
 makeUnKeyframe(layerIndex, frame)
 
 moveWorkspace(x, y)
@@ -151,22 +152,22 @@ function changeAnimationLength(newLength) {
 				document.getElementById(`layer_${id}_frame_${z}`).remove();
 			}
 		});
-		updateTimelineExtender();
-		return;
+	} else {
+		//longer than the current length
+		var copyFrame;
+		timeline.layerIDs.forEach(lid => {
+			//propogate the last frame forwards
+			copyFrame = timeline.l[lid][oldLength-1];
+	
+			//extend, fill, and then update the visible timeline blocks
+			timeline.l[lid][newLength-1] = copyFrame;
+			timeline.l[lid].fill(copyFrame, oldLength, newLength-1);
+			createTimelineBlocks(lid, oldLength, newLength-1);
+		});
 	}
 
-	//longer than the current length
-	var copyFrame;
-	timeline.layerIDs.forEach(lid => {
-		//propogate the last frame forwards
-		copyFrame = timeline.l[lid][oldLength-1];
-
-		//extend, fill, and then update the visible timeline blocks
-		timeline.l[lid][newLength-1] = copyFrame;
-		timeline.l[lid].fill(copyFrame, oldLength, newLength-1);
-		createTimelineBlocks(lid, oldLength, newLength-1);
-	});
 	updateTimelineExtender();
+	setOnionWingLengths();
 }
 
 function changeFPS_user() {
@@ -245,7 +246,10 @@ function cursorWorkspaceCoordinates() {
 
 /**
  * Creates a spline object to be added to the DOM
- * @param {*} curves 
+ * @param {Number[][][]} curves Coordinates of the curves the spline consists of
+ * @param {RGBAString} color the color of the spline path
+ * @param {Number} pathWidth the width of the path
+ * @returns {Spline} A Spline Path object
  */
 function createSpline(curves, color, pathWidth) {
 	var node = φCreate("path", {
@@ -375,24 +379,222 @@ function cursorRelativeTo(node) {
 
 
 /**
- * Adds a path to a specified frame object.
- * A path is made up of a set of curves that are either linear, quadratic, or bezier. This set of curves nominally does not intersect itself or other path objects.
- * @param {*} layerNode The frame object to add the path to
- * @param {Number[][][]} pts The points that the path consists of
- * @param {Number} width How wide the path will be
- * @param {RGBAString} color the color of the path
+ * Adds a Spline to a specified frame object.
+ * A Spline is made up of a set of curves that are either linear, quadratic, or bezier. This set of curves nominally does not intersect itself or other path objects.
+ * @param {*} layerNode The frame object to add the spline to
+ * @param {Spline} spline the Spline path object to add
  */
-function frame_addPath(layerNode, curves, width, color) {
+function frame_addPath(layerNode, spline) {
 	var uid = φGet(layerNode, 'uid');
-	var node = createSpline(curves, color, width);
+	var curves = spline.curves;
 
-	layerNode.lines.appendChild(node);
+	//first add the cubics to all necessary bins
+	curves.forEach(c => {
+		var bbox;
+		switch(c.length) {
+			case 2:
+				bbox = [c[0][0], c[0][1], c[1][0], c[1][1]];
+				break;
+			case 3:
+				bbox = quadraticBounds(c[0], c[1], c[2]);
+				break;
+			case 4:
+				bbox = bezierBounds(c[0], c[1], c[2], c[3]);
+				break;
+		}
+
+		var bboxBins = bbox.map(n => Math.floor(n / cubicBinSize));
+		var tIntersects = [];
+		for (var x=bboxBins[0]; x<=bboxBins[2]; x++) {
+			for (var y=bboxBins[1]; y<=bboxBins[3]; y++) {
+				
+				//make sure the bin exists before placing objects into it
+				if (layerNode.cubicBins[x] == undefined) {
+					layerNode.cubicBins[x] = [];
+				}
+
+				if (layerNode.cubicBins[x][y] == undefined) {
+					layerNode.cubicBins[x][y] = [];
+				}
+
+				/*
+				//test for intersections within the bin
+				var curveNums = bezIntersections(c, layerNode.cubicBins[x][y]);
+
+				//if there are intersections split the existing curve(s)? and then add the pre-intersection curve to the canvas
+				if (curveNums.length > 0) {
+					splitPathsAt(layerNode, x, y);
+				} */
+
+				//actual placing
+				layerNode.cubicBins[x][y].push(c);
+			}
+		}
+	});
+
+	// var bboxBins = ;
+
+
+	layerNode.lines.appendChild(spline);
 
 	//if the layer was previously empty change to full
 	if (layerNode.lines.children.length == 1) {
 		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
 		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
 	}
+}
+
+/**
+ * Removes a path from a specified frame object
+ * @param {Frame} layerNode the frame object the spline belongs to
+ * @param {Spline} spline the spline path object to remove
+ */
+function frame_removePath(layerNode, spline) {
+	//go through the curves and remove them from the curve bins
+	var bbox;
+	spline.curves.forEach(c => {
+		bbox = (c.length == 2) ? [c[0][0], c[0][1], c[1][0], c[1][1]] : bezierBounds(c[0], c[1], c[2], c[3]);
+		bbox = bbox.map(a => Math.floor(a / cubicBinSize));
+
+		//remove a curve from every bin it is in
+		for (var x=bbox[0]; x<=bbox[2]; x++) {
+			for (var y=bbox[1]; y<=bbox[3]; y++) {
+				layerNode.cubicBins[x][y].splice(layerNode.cubicBins[x][y].indexOf(c), 1);
+			}
+		}
+	});
+	
+	//TODO: for when I add spline bins
+	
+	//get the bounding box
+	
+	//remove the spline
+	layerNode.lines.removeChild(spline);
+}
+
+/**
+ * Splits all the paths that go through a specified xy point on a specified layer
+ * @param {Frame} layer the frame object paths belong to
+ * @param {Number} x the workspace X to split at
+ * @param {Number} y the workspace Y to split at
+ */
+function splitPathsAt(layer, x, y) {
+	var p = [x, y];
+	var plancLen = 0.5 / (10 ** quantizeTo);
+	//first locate the bin with the xy coordinates
+	var binX = Math.floor(x / cubicBinSize);
+	var binY = Math.floor(y / cubicBinSize);
+
+	//give up if there are no cubics in the bin
+	if ((layer.cubicBins[binX][binY] ?? []).length == 0) {
+		return;
+	}
+
+	//find all the valid cubics that share those coordinates
+	var valCubics = [];
+	layer.cubicBins[binX][binY].forEach(a => {
+		if (a.length == 2) {
+			if (pointLineIntersect(p, a[0], a[1], plancLen)) {
+				valCubics.push(a);
+			}
+		} else {
+			if (pointBezierIntersect(p, a[0], a[1], a[2], a[3], plancLen)) {
+				valCubics.push(a);
+			}
+		}
+	});
+
+	//make sure there are at least some cubics left
+	if (valCubics.length == 0) {
+		return;
+	}
+	
+	//use the selected cubics to find their spline parents, and split the splines
+	//TODO: the splines should be binned as well? perhaps in a separate bin set
+	var splinBin = layer.lines.children;
+	var valSplines = [];
+	var valCubicsOrder = [];
+	for (var b=0; b<splinBin.length; b++) {
+		for (var c=0; c<valCubics.length; c++) {
+			if (splinBin[b].curves.includes(c)) {
+				valSplines.push(splinBin[b]);
+				//there can only be one spline per curve, and similarly one curve per spline
+				//this lets me remove matched curves from the list, and skip to the end after a match
+				valCubics.splice(c, 1);
+				valCubicsOrder.push(c);
+				c = valCubics.length;
+			}
+		}
+	}
+
+	//make sure not to select splines where the end of the spline is the split-point (avoid causing a spline with 0 size)
+	var l = 0;
+	valSplines.forEach(s => {
+		//to cut the spline, figure out which t it should be cut
+		var calcT = s.curves.indexOf(valCubicsOrder[l]);
+		calcT = calcT + bezierTFromPoint(x, y);
+		//cut the spline into its parts
+
+
+		var cut = s.splitAtT(calcT);
+
+
+		//remove the original spline
+		frame_removePath()
+
+		//add the cut portions
+
+		l += 1;
+	});
+
+	frame_xj.lines.children[0].curves
+	
+	// for (v)
+		
+}
+
+/**
+ * Returns a list of numbers corresponding to the indeces of testCurves that intersect the first curve
+ * @param {Number[][]} curve New potentially intersecting curve. Can be between two and four 2d points
+ * @param {Number[][][]} testCurves Array of curves
+ */
+function bezIntersections(curve, testCurves) {
+	var nums = [];
+	var totLen;
+	var plancLen = 0.5 / (10 ** quantizeTo);
+
+	for (var g=0; g<testCurves.length; g++) {
+		totLen = testCurves[g].length + curve.length;
+
+		//handle collision with different curves differently
+		switch (totLen) {
+			case 4:
+				if (lineIntersect(curve[0], curve[1], testCurves[g][0], testCurves[g][1])) {
+					nums.push(g);
+				}
+				break;
+			case 6:
+				if (curve.length == 4) {
+					if (lineBezierIntersect(testCurves[g][0], testCurves[g][1], curve[0], curve[1], curve[2], curve[3])) {
+						nums.push(g);
+					}
+				} else {
+					if (lineBezierIntersect(curve[0], curve[1], testCurves[g][0], testCurves[g][1], testCurves[g][2], testCurves[g][3])) {
+						nums.push(g);
+					}
+				}
+				break;
+			case 8:
+				if (bezierBezierIntersect(curve[0], curve[1], curve[2], curve[3], testCurves[g][0], testCurves[g][1], testCurves[g][2], testCurves[g][3], plancLen)) {
+					nums.push(g);
+				}
+				break;
+			default:
+				console.log(`hmn why ${curve.length}?`);
+		}
+	}
+
+	return nums;
 }
 
 /**
@@ -434,6 +636,16 @@ function frame_create(frameID, layerID) {
 		//that loop is the region to fill
 	}
 
+	//properties
+	var wh = φGet(workspace_background, ['width', 'height']);
+	temp.cubicBins = [];
+	for (var y=0; y<Math.ceil(wh[1]/cubicBinSize); y++) {
+		temp.cubicBins.push([]);
+		for (var x=0; x<Math.ceil(wh[0]/cubicBinSize); x++) {
+			temp.cubicBins[y].push([]);
+		}
+	}
+
 	if (layerID) {
 		document.getElementById(`layer_${layerID}`).appendChild(temp);
 	}
@@ -468,7 +680,7 @@ function frame_copy(frameNode, layerID) {
 
 function moveWorkspace(x, y) {
 	//holding control zooms instead of moving up/down
-	if (button_control) {
+	if (button_force) {
 		zoom(cursor.x, cursor.y, clamp(φGet(workspace_container, "scaling") * (1 + y * 0.001), ...workspace_scaleBounds));
 
 	} else {
@@ -580,6 +792,26 @@ function setCanvasPreferences() {
 	var workHeightAvailable = canvas.height * (1 - timeline.height - (workspace_margin * 2));
 	workspace_scaling = workHeightAvailable / workspace_height;
 	clampWorkspace();
+}
+
+function setOnionWingLengths() {
+	//toggle the side selectors
+	var lenPast = Math.min(timeline.t, timeline.onionBounds[0]);
+	var lenFuture = Math.min(timeline.len - 1 - timeline.t, timeline.onionBounds[1]);
+	var wPast = lenPast * (timeline_blockW + 1);
+	var wFuture = lenFuture * (timeline_blockW + 1);
+
+	wPast = Math.max(wPast, 1);
+	wFuture = Math.max(wFuture, 1);
+
+	φSet(onionLeft, {
+		'width': wPast,
+		'x': -wPast + 0.1,
+	});
+	φSet(onionRight, {
+		'width': wFuture,
+		'x': timeline_blockW,
+	});
 }
 
 //takes in a set of points, and uses the Ramer-Douglas-Peucker algorithm to make the line simpler
