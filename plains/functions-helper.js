@@ -7,7 +7,7 @@ utility:
 	avgArray();
 	editor_createObject();
 	generateStarSphere();
-	randomCustom();
+	getImage();
 	randomSeeded();
 	readWorldFile();
 	runCrash();
@@ -36,7 +36,6 @@ function avgArray(array) {
 	for (var d=0;d<finArr.length;d++) {
 		finArr[d] /= arr.length;
 	}
-	
 
 	return finArr;
 }
@@ -92,6 +91,28 @@ function generateStarSphere() {
 	}
 }
 
+function getImage(url, useOffscreenCanvas) {
+	var image = new Image();
+	image.src = url;
+
+	//if using an offscreen canvas return that instead
+	if (useOffscreenCanvas) {
+		var nowCanvas = document.createElement('canvas');
+		var nowCtx = nowCanvas.getContext('2d');
+		nowCanvas.width = 0;
+		nowCanvas.height = 0;
+
+		image.onload = () => {
+			//when the image loads resize the canvas and paint to it
+			nowCanvas.width = image.width;
+			nowCanvas.height = image.height;
+			nowCtx.drawImage(image, 0, 0);
+		}
+		return nowCanvas;
+	}
+	return image;
+}
+
 function mergeIdenticalWorldPoints() {
 	world_pointStorage = [];
 
@@ -142,11 +163,6 @@ function mergeIdenticalPolyPoints(polygon) {
 	}
 }
 
-//returns a random value between the min value and max values, using the default javascript randomizer
-function randomCustom(min, max) {
-	return (Math.random() * (max - min)) + min;
-}
-
 //returns a pseudo-random value between the min value and max values
 function randomSeeded(min, max) {
 	loading_randVal = Math.pow(loading_randVal, 1.6414756);
@@ -159,41 +175,58 @@ function randomSeeded(min, max) {
 
 function readWorldFile() {
 	var fileText;
-	fetch('worlds.txt').then(response => response.text()).then(text => {
+	// fetch('worlds.txt').then(response => response.text()).then(text => {
+		var text = worlds;
 		fileText = text.split("\n");
 		var appendWorld;
 		var appendMesh;
 		fileText.forEach(l => {
+			//make sure line isn't a comment
+			if (l.slice(0, 2) == "//") {
+				return;
+			}
 			//split each line into arguments to determine what to do
 			var splitTag = l.split("~");
 
 			//only do if the tag is real
-			if (splitTag.length > 1) {
-				//creating different types of objects
-				switch (splitTag[0]) {
-					case "WORLD":
-						//world creation
+			if (splitTag.length < 2) {
+				return;
+			}
 
-						//if there's a previous world, make sure that world's tree gets generated
-						if (appendWorld != undefined) {
-							appendWorld.generateBinTree();
-						}
+			//creating different types of objects
+			switch (splitTag[0]) {
+				case "WORLD":
+					//world creation
 
-						appendWorld = new World(splitTag[1], splitTag[2]);
-						world_listing.push(appendWorld);
-					case "MESH":
-						//if a mesh already exists, append that
+					//if there's a previous world, make sure that world's tree gets generated
+					if (appendWorld != undefined) {
+						//if a mesh is in use, append it
 						if (appendMesh != undefined) {
 							appendWorld.meshes.push(appendMesh);
 						}
-						//create new mesh object
-						appendMesh = new Mesh(splitTag[1]);
-						break;
-					default:
-						appendMesh.objects.push(data_createObject(splitTag));
-						break;
+						appendWorld.generateBinTree();
+					}
 
-				}
+					appendWorld = new World(splitTag[1], splitTag[2]);
+					world_listing.push(appendWorld);
+
+					//create mesh for base objects
+					appendMesh = new Mesh(`_baseObjs_`);
+					break;
+				case "MESH":
+					//if a mesh already exists, append that
+					if (appendMesh != undefined) {
+						appendWorld.meshes.push(appendMesh);
+					}
+					//create new mesh object
+					appendMesh = new Mesh(splitTag[1]);
+					break;
+				case "FREE":
+					//switch to free object mode
+					break;
+				default:
+					appendMesh.objects.push(data_createObject(splitTag));
+					break;
 			}
 		});
 		//if a mesh is in use, append it
@@ -203,7 +236,7 @@ function readWorldFile() {
 
 		appendWorld.generateBinTree();
 		loading_world = world_listing[0];
-	});
+	// });
 }
 
 
@@ -276,7 +309,7 @@ function selectPoly(startPolygon) {
 
 function setStylePreferences() {
 	ctx.lineWidth = 2;
-	ctx.lineJoin = "bevel";
+	ctx.lineJoin = "round";
 }
 
 function snapTo(value, snapInterval) {
