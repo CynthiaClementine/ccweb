@@ -1,6 +1,8 @@
 //houses html interactivity, setup, and main function
 
 window.onload = setup;
+window.onresize = updateResolution;
+window.onbeforeunload = handleUnload;
 document.addEventListener("keydown", handleKeyPress, false);
 document.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener("mousedown", handleMouseDown, false);
@@ -16,6 +18,7 @@ var ctx;
 const color_editor_bg = "#335";
 const color_editor_defaultPoly = "#088";
 const color_editor_handles = "#888";
+const color_partition = "#FFFF00";
 const color_selection = "#0FF";
 const color_text_light = "#F8F";
 var colorKey = "0123456789ABCDEF";
@@ -46,12 +49,14 @@ var player_noclipMultiplier = 10;
 
 var world_time = 0;
 let world_listing = [];
+var world_minDist = 0.01;
 
 var render_crosshairSize = 3;
 var render_crosshairDivide = 6;
 var render_clipDistance = 0.1;
 var render_identicalPointTolerance = 0.0001;
 var render_normalLength = 1;
+var render_drawPartitions = false;
 
 var star_distance = [10000, 20000];
 var star_size = 50;
@@ -69,6 +74,7 @@ function setup() {
 	canvas = document.getElementById("cornh");
 	ctx = canvas.getContext("2d");
 	setStylePreferences();
+	updateResolution();
 
 	//cursor movements setup
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
@@ -80,12 +86,6 @@ function setup() {
 		}
 	}
 
-	//high resolution slider
-	document.getElementById("haveHighResolution").onchange = updateResolution;
-	//if the box is already checked from a previous session update resolution to max
-	if (document.getElementById("haveHighResolution").checked) {
-		updateResolution();
-	}
 	//set up worlds from file
 	readWorldFile();
 	generateStarSphere();
@@ -336,14 +336,22 @@ function handleMouseUp(a) {
 	cursor_down = false;
 }
 
-function updateResolution() {
-	var multiplier = 0.5;
-	if (document.getElementById("haveHighResolution").checked) {
-		multiplier = 2;
-	}
+function handleUnload() {
+	alert(`Be careful out there.`);
+}
 
-	//all things necessary for switching between resolutions
-	canvas.width *= multiplier;
-	canvas.height *= multiplier;
-	player.scale *= multiplier;
+function updateResolution() {
+	var spaceW = window.innerWidth * 0.96;
+	var spaceH = window.innerHeight * 0.95;
+	var forceAspect = 0.75;
+
+	//make sure canvas, when sized to the correct aspect ratio, fits inside the screen
+	spaceH = Math.min(spaceH, spaceW * forceAspect);
+	spaceW = spaceH / forceAspect;
+	spaceH = Math.floor(spaceH);
+	spaceW = Math.floor(spaceW);
+
+	canvas.width = spaceW;
+	canvas.height = spaceH;
+	player.scale = player.scalePerPixel * canvas.height;
 }
