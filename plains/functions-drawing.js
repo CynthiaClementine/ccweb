@@ -68,11 +68,10 @@ function drawQuad(color, p1, p2, p3, p4) {
 }
 
 function drawPoly(color, xyPointsArr) {
-	ctx.fillStyle = color;
-	ctx.strokeStyle = color;
-	
 	var xypa = xyPointsArr;
 	ctx.beginPath();
+	ctx.fillStyle = color;
+	ctx.strokeStyle = color;
 	ctx.moveTo(xypa[0][0], xypa[0][1]);
 	for (var i=1;i<xypa.length;i++) {
 		ctx.lineTo(xypa[i][0], xypa[i][1]);
@@ -148,7 +147,7 @@ function drawWorldPoly(points, color) {
 	tempPoints = clipToZ0(tempPoints, render_clipDistance, false);
 
 	//don't bother drawing if there's not enough points
-	if (tempPoints.length < 2) {
+	if (tempPoints.length < 3) {
 		return;
 	}
 	testNumStorage += 1;
