@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!--
+			Copyright Cynthia Clementine 
+			Feb-28-2023
+		-->
+		<title>Circle hoverers anonymous</title>
+		<meta charset="UTF-8">
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono&display=swap" rel="stylesheet">
+		<style>
+			body {
+				background-color: slateblue;
+			}
+
+			#test {
+				display: block;
+				margin: auto;
+			}
+		</style>
+	</head>
+	<script type="text/javascript">
+		window.onload = setup;
+		window.onmousemove = handleMouseMove;
+
+		var canvas;
+		var ctx;
+
+		var cursorX = 0;
+		var cursorY = 0;
+
+		var bubbles = [];
+		var bubblesMax = 3;
+		var bubbleRadius = 50;
+		var score = 0;
+		var ur = 0;
+		var time = 0;
+		var timeMax = 60 * 12;
+
+		var scoreTimes = [];
+
+		function setup() {
+			canvas = document.getElementById("test");
+			ctx = canvas.getContext("2d");
+			
+			ctx.fillStyle = "#000";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			
+			for (var t=0; t<bubblesMax; t++) {
+				pickBubblePos();
+			}
+
+			window.requestAnimationFrame(main);
+		}
+
+
+		function main() {
+			time += 1;
+		
+			//remove scores that are too old
+			while (time - scoreTimes[0] > timeMax) {
+				scoreTimes.splice(0, 1);
+			}
+			
+			//bege
+			ctx.globalAlpha = 0.5;
+			ctx.fillStyle = "#000";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.globalAlpha = 1;
+			
+			
+			//put circle at cursor pos
+			ctx.beginPath();
+			ctx.fillStyle = "#8FF";
+			ctx.arc(cursorX, cursorY, 5, 0, Math.PI * 2);
+			ctx.fill();
+		
+			//draw ORBS
+			for (var k=0; k<bubbles.length; k++) {
+				ctx.beginPath();
+				ctx.fillStyle = "#FC8";
+				ctx.arc(bubbles[k][0], bubbles[k][1], bubbleRadius, 0, Math.PI * 2);
+				ctx.fill();
+				
+				//if the cursor's too close to the bubble make a new one and increase score
+				if (Math.hypot(bubbles[k][0] - cursorX, bubbles[k][1] - cursorY) < bubbleRadius) {
+					bubbles.splice(k, 1);
+					k -= 1;
+				score += 1;
+				scoreTimes.push(time);
+				pickBubblePos();
+				}
+			}
+
+			//draw score
+			var tempUR = (scoreTimes.length * 60 / timeMax);
+			ur = Math.max(ur, tempUR);
+			ctx.fillStyle = "#AFA";
+			ctx.font = "20px Ubuntu";
+			ctx.fillText(`Score: ${score}`, 5, 20);
+			ctx.fillText(`unstable rate: ${tempUR.toFixed(2)}`, 5, 45);
+			ctx.fillText(`Top UR: ${ur.toFixed(2)}`, 5, 70);
+			
+			//call self
+			window.requestAnimationFrame(main);
+		}
+
+		function pickBubblePos() {
+			bubbles.push([Math.random() * canvas.width, Math.random() * canvas.height]);
+		}
+
+		function handleMouseMove(a) {
+			var canvasArea = canvas.getBoundingClientRect();
+			cursorX = a.clientX - canvasArea.left;
+		cursorY = a.clientY - canvasArea.top;
+		}
+	</script>
+	<body>
+		<canvas id="test" width="640" height="480"></canvas>
+	</body>
+</html>
