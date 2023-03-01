@@ -66,45 +66,40 @@ class Camera {
 	updatePosition() {
 		//handling position
 		var speedMultiplier = 1 + controls_shiftPressed * (1 + editor_active * 7);
-		var lookRay;
-		if (Math.abs(this.dx) > this.dMin) {
-			var toAdd = polToCart(this.theta + (Math.PI / 2), 0, this.dx * speedMultiplier);
-			//cast ray sideways
-			lookRay = new Ray_Tracking(this.world, this.x, this.y, this.z, [toAdd[0] / Math.abs(this.dx * speedMultiplier), toAdd[1] / Math.abs(this.dx * speedMultiplier), toAdd[2] / Math.abs(this.dx * speedMultiplier)]);
-			lookRay.iterate(0);
-			//if the ray's gone far enough, then move there
-			if (lookRay.distance > this.width + Math.abs(this.dx)) {
-				//doesn't need a y because phi is always 0
-				this.x += toAdd[0];
-				this.z += toAdd[2];
-			} else {
-				this.dx = 0;
+		var lookRay, toAdd, absMag;
+
+		var polars = [
+			[this.theta + (Math.PI / 2), 0],
+			[0, -Math.PI / 2],
+			[this.theta, 0]
+		]
+		var dVec = [this.dx * speedMultiplier, this.dy, this.dz * speedMultiplier];
+		//handle all 3 axes separately so if one fails they can still happen
+		for (var i=0; i<3; i++) {
+			absMag = Math.abs(dVec[i]);
+			if (absMag > this.dMin) {
+				toAdd = polToCart(polars[i][0], polars[i][1], dVec[i]);
+				//cast ray sideways
+				lookRay = new Ray_Tracking(this.world, this.x, this.y, this.z, [toAdd[0] / absMag, toAdd[1] / absMag, toAdd[2] / absMag]);
+				lookRay.iterate(0);
+				//if the ray's gone far enough, then move there
+				if (lookRay.distance > this.width + absMag) {
+					//doesn't need a y because phi is always 0
+					this.x += toAdd[0];
+					this.y += toAdd[1];
+					this.z += toAdd[2];
+				} else {
+					dVec[i] = 0;
+					if (i == 1) {
+						this.onGround = true;
+					}
+				}
 			}
 		}
 
-		if (Math.abs(this.dy) > this.dMin) {
-			var toAdd = polToCart(0, -(Math.PI / 2), this.dy);
-			lookRay = new Ray_Tracking(this.world, this.x, this.y, this.z, [toAdd[0] / this.dy, toAdd[1] / this.dy, toAdd[2] / this.dy]);
-			lookRay.iterate(0);
-			if (lookRay.distance > this.height + this.dy) {
-				this.y += toAdd[1];
-			} else {
-				this.dy = 0;
-				this.onGround = true;
-			}
-		}
-
-		if (Math.abs(this.dz) > this.dMin) {
-			var toAdd = polToCart(this.theta, 0, this.dz * speedMultiplier);
-			lookRay = new Ray_Tracking(this.world, this.x, this.y, this.z, [toAdd[0] / Math.abs(this.dz * speedMultiplier), toAdd[1] / Math.abs(this.dz * speedMultiplier), toAdd[2] / Math.abs(this.dz * speedMultiplier)]);
-			lookRay.iterate(0);
-			if (lookRay.distance > this.width + Math.abs(this.dz)) {
-				this.x += toAdd[0];
-				this.z += toAdd[2];
-			} else {
-				this.dz = 0;
-			}
-		}
+		dVec[0] /= speedMultiplier;
+		dVec[1] /= speedMultiplier;
+		[this.dx, this.dy, this.dz] = dVec;
 	}
 
 	jump() {
