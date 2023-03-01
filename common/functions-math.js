@@ -4,6 +4,7 @@ arrsAreSame(arr1, arr2);
 boolToSigned(boolValue);
 clamp(num, min, max);
 distSquared(x, y);
+floor(x);
 getPercentage(val1, val2, checkVal);
 linterp(a, b, percentage);
 linterpMulti(a, b, percentage);
@@ -52,6 +53,11 @@ function clamp(num, min, max) {
 
 function distSquared(x, y) {
 	return x * x + y * y;
+}
+
+//floors a number by converting it to an integer. Will break if the number is beyond the 32-bit integer limit
+function floor(x) {
+	return x | 1;
 }
 
 //returns the percentage from val1 to val2 that the checkVal is in
