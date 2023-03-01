@@ -68,29 +68,25 @@ class Timeline {
 		}
 		
 		//past onion
-		for (var f=Math.min(this.onionBounds[0]+1, this.t); f>0; f--) {
+		var maxF = Math.min(this.onionBounds[0]+1, this.t);
+		for (var f=maxF; f>0; f--) {
 			this.setPropertiesForTime(this.t - f, {
 				'display': "inline-block", 
 				'filter': "url(#onionPast)",
-				'opacity': 0.8 * (1 - f / this.onionBounds[0])
+				'opacity': 0.8 * (1 - (f / maxF))
 			});
 		}
 		
-		var maxF = Math.min(this.onionBounds[1]+1, this.len - 1 - this.t);
-		
+		maxF = Math.min(this.onionBounds[1]+1, this.len - 1 - this.t);
 		//future onion
-		for (var f=maxF-1; f>0; f--) {
+		for (var f=maxF; f>0; f--) {
 			this.setPropertiesForTime(this.t + f, {
 				'display': "inline-block", 
 				'filter': "url(#onionFuture)",
-				'opacity': 0.8 * (1 - f / this.onionBounds[1])
+				'opacity': 0.8 * (1 - f / maxF)
 			});
 		}
 		//present
 		this.setPropertiesForTime(this.t, {'display': "inline-block", 'filter': undefined, 'opacity': 1});
-	}
-
-	togglePlayback() {
-		
 	}
 }
