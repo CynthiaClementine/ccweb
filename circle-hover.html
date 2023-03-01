@@ -19,11 +19,17 @@
 				display: block;
 				margin: auto;
 			}
+			#centerModule {
+				text-align: center;
+				margin: auto;
+			}
 		</style>
 	</head>
 	<script type="text/javascript">
 		window.onload = setup;
 		window.onmousemove = handleMouseMove;
+		// window.onkeypress = input;
+		// window.onmousedown = input;
 
 		var canvas;
 		var ctx;
@@ -36,6 +42,7 @@
 		var bubbleRadius = 50;
 		var score = 0;
 		var ur = 0;
+		var sr = 0;
 		var time = 0;
 		var timeMax = 60 * 12;
 
@@ -44,6 +51,8 @@
 		function setup() {
 			canvas = document.getElementById("test");
 			ctx = canvas.getContext("2d");
+
+			updateSize();
 			
 			ctx.fillStyle = "#000";
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -69,55 +78,98 @@
 			ctx.fillStyle = "#000";
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			ctx.globalAlpha = 1;
-			
-			
-			//put circle at cursor pos
-			ctx.beginPath();
-			ctx.fillStyle = "#8FF";
-			ctx.arc(cursorX, cursorY, 5, 0, Math.PI * 2);
-			ctx.fill();
 		
 			//draw ORBS
 			for (var k=0; k<bubbles.length; k++) {
 				ctx.beginPath();
 				ctx.fillStyle = "#FC8";
+				//if in the score zone decrease opacity a bit
+				if (bubbles[k][0] - bubbleRadius < 290 && bubbles[k][1] - bubbleRadius < 65) {
+					ctx.globalAlpha = 0.75;
+				}
 				ctx.arc(bubbles[k][0], bubbles[k][1], bubbleRadius, 0, Math.PI * 2);
 				ctx.fill();
-				
-				//if the cursor's too close to the bubble make a new one and increase score
-				if (Math.hypot(bubbles[k][0] - cursorX, bubbles[k][1] - cursorY) < bubbleRadius) {
-					bubbles.splice(k, 1);
-					k -= 1;
-				score += 1;
-				scoreTimes.push(time);
-				pickBubblePos();
-				}
+				ctx.globalAlpha = 1;
 			}
+			input();
 
 			//draw score
 			var tempUR = (scoreTimes.length * 60 / timeMax);
+			var tempSR = calculateStableRate(tempUR);
 			ur = Math.max(ur, tempUR);
+			sr = Math.max(sr, tempSR);
 			ctx.fillStyle = "#AFA";
-			ctx.font = "20px Ubuntu";
+			ctx.font = "20px Ubuntu Mono";
 			ctx.fillText(`Score: ${score}`, 5, 20);
-			ctx.fillText(`unstable rate: ${tempUR.toFixed(2)}`, 5, 45);
-			ctx.fillText(`Top UR: ${ur.toFixed(2)}`, 5, 70);
+			ctx.fillText(`Current/Top UR: ${tempUR.toFixed(2)} / ${ur.toFixed(2)}`, 5, 40);
+			ctx.fillText(`Current/Top SR: ${tempSR.toFixed(2)} / ${sr.toFixed(2)}`, 5, 60);
 			
 			//call self
 			window.requestAnimationFrame(main);
 		}
 
+		function randomBounded(min, max) {
+			return Math.random() * (max - min) + min;
+		}
+
 		function pickBubblePos() {
-			bubbles.push([Math.random() * canvas.width, Math.random() * canvas.height]);
+			bubbles.push([Math.floor(randomBounded(bubbleRadius, canvas.width - bubbleRadius)), Math.floor(randomBounded(bubbleRadius, canvas.height - bubbleRadius))]);
 		}
 
 		function handleMouseMove(a) {
 			var canvasArea = canvas.getBoundingClientRect();
 			cursorX = a.clientX - canvasArea.left;
-		cursorY = a.clientY - canvasArea.top;
+			cursorY = a.clientY - canvasArea.top;
+		}
+
+		function calculateStableRate(unstableRate) {
+			//where does this formula come from?
+			//I played the game, and compared my scores for different target sizes. Then I put the graph of these scores into desmos and found a formula that fit the curve
+			//it looks weird, but it fits
+			var crossPoint = 36.631;
+			var expectedScore;
+
+			if (bubbleRadius > crossPoint) {
+				expectedScore = 6.5 * Math.tan(0.0154 * (bubbleRadius - 50)) + 6.5;
+			} else {
+				expectedScore = 5.5 - 0.002 * (bubbleRadius - 50) ** 2;
+			}
+			
+			return ((unstableRate / expectedScore) * 10);
+		}
+
+		function updateSize() {
+			//reset top UR
+			ur = 0;
+			scoreTimes = [];
+			bubbleRadius = +sliderSize.value;
+			displaySize.innerHTML = bubbleRadius;
+		}
+
+		function input() {
+			for (var k=0; k<bubbles.length; k++) {
+				//if the cursor's too close to the bubble make a new one and increase score
+				if (Math.hypot(bubbles[k][0] - cursorX, bubbles[k][1] - cursorY) < bubbleRadius) {
+					bubbles.splice(k, 1);
+					k -= 1;
+					score += 1;
+					scoreTimes.push(time);
+					pickBubblePos();
+				}
+			}
 		}
 	</script>
 	<body>
-		<canvas id="test" width="640" height="480"></canvas>
+		<div id="centerModule">
+			<canvas id="test" width="640" height="480"></canvas>
+			Target size: <span id="displaySize">[num]</span><br>
+			<input type="range" min="1" max="150" value="30" class="slider" id="sliderSize" oninput="updateSize()"></input><br>
+			<p>
+				Hover over a circle to gain points!<br>
+				Score - number of total targets hit<br>
+				UR - Unstable Rate, a measure of average targets / second for the past 12 seconds<br>
+				SR - Stable Rate, a score representing how good your top UR is, adjusted for target size
+			</p>
+		</div>
 	</body>
 </html>
