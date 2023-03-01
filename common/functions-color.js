@@ -21,6 +21,15 @@ function linterp(a, b, percent) {
  * @param {String} hexRGBA the value to interpret
  */
 function cBreakdown(hexRGBA) {
+	//if it's a short hex code
+	if (hex.length == 4) {
+		return {
+			r: parseInt(hex[1], 16) * 17,
+			b: parseInt(hex[2], 16) * 17,
+			g: parseInt(hex[3], 16) * 17,
+			a: 1
+		};
+	}
 	return {
 		r: parseInt(hex.slice(1, 3), 16),
 		b: parseInt(hex.slice(3, 5), 16),
