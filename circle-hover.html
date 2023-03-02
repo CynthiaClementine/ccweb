@@ -4,6 +4,8 @@
 		<!--
 			Copyright Cynthia Clementine 
 			Feb-28-2023
+			I was bored in class and made this in two hours zozle
+			try to beat my high score of 14.95 SR!
 		-->
 		<title>Circle hoverers anonymous</title>
 		<meta charset="UTF-8">
@@ -124,12 +126,15 @@
 
 		function calculateStableRate(unstableRate) {
 			//where does this formula come from?
-			//I played the game, and compared my scores for different target sizes. Then I put the graph of these scores into desmos and found a formula that fit the curve
+			//I scored myself, and compared my scores for different target sizes. Then I put the graph of these scores into desmos and found a formula that fit the curve
 			//it looks weird, but it fits
-			var crossPoint = 36.631;
+			var crossPoint1 = 36.631;
+			var crossPoint2 = 77.68;
 			var expectedScore;
 
-			if (bubbleRadius > crossPoint) {
+			if (bubbleRadius > crossPoint2) {
+				expectedScore = Math.E ** (0.055 * (bubbleRadius - 58)) + 6.5;
+			} else if (bubbleRadius > crossPoint1) {
 				expectedScore = 6.5 * Math.tan(0.0154 * (bubbleRadius - 50)) + 6.5;
 			} else {
 				expectedScore = 5.5 - 0.002 * (bubbleRadius - 50) ** 2;
