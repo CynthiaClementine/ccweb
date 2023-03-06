@@ -6,13 +6,14 @@ functions that can accomplish the same tasks as user input, but with the benefit
 INDEX
 
 toggleOnionSkin()
+toggleTimelinePlayback()
 fill(workspaceX, workspaceY)
 makeKeyframe(layerIndex, frame, frameNode)
 makeUnkeyframe(layer, frame)
-
 removeLayer(id)
 select(layer, frame)
-
+setColorRGBA(r, g, b, a)
+setColorHSVA(h, s, v, a)
 */
 
 /**
@@ -41,16 +42,34 @@ function toggleTimelinePlayback() {
 		if (timeline.t == timeline.len - 1) {
 			timeline.changeFrameTo(0);
 		}
-		
+
+		//make sure to toggle the onion skin off during replay
+		var onionToggle = timeline.onionActive;
+		if (onionToggle) {
+			toggleOnionSkin();
+		}
+
+
+		//set up stop function inside here so it knows onionToggle
+		autoplayStop = () => {
+			window.clearInterval(autoplay);
+			autoplay = undefined;
+			autoplayStop = undefined;
+			if (onionToggle) {
+				toggleOnionSkin();
+				select(timeline.s, timeline.t);
+			}
+		}
+
+		//start playing
 		autoplay = window.setInterval(() => {
 			timeline.changeFrameTo(timeline.t + 1);
 			if (timeline.t == timeline.len-1) {
-				handleKeyPress({code: "Enter"})
+				autoplayStop();
 			}
 		}, 1000 / timeline.fps);
 	} else {
-		window.clearInterval(autoplay);
-		autoplay = undefined;
+		autoplayStop();
 	}
 }
 
@@ -90,7 +109,6 @@ function findLoops(pathObj) {
  */
  function makeKeyframe(layerIndex, frame, frameNode) {
 	timeline.makeInvisible();
-	console.log(layerIndex, frame, frameNode);
 
 	var layerID = timeline.layerIDs[layerIndex];
 	//first create the new layer object
@@ -189,9 +207,13 @@ function makeUnKeyframe(layer, frame) {
  * @param {Number} frame The frame being selected
  */
 function select(layer, frame) {
-	//change the timeline selector
-	timeline.s = layer;
+	//change the timeline selector while staying in-bounds
+	timeline.s = clamp(layer, 0, timeline.layerIDs.length-1);
 	timeline.changeFrameTo(frame);
+
+	//update layer/frame variables so I can use them
+	layer = timeline.s;
+	frame = timeline.t;
 	φSet(timeline_selector, {
 		'x': frame * (timeline_blockW + 1),
 		'y': timeline_headHeight + layer * (timeline_blockH + 1)
