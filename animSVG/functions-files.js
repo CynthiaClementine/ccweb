@@ -15,6 +15,123 @@ function copyStyles(destinationNode, sourceNode) {
 	}
 }
 
+function exportFile() {
+	var data = new XMLSerializer().serializeToString(workspace_permanent);
+
+	var timeData = `<timeline len=${timeline.len} fps=${timeline.fps}>\n`;
+	//list all frame-key pairs
+	var currentObj = undefined;
+	timeline.layerIDs.forEach(id => {
+		timeData += `${id}~${timeline.names[id]}`;
+
+		//run through all the frames in the timeline's layer
+		for (var f=0; f<timeline.l[id].length; f++) {
+			//every time it changes record that as a keyframe
+			if (timeline.l[id][f] != currentObj) {
+				currentObj = timeline.l[id][f];
+				//append the shortened id and timecode
+				timeData += `|${f}~${currentObj.id.slice(6)}`;
+			}
+		}
+		//newline to separate
+		timeData += "\n";
+	});
+
+	timeData += `\n</timeline>`;
+
+	data = data + timeData;
+
+
+	//file + download
+	var fileObj = new Blob([data], {type: 'text/plain'});
+	if (saveData != undefined) {
+		window.URL.revokeObjectURL(saveData);
+	}
+	saveData = window.URL.createObjectURL(fileObj);
+	var link = document.getElementById('download');
+	link.href = saveData;
+	link.click();
+}
+
+function importFile() {
+	var fileObj = document.getElementById('upload').files[0];
+	var fileReader = new FileReader();
+	fileReader.onload = function(evt) {
+		//function for when the text actually loads
+		var textDat = evt.target.result;
+
+		//separate out text into timeline + non-timeline data
+		var timelineText = textDat.slice(textDat.indexOf(`<timeline`) + 10, textDat.indexOf(`</timeline>`));
+		var dataText = textDat.slice(0, textDat.indexOf(`<timeline>`)) + textDat.slice(textDat.indexOf(`</timeline>`) + 11);
+
+		//parse real data
+		var container = φCreate('g');
+		container.innerHTML = dataText;
+		workspace_permanent.innerHTML = container.children[0].innerHTML;
+
+		//parse timeline data:
+		import_parseTimelineData(timelineText);
+	};
+
+	fileReader.readAsText(fileObj, "UTF-8");
+}
+
+function import_parseTimelineData(timeData) {
+	var timeSplit = timeData.split("\n");
+	timeSplit = timeSplit.filter(a => a.length > 1);
+
+	//use the first line - timeline tag - to gather timeline properties
+	var firstLine = timeSplit.shift();
+	firstLine = firstLine.slice(0, -1);
+	var tags = firstLine.split(" ").map(a => a.split("="));
+	console.log(tags);
+	tags.forEach(t => {
+		switch (t[0]) {
+			case "len":
+				timeline.len = +t[1];
+				break;
+			case "fps":
+				timeline.fps = +t[1];
+				break;
+		}
+	});
+
+	//the first line is dedicated to timeline length
+
+	//reset the timeline object and create new layers
+	timeline.l = {};
+	timeline.layerIDs = [];
+	timeline.names = {};
+	timeline_text_container.innerHTML = "";
+	timeline_blocks.innerHTML = "";
+	timeSplit.forEach(m => {
+		var layerSplit = m.split(`|`);
+		layerSplit = layerSplit.map(a => a.split("~"));
+		var lID = layerSplit[0][0];
+
+		//layerSplit becomes [[layerID, layerName], [0, id], [num, id], [num, id]...]
+		//first element - resolve naming issues
+		timeline.layerIDs.push(lID);
+		timeline.names[lID] = layerSplit[0][1];
+		timeline.l[lID] = [];
+		timeline.l[lID].length = timeline.len;
+
+		//afterwards fill in the keyframes for each layer
+		for (var p=1; p<layerSplit.length; p++) {
+			//fill in correct bounds
+			var stopPos = (layerSplit[p+1] == undefined) ? timeline.len : +layerSplit[p+1][0];
+			var refLayer = document.getElementById(`frame_${layerSplit[p][1]}`);
+
+			for (var q=+layerSplit[p][0]; q<stopPos; q++) {
+				timeline.l[lID][q] = refLayer;
+			}
+		}
+
+		//update the timeline blocks for that layer
+		createTimelineBlocks(lID, 0, timeline.len-1);
+	});
+}
+
 /**
  * Creates a canvas with the data of a specified frame
  * @param {Number} frame The 0-indexed number of the timeline's frame to turn into canvas data
