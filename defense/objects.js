@@ -1,7 +1,9 @@
 
 //player class
 class Player {
-	constructor() {
+	constructor(x, y) {
+		this.x = x;
+		this.y = y;
 		this.health = 3;
 		this.maxHealth = 3;
 
@@ -15,7 +17,7 @@ class Player {
 		this.shieldSize = 7;
 		this.shieldCoverAngle = this.shieldSize / (this.shieldOffset * Math.PI);
 
-		this.projectsBlocked = 0;
+		this.totalBlocks = 0;
 	}
 
 	tick() {
@@ -47,7 +49,7 @@ class Player {
 		//actual self
 		ctx.beginPath();
 		ctx.fillStyle = color_player;
-		ctx.ellipse(canvas.width / 2, canvas.height / 2, this.shieldOffset / 2, this.shieldOffset / 2, 0, Math.PI / this.maxHealth, (Math.PI / this.maxHealth) + ((Math.PI * 2) / this.maxHealth) * this.health);
+		ctx.ellipse(this.x, this.y, this.shieldOffset / 2, this.shieldOffset / 2, 0, Math.PI / this.maxHealth, (Math.PI / this.maxHealth) + ((Math.PI * 2) / this.maxHealth) * this.health);
 		ctx.fill();
 		//offset of arm from center of screen
 		var cOffset = [this.shieldOffset * Math.cos(this.angle), this.shieldOffset * Math.sin(this.angle)];
@@ -55,17 +57,118 @@ class Player {
 
 		ctx.beginPath();
 		ctx.strokeStyle = cLinterp(color_shield, color_shield_bright, this.cooldown);
-		ctx.moveTo((canvas.width / 2) + cOffset[0] + aOffset[0], (canvas.height / 2) + cOffset[1] + aOffset[1]);
-		ctx.lineTo((canvas.width / 2) + cOffset[0] - aOffset[0], (canvas.height / 2) + cOffset[1] - aOffset[1]);
+		ctx.moveTo(this.x + cOffset[0] + aOffset[0], this.y + cOffset[1] + aOffset[1]);
+		ctx.lineTo(this.x + cOffset[0] - aOffset[0], this.y + cOffset[1] - aOffset[1]);
 		ctx.stroke();
+	}
+}
+
+
+//a GameSet is the thing that houses all of the gameplay
+class GameSet {
+	constructor(player, doOffsets) {
+		this.player = player;
+		this.isOffset = doOffsets ?? false;
+
+		this.ticksPerBeat = 50;
+		this.orangeSeparation = 10;
+		this.baseSpinChance = 0.1;
+
+		this.oranges = [];
+
+		this.time = 0;
+		this.levelSpecs;
+	}
+
+	startLevel(levelID) {
+		this.time = 0;
+		this.levelSpecs = level_specifications[levelID];
+	}
+
+	beDrawn() {
+		//draw the center bit
+		this.player.beDrawn();
+
+
+		//draw all the projectiles
+		this.oranges.forEach(o => {
+			o.beDrawn();
+		});
+	}
+
+	createObject() {
+		//only create in the game state
+		if (state != 1) {
+			return;
+		}
+
+		//only create while it's time
+		//using this -1 expression so fractional times work
+		var modularTime = (game_time + this.isOffset * (this.levelSpecs.ticksPerBeat / 2));
+		if ((modularTime % this.levelSpecs.ticksPerBeat) - 1 >= 0) {
+			return;
+		}
+
+		var dir = floor(randomBounded(0, 4));
+		var spin = this.orangeShouldSpin();
+
+		this.oranges.push(new bulletClasses[+spin](dir, this.player, this.levelSpecs.maxDist, this.levelSpecs.bulletSpeed));
+	}
+
+	orangeShouldSpin() {
+		var index = this.oranges.length + this.player.totalBlocks;
+		if (this.levelSpecs.spinProfile) {
+			//read from the binary spin 
+			console.log(index, this.levelSpecs.spinProfile.toString(2).padStart(16, 0));
+			return this.levelSpecs.spinProfile.toString(2).padStart(16, 0)[index] == '1';
+		}
+
+		//use probability
+		return (Math.random() < this.levelSpecs.spinChance);
+	}
+
+	shouldEndLevel() {
+		if (this.levelSpecs.music != undefined) {
+			return (this.player.totalBlocks > 1 && audio_musics[this.levelSpecs.music].paused);
+		}
+
+		//if player's hit too many blocks, end it
+		return (this.player.totalBlocks >= this.levelSpecs.length);
+	}
+
+	tick() {
+		//tick player
+		this.player.tick();
+
+		//create object if it's time
+		this.createObject();
+
+		//run through all objects and tick
+		this.oranges.forEach(o => {
+			o.tick();
+		});
+		this.oranges = this.oranges.filter(o => !o.destroy);
+
+		//if the player's blocked too much move to the next level
+		if (this.shouldEndLevel()) {
+			state = 2;
+		}
+
+		//if the player's health is too low end the game
+		if (this.player.health <= 0) {
+			endGame();
+		}
 	}
 }
 
 //projectile class
 class Projectile {
-	constructor(direction) {
+	constructor(direction, target, maxDist, speed) {
+		this.target = target;
 		this.angle = direction * Math.PI * 0.5;
-		this.distance = canvas.width / 2;
+		this.speed = speed;
+		this.dist = maxDist;
+		this.maxDist = maxDist;
 		this.destroy = false;
 		this.r = 3;
 	}
@@ -74,74 +177,76 @@ class Projectile {
 
 	}
 
+	hitPlayerEffects() {
+		//if it's a music level potentially start the music
+		if (level_specifications[level].music != undefined && this.target.totalBlocks == 0) {
+			var audFile = audio_musics[level_specifications[level].music];
+			audFile.currentTime = 0;
+			audFile.play();
+		}
+		this.target.totalBlocks += 1;
+		this.destroy = true;
+		
+	}
+
 	tick() {
-		var speed = game_params.bulletSpeed;
-		this.distance -= speed;
+		var speed = this.speed;
+		var tar = this.target;
+		this.dist -= speed;
 		this.calculateAngle();
 
-		//collide with shield if close enough
-		if (this.distance - this.r > player.shieldOffset - speed && this.distance - this.r < player.shieldOffset + speed) {
-			if (Math.abs(this.angle - player.angle) < player.shieldCoverAngle || Math.PI * 2 - Math.abs(this.angle - player.angle) < player.shieldCoverAngle) {
-				//collision case
-				this.destroy = true;
-				player.cooldown = 1;
-				audio_block.currentTime = 0;
-				audio_block.play();
-			}
-		} else if (this.distance - this.r < 1) {
-			player.health -= 1;
+		//if too far away delete self
+		if (this.dist > this.maxDist) {
 			this.destroy = true;
+			return;
+		}
+
+		//if too close hurt the player
+		if (this.dist - this.r < 1) {
+			this.hitPlayerEffects();
+			tar.health -= 1;
 			audio_damage.play();
+			return;
+		}
+
+		//collide with shield if close enough
+		if (Math.abs(this.dist - this.r - tar.shieldOffset) < Math.max(speed, this.r / 4) && modularDifference(this.angle, tar.angle, Math.PI * 2) < tar.shieldCoverAngle) {
+			//collision case
+			this.hitPlayerEffects();
+			tar.cooldown = 1;
+			score += 1;
+			audio_block.currentTime = 0;
+			audio_block.play();
 		}
 	}
 
 	beDrawn() {
+		var opacityDist = level_specifications[level].bulletSpeed * 20;
+		if (this.dist + opacityDist >= this.maxDist) {
+			ctx.globalAlpha = (this.maxDist - this.dist) / opacityDist;
+		}
 		ctx.fillStyle = color_projectile;
 		ctx.beginPath();
-		ctx.ellipse((canvas.width / 2) + (this.distance * Math.cos(this.angle)), (canvas.height / 2) + (this.distance * Math.sin(this.angle)), this.r, this.r, 0, 0, Math.PI * 2);
+		ctx.arc(this.target.x + (this.dist * Math.cos(this.angle)), this.target.y + (this.dist * Math.sin(this.angle)), this.r, 0, Math.PI * 2);
 		ctx.fill();
+		ctx.globalAlpha = 1;
 	}
 }
 
 //modified projectiles
 class Projectile_Spinning extends Projectile {
-	constructor(direction) {
-		super(direction);
+	constructor(direction, target, maxDist, speed, flipSpinDir) {
+		super(direction, target, maxDist, speed);
 		this.hitAngle = this.angle;
-		this.aMult = 0.01;
+		this.aDifference = Math.PI;
+		this.flipSpinDir = flipSpinDir ?? false;
 	}
 
 	calculateAngle() {
-		this.angle = (this.hitAngle + (Math.PI * 2) - (this.aMult * player.shieldOffset) + (this.distance * this.aMult)) % (Math.PI * 2);
-	}
-}
+		var diMin = this.target.shieldOffset;
+		var diMax = this.maxDist;
 
-
-
-
-
-
-
-
-
-
-//game states
-class State_Infinite {
-	constructor() {
-
-	}
-
-	execute() {
-		switch (game_state) {
-			case 0:
-				doMainState();
-				break;
-			case 1:
-				doSwitchState();
-				break;
-		}
-		//draw player
-		player.tick();
-		player.beDrawn();
+		var progress = getPercentage(diMin, diMax, this.dist);
+		this.angle = this.hitAngle + this.aDifference * linterp(progress ** 1.5, progress ** 2.5, progress);
 	}
 }
