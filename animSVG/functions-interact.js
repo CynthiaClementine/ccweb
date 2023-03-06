@@ -3,6 +3,47 @@ various functions that connect the user to the program, generally through api fu
 This exists because often the inputs themselves need to be processed (a click could mean change color, but to what color?)
 */
 
+
+
+//sets the length of the animation (in frames) to a specified value
+function user_changeAnimLength() {
+	//ask the user
+	//temp way, there's a better way to do this
+	var newLength = prompt(`Please set the new timeline length`, timeline.len);
+		
+	newLength = +newLength ?? timeline.len;
+	if (Number.isNaN(newLength) || newLength < 1) {
+		alert(`Bad length value recieved.`);
+		return;
+	}
+
+
+	newLength = Math.floor(newLength);
+	changeAnimationLength(newLength);
+}
+
+function user_changeFPS() {
+	var newFPS = parseInt(prompt(`Enter new animation frames per second`, timeline.fps));
+	if (Number.isNaN(newFPS)) {
+		return;
+	}
+
+	//if the framerate is out of bounds
+	if (newFPS < fps_limitMin || newFPS > fps_limitMax) {
+		if (newFPS < fps_limitMin) {
+			alert(`This framerate is too low. The framerate must be at least ${fps_limitMin} and no more than ${fps_limitMax}.`);
+		} else {
+			alert(`This framerate is too high. The framerate must be at least ${fps_limitMin} and no more than ${fps_limitMax}.`);
+		}
+		newFPS = clamp(newFPS, fps_limitMin, fps_limitMax);
+	}
+
+	//actually changing the framerate
+	changeFramerate(newFPS);
+}
+
+
+
 //used because I can't pass in variable arguments to onclick functions
 function user_keyframe(n) {
 	var m = timeline;
@@ -62,7 +103,11 @@ function changeToolTo(toolName) {
 			toolCurrent = new ToolCircle();
 			φSet(tool_circle.children[0], {"fill": pressColor});
 			break;
-		case "Eyedropper":
+		case "Move":
+			toolCurrent = new ToolMove();
+			φSet(tool_move.children[0], {"fill": pressColor});
+			break;
+		case "Eyedrop":
 			toolCurrent = new ToolEyedrop();
 			φSet(tool_eyedrop.children[0], {"fill": pressColor});
 			break;
