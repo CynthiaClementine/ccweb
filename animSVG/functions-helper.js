@@ -7,8 +7,7 @@ addLayer(name)
 appendToPath(pathNode, newPts)
 createTimelineBlocks(layerID, startFrame, endFrame)
 
-changeAnimLength_user()
-changeAnimLength()
+changeAnimationLength()
 changeFPS_user()
 changeFramerate()
 clampWorkspace()
@@ -57,27 +56,6 @@ function addLayer(name) {
 	//put layer into the workspace
 	workspace_permanent.insertBefore(layerObj, workspace_permanent.children[0]);
 	layerObj.appendChild(frameObj);
-	
-	//create group to store blocks in
-	//I'm using the svg element instead of the g element because the g element doesn't transfer positioning to children
-	var layerGroup = φCreate("svg", {
-		'y': index * (timeline_blockH + 1) + timeline_headHeight,
-		'id': `layer_${layerID}_group`,
-		'overflow': 'visible',
-	});
-	timeline_blocks.appendChild(layerGroup);
-
-	//add the layer's bits to the timeline
-	timeline_text_container.appendChild(φCreate("text", {
-		'x': -5,
-		'y': (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight,
-		'id': `layer_${layerID}_text`, 
-		'class': 'timelineText',
-		'text-anchor': 'end',
-		'innerHTML': name,
-		'noselect': 'on',
-		'onclick': `renameLayer("${layerID}")`
-	}));
 
 	createTimelineBlocks(layerID, 0, timeline.len-1);
 	updateTimelineExtender();
@@ -101,6 +79,33 @@ function appendToPath(pathNode, newPts) {
 function createTimelineBlocks(layerID, startFrame, endFrame) {
 	var layerRef = timeline.l[layerID];
 	var layerGroup = document.getElementById(`layer_${layerID}_group`);
+	var index = timeline.layerIDs.indexOf(layerID);
+
+	//if the layer's text doesn't exist, create it
+	if (document.getElementById(`layer_${layerID}_text`) == undefined) {
+		timeline_text_container.appendChild(φCreate("text", {
+			'x': -5,
+			'y': (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight,
+			'id': `layer_${layerID}_text`, 
+			'class': 'timelineText',
+			'text-anchor': 'end',
+			'innerHTML': timeline.names[layerID],
+			'noselect': 'on',
+			'onclick': `renameLayer("${layerID}")`
+		}));
+	}
+
+	//if the layer's group doesn't exist, create it
+	if (layerGroup == undefined) {
+		layerGroup = φCreate("svg", {
+			'y': index * (timeline_blockH + 1) + timeline_headHeight,
+			'id': `layer_${layerID}_group`,
+			'overflow': 'visible',
+		});
+		timeline_blocks.appendChild(layerGroup);
+	}
+	
+	//put blocks into the timeline
 	var id = φGet(layerRef[startFrame], 'uid');
 
 	for (var a=startFrame; a<=endFrame; a++) {
@@ -114,23 +119,6 @@ function createTimelineBlocks(layerID, startFrame, endFrame) {
 			'href': '#' + ((layerRef[a] != layerRef[a-1]) ? `MASTER_layerKey_${id}` : `MASTER_layer_${id}`)
 		}));
 	}
-}
-
-//sets the length of the animation (in frames) to a specified value
-function changeAnimLength_user() {
-	//ask the user
-	//temp way, there's a better way to do this
-	var newLength = prompt(`Please set the new timeline length`, timeline.len);
-		
-	newLength = +newLength ?? timeline.len;
-	if (Number.isNaN(newLength) || newLength < 1) {
-		alert(`Bad length value recieved.`);
-		return;
-	}
-
-
-	newLength = Math.floor(newLength);
-	changeAnimationLength(newLength);
 }
 
 function changeAnimationLength(newLength) {
@@ -168,27 +156,6 @@ function changeAnimationLength(newLength) {
 
 	updateTimelineExtender();
 	setOnionWingLengths();
-}
-
-function changeFPS_user() {
-	var newFPS = parseInt(prompt(`Enter new animation frames per second`, timeline.fps));
-	if (Number.isNaN(newFPS)) {
-		return;
-	}
-
-	//if the framerate is out of bounds
-	if (newFPS < fps_limitMin || newFPS > fps_limitMax) {
-		if (newFPS < fps_limitMin) {
-			alert(`This framerate is too low. The framerate must be at least ${fps_limitMin} and no more than ${fps_limitMax}.`);
-		} else {
-			alert(`This framerate is too high. The framerate must be at least ${fps_limitMin} and no more than ${fps_limitMax}.`);
-		}
-		newFPS = clamp(newFPS, fps_limitMin, fps_limitMax);
-	}
-
-	//actually changing the framerate
-	changeFramerate(newFPS);
-	
 }
 
 function changeFramerate(newFPS) {
@@ -597,6 +564,39 @@ function bezIntersections(curve, testCurves) {
 	return nums;
 }
 
+//takes a g element intended to be a frame and applies properties to it that it wouldn't have otherwise
+function frame_applyJS(frameObj) {
+	//reflecting properties
+	frameObj.lines = frameObj.children["lines"];
+	frameObj.fills = frameObj.children["fills"];
+
+	//methods
+	frameObj.fill = (x, y) => {
+		//try to fill that space
+
+		//cast a ray to the right
+		// var rayCast =
+
+		//if there's no objects it won't work
+
+		//if there is, trace it around until the path gets back to the start
+
+		//that loop is the region to fill
+	}
+
+
+	//cubic bins
+	var wh = φGet(workspace_background, ['width', 'height']);
+	frameObj.cubicBins = [];
+	for (var y=0; y<Math.ceil(wh[1]/cubicBinSize); y++) {
+		frameObj.cubicBins.push([]);
+		for (var x=0; x<Math.ceil(wh[0]/cubicBinSize); x++) {
+			frameObj.cubicBins[y].push([]);
+		}
+	}
+	//place all splines into the cubic bins
+}
+
 /**
  * Creates a frame g object that can hold svg content
  * @param {String} frameID the ID for the frame to have
@@ -618,33 +618,10 @@ function frame_create(frameID, layerID) {
 	</g>`;
 	temp = temp.children[0];
 
-	//set reflecting properties
-	temp.lines = temp.children["lines"];
-	temp.fills = temp.children["fills"];
-
-	//set methods
-	temp.fill = (x, y) => {
-		//try to fill that space
-
-		//cast a ray to the right
-		// var rayCast =
-
-		//if there's no objects it won't work
-
-		//if there is, trace it around until the path gets back to the start
-
-		//that loop is the region to fill
-	}
+	frame_applyJS(temp);
 
 	//properties
-	var wh = φGet(workspace_background, ['width', 'height']);
-	temp.cubicBins = [];
-	for (var y=0; y<Math.ceil(wh[1]/cubicBinSize); y++) {
-		temp.cubicBins.push([]);
-		for (var x=0; x<Math.ceil(wh[0]/cubicBinSize); x++) {
-			temp.cubicBins[y].push([]);
-		}
-	}
+	
 
 	if (layerID) {
 		document.getElementById(`layer_${layerID}`).appendChild(temp);
