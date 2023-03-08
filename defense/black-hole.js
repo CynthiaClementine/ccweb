@@ -268,56 +268,6 @@ function angleForScreenX(screenX, screenZ) {
 	return initialAGuess;
 }
 
-//returns [x, y, z, angular radius] of a lensed star behind the black hole
-function calculateApparentParameters(starX, starY, starZ, starRadius) {
-	var angleTolerance = 0.01;
-	//if the star is behind the camera don't attempt this method because it won't work
-	if (starZ < 0) {
-		return undefined;
-	}
-
-	var xyAngle = Math.atan2(starY, starX);
-	
-	//transform into triangle space (see the triangle drawing above)
-	//make sure xPrime is at least 1 to avoid /0 errors
-	var xPrime = Math.max(Math.sqrt(starX ** 2 + starY ** 2), 1);
-	var zPrime = starZ;
-	
-	var unlensedAngle = Math.atan((zPrime - cameraZPos) / xPrime);
-
-	//angular radius is the apparent radius (r / dist from camera) divided by the circumference of the circle at that anglular distance from the black hole.
-	//I can just use the initial star, because angular radius doesn't change as the star is lensed
-	//it would be 2*pi*apparentR / 2*pi*xPrime, but the 2pi cancels out so I don't bother putting it in
-	var angularRadius = (starRadius / (starZ - cameraZPos)) / xPrime;
-
-	//lensed angle will never be less than the unlensed angle, and I'm setting a hard limit of 95°
-	var lightAMin = unlensedAngle;
-	var lightAMax = 1.658;
-	var lightATest;
-	var resultX;
-	var a=0;
-
-	while (lightAMax - lightAMin > angleTolerance) {
-		a++;
-		lightATest = (lightAMin + lightAMax) / 2;
-		resultX = screenXForPhoton(lightATest, zPrime);
-		console.log(a, resultX);
-		if (resultX < xPrime) {
-			lightAMin = lightATest;
-		} else {
-			lightAMax = lightATest;
-		}
-	}
-	var zAngle = ((lightAMin + lightAMax) / 2);
-
-	var camDist = zPrime - cameraZPos;
-	xPrime = camDist * Math.tan(zAngle);
-	var newXY = [xPrime, 0];
-	newXY = rotate(newXY[0], newXY[1], xyAngle);
-
-	return [newXY[0], newXY[1], zPrime, 0.1];
-}
-
 function drawStarsSimple() {
 	//loop through all stars
 	ctx.fillStyle = color_star;
