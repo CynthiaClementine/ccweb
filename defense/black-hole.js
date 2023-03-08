@@ -1,24 +1,51 @@
 
+
+var randSeed = 1.23567;
+function randomSeeded(min, max) {
+	randSeed = randSeed * randSeed;
+	while (randSeed > 100) {
+		randSeed -= 90;
+	}
+
+	return min + (randSeed % 1) * (max - min);
+}
+
+var graphStorage = [];
+
+
 //these constants aren't accurate to real life, instead they're changed a bit to make floating point math easier
 const lightSpeed = 300;
-const gravStrength = 6;
 
 var dt = 0.1;
 
 var stars = [];
-var starDists = [4000, 8000];
+var starDists = [5000, 8000];
 var starSizes = [1000, 4000];
-var starNum = 600;
+var starNum = 100;
 
-var cameraZPos = -1000;
-var bhMass = 1E15;
+//this table stores [angle, screenX, derivative of screenX]
+//tableData is an array of these mappings, starting at the minimum starDist and going to some maximum (maximum starDist + minimum starDist)
+var tableData = {};
+var tableZJump = 100;
+var tableAJump = 0.0025;
+var tableASpan = [-Math.PI / 2, Math.PI / 2];
+
+var cameraZPos = -4000;
+var cameraScale = 300;
+var bhMass = 3E6;//2392500;
+var bhEventSquared = (2 * bhMass / (lightSpeed ** 2)) ** 2;
+
+function changeBHMass(newMass) {
+	bhMass = newMass;
+	bhEventSquared = (2 * bhMass / (lightSpeed ** 2)) ** 2;
+}
 
 //generate star sphere
 var starCoords;
 for (var s=0; s<starNum; s++) {
-	var cosPhi = boolToSigned(Math.random() < 0.5) * Math.random() ** 2;
-	starCoords = polToCart(randomBounded(0, Math.PI * 2), Math.acos(cosPhi) - (Math.PI / 2), randomBounded(starDists[0], starDists[1]));
-	stars.push([starCoords[0], starCoords[1], starCoords[2], randomBounded(starSizes[0], starSizes[1])]);
+	var cosPhi = boolToSigned(randomSeeded(0, 1) < 0.5) * randomSeeded(0, 1) ** 2;
+	starCoords = polToCart(randomSeeded(0, Math.PI * 2), Math.acos(cosPhi) - (Math.PI / 2), randomSeeded(starDists[0], starDists[1]));
+	stars.push([starCoords[0], starCoords[1], starCoords[2], randomSeeded(starSizes[0], starSizes[1])]);
 }
 
 /*
@@ -75,46 +102,170 @@ this approach has issues though
 		
 	3. stars should smear out around the black hole, not remain points
 		since the actual angular diameter doesn't change, this can easily be calculated using perspective projection + the star's radius
+
+
+
+other optimizations:
+	G - the gravitational constant - never appears without being multiplied by the mass of the object. Since this is code, I can simply multiply the mass of the object beforehand, ignoring G
+
+
+
+ANOTHER NOTE:
+	looking straight at a black hole and shooting photons at a screen behind the black hole, the curve you get either exactly is, or quite closely resembles,
+	X = tan((2 / pi) * θ) + (H / θ)
+	where X is the distance from the center of the screen, H is an unknown constant that changes with mass / screen Z, and θ is angle in degrees off of the black hole.
+	See the above diagram for depiction of the screen / camera angles involved. This equation is currently unused because I went for a lookup table (I didn't want to calculate H) but this could be
+	super useful.
+	Changing the camera Z also just seems to zoom the graph in / out, rather than actually changing its parameters.
+	
+	None of this is super formal mathematical proof, it's just the results of running a simulation and looking at the output 
+
+
+
+Ok here's the final solution:
+	tracing photon paths is expensive. So we pre-trace a bunch of photon paths and then use that to calculate any future photon paths
 */
 
 
 function bendPhoton(phoX, phoZ, phoTheta) {
-	var dist = Math.sqrt(phoX * phoX, phoZ * phoZ);
+	var dist = Math.sqrt(phoX * phoX + phoZ * phoZ);
 	var angle = (Math.atan2(phoZ, phoX) + Math.PI * 2) % (Math.PI * 2);
 	//weird relativity math
-	var gTheta = gravStrength * bhMass / (dist * dist);
+	var gTheta = bhMass / (dist * dist);
 	gTheta = -gTheta * (dt / lightSpeed) * Math.sin(phoTheta - angle);
-	gTheta /= Math.abs(1 - 2 * gravStrength * bhMass / (dist * lightSpeed * lightSpeed));
+	gTheta /= Math.abs(1 - 2 * bhMass / (dist * lightSpeed * lightSpeed));
 
 	return gTheta;
 }
 
+function einsteinRingTheta(starZPos) {
+	return Math.sqrt((4 * bhMass * -cameraZPos) / (lightSpeed * lightSpeed * starZPos * (starZPos - cameraZPos)));
+}
+
 //simulates one photon's trajectory until it hits the screen
 function screenXForPhoton(angle, screenZ) {
+	//if the angle's 0 it's not going through the black hole - account for that special case here
+	if (Math.abs(angle) < tableAJump) {
+		return -1e1001;
+	}
+	var globalScaling = 0.094;
+	//transform to world theta
+	angle = (Math.PI / 2) - angle;
 	//start the photon at the camera pos
 	var phoX = 0;
 	var phoZ = cameraZPos;
+	var a = 0;
 
+	// ctx.strokeStyle = "#FFF";
+	// ctx.beginPath();
+	// ctx.moveTo(phoX * globalScaling, phoZ * globalScaling);
 	//simulate the photon
 	while (true) {
-		
-
-		angle += bendPhoton(phoX, phoZ, angle);
+		a++;
+		angle -= bendPhoton(phoX, phoZ, angle);
 
 		//if the photon has passed the screen Z return its position
 		if (phoZ > screenZ) {
 			//first trace backwards to the screen, don't want to overestimate it
-			// var xPerZ = 
+			var movementVec = polToXY(0, 0, angle, lightSpeed * dt);
+			phoX -= movementVec[0] * ((phoZ - screenZ) / movementVec[1]);
+
+			// ctx.stroke();
+			return phoX;
 		}
 		//there are a few cases where the photon will never reach the screen - account for those
 
-		//if the photon has passed the event horizon
-
-		//if the photon has wrapped around and is too far backwards
-		if (modularDifference(angle, b, Math.PI * 2) < Math.PI * 0.3) {
+		//if the photon has passed the photon sphere it won't come back
+		//we still have to care about it if the camera is inside the photon sphere but when the camera is outside it it's fine
+		if (phoX * phoX + phoZ * phoZ < bhEventSquared * 2.25) {
+			// ctx.stroke();
 			return -1e1001;
 		}
+
+		//if the photon has wrapped around and is too far backwards
+		if (modularDifference(angle, Math.PI / -2, Math.PI * 2) < Math.PI * 0.5 && phoX * phoX + phoZ * phoZ > bhEventSquared * bhEventSquared) {
+			// ctx.stroke();
+			return -1e1001;
+		}
+		[phoX, phoZ] = polToXY(phoX, phoZ, angle, lightSpeed * dt);
+		// ctx.lineTo(phoX * globalScaling, -phoZ * globalScaling);
+		// console.log(phoX * globalScaling, phoZ * globalScaling);
 	}
+}
+
+//returns the angle lsight has to be fired at to reach a specified screenX
+function angleForScreenX(screenX, screenZ) {
+	var xTolerance = 50;
+
+	//if the X is too great don't even bother because it'll be off the screen
+	if (Math.abs(screenX) > screenZ * 4) {
+		return Math.PI * 0.5 * boolToSigned(screenX > 0);
+	}
+
+	//start with an initial guess
+	// console.log(0, screenX, screenZ);
+	var initialAGuess = Math.atan(screenX / screenZ);
+
+	//check the true screen X
+	// console.log(1, initialAGuess, tableAJump);
+	var xResult = screenXForPhoton(initialAGuess, screenZ);
+	var xDeltaResult = screenXForPhoton(initialAGuess + tableAJump, screenZ);
+	var slope = (xDeltaResult - xResult) / tableAJump;
+
+	//if the x result is close enough, return
+	if (Math.abs(screenX - xResult) < xTolerance) {
+		return initialAGuess;
+	}
+	
+	//first make sure the slope matches with the correct area - otherwise we might be in the Forbidden Zone
+	var u = 0;
+	while (slope * initialAGuess < 0) {
+		//multiply to get out of the Forbidden Zone
+		initialAGuess = Math.min(initialAGuess * 2, Math.PI * 0.49);
+		xResult = screenXForPhoton(initialAGuess, screenZ);
+		xDeltaResult = screenXForPhoton(initialAGuess + tableAJump, screenZ);
+		slope = (xDeltaResult - xResult) / tableAJump;
+		// console.log(1.5, xResult, xDeltaResult);
+		// console.log(2, initialAGuess, slope, screenZ);
+		u += 1;
+	}
+
+	if (Number.isNaN(slope)) {
+		return initialAGuess;
+	}
+
+	//now that we're in the safe region (bent tangent-like curve) recurse:
+	u = 100;
+	while (u > 0) {
+		//if x is good enough, return
+		if (Math.abs(screenX - xResult) < xTolerance) {
+			return initialAGuess;
+		}
+
+		//if it's not good enough, move the aGuess based on slope
+		//slope is Δx / Δa
+		initialAGuess += 0.5 * (screenX - xResult) / slope;
+		// console.log(3, initialAGuess);
+
+		//if the target A has become NaN give up
+		if (Number.isNaN(initialAGuess)) {
+			return undefined;
+		}
+		xResult = screenXForPhoton(initialAGuess, screenZ);
+		xDeltaResult = screenXForPhoton(initialAGuess + tableAJump, screenZ);
+		slope = (xDeltaResult - xResult) / tableAJump;
+
+		//if we've arrived in the forbidden zone again it's because that X simply can't be displayed
+		if (initialAGuess * slope < 0) {
+			return undefined;
+		}
+
+		u -= 1;
+	}
+
+
+	//check thte t
+	return initialAGuess;
 }
 
 //returns [x, y, z, angular radius] of a lensed star behind the black hole
@@ -142,4 +293,159 @@ function calculateApparentParameters(starX, starY, starZ, starRadius) {
 	//lensed angle will never be less than the unlensed angle, and I'm setting a hard limit of 95°
 	var lightAMin = unlensedAngle;
 	var lightAMax = 1.658;
+	var lightATest;
+	var resultX;
+	var a=0;
+
+	while (lightAMax - lightAMin > angleTolerance) {
+		a++;
+		lightATest = (lightAMin + lightAMax) / 2;
+		resultX = screenXForPhoton(lightATest, zPrime);
+		console.log(a, resultX);
+		if (resultX < xPrime) {
+			lightAMin = lightATest;
+		} else {
+			lightAMax = lightATest;
+		}
+	}
+	var zAngle = ((lightAMin + lightAMax) / 2);
+
+	var camDist = zPrime - cameraZPos;
+	xPrime = camDist * Math.tan(zAngle);
+	var newXY = [xPrime, 0];
+	newXY = rotate(newXY[0], newXY[1], xyAngle);
+
+	return [newXY[0], newXY[1], zPrime, 0.1];
+}
+
+function drawStarsSimple() {
+	//loop through all stars
+	ctx.fillStyle = color_star;
+	stars.forEach(s => {
+		if (s[2] - cameraZPos < 0) {
+			return;
+		}
+		//divide by z, multiply by scale, draw
+		var sx = cameraScale * s[0] / (s[2] - cameraZPos);
+		var sy = cameraScale * s[1] / (s[2] - cameraZPos);
+		var sr = 1;//s[3] / (s[2] - cameraZPos);
+
+		ctx.beginPath();
+		ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+		ctx.fill();
+	});
+}
+
+function graph() {
+	ctx.fillStyle = color_star;
+	//go from -45° to 45°
+	var unit = 0.0025;
+	var screenDist = 10000;
+	var maxX = 1.5 * screenDist;
+	var minX = -0.25 * screenDist;
+	var minTheta = Math.PI * -0.25;
+	var maxTheta = Math.PI * 0.25;
+
+	graphStorage = [];
+
+	var resultX;
+	for (var d=maxTheta; d>minTheta; d-=unit) {
+		//figure out x for this direction
+		resultX = screenXForPhoton(d, screenDist);
+		graphStorage.push([d, resultX]);
+
+		//graph it
+		ctx.beginPath();
+		ctx.arc(linterp(-300, 300, getPercentage(minTheta, maxTheta, d)), (resultX / maxX) * -240, 2, 0, Math.PI * 2);
+		ctx.fill();
+
+		//as soon as there's an undefined result skip to the other side
+	}
+}
+
+function drawStarsIntermediate() {
+	//loop through all stars
+	ctx.fillStyle = color_star;
+	stars.forEach(s => {
+		if (s[2] - cameraZPos < 0) {
+			return;
+		}
+
+		//figure out xy angle
+		var rot = Math.atan2(s[1], s[0]);
+		var dist = Math.sqrt(s[1] ** 2 + s[0] ** 2);
+
+		//figure out xz angle
+		var theta = angleForScreenX(dist, s[2] - cameraZPos);
+
+		if (theta == undefined) {
+			return;
+		}
+
+		//transform to view coordinates
+		var r = cameraScale * Math.tan(theta);
+		var [sx, sy] = rotate(r, 0, rot);
+		var sr = 1;//s[3] / (s[2] - cameraZPos);
+
+		ctx.beginPath();
+		ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+		ctx.fill();
+	});
+}
+
+function drawStars() {
+	ctx.beginPath();
+	//loop through all stars
+	ctx.strokeStyle = color_star;
+	stars.forEach(s => {
+		if (s[2] - cameraZPos < 0) {
+			return;
+		}
+
+		//figure out xy angle
+		var rot = Math.atan2(s[1], s[0]);
+		var dist = Math.sqrt(s[1] ** 2 + s[0] ** 2);
+		var angularRadius = 2 / (cameraScale * (dist / (s[2] - cameraZPos)))
+
+		//figure out xz angle
+		var theta = angleForScreenX(dist, s[2] - cameraZPos);
+
+		if (theta == undefined) {
+			return;
+		}
+
+		//transform to view coordinates
+		var r = cameraScale * Math.tan(theta);
+		var [sx, sy] = rotate(r, 0, rot);
+		var sr = 2;//s[3] / (s[2] - cameraZPos);
+
+		ctx.beginPath();
+		// ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+		ctx.lineWidth = sr;
+		ctx.arc(0, 0, r, rot - angularRadius, rot + angularRadius);
+		ctx.stroke();
+	});
+
+	//draw shadow
+	//figure out angular radius of the black hole
+	var minR = 0;
+	var maxR = Math.PI / 2;
+	var buffer1;
+	for (var f=0; f<12; f++) {
+		buffer1 = (minR + maxR) / 2;
+
+		if (screenXForPhoton(buffer1, 1000) == -1e1001) {
+			//if that point falls into the black hole
+			minR = buffer1;
+		} else {
+			maxR = buffer1;
+		}
+	}
+
+	r = cameraScale * Math.tan((minR + maxR) / 2);
+
+	ctx.fillStyle = "#000";
+	ctx.beginPath();
+	ctx.arc(0, 0, r, 0, Math.PI * 2);
+	ctx.fill();
 }
