@@ -4,6 +4,7 @@ window.onload = setup;
 window.onresize = handleResize;
 window.onmousedown = handleMouseDown;
 window.onmousemove = handleMouseMove;
+window.onmouseup = handleMouseUp;
 document.addEventListener("keydown", handleKeyPress, false);
 
 //global variables
@@ -26,9 +27,11 @@ const color_player = "#F8F";
 const color_projectile = "#F80";
 const color_shield = "#080";
 const color_shield_bright = "#0F0";
+const color_star = "#FE9";
 
 var cursorX = 0;
 var cursorY = -50;
+var cursorDown = false;
 
 var data_persist = {
 	top: 0,
@@ -122,11 +125,13 @@ var level_specifications = [
 		skip: true
 	}, {
 		ticksPerBeat: 60,
+		spinChance: 0.2,
 	}, {
 		ticksPerBeat: 50,
-		skip: true
+		spinChance: 0.4,
 	}, {
 		ticksPerBeat: 45,
+		skip: true,
 		spinChance: 1,
 		length: 32,
 	}, {
@@ -142,6 +147,9 @@ var level_specifications = [
 	}
 ];
 
+var lore_progress = 0;
+var lore_selected = 0;
+
 var menu_selectors = [
 	[`Play`, () => {state = 1; game_systems[0].startLevel(1);}, 0],
 	[`Options`, () => {state = 0.5;}, 0],
@@ -156,7 +164,7 @@ var menu_slideMaxX = 90;
 var score = 0;
 
 var state = 0;
-var stateFuncs = [doMenuState, doMainState, doSwitchState, doLoreState];
+var stateFuncs = [doMenuState, doMainState, doSwitchState, doLoreState, doStarState];
 
 var currentOrangeSpeed = undefined;
 
@@ -167,20 +175,48 @@ function setup() {
 	handleResize();
 	readStorage();
 
-	state = 0;
+	state = 4;
 	animation = window.requestAnimationFrame(main);
 }
 
 function main() {
 	//bg
-	ctx.fillStyle = color_bg;
-	ctx.fillRect(-320, -240, 640, 480);
+	if (state != 1.5) {
+		ctx.fillStyle = color_bg;
+		ctx.fillRect(-320, -240, 640, 480);
+	}
 
 	stateFuncs[floor(state)]();
 	page_animation = window.requestAnimationFrame(main);
 }
 
+function doStarState() {
+	drawStars();
+	// if (Math.random() < 0.5) {
+	// 	drawStarsSimple();
+	// } else {
+		// }
+	// drawStarsIntermediate();
+	graph();
+	// if (cameraZPos < -10) {
+	// 	cameraZPos += 5;
+	// }
+	
+	// changeBHMass(bhMass + 0.5E4);
+}
+
 function doMainState() {
+	ctx.textAlign = "center";
+	ctx.font = `20px Ubuntu`;
+	//paused mode
+	if (state == 1.5) {
+		ctx.fillStyle = color_projectile;
+		ctx.fillText(`~Paused~`, 0, -220);
+		return;
+	}
+
+	drawStars();
+
 	game_systems.forEach(g => {
 		g.tick();
 		g.beDrawn();
@@ -222,6 +258,8 @@ function doSwitchState() {
 		g.beDrawn();
 	});
 
+	drawStarsSimple();
+
 	//score text
 	ctx.fillStyle = color_projectile;
 	ctx.fillText(`${score} | ${data_persist.top}`, 0, 225);
@@ -235,7 +273,13 @@ function doSwitchState() {
 	if (allOranges.length == 0) {
 		//update level and do any auxilary effects necessary
 		var thisLSpecs = level_specifications[level];
-		var nextLSpecs = level_specifications[level + 1];
+		var levelIncrease = 1;
+		var nextLSpecs = level_specifications[level + levelIncrease];
+
+		while (data_persist.skip && nextLSpecs.skip) {
+			levelIncrease += 1;
+			nextLSpecs = level_specifications[level + levelIncrease];
+		}
 
 		//split into dual mode?
 		if (nextLSpecs.dual && !thisLSpecs.dual) {
@@ -255,7 +299,7 @@ function doSwitchState() {
 
 		//change back to gameplay state
 		state = 1;
-		level += 1;
+		level += levelIncrease;
 		game_systems.forEach(g => {
 			g.startLevel(level);
 		});
@@ -286,6 +330,7 @@ function doMenuState() {
 	//in options mode
 	if (state == 0.5) {
 		ctx.textAlign = "left";
+		ctx.font = `20px Ubuntu`;
 		ctx.fillText(`Fast Difficulty Increase: ${(data_persist.skip) ? "On" : "Off"}`, menu_optBaseX, 0);
 		ctx.fillText(`Music volume:`, menu_optBaseX, 20);
 		ctx.fillText(`Effects volume:`, menu_optBaseX, 40);
@@ -368,7 +413,7 @@ You can fix it by clearing your browser history, including cookies, cache, and l
 
 	//make sure it's somewhat safe, and then make it into the game flags
 	if (typeof(toRead) == "object") {
-		[data_persist.top, data_persist.skip] = toRead;
+		[data_persist.top, data_persist.skip, data_persist.vols[0], data_persist.vols[1]] = toRead;
 	} else {
 		console.log("ERROR: invalid type specified in save data, using default");
 		return;
@@ -376,7 +421,7 @@ You can fix it by clearing your browser history, including cookies, cache, and l
 }
 
 function writeStorage() {
-	window.localStorage["orange_data"] = `[${data_persist.top},${data_persist.skip},${data_persist.vols[0]},${data_persist.vols[1]}]`;
+	window.localStorage["orange_data"] = `[${data_persist.top},${data_persist.skip},${data_persist.vols[0].toFixed(2)},${data_persist.vols[1].toFixed(2)}]`;
 }
 
 function setMusicVolume(vol) {
@@ -394,8 +439,24 @@ function setEffectsVolume(vol) {
 
 //input
 function handleKeyPress(a) {
-	if (state < 1 && a.code == "Escape") {
-		state = 0;
+	if (a.code == "Escape") {
+		//escape toggles between some states
+		switch (state) {
+			case 0.5:
+				state = 0;
+				break;
+			case 1:
+				state = 1.5;
+				break;
+			case 1.5:
+				state = 1;
+				break;
+		}
+		return;
+	}
+
+	if (a.code == "Enter" && state == 1.5) {
+		state = 1;
 		return;
 	}
 
@@ -435,18 +496,31 @@ function handleKeyPress(a) {
 }
 
 function handleMouseDown(a) {
+	cursorDown = true;
 	//only do mouse if in menu / lore states
-	if (state != 0 && state != 3) {
+	if (state >= 1 && state != 3) {
 		return;
 	}
 
 	//if hovering over one of the menu boxes, run the function there
 	var hoverBox = Math.floor((cursorY + (menu_textSize / 2)) / menu_textSize);
-
 	//in the options
 	if (state == 0.5) {
-		if (cursorX > menu_)
-		writeStorage();
+		if (cursorX > menu_optBaseX && cursorX < menu_slideMaxX + 5) {
+			//fast difficulty
+			if (hoverBox == 0) {
+				data_persist.skip = !data_persist.skip;
+			}
+
+			//sliders
+			if (hoverBox == 1 || hoverBox == 2) {
+				data_persist.vols[hoverBox - 1] = clamp(getPercentage(menu_slideMinX, menu_slideMaxX, cursorX), 0, 1);
+				setMusicVolume(data_persist.vols[0]);
+				setEffectsVolume(data_persist.vols[1]);
+			}
+
+			writeStorage();
+		}
 		return;
 	}
 
@@ -461,6 +535,23 @@ function handleMouseMove(a) {
 	var canvasArea = canvas.getBoundingClientRect();
 	cursorX = (640 * (a.clientX - canvasArea.left) / canvasArea.width) - 320;
 	cursorY = (480 * (a.clientY - canvasArea.top) / canvasArea.height) - 240;
+
+	//potentially drag a slider
+	if (cursorDown && state == 0.5) {
+		var hoverBox = Math.floor((cursorY + (menu_textSize / 2)) / menu_textSize);
+		if (hoverBox == 1 || hoverBox == 2) {
+			data_persist.vols[hoverBox - 1] = clamp(getPercentage(menu_slideMinX, menu_slideMaxX, cursorX), 0, 1);
+			setMusicVolume(data_persist.vols[0]);
+			setEffectsVolume(data_persist.vols[1]);
+		}
+	}
+}
+
+function handleMouseUp(a) {
+	cursorDown = false;
+	if (state == 0.5) {
+		writeStorage();
+	}
 }
 
 function handleResize() {
