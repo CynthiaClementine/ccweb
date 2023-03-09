@@ -152,7 +152,6 @@ function einsteinRingTheta(starZPos) {
 }
 
 function generateDeflectionTable() {
-	return;
 	var screenDist = 10000;
 	var numAngles = tableASpan[1] / tableAJump;
 
