@@ -12,8 +12,7 @@ function randomSeeded(min, max) {
 
 var graphStorage = [];
 
-
-//these constants aren't accurate to real life, instead they're changed a bit to make floating point math easier
+var tintAmount = 0;
 const lightSpeed = 300;
 
 var dt = 0.1;
@@ -23,21 +22,31 @@ var starDists = [5000, 8000];
 var starSizes = [1000, 4000];
 var starNum = 100;
 
-//this table stores [angle, screenX, derivative of screenX]
-//tableData is an array of these mappings, starting at the minimum starDist and going to some maximum (maximum starDist + minimum starDist)
-var tableData = {};
-var tableZJump = 100;
-var tableAJump = 0.0025;
-var tableASpan = [-Math.PI / 2, Math.PI / 2];
+//stores angular deflection data
+var tableData = [];
+var tableAJump = (Math.PI / 180) * 3;
+var tableASpan = [0, Math.PI / 2];
 
 var cameraZPos = -4000;
 var cameraScale = 300;
+var cameraFOV = Math.atan(cameraScale / 320);
 var bhMass = 3E6;//2392500;
 var bhEventSquared = (2 * bhMass / (lightSpeed ** 2)) ** 2;
+var bhMaxDeflection = 0;
+
+changeBHMass(bhMass);
 
 function changeBHMass(newMass) {
 	bhMass = newMass;
 	bhEventSquared = (2 * bhMass / (lightSpeed ** 2)) ** 2;
+	generateDeflectionTable();
+}
+
+function changeCameraZ(newZ) {
+	cameraZPos = newZ;
+	// bhMaxDeflection = angleForScreenX(1, 10000);
+	// bhMaxDeflection = Math.abs(angleForScreenX(0.0004 * (10000 - cameraZPos), 10000) - 0.0004);
+	generateDeflectionTable();
 }
 
 //generate star sphere
@@ -142,10 +151,33 @@ function einsteinRingTheta(starZPos) {
 	return Math.sqrt((4 * bhMass * -cameraZPos) / (lightSpeed * lightSpeed * starZPos * (starZPos - cameraZPos)));
 }
 
+function generateDeflectionTable() {
+	return;
+	var screenDist = 10000;
+	var numAngles = tableASpan[1] / tableAJump;
+
+	tableData = [];
+
+	var resultAngle;
+	var angularDeflection;
+	for (var d=Math.ceil(numAngles); d>0; d--) {
+		//angle vs angular deflection
+
+		//it's called resultX but it's really the angle to draw a certain x at
+		resultAngle = angleForScreenX(Math.tan(d * tableAJump) * (screenDist - cameraZPos), screenDist);
+		angularDeflection = Math.abs(resultAngle - (d * tableAJump));
+		tableData[d] = angularDeflection;
+	}
+
+	//has to be special because an angle of exactly 0 is optimized out
+	tableData[0] = Math.abs(angleForScreenX(0.001 * (screenDist - cameraZPos), screenDist) - 0.0004);
+}
+
 //simulates one photon's trajectory until it hits the screen
 function screenXForPhoton(angle, screenZ) {
 	//if the angle's 0 it's not going through the black hole - account for that special case here
-	if (Math.abs(angle) < tableAJump) {
+	if (Math.abs(angle) < tableAJump && bhEventSquared < lightSpeed) {
+		// console.log(`fast`);
 		return -1e1001;
 	}
 	var globalScaling = 0.094;
@@ -158,10 +190,16 @@ function screenXForPhoton(angle, screenZ) {
 
 	// ctx.strokeStyle = "#FFF";
 	// ctx.beginPath();
-	// ctx.moveTo(phoX * globalScaling, phoZ * globalScaling);
+	// ctx.moveTo(phoX * globalScaling, -phoZ * globalScaling);
 	//simulate the photon
 	while (true) {
 		a++;
+		if (a > 1000) {
+			// ctx.stroke();
+			//what????
+			// console.log(phoX, phoZ, angle, screenZ);
+			return -1e1001;
+		}
 		angle -= bendPhoton(phoX, phoZ, angle);
 
 		//if the photon has passed the screen Z return its position
@@ -195,7 +233,7 @@ function screenXForPhoton(angle, screenZ) {
 
 //returns the angle lsight has to be fired at to reach a specified screenX
 function angleForScreenX(screenX, screenZ) {
-	var xTolerance = 50;
+	var xTolerance = 100;
 
 	//if the X is too great don't even bother because it'll be off the screen
 	if (Math.abs(screenX) > screenZ * 4) {
@@ -217,48 +255,52 @@ function angleForScreenX(screenX, screenZ) {
 		return initialAGuess;
 	}
 	
-	//first make sure the slope matches with the correct area - otherwise we might be in the Forbidden Zone
+	//first make sure the slope exists - otherwise we might be in the Forbidden Zone
 	var u = 0;
-	while (slope * initialAGuess < 0) {
+	while (!Number.isFinite(slope)) {
+		// console.log(1.2);
 		//multiply to get out of the Forbidden Zone
-		initialAGuess = Math.min(initialAGuess * 2, Math.PI * 0.49);
+		initialAGuess = clamp(initialAGuess * 2, Math.PI * -0.49, Math.PI * 0.49);
 		xResult = screenXForPhoton(initialAGuess, screenZ);
 		xDeltaResult = screenXForPhoton(initialAGuess + tableAJump, screenZ);
 		slope = (xDeltaResult - xResult) / tableAJump;
 		// console.log(1.5, xResult, xDeltaResult);
 		// console.log(2, initialAGuess, slope, screenZ);
 		u += 1;
-	}
 
-	if (Number.isNaN(slope)) {
-		return initialAGuess;
+		//if the number still can't be resolved give up
+		if (u > 10) {
+			return initialAGuess;
+		}
 	}
 
 	//now that we're in the safe region (bent tangent-like curve) recurse:
 	u = 100;
+	var storage = [];
 	while (u > 0) {
 		//if x is good enough, return
 		if (Math.abs(screenX - xResult) < xTolerance) {
+			//also make sure that the slope isn't too great - if it's too large the star won't be displayed
+			// if (Math.abs(slope) > 20000) {
+			// 	return undefined;
+			// }
 			return initialAGuess;
 		}
 
 		//if it's not good enough, move the aGuess based on slope
 		//slope is Δx / Δa
+		storage.push(initialAGuess);
 		initialAGuess += 0.5 * (screenX - xResult) / slope;
 		// console.log(3, initialAGuess);
 
 		//if the target A has become NaN give up
 		if (Number.isNaN(initialAGuess)) {
+			// console.log(storage, slope);
 			return undefined;
 		}
 		xResult = screenXForPhoton(initialAGuess, screenZ);
 		xDeltaResult = screenXForPhoton(initialAGuess + tableAJump, screenZ);
 		slope = (xDeltaResult - xResult) / tableAJump;
-
-		//if we've arrived in the forbidden zone again it's because that X simply can't be displayed
-		if (initialAGuess * slope < 0) {
-			return undefined;
-		}
 
 		u -= 1;
 	}
@@ -268,28 +310,24 @@ function angleForScreenX(screenX, screenZ) {
 	return initialAGuess;
 }
 
-function drawStarsSimple() {
-	//loop through all stars
-	ctx.fillStyle = color_star;
-	stars.forEach(s => {
-		if (s[2] - cameraZPos < 0) {
-			return;
-		}
-		//divide by z, multiply by scale, draw
-		var sx = cameraScale * s[0] / (s[2] - cameraZPos);
-		var sy = cameraScale * s[1] / (s[2] - cameraZPos);
-		var sr = 1;//s[3] / (s[2] - cameraZPos);
+function angularDeflectionFor(theta) {
+	if (theta < 0) {
+		return angularDeflectionFor(-theta);
+	}
+	// theta *= 8;
+	// return bhMaxDeflection * ((theta + 1) ** -1);
 
-		ctx.beginPath();
-		ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-		ctx.fill();
-	});
+	//linearly interpolate between the two nearest known values
+	var ind = theta / tableAJump;
+	var index = Math.floor(ind);
+
+	return linterp(tableData[index], tableData[index+1], ind % 1);
 }
 
+//debug function that helped me figure out the math + simplifications 
 function graph() {
-	ctx.fillStyle = color_star;
 	//go from -45° to 45°
-	var unit = 0.0025;
+	var unit = 0.02;
 	var screenDist = 10000;
 	var maxX = 1.5 * screenDist;
 	var minX = -0.25 * screenDist;
@@ -299,7 +337,44 @@ function graph() {
 	graphStorage = [];
 
 	var resultX;
+	var angularDeflection;
+	ctx.beginPath();
+	ctx.strokeStyle = "#FFF";
+	ctx.moveTo(-300, 0);
+	ctx.lineTo(300, 0);
+	ctx.moveTo(0, -200);
+	ctx.lineTo(0, 200);
+	ctx.stroke();
+
+	ctx.fillStyle = "#F00";
 	for (var d=maxTheta; d>minTheta; d-=unit) {
+		angularDeflection = angularDeflectionFor(d);
+
+		ctx.beginPath();
+		ctx.arc(linterp(-300, 300, getPercentage(minTheta, maxTheta, d)), angularDeflection * -140, 2, 0, Math.PI * 2);
+		ctx.fill();
+	}
+
+	ctx.fillStyle = color_star;
+	for (var d=maxTheta; d>minTheta; d-=unit) {
+		//angle vs angular deflection
+
+		//it's called resultX but it's really the angle to draw a certain x at
+		resultX = angleForScreenX(Math.tan(d) * (screenDist - cameraZPos), screenDist);
+		angularDeflection = Math.abs(resultX - d);
+
+		ctx.beginPath();
+		ctx.arc(linterp(-300, 300, getPercentage(minTheta, maxTheta, d)), angularDeflection * -140, 2, 0, Math.PI * 2);
+		ctx.fill();
+		
+
+
+
+
+
+
+		/*
+		Angle vs screen X
 		//figure out x for this direction
 		resultX = screenXForPhoton(d, screenDist);
 		graphStorage.push([d, resultX]);
@@ -309,11 +384,14 @@ function graph() {
 		ctx.arc(linterp(-300, 300, getPercentage(minTheta, maxTheta, d)), (resultX / maxX) * -240, 2, 0, Math.PI * 2);
 		ctx.fill();
 
+		*/
+
 		//as soon as there's an undefined result skip to the other side
 	}
 }
 
-function drawStarsIntermediate() {
+//draws the star without any gravitational lensing
+function drawStarsSimple() {
 	//loop through all stars
 	ctx.fillStyle = color_star;
 	stars.forEach(s => {
@@ -325,28 +403,22 @@ function drawStarsIntermediate() {
 		var rot = Math.atan2(s[1], s[0]);
 		var dist = Math.sqrt(s[1] ** 2 + s[0] ** 2);
 
-		//figure out xz angle
-		var theta = angleForScreenX(dist, s[2] - cameraZPos);
-
-		if (theta == undefined) {
-			return;
-		}
-
 		//transform to view coordinates
-		var r = cameraScale * Math.tan(theta);
+		var r = cameraScale * dist / (s[2] - cameraZPos);
 		var [sx, sy] = rotate(r, 0, rot);
-		var sr = 1;//s[3] / (s[2] - cameraZPos);
 
 		ctx.beginPath();
-		ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+		ctx.arc(sx, sy, 2, 0, Math.PI * 2);
 		ctx.fill();
 	});
 }
 
+
+//draws all stars with accurate lensing, but occasional flickers and is about 10x slower than necessary
 function drawStars() {
 	ctx.beginPath();
 	//loop through all stars
-	ctx.strokeStyle = color_star;
+	ctx.strokeStyle = cLinterp(color_star, "#8FF", tintAmount);
 	stars.forEach(s => {
 		if (s[2] - cameraZPos < 0) {
 			return;
@@ -360,28 +432,69 @@ function drawStars() {
 		//figure out xz angle
 		var theta = angleForScreenX(dist, s[2] - cameraZPos);
 
-		if (theta == undefined) {
-			return;
-		}
+		//since light is lensed, all stars can appear in two possible positions
+		// var theta2 = angleForScreenX(-dist, s[2] - cameraZPos);
 
-		//transform to view coordinates
-		var r = cameraScale * Math.tan(theta);
-		var [sx, sy] = rotate(r, 0, rot);
-		var sr = 2;//s[3] / (s[2] - cameraZPos);
-
-		ctx.beginPath();
-		// ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-		ctx.lineWidth = sr;
-		ctx.arc(0, 0, r, rot - angularRadius, rot + angularRadius);
-		ctx.stroke();
+		drawStarPolar(rot, theta, angularRadius);
+		// drawStarPolar(-rot, -theta2, angularRadius);
 	});
 
 	//draw shadow
+	drawBHShadow();
+}
+
+//method of drawing lensed stars quickly
+function drawStarsFast() {
+	if (Math.abs(cameraZPos) < Math.sqrt(bhEventSquared)) {
+
+	}
+
+	ctx.beginPath();
+	//loop through all stars
+	ctx.strokeStyle = cLinterp(color_star, "#8FF", tintAmount);
+	var tX, tY, tZ, rot, dist, tR, angularRadius;
+	stars.forEach(s => {
+		tZ = s[2] - cameraZPos;
+		if (tZ < 0) {
+			return;
+		}
+
+		
+
+		//check tX and tY to see if the star can be on the screen
+		tX = cameraScale * s[0] / tZ;
+		tY = cameraScale * s[1] / tZ;
+
+		if (Math.abs(tX) > 320 || Math.abs(tY) > 240) {
+			return;
+		}
+
+		rot = Math.atan2(s[1], s[0]);
+		dist = Math.sqrt(s[1] * s[1] + s[0] * s[0]);
+		tR = cameraScale * s[3] / tZ;
+		angularRadius = 2 / (cameraScale * (dist / tZ))
+
+		//figure out xz angle
+		theta = Math.atan(dist / tZ);
+
+		drawStarPolar(rot, theta + angularDeflectionFor(theta), angularRadius);
+	});
+
+	drawBHShadow();
+}
+
+function drawBHShadow() {
+	//if inside the black hole shortcut
+	if (Math.abs(cameraZPos) < Math.sqrt(bhEventSquared)) {
+		ctx.fillStyle = "#000";
+		ctx.fillRect(-320, -240, 640, 480);
+		return;
+	}
 	//figure out angular radius of the black hole
 	var minR = 0;
-	var maxR = Math.PI / 2;
+	var maxR = cameraFOV * 1.5;
 	var buffer1;
-	for (var f=0; f<12; f++) {
+	for (var f=0; f<10; f++) {
 		buffer1 = (minR + maxR) / 2;
 
 		if (screenXForPhoton(buffer1, 1000) == -1e1001) {
@@ -399,3 +512,27 @@ function drawStars() {
 	ctx.arc(0, 0, r, 0, Math.PI * 2);
 	ctx.fill();
 }
+
+function drawStarPolar(rot, theta, angularRadius) {
+	//make sure theta is actually ok
+	if (theta == undefined) {
+		return;
+	}
+
+	//transform to view coordinates
+	var r = cameraScale * Math.tan(theta);
+	if (r < 0) {
+		return;
+	}
+
+	var sr = 2;//s[3] / (s[2] - cameraZPos);
+
+	ctx.beginPath();
+	// ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+	ctx.lineWidth = sr;
+	ctx.arc(0, 0, r, rot - angularRadius, rot + angularRadius);
+	ctx.stroke();
+}
+
+
+//and all this math is useless because it's too slow anyways
