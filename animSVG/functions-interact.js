@@ -22,6 +22,14 @@ function user_changeAnimLength() {
 	changeAnimationLength(newLength);
 }
 
+function selectColor(colorNode) {
+	φSet(color_selectedNode, {"stroke": "var(--uilines)"});
+	φSet(colorNode, {"stroke": "var(--colorSelect)"});
+	color_selectedNode = colorNode;
+	var newColor = φGet(colorNode, "fill").split(" ");
+	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
+}
+
 function user_changeFPS() {
 	var newFPS = parseInt(prompt(`Enter new animation frames per second`, timeline.fps));
 	if (Number.isNaN(newFPS)) {
