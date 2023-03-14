@@ -5,6 +5,7 @@ functions that can accomplish the same tasks as user input, but with the benefit
 
 INDEX
 
+getSelectedFrame();
 toggleOnionSkin()
 toggleTimelinePlayback()
 fill(workspaceX, workspaceY)
@@ -16,6 +17,15 @@ setColorRGBA(r, g, b, a)
 setColorHSVA(h, s, v, a)
 */
 
+/**
+ * Gives the object of the current Frame selected. If multiple frames are selected, returns an array of objects.
+ */
+function getSelectedFrame() {
+	var id = timeline.layerIDs[timeline.s];
+	var layer = timeline.l[id][timeline.t];
+
+	return layer;
+}
 /**
  * Toggles the onion skin on or off, and then returns whether the onion skin is newly active
  * @returns the new onion skin state
@@ -95,10 +105,6 @@ function fill(workspaceX, workspaceY) {
 		}
 	}
 	return false;
-}
-
-function findLoops(pathObj) {
-	
 }
 
 /**
@@ -233,11 +239,12 @@ function select(layer, frame) {
  * @param {Number} a The [0, 1] number representing opacity
  */
 function setColorRGBA(r, g, b, a) {
+	var cRef = φGet(color_selectedNode, "fill");
 	var rChange = r.constructor.name == "Number";
 	var gChange = g.constructor.name == "Number";
 	var bChange = b.constructor.name == "Number";
 	var aChange = a.constructor.name == "Number";
-	var prevSplit = color_selected.split(" ");
+	var prevSplit = cRef.split(" ");
 
 	if (rChange || gChange || bChange || aChange) {
 		if (!rChange) {
@@ -255,7 +262,25 @@ function setColorRGBA(r, g, b, a) {
 	}
 
 	//set the color
-	color_selected = `rgba(${r}, ${g}, ${b}, ${a})`;
+	var newColorStr = `rgba(${r}, ${g}, ${b}, ${a})`;
+	φSet(color_selectedNode, {"fill": newColorStr});
+	//special - color variables need to be updated
+	switch (color_selectedNode) {
+		case activeColor_stroke:
+			color_stroke = newColorStr;
+			break;
+		case activeColor_fill:
+			color_fill = newColorStr;
+			break;
+		case activeColor_stage:
+			color_stage = newColorStr;
+			φSet(workspace_background, {"fill": newColorStr});
+			break;
+		
+	}
+	if (color_selectedNode == activeColor_stage) {
+		
+	}
 
 	//set the color picker
 	var wh = φGet(MASTER_picker, ['width', 'height']);
