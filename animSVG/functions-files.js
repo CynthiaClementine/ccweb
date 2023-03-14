@@ -150,6 +150,7 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 	
 	//canvas will be all white to start, make sure to specify that isn't a true color
 	canvas.isValid = false;
+	canvas.willReadFrequently = true;
 	
 	//put elements into the container
 
