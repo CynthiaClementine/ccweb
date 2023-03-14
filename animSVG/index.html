@@ -22,6 +22,10 @@ August-23-2021 -->
 
                 --colorPlayhead: #8a0d0d;
                 --colorSelect: #26F8FF;
+
+                --colorLayerFilled: #AAAAAA;
+                --colorLayerMask: #95A0AD;
+                --colorLayerMasked: #B8B89F;
             }
 
 
@@ -32,6 +36,7 @@ August-23-2021 -->
                 padding: 2px;
                 font: 16px Ubuntu;
                 border: none;
+                user-select: none;
             }
             .dropdown {
                 position: relative;
@@ -65,6 +70,9 @@ August-23-2021 -->
 
             .dropdown:hover .dropButton {
                 background-color: #463646;
+            }
+            .dropdownContent {
+                display: auto !important;
             }
 
 
@@ -281,6 +289,31 @@ August-23-2021 -->
             <!--The main workspace (where the lines go)-->
             <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1">
                 <rect id="workspace_background" width="1000" height="600" stroke="var(--uilines)" stroke-width="2"/>
+                
+                <!-- helps visualize cubic bins -->
+                <g>
+                    <line stroke="#F8F" x1="0" x2="0" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="20" x2="20" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="40" x2="40" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="60" x2="60" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="80" x2="80" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="100" x2="100" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="120" x2="120" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="140" x2="140" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="160" x2="160" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="180" x2="180" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="200" x2="200" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="220" x2="220" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="240" x2="240" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="260" x2="260" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="280" x2="280" y1="0" y2="600"/>
+                    <line stroke="#F8F" x1="300" x2="300" y1="0" y2="600"/>
+
+                    
+                </g>
+
+
+
                 <!--where temporary overlays created by tools go-->
                 <g id="workspace_toolTemp"></g>
                 <!--where the permanent drawings go-->
@@ -297,10 +330,10 @@ August-23-2021 -->
                 <use id="sidebar_colorPicker" width="250" height="275" ignoredown="true" href="#MASTER_picker"/>
                 
                 <!-- color UI -->
-                <svg id="sidebar_activeColors" y="100">
-                    <rect id="activeColor_stroke" stroke="#000000" fill="transparent" x="63.333" width="40" height="40"/>
-                    <rect id="activeColor_fill" stroke="#000000" fill="transparent" x="146.666" width="40" height="40"/>
-                    <rect id="activeColor_stage" stroke="#000000" fill="transparent" x="146.666" width="40" height="40"/>
+                <svg id="sidebar_activeColors" y="100" overflow="visible">
+                    <rect id="activeColor_stroke" stroke-width="2"  stroke="var(--colorSelect)" fill="rgba(255, 255, 255, 1)" x="42.5" width="40" height="40" onclick="selectColor(activeColor_stroke)"/>
+                    <rect id="activeColor_fill" stroke-width="2" stroke="var(--uilines)" fill="rgba(255, 0, 255, 1)" x="105" width="40" height="40" onclick="selectColor(activeColor_fill)"/>
+                    <rect id="activeColor_stage" stroke-width="2" stroke="var(--uilines)" fill="rgba(0, 0, 0, 1)" x="167.5" width="40" height="40" onclick="selectColor(activeColor_stage)"/>
                 </svg>
 
                 <!-- toolbar -->
