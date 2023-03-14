@@ -18,20 +18,14 @@ window.onbeforeunload = handleUnload;
 
 //the storage for interval event during timeline playback 
 var autoplay;
+var autoplayStop;
 
-var color_bg = "#000000";
-var color_line = "#FFFFFF";
 var color_debug = "#FF00FF";
-var color_playhead = "#8a0d0d";
 
-var color_selected = "rgba(255, 255, 255, 1)";
-
-var colors_menu = {
-	bg: "#333333",
-	line:"#FFFFFF",
-	line2:"#3e3b54",
-	text: "#666688",
-}
+var color_selectedNode = activeColor_stroke;
+var color_stroke = φGet(activeColor_stroke, "fill");
+var color_fill = φGet(activeColor_fill, "fill");
+var color_stage = φGet(activeColor_stage, "fill");
 
 var base;
 
@@ -75,9 +69,10 @@ var hotkeys = [
 	
 	//tools
 	["KeyC", `changeToolTo("Circle")`, `Circle tool`],
+	["KeyI", `changeToolTo("Eyedrop")`, `Eyedropper tool`],
+	["KeyK", `changeToolTo("Fill")`, `Fill tool`],
 	["KeyY", `changeToolTo("Pencil")`, `Pencil tool`],
 	["KeyR", `changeToolTo("Rectangle")`, `Rectangle tool`],
-	["KeyI", `changeToolTo("Eyedropper")`, `Eyedropper tool`],
 	
 	//timeline actions
 	["KeyO", `toggleOnionSkin()`, `Toggle onion skin`],
@@ -86,10 +81,12 @@ var hotkeys = [
 	["Shift Digit1", `user_keyframe(3)`, `Remove keyframe`],
 	
 	["Enter", `toggleTimelinePlayback()`, `Toggle timeline playback`],
-	["ArrowLeft", `timeline.changeFrameTo(timeline.t - 1)`, `Decrement timeline position`],
-	["ArrowRight", `timeline.changeFrameTo(timeline.t + 1)`, `Increment timeline position`],
-	["Force ArrowLeft", `timeline.changeFrameTo(0)`, `Move to timeline start`],
-	["Force ArrowRight", `timeline.changeFrameTo(timeline.len - 1)`, `Move to timeline end`],
+	["ArrowLeft", `select(timeline.s, timeline.t - 1)`, `Decrement timeline position`],
+	["ArrowRight", `select(timeline.s, timeline.t + 1)`, `Increment timeline position`],
+	["ArrowUp", `select(timeline.s - 1, timeline.t)`, `Select layer above`],
+	["ArrowDown", `select(timeline.s + 1, timeline.t)`, `Select layer below`],
+	["Force ArrowLeft", `select(timeline.s, 0)`, `Move to timeline start`],
+	["Force ArrowRight", `select(timeline.s, timeline.len - 1)`, `Move to timeline end`],
 
 	//file-wide???
 	["Force KeyZ", `undo()`, `undo`],
@@ -104,17 +101,11 @@ var timeline = new Timeline();
 
 
 var toolCurrent;
-var toolMap = {
-	"KeyY": ToolPencil,
-	"KeyO": ToolCircle,
-	"KeyP": ToolPen,
-	"KeyS": ToolShape,
-	"KeyK": ToolFill,
-	"KeyV": ToolMove,
-};
 
 var workspace_margin = 0.1;
 var workspace_scaleBounds = [0.02, 100];
+
+var saveData;
 
 var timeline_blockH;
 var timeline_blockW;
@@ -128,7 +119,7 @@ function setup() {
 	base = document.getElementById("base");
 	canvas = document.getElementById("convos");
 	ctx = canvas.getContext("2d");
-	toolCurrent = new ToolPencil();
+	changeToolTo("Pencil");
 
 	//setting up variables that depend on document
 	[timeline_blockW, timeline_blockH] = φGet(MASTER_frameBoxPath, ["width", "height"]);
@@ -226,6 +217,11 @@ function handleKeyPress(a) {
 			toolCurrent.escape();
 			cursor.down = false;
 			return;
+	}
+
+	//make sure to allow zooming in / out
+	if (a.code != "Minus" && a.code != "Equal") {
+		a.preventDefault();
 	}
 
 	var keys = [];
@@ -335,15 +331,18 @@ function handleMouseDown(a) {
 		cursor.downType = "time";
 		return;
 	}
-	if (φOver(sidebar_container)) {
-		return;
-	}
 
 	//sidebar detection
 	if (a.target.id == "sidebar_edge_detector") {
 		cursor.downType = "sideEdge";
 		return;
 	}
+
+	if (φOver(sidebar_container)) {
+		return;
+	}
+
+	
 
 	cursor.downType = "work";
 	toolCurrent.mouseDown(a);
@@ -375,8 +374,8 @@ function handleMouseMove(a) {
 				var goodHeight = box.height - cursorVbaseY;
 
 				φSet(timeline_container, {'hinv': goodHeight});
-				resizeTimeline(box.width, box.height);
-				resizeSidebar(box.width, box.height);
+				resizeTimeline(box.width, clamp(goodHeight, 0, box.height));
+				resizeSidebar(undefined, box.height - goodHeight);
 				break;
 			case "timeExtend":
 				var xRel = cursorRelativeTo(timeline_extender)[0] - 3;
@@ -387,6 +386,14 @@ function handleMouseMove(a) {
 				break;
 			case "timePlayhead":
 				updatePlayheadPosition();
+				break;
+			case "timeBlockzone":
+				//drag the selection box around
+
+			case "sideEdge":
+				var height = φGet(sidebar_background, "height");
+				var newWidth = clamp(cursorWorkspaceCoordinates()[0], 0, φGet(base, "width"));
+				resizeSidebar(newWidth, height);
 				break;
 			case "time":
 				break;
@@ -465,10 +472,12 @@ function handleMouseUp(a) {
 function handleResize(a) {
 	var spaceW = window.innerWidth * 0.96;
 	var spaceH = window.innerHeight * 0.95;
+	var timeDims = timeline_background.getBoundingClientRect();
+	var sideDims = sidebar_background.getBoundingClientRect();
 	
 	resizeWorkspace(spaceW, spaceH);
-	resizeTimeline(spaceW, spaceH);
-	resizeSidebar(spaceW, spaceH);
+	resizeTimeline(spaceW, Math.min(spaceH, timeDims.height));
+	resizeSidebar(Math.min(sideDims.width, spaceW), spaceH - Math.min(spaceH, timeDims.height));
 
 	clampWorkspace();
 }
@@ -490,50 +499,77 @@ function handleWheel(a) {
 	moveWorkspace(a.deltaX, a.deltaY);
 }
 
-function resizeSidebar(spaceW, spaceH) {
-	var timeH = spaceH - φGet(timeline_container, 'hinv');
+function resizeSidebar(w, h) {
+	var minPickerWidth = 250;
+	var maxPickerWidth = 340;
+	var toolWidth = 50;
+
+	if (w == undefined || h == undefined) {
+		var oldDims = φGet(sidebar_background, ["width", "height"]);
+		w = w ?? oldDims[0];
+		h = h ?? oldDims[1];
+	}
+	w = +w;
+	h = +h;
+	
+	w = Math.max(w, toolWidth + minPickerWidth);
+
+	//if the panel is wide enough, put color properties to the side. If it's too small, they'll go below instead
+	var sideProps = false;
+	var pickerWidth = w - toolWidth;
+	if (pickerWidth > maxPickerWidth) {
+		pickerWidth = minPickerWidth;
+		sideProps = true;
+	}
+	var pickerHeight = pickerWidth * 1.1;
+	var squareSize = +φGet(activeColor_stroke, "width");
 
 	φSet(sidebar_background, {
-		'height': timeH
+		'width': w,
+		'height': h
+	});
+	φSet(toolbar_container, {
+		'x': w - toolWidth,
+		'height': h
 	});
 	φSet(toolbar_background, {
-		'height': timeH
+		'height': h
 	});
-	φSet(sidebar_edge, {
-		'y2': timeH
-	});
+
 	φSet(sidebar_edge_detector, {
-		'height': timeH + 20
+		'x': w - 5,
+		'height': h
+	});
+
+	φSet(sidebar_colorPicker, {
+		'width': pickerWidth,
+		'height': pickerHeight,
+	});
+	φSet(sidebar_activeColors, {
+		'width': pickerWidth,
+		'y': sideProps ? (pickerHeight + 20) : Math.max((h - squareSize - 20), (pickerHeight + 20))
 	});
 }
 
-function resizeTimeline(spaceW, spaceH) {
-	var timeH = clamp(φGet(timeline_container, 'hinv'), 0, spaceH);
-	var tol = spaceH / 100;
+//resizes timeline to the specified width and height
+function resizeTimeline(w, h) {
+	var spaceH = φGet(base, "height");
+	var invH = spaceH - h;
+
+	//these two lines aren't confusing at all I'm sure
 	φSet(timeline_container, {
-		'hinv': timeH,
-		'y': spaceH - timeH
+		'hinv': h,
+		'y': invH
 	});
 	φSet(timeline_background, {
-		'width': spaceW,
-		'height': timeH,
+		'width': w,
+		'height': h,
 	});
 	φSet(timeline_edge_detector, {
-		'width': spaceW,
+		'width': w,
 	});
 	φSet(timeline_playhead, {
-		'height': timeH
-	});
-
-	//also change the height of the sidebar
-	φSet(sidebar_background, {
-		'height': spaceH - timeH
-	});
-	φSet(toolbar_background, {
-		'height': spaceH - timeH
-	});
-	φSet(sidebar_edge_detector, {
-		'height': spaceH - timeH
+		'height': h
 	});
 }
 
@@ -543,10 +579,6 @@ function updateTimelineExtender() {
 		'x': (timeline_blockW + 1) * (timeline.len + 0.5),
 		'height': (timeline_blockH + 1) * timeline.layerIDs.length
 	});
-}
-
-function resizeSidebar(spaceW, spaceH) {
-
 }
 
 function cursorTimelinePos() {
