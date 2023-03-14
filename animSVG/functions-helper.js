@@ -223,114 +223,10 @@ function createSpline(curves, color, pathWidth) {
 		'stroke': color, 
 		'stroke-linecap': 'round',
 		'fill': 'none', 
-		'stroke-width': pathWidth, 
+		'stroke-width': pathWidth
 	});
 
-	//element functions
-	//I have to do this silly python-esque thing but I suppose I'll live with it
-	var self = node;
-	node.getPointFromT = (t) => {
-		var bRef = self.curves[Math.floor(t)];
-		switch (bRef.length) {
-			case 2:
-				return linterpMulti(bRef[0], bRef[1], t % 1);
-			case 3:
-				return quadraticPointFromT(bRef[0], bRef[1], bRef[2], t % 1);
-			case 4:
-				return bezierPointFromT(bRef[0], bRef[1], bRef[2], bRef[3], t % 1);
-			default:
-				console.error(`unknown number of points!`);
-		}
-	}
-	node.calculateBoundingBox = () => {
-		//take all the smaller bounding boxes and add them up
-		var initialBounds = [1e1001, 1e1001, -1e1001, -1e1001];
-		self.curves.forEach(c => {
-			var smolBound;
-			switch (c.length) {
-				case 2:
-					//it's short enough that I can sort manually
-					smolBound = [c[0][0], c[0][1], c[1][0], c[1][1]];
-					if (smolBound[0] > smolBound[2]) {
-						[smolBound[0], smolBound[2]] = [smolBound[2], smolBound[0]]
-					}
-					if (smolBound[1] > smolBound[3]) {
-						[smolBound[1], smolBound[3]] = [smolBound[3], smolBound[1]]
-					}
-					break;
-				case 3:
-					smolbound = quadraticBounds(c[0], c[1], c2);
-					break;
-				case 4:
-					smolBound = bezierBounds(c[0], c[1], c[2], c[3]);
-					break;
-			}
-			initialBounds[0] = Math.min(initialBounds[0], smolBound[0]);
-			initialBounds[1] = Math.min(initialBounds[1], smolBound[1]);
-			initialBounds[2] = Math.max(initialBounds[2], smolBound[2]);
-			initialBounds[3] = Math.max(initialBounds[3], smolBound[3]);
-		});
-	}
-	//uses curves array to recalculate the path
-	node.redraw = () => {
-		var path = `M ${curves[0][0][0]} ${curves[0][0][1]}`;
-		curves.forEach(j => {
-			switch (j.length) {
-				case 2:
-					path += ` L ${j[1][0]} ${j[1][1]}`;
-					break;
-				case 3:
-					path += ` Q ${j[1][0]} ${j[1][1]} ${j[2][0]}`;
-					break;
-				case 4:
-					path += ` C ${j[1][0]} ${j[1][1]} ${j[2][0]} ${j[2][1]} ${j[3][0]} ${j[3][1]}`;
-					break;
-				default:
-					console.log(`don't know what to do with length: ${j.length}`);
-			}
-		});
-		φSet(self, {'d': path});
-	}
-	node.splitAt = (t) => {
-		//if t is an integer this is extremely easy
-		if (t % 1 == 0) {
-			//trivial cases
-			if (t == 0) {
-				return [self, undefined];
-			}
-			if (t == self.curves.length - 1) {
-				return [undefined, self];
-			}
-
-			return [createSpline(self.curves.slice(0, t), self.color, self.pathWidth), createSpline(self.curves.slice(t), self.color, self.pathWidth)];
-		}
-
-		//if t isn't an integer have to cut the curve that it goes through
-		var cut = self.curves[Math.floor(t)];
-		switch (cut.length) {
-			case 2:
-				break;
-			case 3:
-				break;
-			case 4:
-				cut = bezierSplit(cut[0], cut[1], cut[2], cut[3], t % 1);
-				break;
-		}
-
-		//beginning
-		var start = self.curves.slice(0, Math.floor(t));
-		start.push(cut[0]);
-		start = createSpline(start, self.color, self.pathWidth);
-		//end
-		var end = end.curves.slice(Math.ceil(t));
-		end.splice(0, 0, cut[1]);
-		end = createSpline(end, self.color, self.pathWidth);
-	}
-	//give the element its properties
-	node.curves = curves;
-	node.color = color;
-	node.start = curves[0][0];
-	node.end = curves[curves.length-1][curves[curves.length-1].length-1];
+	node = Spline(node, curves);
 	node.redraw();
 	node.calculateBoundingBox();
 
@@ -352,59 +248,12 @@ function cursorRelativeTo(node) {
  * @param {Spline} spline the Spline path object to add
  */
 function frame_addPath(layerNode, spline) {
-	var uid = φGet(layerNode, 'uid');
-	var curves = spline.curves;
-
-	//first add the cubics to all necessary bins
-	curves.forEach(c => {
-		var bbox;
-		switch(c.length) {
-			case 2:
-				bbox = [c[0][0], c[0][1], c[1][0], c[1][1]];
-				break;
-			case 3:
-				bbox = quadraticBounds(c[0], c[1], c[2]);
-				break;
-			case 4:
-				bbox = bezierBounds(c[0], c[1], c[2], c[3]);
-				break;
-		}
-
-		var bboxBins = bbox.map(n => Math.floor(n / cubicBinSize));
-		var tIntersects = [];
-		for (var x=bboxBins[0]; x<=bboxBins[2]; x++) {
-			for (var y=bboxBins[1]; y<=bboxBins[3]; y++) {
-				
-				//make sure the bin exists before placing objects into it
-				if (layerNode.cubicBins[x] == undefined) {
-					layerNode.cubicBins[x] = [];
-				}
-
-				if (layerNode.cubicBins[x][y] == undefined) {
-					layerNode.cubicBins[x][y] = [];
-				}
-
-				/*
-				//test for intersections within the bin
-				var curveNums = bezIntersections(c, layerNode.cubicBins[x][y]);
-
-				//if there are intersections split the existing curve(s)? and then add the pre-intersection curve to the canvas
-				if (curveNums.length > 0) {
-					splitPathsAt(layerNode, x, y);
-				} */
-
-				//actual placing
-				layerNode.cubicBins[x][y].push(c);
-			}
-		}
-	});
-
-	// var bboxBins = ;
-
-
 	layerNode.lines.appendChild(spline);
+	layerNode.binPlace(spline);
+	//add cubic bins
 
 	//if the layer was previously empty change to full
+	var uid = φGet(layerNode, 'uid');
 	if (layerNode.lines.children.length == 1) {
 		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
 		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
@@ -564,39 +413,6 @@ function bezIntersections(curve, testCurves) {
 	return nums;
 }
 
-//takes a g element intended to be a frame and applies properties to it that it wouldn't have otherwise
-function frame_applyJS(frameObj) {
-	//reflecting properties
-	frameObj.lines = frameObj.children["lines"];
-	frameObj.fills = frameObj.children["fills"];
-
-	//methods
-	frameObj.fill = (x, y) => {
-		//try to fill that space
-
-		//cast a ray to the right
-		// var rayCast =
-
-		//if there's no objects it won't work
-
-		//if there is, trace it around until the path gets back to the start
-
-		//that loop is the region to fill
-	}
-
-
-	//cubic bins
-	var wh = φGet(workspace_background, ['width', 'height']);
-	frameObj.cubicBins = [];
-	for (var y=0; y<Math.ceil(wh[1]/cubicBinSize); y++) {
-		frameObj.cubicBins.push([]);
-		for (var x=0; x<Math.ceil(wh[0]/cubicBinSize); x++) {
-			frameObj.cubicBins[y].push([]);
-		}
-	}
-	//place all splines into the cubic bins
-}
-
 /**
  * Creates a frame g object that can hold svg content
  * @param {String} frameID the ID for the frame to have
@@ -618,7 +434,7 @@ function frame_create(frameID, layerID) {
 	</g>`;
 	temp = temp.children[0];
 
-	frame_applyJS(temp);
+	temp = Frame(temp);
 
 	//properties
 	
