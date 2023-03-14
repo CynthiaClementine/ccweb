@@ -90,7 +90,7 @@ class ToolDragShape {
 		//since the workspace expects to work with paths, convert the rectangle into a set of paths
 		var [x, y, w, h] = this.calculateBoundingBox();
 		var layerObj = timeline.l[timeline.layerIDs[timeline.s]][timeline.t];
-		var spline = createSpline(this.givePathsFor(x, y, w, h), color_selected, this.r / 2);
+		var spline = createSpline(this.givePathsFor(x, y, w, h), color_stroke, this.r / 2);
 		takeAction(() => {frame_addPath(layerObj, spline);}, () => {frame_removePath(layerObj, spline);});
 
 		workspace_toolTemp.innerHTML = "";
@@ -139,7 +139,7 @@ class ToolCircle extends ToolDragShape {
 			'cy': y + h/2,
 			'rx': w/2,
 			'ry': h/2,
-			'stroke': color_selected,
+			'stroke': color_stroke,
 			'fill': 'transparent'
 
 		}
@@ -188,7 +188,7 @@ class ToolRectangle extends ToolDragShape {
 			'y': y,
 			'width': w,
 			'height': h,
-			'stroke': color_selected,
+			'stroke': color_stroke,
 			'fill': 'transparent'
 
 		}
@@ -224,7 +224,7 @@ class ToolPencil {
 			'cx': coords[0],
 			'cy': coords[1],
 			'r': this.r / 2,
-			'fill': color_selected
+			'fill': color_stroke
 		}));
 	}
 
@@ -305,7 +305,7 @@ class ToolPencil {
 
 		var tln = timeline;
 		var layerObj = tln.l[tln.layerIDs[tln.s]][tln.t];
-		var spline = createSpline(curves, color_selected, this.r);
+		var spline = createSpline(curves, color_stroke, this.r);
 		takeAction(() => {
 			frame_addPath(layerObj, spline);
 		}, () => {
@@ -352,58 +352,60 @@ class ToolMove {
 	constructor() {
 		this.selected = undefined;
 		this.tol = 5;
+		this.lastPos = [];
 	}
 
 	drawOverlay() {}
 
 	mouseDown(a) {
-		var pos = canvasToWorkspace(cursor.x, cursor.y);
-		//detect if on a line, and if so start moving it
-		timeline["Layer 1"][0].lines.forEach(l => {
-			if (l.length == 0) {
-				return;
+		var pos = cursorWorkspaceCoordinates();
+		
+		//figure out the bin to look for
+		var obj = getSelectedFrame();
+		var bin = obj.binAt(pos[0], pos[1]);
+
+		//if there are no splines in the bin, return
+		if (bin.length == 0) {
+			console.log(`no splines in bin!`);
+			return;
+		}
+		
+		//test for intersection
+		for (var j=0; j<bin.length; j++) {
+			if (bin[j].intersectsPoint(pos[0], pos[1])) {
+				this.selected = bin[j];
+				j = bin.length + 1;
+				this.lastPos = pos;
 			}
-			var intersects = (l.length == 2) ? pointLineIntersect(pos, ...l, this.tol) : pointBezierIntersect(pos, ...l, this.tol);
-			if (intersects) {
-				this.selected = l;
-			}
-		});
+		}
 	}
 
 	mouseMove(a) {
-		var n = 1;
-		if (this.selected != undefined) {
-			//add movement to each line point
-			
-			//if just the movement is added, the piece will trail behind the cursor.
-			//double the movement is added, and then removed when necessary
+		if (this.selected) {
+			var newPos = cursorWorkspaceCoordinates();
+			var delta = [newPos[0] - this.lastPos[0], newPos[1] - this.lastPos[1]];
+			//move each point - will change later but for now it's alright
+			this.selected.curves.forEach(c => {
+				c.forEach(p => {
+					p[0] += delta[0];
+					p[1] += delta[1];
+				});
+			});
+			this.selected.redraw();
 
-			this.selected.forEach(p => {
-				p[0] -= this.bufferStore[0] * (n-1);
-				p[1] -= this.bufferStore[1] * (n-1);
-			});
-			this.bufferStore = [cursor.dx / workspace_scaling, cursor.dy / workspace_scaling];
-			this.selected.forEach(p => {
-				p[0] += this.bufferStore[0] * n;
-				p[1] += this.bufferStore[1] * n;
-			});
+			this.lastPos = newPos;
 		}
 	}
 
 	mouseUp(a) {
-		if (this.selected != undefined) {
-			//remove buffer movement
-			this.selected.forEach(p => {
-				p[0] -= this.bufferStore[0];
-				p[1] -= this.bufferStore[1];
-			});
-			this.selected = undefined;
-		}
+		this.selected = undefined;
 	}
 }
 
 class ToolEyedrop {
 	constructor() {
+		this.scaleBounds = [0.75, 1.75];
+
 		this.canvasFrame;
 		this.canvas;
 		this.ctx;
@@ -414,8 +416,11 @@ class ToolEyedrop {
 	createCanvas() {
 		//height is proportional to how zoomed in user is
 		var whs = φGet(workspace_container, ['width', 'height', 'scaling']);
+		//make sure scaling isn't too great
+		whs[2] = clamp(whs[2], this.scaleBounds[0], this.scaleBounds[1.75]);
 		this.canvasFrame = timeline.t;
 		this.canvas = createCanvasFromFrame(timeline.t, whs[0] * whs[2], whs[1] * whs[2]);
+		this.canvas.scaling = +whs[2];
 		this.ctx = this.canvas.getContext("2d");
 	}
 
@@ -443,8 +448,14 @@ class ToolEyedrop {
 
 	pickColor_final() {
 		var xy = cursorWorkspaceCoordinates();
-		var pxDat = this.ctx.getImageData(floor(xy[0]), floor(xy[1]), 1, 1).data;
+		var pxDat = this.ctx.getImageData(floor(xy[0] * this.canvas.scaling), floor(xy[1] * this.canvas.scaling), 1, 1).data;
 		setColorRGBA(...pxDat);
+
+		if (debug_active) {
+			//also put a red dot on the canvas
+			this.ctx.fillStyle = "#F00";
+			this.ctx.fillRect(floor(xy[0] * this.canvas.scaling), floor(xy[1] * this.canvas.scaling), 1, 1);
+		}
 	}
 
 	mouseDown(a) {
@@ -468,5 +479,10 @@ class ToolEyedrop {
 
 	mouseUp(a) {
 
+	}
+
+	escape() {
+		//force the picking to STOP
+		window.clearInterval(this.pickHandler);
 	}
 }
