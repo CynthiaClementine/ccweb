@@ -16,6 +16,9 @@ August-23-2021 -->
                 --appHeight: 600;
                 --appWidth: 1000;
 
+                --pxUnits: 1;
+                --pxUnits2: 2;
+
                 --uilines: #FFFFFF;
                 --sidebarWidth: 10%;
                 --timelineHeight: 400;
@@ -97,9 +100,6 @@ August-23-2021 -->
             #convos {
                 display: block;
                 position: absolute;
-            }
-            #timeline_blocks {
-                overflow-x: scroll;
             }
             .timelineButton {
                 cursor: pointer;
@@ -200,6 +200,9 @@ August-23-2021 -->
         </div>
 
         <br>
+        <div id="putPot"></div>
+        <!--canvas so ctx is accessible, in case-->
+        <canvas id="convos" width="1000" height=600></canvas>
 
         <!-- <div id="outside_container" width="90%" height="90%"> -->
         <svg id="base" xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
@@ -288,36 +291,12 @@ August-23-2021 -->
 
             <!--The main workspace (where the lines go)-->
             <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1">
-                <rect id="workspace_background" width="1000" height="600" stroke="var(--uilines)" stroke-width="2"/>
-                
-                <!-- helps visualize cubic bins -->
-                <g>
-                    <line stroke="#F8F" x1="0" x2="0" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="20" x2="20" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="40" x2="40" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="60" x2="60" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="80" x2="80" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="100" x2="100" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="120" x2="120" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="140" x2="140" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="160" x2="160" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="180" x2="180" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="200" x2="200" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="220" x2="220" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="240" x2="240" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="260" x2="260" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="280" x2="280" y1="0" y2="600"/>
-                    <line stroke="#F8F" x1="300" x2="300" y1="0" y2="600"/>
+                <rect id="workspace_background" width="1000" height="600" stroke="var(--uilines)" stroke-width="var(--pxUnits2)"/>
 
-                    
-                </g>
-
-
-
-                <!--where temporary overlays created by tools go-->
-                <g id="workspace_toolTemp"></g>
                 <!--where the permanent drawings go-->
                 <g id="workspace_permanent"></g>
+                <!--where temporary overlays created by tools go-->
+                <g id="workspace_toolTemp"></g>
             </svg>
 
 
@@ -341,31 +320,38 @@ August-23-2021 -->
                     <rect id="toolbar_background" fill="#555559" width="50" height="600"/>
                     <!--tool icons-->
                     <svg class="toolIcon" id="tool_pencil" x="5" y="5"  overflow="visible" onclick="changeToolTo('Pencil');">
+                        <title>Pencil Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 10 25 30 30 30 30 25 10 5 5 10"/>
                     </svg>
                     <svg class="toolIcon" id="tool_rect" x="5" y="45" overflow="visible" onclick="changeToolTo('Rectangle');">
+                        <title>Rectangle Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 10 5 25 30 25 30 10 5 10"/>
                     </svg>
                     <svg class="toolIcon" id="tool_circle" x="5" y="85" overflow="visible" onclick="changeToolTo('Circle');">
+                        <title>Circle/Ellipse Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <circle class="toolLine" cx="17.5" cy="17.5" r="13"/> 
                     </svg>
-                    <svg class="toolIcon" id="tool_shape" x="5" y="125" overflow="visible">
+                    <svg class="toolIcon" id="tool_shape" x="5" y="125" overflow="visible" title="Polygon">
+                        <title>Polygon Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 7.5 12.5 7.5 22.5 17.5 30 27.5 22.5 27.5 12.5 17.5 5 7.5 12.5"/>
                     </svg>
                     <svg class="toolIcon" id="tool_move" x="5" y="165" overflow="visible" onclick="changeToolTo('Move');">
+                        <title>Move Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
                     </svg>
                     <svg class="toolIcon" id="tool_fill" x="5" y="205" overflow="visible" onclick="changeToolTo('Fill');">
+                        <title>Fill Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <circle class="toolLine" cx="17.5" cy="9" r="4"/> 
                         <path class="toolLine" d="M 5 20 C 5 17.5 30 17.5 30 20 C 30 23 20 23 20 25 C 20 26 22 27 22 28 C 22 30 4 30 4 27.5 C 4 25 7.5 25 7.5 22.5 C 7.5 21 5 21 5 20"/>
                     </svg>
                     <svg class="toolIcon" id="tool_eyedrop" x="5" y="245" overflow="visible" onclick="changeToolTo('Eyedrop');">
+                        <title>Eyedropper Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 20 10 10 20 M 17.5 12.5 30 30 12.5 17.5 
                         M 18 12 A 6 6 0 1 0 12 18"/>
@@ -399,20 +385,29 @@ August-23-2021 -->
                 <!-- the main timeline rectangle bit -->
                 <!--The outer container is for the highlight rectangle, the inner one is for all the regular blocks-->
                 <svg id="timeline_main_container" x="150" y="5" overflow="visible">
+                    <!--this gets complicated so I should note
+                        timeline_blocks_container is used to clip all timeline elements that will scroll
+                        timeline_clipped contains all the scrolling elements
+                        timeline_blocks are the actual blocks
+                    -->
                     <svg id="timeline_blocks_container">
-                        <g id="timeline_blocks">
-                        </g>
-                        <svg id="timeline_onionhead" overflow="visible" stroke-width="2" display="none">
-                            <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="#F66"/>
-                            <rect id="onionRight" width="0" height="11" y="2" x="10" fill="none" stroke="#66F"/>
+                        <svg id="timeline_clipped" overflow="visible">
+                            <g id="timeline_blocks">
+                            </g>
+                            <g id="timeline_labels">
+                            </g>
+                            <svg id="timeline_onionhead" overflow="visible" stroke-width="2" display="none">
+                                <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="#F66"/>
+                                <rect id="onionRight" width="0" height="11" y="2" x="10" fill="none" stroke="#66F"/>
+                            </svg>
+                            <rect id="timeline_playbody" width="10" height="15" fill="var(--colorPlayhead)" stroke="var(--colorPlayhead)"/>
+                            <rect id="timeline_playhead" width="10" fill="transparent" y="15" stroke="var(--colorPlayhead)" frame="0"/>
+                            <rect id="timeline_selector" y="15" width="10" height="20" stroke-width="2" stroke="var(--colorSelect)" fill="none"/>
+                            <rect id="timeline_extender" x="1" y="15" stroke="#FFFFFF" fill="transparent" x="-3" width="6" height="10" cursor="ew-resize"/>
                         </svg>
-                        <rect id="timeline_playbody" width="10" height="15" fill="var(--colorPlayhead)" stroke="var(--colorPlayhead)"/>
-                        <rect id="timeline_playhead" width="10" fill="transparent" y="15" stroke="var(--colorPlayhead)" frame="0"/>
                     </svg>
                     <svg id="timeline_text_container" overflow="visible">
                     </svg>
-                    <rect id="timeline_selector" y="15" width="10" height="20" stroke-width="2" stroke="var(--colorSelect)" fill="none"/>
-                    <rect id="timeline_extender" x="1" y="15" stroke="#FFFFFF" fill="transparent" x="-3" width="6" height="10" cursor="ew-resize"/>
                 </svg>
 
             </svg>
@@ -420,8 +415,7 @@ August-23-2021 -->
             <svg id="settings_container">
             </svg>
         </svg>
-        <!--canvas so ctx is accessible, in case-->
-        <canvas id="convos" width="1" height=1></canvas>
+        
         <!-- </div> -->
         <script src="main.js"></script>
         <a download="saveData.asi" id="download">[download]</a>
