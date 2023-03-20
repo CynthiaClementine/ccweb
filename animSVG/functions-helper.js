@@ -128,6 +128,7 @@ function changeAnimationLength(newLength) {
 	}
 
 	//if it's shorter than the current length
+	var labPer = timeline_labelPer;
 	var oldLength = timeline.len;
 	timeline.len = newLength;
 	if (newLength < oldLength) {
@@ -140,6 +141,11 @@ function changeAnimationLength(newLength) {
 				document.getElementById(`layer_${id}_frame_${z}`).remove();
 			}
 		});
+
+		//remove label text
+		for (var k=Math.ceil(newLength/labPer) * labPer; k<oldLength; k+=labPer) {
+			document.getElementById(`label_${k}`).remove();
+		}
 	} else {
 		//longer than the current length
 		var copyFrame;
@@ -152,6 +158,26 @@ function changeAnimationLength(newLength) {
 			timeline.l[lid].fill(copyFrame, oldLength, newLength-1);
 			createTimelineBlocks(lid, oldLength, newLength-1);
 		});
+
+
+		
+		//add label text
+		//make sure to include the 0
+		if (oldLength == 1) {
+			oldLength = 0;
+		}
+		var labHeight = (timeline_headHeight / 2) + 1;
+		for (var k=Math.ceil(oldLength/labPer) * labPer; k<newLength; k+=labPer) {
+			timeline_labels.appendChild(φCreate("text", {
+				'x': (timeline_blockW + 1) * (k + 0.5),
+				'y': labHeight,
+				'id': `label_${k}`, 
+				'class': 'timelineText',
+				'text-anchor': 'middle',
+				'innerHTML': k,
+				'noselect': 'on',
+			}));
+		}
 	}
 
 	updateTimelineExtender();
@@ -249,8 +275,7 @@ function cursorRelativeTo(node) {
  */
 function frame_addPath(layerNode, spline) {
 	layerNode.lines.appendChild(spline);
-	layerNode.binPlace(spline);
-	//add cubic bins
+	layerNode.binModify(spline, false);
 
 	//if the layer was previously empty change to full
 	var uid = φGet(layerNode, 'uid');
@@ -267,25 +292,15 @@ function frame_addPath(layerNode, spline) {
  */
 function frame_removePath(layerNode, spline) {
 	//go through the curves and remove them from the curve bins
-	var bbox;
-	spline.curves.forEach(c => {
-		bbox = (c.length == 2) ? [c[0][0], c[0][1], c[1][0], c[1][1]] : bezierBounds(c[0], c[1], c[2], c[3]);
-		bbox = bbox.map(a => Math.floor(a / cubicBinSize));
-
-		//remove a curve from every bin it is in
-		for (var x=bbox[0]; x<=bbox[2]; x++) {
-			for (var y=bbox[1]; y<=bbox[3]; y++) {
-				layerNode.cubicBins[x][y].splice(layerNode.cubicBins[x][y].indexOf(c), 1);
-			}
-		}
-	});
-	
-	//TODO: for when I add spline bins
-	
-	//get the bounding box
-	
-	//remove the spline
+	layerNode.binModify(spline, true);
 	layerNode.lines.removeChild(spline);
+
+	//keep markers up to date
+	if (layerNode.lines.children.length == 0) {
+		var uid = φGet(layerNode, "uid");
+		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameEmptyKey'});
+		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameEmpty'});
+	}
 }
 
 /**
@@ -468,21 +483,6 @@ function frame_copy(frameNode, layerID) {
 		document.getElementById(`layer_${layerID}`).appendChild(newLayer);
 	}
 	return newLayer;
-}
-
-
-function moveWorkspace(x, y) {
-	//holding control zooms instead of moving up/down
-	if (button_force) {
-		zoom(cursor.x, cursor.y, clamp(φGet(workspace_container, "scaling") * (1 + y * 0.001), ...workspace_scaleBounds));
-
-	} else {
-		φAdd(workspace_container, {
-			x: -x,
-			y: -y,
-		});
-	}
-	clampWorkspace();
 }
 
 //takes in a set of points representing the vertices of a line (or closed polygon) and outputs a set of bezier curves that correspond to those lines
@@ -722,7 +722,10 @@ function zoom(x, y, newZoom) {
 		'scaling': newZoom,
 		'viewBox': `0 0 ${w / newZoom} ${h / newZoom}`
 	});
-	φSet(workspace_background, {'stroke-width': 2 / newZoom});
+
+	//set new px -> units transfer
+	document.documentElement.style.setProperty("--pxUnits", 1 / newZoom);
+	document.documentElement.style.setProperty("--pxUnits2", 2 / newZoom);
 
 	workB = workspace_container.getBoundingClientRect();
 	var [contX, contY] = φGet(workspace_container, ['x', 'y']);

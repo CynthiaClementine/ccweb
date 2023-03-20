@@ -111,6 +111,8 @@ var timeline_blockH;
 var timeline_blockW;
 var timeline_headHeight = 15;
 var timeline_oldKeyPos = [0, 0];
+var timeline_marginRight = 3;
+var timeline_labelPer = 12;
 
 var uidCount = 0;
 
@@ -389,10 +391,10 @@ function handleMouseMove(a) {
 				break;
 			case "timeBlockzone":
 				//drag the selection box around
-
+				break;
 			case "sideEdge":
 				var height = φGet(sidebar_background, "height");
-				var newWidth = clamp(cursorWorkspaceCoordinates()[0], 0, φGet(base, "width"));
+				var newWidth = clamp(cursorRelativeTo(base)[0], 0, φGet(base, "width"));
 				resizeSidebar(newWidth, height);
 				break;
 			case "time":
@@ -496,7 +498,11 @@ function resizeWorkspace(spaceW, spaceH) {
 
 function handleWheel(a) {
 	a.preventDefault();
-	moveWorkspace(a.deltaX, a.deltaY);
+	if (φOver(timeline_background)) {
+		moveTimeline(a.deltaX, a.deltaY);
+	} else {
+		moveWorkspace(a.deltaX, a.deltaY);
+	}
 }
 
 function resizeSidebar(w, h) {
@@ -582,8 +588,8 @@ function updateTimelineExtender() {
 }
 
 function cursorTimelinePos() {
-	var timeB = timeline_blocks_container.getBoundingClientRect();
-	return [(cursor.x + 1 - timeB.x) / (timeline_blockW+1), (cursor.y - timeB.y - timeline_headHeight) / (timeline_blockH+1)];
+	var timeB = timeline_blocks.getBoundingClientRect();
+	return [(cursor.x + 1 - timeB.x) / (timeline_blockW+1), (cursor.y - timeB.y) / (timeline_blockH+1)];
 }
 function updatePlayheadPosition() {
 	var hoverPos = cursorTimelinePos();

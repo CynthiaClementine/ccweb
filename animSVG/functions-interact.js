@@ -1,9 +1,69 @@
 /*
 various functions that connect the user to the program, generally through api functions. 
 This exists because often the inputs themselves need to be processed (a click could mean change color, but to what color?)
+
+
+INDEX
+moveWorkspace(deltaX, deltaY)
+moveTimeline(deltaX, deltaY)
+
+selectColor(colorNode)
+user_changeAnimLength()
+user_changeFPS()
+user_keyframe(n)
+changeToolTo(toolName)
 */
 
 
+
+
+function moveWorkspace(deltaX, deltaY) {
+	//holding control zooms instead of moving up/down
+	if (button_force) {
+		zoom(cursor.x, cursor.y, clamp(φGet(workspace_container, "scaling") * (1 + deltaY * 0.001), ...workspace_scaleBounds));
+	} else {
+		φAdd(workspace_container, {
+			x: -deltaX,
+			y: -deltaY,
+		});
+	}
+	clampWorkspace();
+}
+
+function moveTimeline(deltaX, deltaY) {
+	//zoom
+	if (button_force) {
+		var mult = (1 + deltaY * 0.001);
+	} else {
+		//set mins / maxs based on timeline length
+		var widthAvail = φGet(base, "width") - φGet(timeline_main_container, "x") - (timeline_blockW * timeline_marginRight);
+		var tmWidth = timeline_clipped.getBBox().width;
+
+		var xBound = 0;
+
+		if (tmWidth >= widthAvail) {
+			xBound = (widthAvail * 0.5 - tmWidth);
+		}
+		
+		//move the timeline
+		φSet(timeline_clipped, {
+			x: clamp(φGet(timeline_clipped, 'x') - deltaX, xBound, 0)
+		});
+	}
+}
+
+
+
+
+
+
+function selectColor(colorNode) {
+	φSet(color_selectedNode, {"stroke": "var(--uilines)"});
+	φSet(colorNode, {"stroke": "var(--colorSelect)"});
+	color_selectedNode = colorNode;
+	var newColor = φGet(colorNode, "fill").split(" ");
+	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
+}
 
 //sets the length of the animation (in frames) to a specified value
 function user_changeAnimLength() {
@@ -20,14 +80,6 @@ function user_changeAnimLength() {
 
 	newLength = Math.floor(newLength);
 	changeAnimationLength(newLength);
-}
-
-function selectColor(colorNode) {
-	φSet(color_selectedNode, {"stroke": "var(--uilines)"});
-	φSet(colorNode, {"stroke": "var(--colorSelect)"});
-	color_selectedNode = colorNode;
-	var newColor = φGet(colorNode, "fill").split(" ");
-	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
 }
 
 function user_changeFPS() {
@@ -95,37 +147,17 @@ function changeToolTo(toolName) {
 	//first make sure all icons are unpressed
 	var icons = document.getElementsByClassName("toolIcon");
 	for (var i=0; i<icons.length; i++) {
-		φSet(icons[i].children[0], {"fill": "transparent"});
+		φSet(icons[i].children[1], {"fill": "transparent"});
 	}
 
-	switch(toolName) {
-		case "Pencil":
-			toolCurrent = new ToolPencil();
-			φSet(tool_pencil.children[0], {"fill": pressColor});
-			break;
-		case "Rectangle":
-			toolCurrent = new ToolRectangle();
-			φSet(tool_rect.children[0], {"fill": pressColor});
-			break;
-		case "Circle":
-			toolCurrent = new ToolCircle();
-			φSet(tool_circle.children[0], {"fill": pressColor});
-			break;
-		case "Move":
-			toolCurrent = new ToolMove();
-			φSet(tool_move.children[0], {"fill": pressColor});
-			break;
-		case "Eyedrop":
-			toolCurrent = new ToolEyedrop();
-			φSet(tool_eyedrop.children[0], {"fill": pressColor});
-			break;
-		case "":
-			break;
-		case "":
-			break;
-		case "":
-			break;
-		case "":
-			break;
+	var table = {
+		"Pencil": [ToolPencil, tool_pencil],
+		"Rectangle": [ToolRectangle, tool_rect],
+		"Circle": [ToolCircle, tool_circle],
+		"Move": [ToolMove, tool_move],
+		"Eyedrop": [ToolEyedrop, tool_eyedrop]
 	}
+
+	toolCurrent = new table[toolName][0]();
+	φSet(table[toolName][1].children[1], {"fill": pressColor});
 }
