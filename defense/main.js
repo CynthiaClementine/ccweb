@@ -23,6 +23,7 @@ var canvas;
 var ctx;
 
 const color_bg = "#002";
+const color_bgPanel = "#788";
 const color_player = "#F8F";
 const color_projectile = "#F80";
 const color_shield = "#080";
@@ -46,6 +47,17 @@ var dualTimer = 0;
 var player = new Player(0, 0);
 var player2 = new Player(0, 0);
 
+var flashBuffer = [];
+var flashPeriod = 50;
+var flashTime = 0;
+var flashTimeMax = flashPeriod * 4.5;
+
+var free_timings = [];
+var free_timingsMax = 48;
+var free_tpb = 0;
+var free_score = 0;
+var free_beatTimeout;
+
 var game_systems = [new GameSet(player)];
 var game_time = 0;
 
@@ -66,17 +78,31 @@ var game_time = 0;
 	}
 Note these specifications apply to one catcher, not necessarily the level as a whole. A dual level with length 32 will have the user catch 64 projectiles, while each catcher only catches 32.
  */
+var msStore = 0;
+var msDelta = 0;
+var msFrame = 100 / 6;
 var level = 1;
 var level_length = 16;
+var level_asyncFuncs = [];
 var level_specifications = [
-	undefined,
 	{
+		//level 0 is used for the free state
+		bulletSpeed: 1.5,
+		maxDist: 280,
+		ticksPerBeat: 1e1001,
+		spinChance: 0.5,
+	}, {
 		//level 1
 		bulletSpeed: 1,
 		maxDist: 290,
 		ticksPerBeat: 50,
 		spinProfile: 0b0000_0000_0000_0001,
 		length: 16,
+		bgFunc: () => {
+			changeCameraZ(-4000);
+			changeBHMass(0);
+			rotateStarSphere(-starTracker);
+		},
 	}, {
 		ticksPerBeat: 45,
 		spinChance: 0.25,
@@ -98,11 +124,27 @@ var level_specifications = [
 		bulletSpeed: 2.5,
 		ticksPerBeat: 28,
 		spinChance: 0.6,
+		bgFunc: () => {
+			level_asyncFuncs[1] = window.setInterval(() => {
+				if (state % 1 == 0) {
+					rotateStarSphere(0.0075);
+				}
+			}, 16);
+		}
 	}, {
 		bulletSpeed: 0.3,
 		maxDist: 100,
 		ticksPerBeat: 28,
 		spinChance: 0.75,
+		bgFunc: () => {
+			level_asyncFuncs[0] = window.setInterval(() => {
+				if (bhMass < 4E6) {
+					changeBHMass(bhMass + 2.5E4);
+				} else {
+					cancelAsyncFunc(0);
+				}
+			}, 16);
+		}
 	}, {
 		ticksPerBeat: 20,
 		spinChance: 1,
@@ -113,6 +155,17 @@ var level_specifications = [
 		ticksPerBeat: 19,
 		spinChance: 1,
 		length: 32,
+		bgFunc: () => {
+			window.cancelAnimationFrame(level_asyncFuncs[1]);
+			level_asyncFuncs[0] = window.setInterval(() => {
+				if (cameraZPos < -10) {
+					changeCameraZ(cameraZPos + 5);
+				} else {
+					cancelAsyncFunc(0);
+					cancelAsyncFunc(1);
+				}
+			}, 16);
+		}
 	}, {
 		//level 10 - the real fun begins
 		ticksPerBeat: 100,
@@ -129,6 +182,7 @@ var level_specifications = [
 	}, {
 		ticksPerBeat: 50,
 		spinChance: 0.4,
+		music: ""
 	}, {
 		ticksPerBeat: 45,
 		skip: true,
@@ -149,11 +203,39 @@ var level_specifications = [
 
 var lore_progress = 0;
 var lore_selected = 0;
+var lore_requirements = {
+	0: 0,
+	100: 5,
+	300: 9,
+	450: 16
+}
+var lores = [
+	[`It is national orange day. This would normally be a momentous occasion, but for one other unfortunate fact: you do not like oranges.`],
+	[`Naturally, you climb into your trusty spaceship and take off from the earth.`],
+	[`Unfortunately, in the crowd's effort to give everyone a National Orange, they begin launching oranges into space as well!`],
+	[`So you ready The Shields™.`],
+	`end`,
+	[`Hoping to escape the onslaught of oranges, you decide to get farther away. Your spaceship swings by the sun and heads to the outer reaches of the solar system.`],
+	[`However, the wave of oranges continues.`],
+	[`It has been multiple years since the last national orange day, and more oranges are being sent to your location.`],
+	`end`,
+	[`Realizing that the kuiper belt is yet too close to the earth, you accelerate out of the solar system.`],
+	[`After drifting through interstellar space, avoiding oranges all the way, you arrive at the center of the galaxy.`],
+	[`Oh no! It's Sagittarius A*! The supermassive black hole? Who could have predicated! this!`],
+	[`Hang on, what does "supermassive" even mean? It's a black hole. Obviously it's massive. Is the term even necessary?`],
+	[`Ok, I looked it up and it turns out supermassive officially refers to something over 1 million times the mass of the sun, which I think is interesting.`],
+	[`Unfortunately, as we went off on that little tangent, your spaceship has reached the black hole. Whoopsies.`],
+	`end`,
+	[`As you drift past the event horizon, you consider how this whole adventure hasn't even worked, because the oranges still follow you.\nEven here, oranges approach at unreasonable speeds and temperatures.`],
+	[`The universe will never again receive transmission from your spaceship. In just a few moments, you will probably be spaghettified by the singularity's tidal forces.`],
+	[`It's ok though. Until then you can still avoid oranges.`]
+]
 
 var menu_selectors = [
-	[`Play`, () => {state = 1; game_systems[0].startLevel(1);}, 0],
+	[`Play`, () => {state = 1; game_systems[0].startLevel(1); level_specifications[1].bgFunc();}, 0],
 	[`Options`, () => {state = 0.5;}, 0],
-	[`View Lore`, () => {state = 3;}, 0]
+	[`View Lore`, () => {state = 3;}, 0],
+	[`Free play`, () => {state = 5; free_score = 0; game_systems[0].startLevel(0);}, 0]
 ];
 var menu_textSize = 20;
 var menu_optBaseX = -160;
@@ -164,7 +246,7 @@ var menu_slideMaxX = 90;
 var score = 0;
 
 var state = 0;
-var stateFuncs = [doMenuState, doMainState, doSwitchState, doLoreState, doStarState];
+var stateFuncs = [doMenuState, doMainState, doSwitchState, doLoreState, doFlashState, doFreeState,	doStarState];
 
 var currentOrangeSpeed = undefined;
 
@@ -174,33 +256,38 @@ function setup() {
 	ctx = canvas.getContext("2d");
 	handleResize();
 	readStorage();
+	changeBHMass(bhMass);
+	setMusicVolume(data_persist.vols[0]);
+	setEffectsVolume(data_persist.vols[1]);
 
-	state = 4;
-	animation = window.requestAnimationFrame(main);
+	state = 0;
+
+	window.requestAnimationFrame(main);
 }
 
 function main() {
+	//make sure frames are tied to real time for musicality
+	var temp = performance.now();
+	msDelta = clamp(temp - msStore, 0, 25);
+	msStore = temp;
 	//bg
-	if (state != 1.5) {
+	if (!([1.5, 4, 5.5].includes(state))) {
 		ctx.fillStyle = color_bg;
 		ctx.fillRect(-320, -240, 640, 480);
 	}
 
 	stateFuncs[floor(state)]();
-	page_animation = window.requestAnimationFrame(main);
+	window.requestAnimationFrame(main);
 }
 
 function doStarState() {
-	drawStars();
+	drawSpace();
 	// if (Math.random() < 0.5) {
 	// 	drawStarsSimple();
 	// } else {
 		// }
 	// drawStarsIntermediate();
-	graph();
-	// if (cameraZPos < -10) {
-	// 	cameraZPos += 5;
-	// }
+	// graph();
 	
 	// changeBHMass(bhMass + 0.5E4);
 }
@@ -215,7 +302,7 @@ function doMainState() {
 		return;
 	}
 
-	drawStars();
+	drawSpace();
 
 	game_systems.forEach(g => {
 		g.tick();
@@ -233,7 +320,7 @@ function doMainState() {
 
 function pauseGameplay() {
 	//normally, if the player has blocked 16 orbs stop
-	if (player.projectsBlocked > 15) {
+	if (player.projectsBlocked > 15 && player.health > 0) {
 		game_state = 1;
 		player.projectsBlocked = 0;
 	}
@@ -253,24 +340,19 @@ function endGame() {
 }
 
 function doSwitchState() {
+	drawSpace();
+
 	game_systems.forEach(g => {
 		g.tick();
 		g.beDrawn();
 	});
 
-	drawStarsSimple();
-
 	//score text
 	ctx.fillStyle = color_projectile;
 	ctx.fillText(`${score} | ${data_persist.top}`, 0, 225);
-
-	//decrease approach rate
-	var allOranges = [...game_systems[0].oranges];
-	if (game_systems.length == 2) {
-		allOranges = allOranges.concat(game_systems[1].oranges);
-	}
+	
 	//wait until all bullets are offscreen
-	if (allOranges.length == 0) {
+	if (!repelOranges()) {
 		//update level and do any auxilary effects necessary
 		var thisLSpecs = level_specifications[level];
 		var levelIncrease = 1;
@@ -304,6 +386,11 @@ function doSwitchState() {
 			g.startLevel(level);
 		});
 
+		//run bg func, if there is one
+		if (level_specifications[level].bgFunc != undefined) {
+			level_specifications[level].bgFunc();
+		}
+
 		player.totalBlocks = 0;
 		player2.totalBlocks = 0;
 
@@ -315,17 +402,35 @@ function doSwitchState() {
 		}
 		return;
 	}
+}
 
-	//if there are still oranges onscreen, slow them down
-	var speedChange = Math.max(0.06, allOranges[0].speed / 18);
-	allOranges.forEach(o => {
-		o.speed -= speedChange;
-	});
+function doFlashState() {
+	//top bit
+	ctx.fillStyle = color_bgPanel;
+	ctx.font = `30px Ubuntu`;
+	var textDims = ctx.measureText(score);
+	ctx.beginPath();
+	ctx.roundRect(-textDims.width * 0.6, -210, textDims.width * 1.2, 30, 5);
+	ctx.fill();
+
+	//text
+	if (flashTime % flashPeriod < flashPeriod / 2) {
+		ctx.fillStyle = color_projectile;
+		ctx.fillText(score, 0, -195);
+	}
+
+	if (flashTime >= flashTimeMax) {
+		flashTime = 0;
+		endGame();
+	}
+
+	flashTime += 1;
 }
 
 function doMenuState() {
 	ctx.fillStyle = color_projectile;
 	ctx.strokeStyle = color_shield_bright;
+	ctx.lineWidth = 1;
 
 	//in options mode
 	if (state == 0.5) {
@@ -390,51 +495,50 @@ function doLoreState() {
 
 }
 
+function doFreeState() {
+	ctx.font = `20px Ubuntu`;
 
-function readStorage() {
-	var toRead;
-	try {
-		toRead = window.localStorage["orange_data"];
-	} catch(error) {
-		console.log(`ERROR: could not access local storage. Something has gone very seriously wrong.`);
-		if (error.name == "NS_ERROR_FILE_CORRUPTED") {
-			alert(`Hi! Something has gone terribly wrong. But don't panic. 
-Most likely the local browser storage has been corrupted. 
-You can fix it by clearing your browser history, including cookies, cache, and local website data.`);
-		}
-	}
-
-	try {
-		toRead = JSON.parse(toRead);
-	} catch (error) {
-		console.log(`ERROR: could not parse ${toRead}, using default`);
+	//pause text potentially
+	ctx.textAlign = "center";
+	//paused mode
+	if (state == 5.5) {
+		ctx.fillStyle = color_projectile;
+		ctx.fillText(`~Free Play Paused~`, 0, -220);
 		return;
 	}
 
-	//make sure it's somewhat safe, and then make it into the game flags
-	if (typeof(toRead) == "object") {
-		[data_persist.top, data_persist.skip, data_persist.vols[0], data_persist.vols[1]] = toRead;
-	} else {
-		console.log("ERROR: invalid type specified in save data, using default");
-		return;
+	//bg goes here
+
+	game_systems.forEach(g => {
+		g.tick();
+		g.beDrawn();
+	});
+
+	if (free_timings.length > 0) {
+		repelOranges();
 	}
-}
 
-function writeStorage() {
-	window.localStorage["orange_data"] = `[${data_persist.top},${data_persist.skip},${data_persist.vols[0].toFixed(2)},${data_persist.vols[1].toFixed(2)}]`;
-}
 
-function setMusicVolume(vol) {
-	var titles = Object.keys(audio_musics);
-	titles.forEach(t => {
-		audio_musics[t].volume = vol;
-	});
-}
+	//draw corner bit
+	ctx.fillStyle = color_bgPanel;
+	ctx.beginPath();
+	ctx.roundRect(-310, -230, 140, 100, 5);
+	ctx.fill();
 
-function setEffectsVolume(vol) {
-	audio_effects.forEach(t => {
-		t.volume = vol;
-	});
+	ctx.textAlign = "left";
+	ctx.fillStyle = color_projectile;
+	ctx.fillText(`bpm: ${(free_timings.length > 0 && free_timings.length < 4) ? "..." : Math.round(3600 / free_tpb)}`, -305, -220);
+
+
+	//score text
+	if (score > 0) {
+		free_score += score;
+		score = 0;
+	}
+	ctx.fillStyle = color_projectile;
+	ctx.fillText(`(${free_score})`, 0, 225);
+
+	game_time += 1;
 }
 
 //input
@@ -445,11 +549,20 @@ function handleKeyPress(a) {
 			case 0.5:
 				state = 0;
 				break;
+
 			case 1:
 				state = 1.5;
+				// if (audio_musics		level_specifications[level].music)
 				break;
 			case 1.5:
 				state = 1;
+				break;
+
+			case 5:
+				state = 5.5;
+				break;
+			case 5.5:
+				state = 5;
 				break;
 		}
 		return;
@@ -460,8 +573,65 @@ function handleKeyPress(a) {
 		return;
 	}
 
+	//digits for setting timing
+	if (state == 5) {
+		if (a.code.slice(0, 5) == "Digit") {
+			//if there's nothing in the buffer area assume the user is resetting
+			if (free_timings.length == 0) {
+				free_tpb = 0;
+			}
+
+			free_timings.push(performance.now());
+
+			//set timeout for key press times
+			window.clearTimeout(free_beatTimeout);
+			free_beatTimeout = window.setTimeout(() => {
+				calculateBPM();
+				free_timings = [];
+				game_systems[0].oranges = [];
+				if (game_systems.length > 1) {
+					game_systems[1].oranges = [];
+				}
+			}, 1500);
+
+			//timings -> bpm -> tpb, that way bpm is quantized
+			if (free_timings.length > 1) {
+				//fix to the last x counts
+				if (free_timings.length > free_timingsMax) {
+					free_timings = free_timings.slice(-free_timingsMax);
+				}
+				calculateBPM();
+			}
+			return;
+		}
+
+		//minus / plus
+		if (a.code == "Minus" || a.code == "Equal") {
+			var bpm = Math.round(3600 / free_tpb);
+			bpm = clamp(bpm + boolToSigned(a.code == "Equal"), 0, 400);
+			free_tpb = (bpm == 0) ? 1e1001 : 3600 / bpm;
+			level_specifications[0].ticksPerBeat = free_tpb;
+		}
+		
+	}
+
+	function calculateBPM() {
+		//can't do it if the length isn't enough
+		if (free_timings.length < 2) {
+			return;
+		}
+
+		//bpm is simply beats / minutes
+		var ft = free_timings;
+		var bpm = (ft.length - 1) / ((ft[ft.length-1] - ft[0]) / 6E4);
+		bpm = Math.round(bpm);
+		free_tpb = (bpm == 0) ? 1e1001 : 3600 / bpm;
+		level_specifications[0].ticksPerBeat = free_tpb;
+	}
+
+
 	//make sure it's in a game state
-	if (state != 1 && state != 2) {
+	if (!([1, 2, 5].includes(state))) {
 		return;
 	}
 
@@ -567,19 +737,6 @@ function handleResize() {
 	var scaling = canvas.width / 640;
 	ctx.setTransform(scaling, 0, 0, scaling, 0, 0);
 	ctx.translate(320, 240);
+	ctx.lineCap = "round";
 	ctx.textBaseline = "middle";
-}
-
-
-
-
-
-
-function cLinterp(color1HalfHex, color2HalfHex, percentage) {
-	//performing a linear interpolation on all 3 aspects
-	var finR = linterp(parseInt(color1HalfHex[1], 16), parseInt(color2HalfHex[1], 16), percentage);
-	var finG = linterp(parseInt(color1HalfHex[2], 16), parseInt(color2HalfHex[2], 16), percentage);
-	var finB = linterp(parseInt(color1HalfHex[3], 16), parseInt(color2HalfHex[3], 16), percentage);
-	//converting back to hex
-	return ("#" + Math.floor(finR).toString(16) + Math.floor(finG).toString(16) + Math.floor(finB).toString(16));
 }
