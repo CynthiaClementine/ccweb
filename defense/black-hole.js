@@ -18,6 +18,7 @@ const lightSpeed = 300;
 var dt = 0.1;
 
 var stars = [];
+var starTracker = 0;
 var starDists = [5000, 8000];
 var starSizes = [1000, 4000];
 var starNum = 100;
@@ -27,26 +28,58 @@ var tableData = [];
 var tableAJump = (Math.PI / 180) * 3;
 var tableASpan = [0, Math.PI / 2];
 
-var cameraZPos = -4000;
-var cameraScale = 300;
-var cameraFOV = Math.atan(cameraScale / 320);
 var bhMass = 3E6;//2392500;
 var bhEventSquared = (2 * bhMass / (lightSpeed ** 2)) ** 2;
 var bhMaxDeflection = 0;
+//determines whether to use precise rendering (slow) or an imprecise expression (fast)
+var bhHighDetail = false;
 
-changeBHMass(bhMass);
+
+var cameraZPos = -3500;
+var cameraScale = 300;
+var cameraFOV = Math.atan(cameraScale / 320);
+
+
+var sparkles = [];
+var sparkleChance = 0.2;
+var sparkleAgeMax = 10;
+var sparkleVel = 8;
+var sparkleColors = ["#808", "#80F", "#4F8", "#4FF", "#008", "#08F"];
 
 function changeBHMass(newMass) {
 	bhMass = newMass;
 	bhEventSquared = (2 * bhMass / (lightSpeed ** 2)) ** 2;
-	generateDeflectionTable();
+	tintAmount = Math.sqrt(bhEventSquared) / Math.abs(cameraZPos);
+
+	calcBHParams();
 }
 
 function changeCameraZ(newZ) {
 	cameraZPos = newZ;
-	// bhMaxDeflection = angleForScreenX(1, 10000);
-	// bhMaxDeflection = Math.abs(angleForScreenX(0.0004 * (10000 - cameraZPos), 10000) - 0.0004);
-	generateDeflectionTable();
+	tintAmount = Math.sqrt(bhEventSquared) / Math.abs(cameraZPos);
+
+	calcBHParams();
+}
+
+function calcBHParams() {
+	if (bhHighDetail) {
+		generateDeflectionTable();
+		return;
+	}
+
+	//low detail
+	//the angle at which "maximum deflection" occurs. 0 can't be it, because weird things happen at theta=0
+	var maxDeflectAngle = 0.001;
+
+	if (bhMass < 1E6) {
+		maxDeflectAngle = 0.01 * (-cameraZPos / 1000);
+	}
+
+	if (bhMass < 1E5) {
+		maxDeflectAngle = 0.02 * (-cameraZPos / 1000);
+	}
+
+	bhMaxDeflection = Math.abs(angleForScreenX(maxDeflectAngle * (9000 - cameraZPos), 9000) - maxDeflectAngle);
 }
 
 //generate star sphere
@@ -175,7 +208,7 @@ function generateDeflectionTable() {
 //simulates one photon's trajectory until it hits the screen
 function screenXForPhoton(angle, screenZ) {
 	//if the angle's 0 it's not going through the black hole - account for that special case here
-	if (Math.abs(angle) < tableAJump && bhEventSquared < lightSpeed) {
+	if (Math.abs(angle) < tableAJump && bhEventSquared < lightSpeed * dt * 2) {
 		// console.log(`fast`);
 		return -1e1001;
 	}
@@ -313,14 +346,18 @@ function angularDeflectionFor(theta) {
 	if (theta < 0) {
 		return angularDeflectionFor(-theta);
 	}
-	// theta *= 8;
-	// return bhMaxDeflection * ((theta + 1) ** -1);
+
+	// return bhMaxDeflection * 
+	var mult = 8;
+	deflection = bhMaxDeflection * ((mult * theta + 1) ** -1);
 
 	//linearly interpolate between the two nearest known values
-	var ind = theta / tableAJump;
-	var index = Math.floor(ind);
+	// var ind = theta / tableAJump;
+	// var index = Math.floor(ind);
+	// var deflection = linterp(tableData[index], tableData[index+1], ind % 1);
 
-	return linterp(tableData[index], tableData[index+1], ind % 1);
+	//make sure the slope is never greater than 1/mult, or else wacky things will happen 
+	return Math.max(deflection, bhMaxDeflection - theta * (1 / mult));
 }
 
 //debug function that helped me figure out the math + simplifications 
@@ -434,7 +471,7 @@ function drawStars() {
 		//since light is lensed, all stars can appear in two possible positions
 		// var theta2 = angleForScreenX(-dist, s[2] - cameraZPos);
 
-		drawStarPolar(rot, theta, angularRadius);
+		drawStarPolar(rot, theta, 2, angularRadius);
 		// drawStarPolar(-rot, -theta2, angularRadius);
 	});
 
@@ -445,12 +482,14 @@ function drawStars() {
 //method of drawing lensed stars quickly
 function drawStarsFast() {
 	if (Math.abs(cameraZPos) < Math.sqrt(bhEventSquared)) {
-
+		drawBHShadow();
+		return;
 	}
 
 	ctx.beginPath();
 	//loop through all stars
 	ctx.strokeStyle = cLinterp(color_star, "#8FF", tintAmount);
+	ctx.globalAlpha = 0.8;
 	var tX, tY, tZ, rot, dist, tR, angularRadius;
 	stars.forEach(s => {
 		tZ = s[2] - cameraZPos;
@@ -471,24 +510,36 @@ function drawStarsFast() {
 		rot = Math.atan2(s[1], s[0]);
 		dist = Math.sqrt(s[1] * s[1] + s[0] * s[0]);
 		tR = cameraScale * s[3] / tZ;
-		angularRadius = 2 / (cameraScale * (dist / tZ))
+		angularRadius = 2 / (cameraScale * (dist / tZ));
 
 		//figure out xz angle
 		theta = Math.atan(dist / tZ);
 
-		drawStarPolar(rot, theta + angularDeflectionFor(theta), angularRadius);
+		drawStarPolar(rot, theta + angularDeflectionFor(theta), 2, angularRadius);
 	});
+	ctx.globalAlpha = 1;
 
 	drawBHShadow();
 }
 
 function drawBHShadow() {
+	ctx.fillStyle = "#000";
 	//if inside the black hole shortcut
-	if (Math.abs(cameraZPos) < Math.sqrt(bhEventSquared)) {
-		ctx.fillStyle = "#000";
+	if (bhEventSquared > cameraZPos * cameraZPos) {
 		ctx.fillRect(-320, -240, 640, 480);
 		return;
 	}
+
+	//if the black hole's small enough just treat it like a sphere
+	if (bhEventSquared <= 5 * lightSpeed * lightSpeed * dt * dt) {
+		console.log(`simple drawing`);
+		var tX = cameraScale * (Math.sqrt(bhEventSquared)) / -cameraZPos;
+		ctx.beginPath();
+		ctx.arc(0, 0, tX, 0, Math.PI * 2);
+		ctx.fill();
+		return;
+	}
+
 	//figure out angular radius of the black hole
 	var minR = 0;
 	var maxR = cameraFOV * 1.5;
@@ -506,13 +557,13 @@ function drawBHShadow() {
 
 	r = cameraScale * Math.tan((minR + maxR) / 2);
 
-	ctx.fillStyle = "#000";
+	
 	ctx.beginPath();
 	ctx.arc(0, 0, r, 0, Math.PI * 2);
 	ctx.fill();
 }
 
-function drawStarPolar(rot, theta, angularRadius) {
+function drawStarPolar(rot, theta, pathWidth, angularRadius) {
 	//make sure theta is actually ok
 	if (theta == undefined) {
 		return;
@@ -524,12 +575,12 @@ function drawStarPolar(rot, theta, angularRadius) {
 		return;
 	}
 
-	var sr = 2;//s[3] / (s[2] - cameraZPos);
+	var sub = pathWidth / (Math.PI * r * r);
 
 	ctx.beginPath();
 	// ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-	ctx.lineWidth = sr;
-	ctx.arc(0, 0, r, rot - angularRadius, rot + angularRadius);
+	ctx.lineWidth = pathWidth * 2;
+	ctx.arc(0, 0, r, rot - angularRadius + sub, rot + angularRadius - sub);
 	ctx.stroke();
 }
 
