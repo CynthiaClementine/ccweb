@@ -248,26 +248,6 @@ class ToolPencil {
 		if (cursor.down) {
 			//add point
 			this.appendPoint();
-			
-
-			//smooth path
-
-
-			// var coords = cursorWorkspaceCoordinates();
-			// //update points
-			// this.cDataLast = this.cData;
-			// this.cData = [coords[0], coords[1], Math.atan2(coords[1] - this.cDataLast[1], coords[0] - this.cDataLast[0])];
-
-			// //update trackers
-			// this.cdDelta += Math.sqrt((coords[0] - this.cDataLast[0]) ** 2 + (coords[1] - this.cData[1]) ** 2);
-			// this.caDelta += modularDifference(this.cDataLast[2], this.cData[2], Math.PI * 2);
-
-			// //if the cursor is too far away or the direction has changed too much, append
-			// if (this.cdDelta > this.cdTolerance || this.caDelta > this.caTolerance) {
-			// 	this.appendPoint();
-			// 	this.cdDelta = 0;
-			// 	this.caDelta = 0;
-			// }
 		}
 	}
 	
@@ -350,55 +330,246 @@ class ToolFill {
 
 class ToolMove {
 	constructor() {
-		this.selected = undefined;
+		this.selected;
+		this.selectedLayer;
 		this.tol = 5;
 		this.lastPos = [];
+		this.selectedT = -1;
 	}
 
-	drawOverlay() {}
+	createOverlay() {
+		workspace_toolTemp.innerHTML = "";
+		var layColor = "#F0F";
+		//create a copy of the selected spline with extra color and small width
+		var copy = this.selected.cloneNode();
+		φSet(copy, {
+			"stroke-width": `var(--pxUnits2)`,
+			"stroke": layColor,
+			"id": `temp_spline`
+		});
+		workspace_toolTemp.appendChild(copy);
+		var bin = this.selected.curves;
 
-	mouseDown(a) {
-		var pos = cursorWorkspaceCoordinates();
-		
-		//figure out the bin to look for
-		var obj = getSelectedFrame();
-		var bin = obj.binAt(pos[0], pos[1]);
+		//go through and make both corners and control points
+		for (var c=0; c<bin.length; c++) {
+			for (var d=+(c>0); d<bin[c].length; d++) {
+				if (d == 0 || d == bin[c].length - 1) {
+					//circles for corners
+					workspace_toolTemp.appendChild(φCreate("circle", {
+						'cx': bin[c][d][0],
+						'cy': bin[c][d][1],
+						'r': 4,
+						'stroke': layColor,
+						"stroke-width": `var(--pxUnits2)`,
+						'fill': `transparent`,
 
-		//if there are no splines in the bin, return
-		if (bin.length == 0) {
-			console.log(`no splines in bin!`);
-			return;
-		}
-		
-		//test for intersection
-		for (var j=0; j<bin.length; j++) {
-			if (bin[j].intersectsPoint(pos[0], pos[1])) {
-				this.selected = bin[j];
-				j = bin.length + 1;
-				this.lastPos = pos;
+						'id': `temp_pull_${c}_${d}`,
+						'xC': c, 'xD': d
+					}));
+				} else {
+					//squares for control points
+					workspace_toolTemp.appendChild(φCreate("rect", {
+						'x': bin[c][d][0] - 2,
+						'y': bin[c][d][1] - 2,
+						'width': 4,
+						'height': 4,
+						'stroke': layColor,
+						'fill': `transparent`,
+
+						'id': `temp_pull_${c}_${d}`,
+						'xC': c, 'xD': d
+					}));
+				}
 			}
 		}
 	}
 
-	mouseMove(a) {
-		if (this.selected) {
-			var newPos = cursorWorkspaceCoordinates();
-			var delta = [newPos[0] - this.lastPos[0], newPos[1] - this.lastPos[1]];
-			//move each point - will change later but for now it's alright
-			this.selected.curves.forEach(c => {
-				c.forEach(p => {
-					p[0] += delta[0];
-					p[1] += delta[1];
-				});
-			});
-			this.selected.redraw();
+	updateOverlay(cubicID, pointID) {
+		console.log(`good`, cubicID, pointID);
+	}
 
-			this.lastPos = newPos;
+	updateOverlayTotal() {
+		//make sure all the elements match their true positions
+		φSet(document.getElementById(`temp_spline`), {'d': φGet(this.selected, "d")});
+
+		var bin = this.selected.curves;
+		for (var c=0; c<bin.length; c++) {
+			for (var d=+(c>0); d<bin[c].length; d++) {
+				if (d == 0 || d == bin[c].length - 1) {
+					φSet(document.getElementById(`temp_pull_${c}_${d}`), {
+						'cx': bin[c][d][0],
+						'cy': bin[c][d][1],
+					});
+				} else {
+					φSet(document.getElementById(`temp_pull_${c}_${d}`), {
+						'x': bin[c][d][0] - 2,
+						'y': bin[c][d][1] - 2,
+					});
+				}
+			}
 		}
 	}
 
-	mouseUp(a) {
+	mouseDown(a) {
+		var pos = cursorWorkspaceCoordinates();
+
+		//check with selected
+		if (this.selected != undefined) {
+			//loop through temp bin, select individual bit if necessary
+			for (var e=1; e<workspace_toolTemp.children.length; e++) {
+				if (φOver(workspace_toolTemp.children[e])) {
+					this.cdCoords = [+φGet(workspace_toolTemp.children[e], "xC"), +φGet(workspace_toolTemp.children[e], "xD")];
+					return;
+				}
+			}
+
+
+			if (this.selected.intersectsPoint(pos[0], pos[1])) {
+				this.cdCoords = -1;
+				return;
+			}
+
+			this.deselect();
+			return;
+		}
+
+		
+		//look top to bottom
+		var obj, bin;
+		for (var l=0; l<timeline.layerIDs.length; l++) {
+			obj = timeline.frameAt(timeline.t, l);
+			//figure out the bin to look for
+			bin = obj.binAt(pos[0], pos[1]);
+
+			//if there are no splines in the bin, move on
+			if (bin.length > 0) {
+				//test for intersection
+				for (var j=0; j<bin.length; j++) {
+					if (bin[j].intersectsPoint(pos[0], pos[1])) {
+						this.selected = bin[j];
+						this.selectedLayer = obj;
+						this.lastPos = pos;
+						
+						//pick up selected object and remove it from its bins
+						obj.binModify(this.selected, true);
+						this.cdCoords = undefined;
+						this.createOverlay();
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	movePathCorner(deltaX, deltaY, c, d) {
+		console.log(`dragging corner`);
+		var cv = this.selected.curves;
+		var prevExists = (c > 0);
+		var nextExists = (c < cv.length - 1);
+
+		var pullPoints = [];
+
+		//the curve with the cd coords will always be pulled
+		pullPoints.push(cv[c][d]);
+
+		//also pull if it's the same coordinate duplicated
+		if (d == 0) {
+			//d is a start point - try the last end point
+			if (prevExists && cv[c-1][cv[c-1].length-1] != cv[c][d]) {
+				pullPoints.push(cv[c-1][cv[c-1].length-1]);
+			}
+		} else {
+			//d is an end point - try the next start point
+			if (nextExists && cv[c+1][0] != cv[c][d]) {
+				pullPoints.push(cv[c+1][0]);
+			}
+		}
+
+		//pull control points along with it, if the control scheme says so
+		if (!button_alt) {
+			//d is start point - because of the way d is constructed, the only time d can be a start point is when there's no previous curve
+			if (d == 0 && cv[c].length == 4) {
+				pullPoints.push(cv[c][1]);
+			}
+
+			//d is end point
+			if (d == 3) {
+				pullPoints.push(cv[c][2]);
+				if (nextExists && cv[c+1].length == 4) {
+					pullPoints.push(cv[c+1][1])
+				}
+			}
+		}
+
+
+		//move both the start point and end point of adjacent cubics in case they're decoupled
+		pullPoints.forEach(p => {
+			p[0] += deltaX;
+			p[1] += deltaY;
+		});
+	}
+
+	movePath(deltaX, deltaY) {
+		this.selected.curves.forEach(c => {
+			c.forEach(p => {
+				p[0] += deltaX;
+				p[1] += deltaY;
+			});
+		});
+	}
+
+	movePath_decision(delta) {
+		var cd = this.cdCoords;
+		var cv = this.selected.curves;
+
+		if (cd == -1) {
+			//-1 means the whole spline is being pulled
+			this.movePath(delta[0], delta[1]);
+			return;
+		}
+
+		//if it's the start or end, hand off to corner movement
+		if (cd[1] % (cv[cd[0]].length - 1) == 0) {
+			this.movePathCorner(delta[0], delta[1], cd[0], cd[1]);
+			return;
+		}
+
+		//if moving a control point, just do that
+		cv[cd[0]][cd[1]][0] += delta[0];
+		cv[cd[0]][cd[1]][1] += delta[1];
+	}
+
+	mouseMove(a) {
+		console.log(a.movementX);
+		var scaling = φGet(workspace_container, "scaling");
+		var delta = [a.movementX / scaling, a.movementY / scaling];
+
+		if (!cursor.down) {
+			return;
+		}
+
+		if (this.selected && this.cdCoords != undefined) {
+			this.movePath_decision(delta);
+			this.selected.redraw();
+			this.updateOverlayTotal();
+		}
+	}
+
+	deselect() {
+		if (this.selected == undefined) {
+			return;
+		}
+		//add selected back to bins
+		this.selectedLayer.binModify(this.selected, false);
+		this.selected.calculateBoundingBox();
 		this.selected = undefined;
+		this.selectedLayer = undefined;
+
+		workspace_toolTemp.innerHTML = "";
+	}
+
+	mouseUp(a) {
+		
 	}
 }
 
@@ -417,7 +588,7 @@ class ToolEyedrop {
 		//height is proportional to how zoomed in user is
 		var whs = φGet(workspace_container, ['width', 'height', 'scaling']);
 		//make sure scaling isn't too great
-		whs[2] = clamp(whs[2], this.scaleBounds[0], this.scaleBounds[1.75]);
+		whs[2] = clamp(whs[2], this.scaleBounds[0], this.scaleBounds[1]);
 		this.canvasFrame = timeline.t;
 		this.canvas = createCanvasFromFrame(timeline.t, whs[0] * whs[2], whs[1] * whs[2]);
 		this.canvas.scaling = +whs[2];
