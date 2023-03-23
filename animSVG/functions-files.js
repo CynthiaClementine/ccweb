@@ -64,16 +64,31 @@ function importFile() {
 		var timelineText = textDat.slice(textDat.indexOf(`<timeline`) + 10, textDat.indexOf(`</timeline>`));
 		var dataText = textDat.slice(0, textDat.indexOf(`<timeline>`)) + textDat.slice(textDat.indexOf(`</timeline>`) + 11);
 
-		//parse real data
-		var container = φCreate('g');
-		container.innerHTML = dataText;
-		workspace_permanent.innerHTML = container.children[0].innerHTML;
+		import_parseWorkspaceData(dataText);
 
 		//parse timeline data:
 		import_parseTimelineData(timelineText);
+
+		//update visibility by changing to the current frame
+		timeline.changeFrameTo(timeline.t);
 	};
 
 	fileReader.readAsText(fileObj, "UTF-8");
+}
+
+function import_parseWorkspaceData(dataText) {
+	//parse real data
+	var container = φCreate('g');
+	container.innerHTML = dataText;
+	workspace_permanent.innerHTML = container.children[0].innerHTML;
+
+	//at this point every layer will be visible - need to make them all invisible before beginning
+	for (var k=0; k<workspace_permanent.children.length; k++) {
+		for (var j=0; j<workspace_permanent.children[k].children.length; j++) {
+			φSet(workspace_permanent.children[k].children[j], {"display": "none"});
+			console.log(φGet(workspace_permanent.children[k].children[j], "id"), `invisible`);
+		}
+	}
 }
 
 function import_parseTimelineData(timeData) {
