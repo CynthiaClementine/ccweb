@@ -57,7 +57,7 @@ function distSquared(x, y) {
 
 //floors a number by converting it to an integer. Will break if the number is beyond the 32-bit integer limit
 function floor(x) {
-	return x | 1;
+	return x << 1 >> 1;
 }
 
 //returns the percentage from val1 to val2 that the checkVal is in
@@ -112,6 +112,18 @@ function normalize(vector) {
 		newVec[f] = vector[f] / len;
 	}
 	return newVec;
+}
+
+//warning: this area relies on a constant angular direction. If the polygon is self-intersecting, part of the polygon will count as negative area.
+function polyArea(polyPoints) {
+	var area = 0;
+	var nextP;
+
+	for(var i=0; i<polyPoints.length; i++) {
+		nextP = polyPoints[(i + 1) % polyPoints.length];
+		area += (polyPoints[i][0] + nextP[0]) * (polyPoints[i][1] - nextP[1]);
+	}
+	return Math.abs(area/2);
 }
 
 //returns a random value between the min value and max values, using the default javascript randomizer
