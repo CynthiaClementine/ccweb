@@ -13,8 +13,8 @@ class Player {
 		this.queueProgressSpeed = 5;
 
 		this.cooldown = 0;
-		this.shieldOffset = 10;
-		this.shieldSize = 7;
+		this.shieldOffset = 15;
+		this.shieldSize = 10;
 		this.shieldCoverAngle = this.shieldSize / (this.shieldOffset * Math.PI);
 
 		this.totalBlocks = 0;
@@ -49,6 +49,7 @@ class Player {
 		//actual self
 		ctx.beginPath();
 		ctx.fillStyle = color_player;
+		ctx.lineWidth = 2;
 		ctx.ellipse(this.x, this.y, this.shieldOffset / 2, this.shieldOffset / 2, 0, Math.PI / this.maxHealth, (Math.PI / this.maxHealth) + ((Math.PI * 2) / this.maxHealth) * this.health);
 		ctx.fill();
 		//offset of arm from center of screen
@@ -98,7 +99,7 @@ class GameSet {
 
 	createObject() {
 		//only create in the game state
-		if (state != 1) {
+		if (state % 1 != 0) {
 			return;
 		}
 
@@ -156,7 +157,13 @@ class GameSet {
 
 		//if the player's health is too low end the game
 		if (this.player.health <= 0) {
-			endGame();
+			console.log(`health is too low`, this.levelSpecs);
+			//don't bother displaying if the score isn't at least 1
+			if (score > 0) {
+				state = 4;
+			} else {
+				endGame();
+			}
 		}
 	}
 }
@@ -169,8 +176,10 @@ class Projectile {
 		this.speed = speed;
 		this.dist = maxDist;
 		this.maxDist = maxDist;
+		this.r = 5;
+
+		this.spent = false;
 		this.destroy = false;
-		this.r = 3;
 	}
 
 	calculateAngle() {
@@ -185,12 +194,18 @@ class Projectile {
 			audFile.play();
 		}
 		this.target.totalBlocks += 1;
-		this.destroy = true;
+		this.spent = true;
 		
 	}
 
 	tick() {
-		var speed = this.speed;
+		//if already spent get rid of self (being spent is just for animation purposes)
+		if (this.spent) {
+			this.destroy = true;
+			return;
+		}
+
+		var speed = (this.speed / msFrame) * msDelta;
 		var tar = this.target;
 		this.dist -= speed;
 		this.calculateAngle();
@@ -202,15 +217,16 @@ class Projectile {
 		}
 
 		//if too close hurt the player
-		if (this.dist - this.r < 1) {
+		if (this.dist < (this.r / 2)) {
 			this.hitPlayerEffects();
 			tar.health -= 1;
 			audio_damage.play();
+			console.log(this.angle, this.dist);
 			return;
 		}
 
 		//collide with shield if close enough
-		if (Math.abs(this.dist - this.r - tar.shieldOffset) < Math.max(speed, this.r / 4) && modularDifference(this.angle, tar.angle, Math.PI * 2) < tar.shieldCoverAngle) {
+		if (Math.abs(this.dist - this.r - tar.shieldOffset) < Math.max(speed, this.r / 7) && modularDifference(this.angle, tar.angle, Math.PI * 2) < tar.shieldCoverAngle) {
 			//collision case
 			this.hitPlayerEffects();
 			tar.cooldown = 1;
@@ -222,12 +238,20 @@ class Projectile {
 
 	beDrawn() {
 		var opacityDist = level_specifications[level].bulletSpeed * 20;
+		var drawX = this.target.x + (this.dist * Math.cos(this.angle));
+		var drawY = this.target.y + (this.dist * Math.sin(this.angle));
+
+
 		if (this.dist + opacityDist >= this.maxDist) {
 			ctx.globalAlpha = (this.maxDist - this.dist) / opacityDist;
 		}
 		ctx.fillStyle = color_projectile;
 		ctx.beginPath();
-		ctx.arc(this.target.x + (this.dist * Math.cos(this.angle)), this.target.y + (this.dist * Math.sin(this.angle)), this.r, 0, Math.PI * 2);
+		if (!this.spent) {
+			ctx.arc(drawX, drawY, this.r, 0, Math.PI * 2);
+		} else {
+			ctx.ellipse(drawX, drawY, this.r / 2, this.r, this.angle, 0, Math.PI * 2);
+		}
 		ctx.fill();
 		ctx.globalAlpha = 1;
 	}
@@ -247,6 +271,11 @@ class Projectile_Spinning extends Projectile {
 		var diMax = this.maxDist;
 
 		var progress = getPercentage(diMin, diMax, this.dist);
-		this.angle = this.hitAngle + this.aDifference * linterp(progress ** 1.5, progress ** 2.5, progress);
+		var absProgress = Math.abs(progress);
+		var angularProgress = linterp(Math.abs(absProgress) ** 1.5, Math.abs(absProgress) ** 2.5, Math.abs(absProgress));
+		if (progress < 0) {
+			angularProgress *= -1;
+		}
+		this.angle = this.hitAngle + this.aDifference * angularProgress;
 	}
 }
