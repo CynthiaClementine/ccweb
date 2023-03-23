@@ -45,6 +45,10 @@ class Timeline {
 		this.makeVisible();
 	}
 
+	frameAt(time, layer) {
+		return this.l[this.layerIDs[layer]][time];
+	}
+
 	setPropertiesForTime(t, propertyObj) {
 		for (var f=this.layerIDs.length-1; f>-1; f--) {
 			φSet(this.l[this.layerIDs[f]][t], propertyObj);
@@ -156,9 +160,110 @@ function Spline(pathObj, curves) {
 				console.error(`unknown number of points!`);
 		}
 	}
+
+	//this function will return a t, but it's not guaranteed that the t will be correct if the xy point isn't on the cubic's path
+	pathObj.getTFromPoint = (x, y) => {
+		var curveSplits = [4, 3];
+		//say acceptable distance is a little over path distance, to forgive timing mistakes
+		var acceptableDist = φGet(pathObj, "stroke-width") * 0.75;
+		acceptableDist = acceptableDist * acceptableDist;
+		
+		var tGuess, pGuess, lines, cRef, lastSign;
+
+		//start by checking all start points (the integer t case is easier)
+		for (var c=0; c<pathObj.curves.length; c++) {
+			if (distSquared(pathObj.curves[c][0][0] - x, pathObj.curves[c][0][1] - y) < acceptableDist) {
+				return c;
+			}
+		}
+
+		//check end point
+		cRef = pathObj.curves[pathObj.curves.length-1];
+		if (distSquared(cRef[cRef.length-1][0] - x, cRef[cRef.length-1][1] - y) < acceptableDist) {
+			return pathObj.curves.length;
+		}
+
+		//non-integer t
+		var xyp = [x, y];
+		//split the spline into its curves
+		for (c=0; c<pathObj.curves.length; c++) {
+			cRef = pathObj.curves[c];
+			lastSign = undefined;
+			switch (cRef.length) {
+				case 2:
+					//it's just a line!
+					tGuess = lineT(cRef[0], cRef[1], xyp);
+
+					//if it's on the line
+					if (tGuess > 0 && tGuess < 1) {
+						pGuess = linterpMulti(cRef[0], cRef[1], tGuess);
+						if (distSquared(pGuess[0] - x, pGuess[1] - y) < acceptableDist) {
+							return c + tGuess;
+						}
+					}
+					break;
+				case 3:
+					//break into lines and then check each line
+					//see 4 case
+					//it's impossible to get quadratics now anyways so I'm not going to bother
+					break;
+				case 4:
+					//set up lines
+					var pts = [cRef[0]];
+					pts[curveSplits[1]] = cRef[3];
+					for (var a=1; a<curveSplits[1]; a++) {
+						pts[a] = bezierPointFromT(cRef[0], cRef[1], cRef[2], cRef[3], a / curveSplits[1]);
+					}
+					/*
+					console.log(pts);
+
+					//move to workspace
+					for (a=0; a<curveSplits[1]; a++) {
+						workspace_toolTemp.appendChild(φCreate("path", {
+							'stroke': "#F0F",
+							'd': `M ${pts[a][0]} ${pts[a][1]} L ${pts[a+1][0]} ${pts[a+1][1]}`
+						}));
+					} */
+					
+
+					//check against each line
+					for (var b=0; b<curveSplits[1]; b++) {
+						tGuess = lineT(pts[b], pts[b+1], xyp);
+
+						if (tGuess < 0) {
+							if (lastSign == 1) {
+								//if between the start of this line and the end of last line check the corner
+								if (distSquared(pts[b][0] - x, pts[b][1] - y) < acceptableDist) {
+									return (c + ((b + tGuess) / curveSplits[1]));
+								}
+							}
+						} else if (tGuess < 1) {
+							//in the middle, check for connection
+							if (pathObj.TXYMatches(c + ((b + tGuess) / curveSplits[1]), x, y, acceptableDist)) {
+								return (c + ((b + tGuess) / curveSplits[1]));
+							}
+						}
+
+						lastSign = (tGuess < 0) ? -1 : (tGuess > 1) ? 1 : 0;
+					}
+					break;
+			}
+		}
+
+
+		return -1;
+	}
+
+	pathObj.TXYMatches = (t, x, y, toleranceSquared) => {
+		var pt = pathObj.getPointFromT(t);
+		return (distSquared(pt[0] - x, pt[1] - y) < toleranceSquared);
+	}
+
+
 	pathObj.calculateBoundingBox = () => {
 		//take all the smaller bounding boxes and add them up
 		var initialBounds = [1e1001, 1e1001, -1e1001, -1e1001];
+		var width = φGet(pathObj, "stroke-width") / 2;
 		pathObj.curves.forEach(c => {
 			var smolBound;
 			switch (c.length) {
@@ -166,10 +271,10 @@ function Spline(pathObj, curves) {
 					//it's short enough that I can sort manually
 					smolBound = [c[0][0], c[0][1], c[1][0], c[1][1]];
 					if (smolBound[0] > smolBound[2]) {
-						[smolBound[0], smolBound[2]] = [smolBound[2], smolBound[0]]
+						[smolBound[0], smolBound[2]] = [smolBound[2], smolBound[0]];
 					}
 					if (smolBound[1] > smolBound[3]) {
-						[smolBound[1], smolBound[3]] = [smolBound[3], smolBound[1]]
+						[smolBound[1], smolBound[3]] = [smolBound[3], smolBound[1]];
 					}
 					break;
 				case 3:
@@ -179,10 +284,10 @@ function Spline(pathObj, curves) {
 					smolBound = bezierBounds(c[0], c[1], c[2], c[3]);
 					break;
 			}
-			initialBounds[0] = Math.min(initialBounds[0], smolBound[0]);
-			initialBounds[1] = Math.min(initialBounds[1], smolBound[1]);
-			initialBounds[2] = Math.max(initialBounds[2], smolBound[2]);
-			initialBounds[3] = Math.max(initialBounds[3], smolBound[3]);
+			initialBounds[0] = Math.min(initialBounds[0], smolBound[0]) - width;
+			initialBounds[1] = Math.min(initialBounds[1], smolBound[1]) - width;
+			initialBounds[2] = Math.max(initialBounds[2], smolBound[2]) + width;
+			initialBounds[3] = Math.max(initialBounds[3], smolBound[3]) + width;
 		});
 
 		pathObj.bounding = initialBounds;
@@ -196,7 +301,7 @@ function Spline(pathObj, curves) {
 
 		//use canvas rasterization?
 		var spl = new Path2D();
-		spl.moveTo(c[0][0], c[0][1]);
+		spl.moveTo(curves[0][0][0], curves[0][0][1]);
 		curves.forEach(c => {
 			switch (c.length) {
 				case 2:
@@ -212,6 +317,11 @@ function Spline(pathObj, curves) {
 		});
 
 		ctx.lineWidth = φGet(pathObj, "stroke-width");
+		ctx.lineCap = "round";
+		// ctx.strokeStyle = "#000";
+		// ctx.stroke(spl);
+		// ctx.fillStyle = "#F00";
+		// ctx.fillRect(x - 2, y - 2, 4, 4);
 		return ctx.isPointInStroke(spl, x, y);
 	}
 
@@ -278,7 +388,7 @@ function Spline(pathObj, curves) {
 	pathObj.color = φGet(pathObj, "stroke");
 	pathObj.start = curves[0][0];
 	pathObj.end = curves[curves.length-1][curves[curves.length-1].length-1];
-	pathObj.bounding = pathObj.calculateBoundingBox();
+	pathObj.calculateBoundingBox();
 
 	return pathObj;
 }
@@ -287,6 +397,22 @@ function Frame(svgObj) {
 	//reflecting properties
 	svgObj.lines = svgObj.children["lines"];
 	svgObj.fills = svgObj.children["fills"];
+
+	svgObj.highlightFilledBins = () => {
+		for (var y=0; y<svgObj.cubicBins.length; y++) {
+			for (var x=0; x<svgObj.cubicBins[y].length; x++) {
+				if (svgObj.bin(x, y).length > 0) {
+					workspace_toolTemp.appendChild(φCreate("rect", {
+						'x': x * cubicBinSize,
+						'y': y * cubicBinSize,
+						'width': cubicBinSize,
+						'height': cubicBinSize,
+						'fill': "rgba(225, 0, 255, 0.25)",
+					}));
+				}
+			}
+		}
+	}
 
 	//methods
 	svgObj.fill = (x, y) => {
@@ -326,13 +452,21 @@ function Frame(svgObj) {
 		return svgObj.bin(x, y);
 	}
 
-	svgObj.binPlace = (spline) => {
+	svgObj.binModify = (spline, removing) => {
 		var curves = spline.curves;
+		//the width is the diameter, not the radius
+		var width = φGet(spline, "stroke-width") / 2;
 		curves.forEach(c => {
 			var bbox;
 			switch(c.length) {
 				case 2:
 					bbox = [c[0][0], c[0][1], c[1][0], c[1][1]];
+					if (c[0][0] > c[1][0]) {
+						[bbox[0], bbox[2]] = [bbox[2], bbox[0]];
+					}
+					if (c[0][1] > c[1][1]) {
+						[bbox[1], bbox[3]] = [bbox[3], bbox[1]];
+					}
 					break;
 				case 3:
 					bbox = quadraticBounds(c[0], c[1], c[2]);
@@ -341,6 +475,13 @@ function Frame(svgObj) {
 					bbox = bezierBounds(c[0], c[1], c[2], c[3]);
 					break;
 			}
+
+			//extend the bounding box by the width of the spline
+			bbox[0] -= width;
+			bbox[1] -= width;
+			bbox[2] += width;
+			bbox[3] += width;
+
 
 			var bboxBins = bbox.map(n => Math.floor(n / cubicBinSize));
 			for (var x=bboxBins[0]; x<=bboxBins[2]; x++) {
@@ -358,12 +499,20 @@ function Frame(svgObj) {
 
 					//actual placing - make sure self isn't already in the bin
 					//TODO: this is slow, some hashing should be used to skip the checking
-					if (!bin.includes(spline)) {
-						bin.push(spline);
+					if (removing) {
+						bin.splice(bin.indexOf(spline), 1);
+					} else {
+						if (!bin.includes(spline)) {
+							bin.push(spline);
+						}
 					}
 				}
 			}
 		});
+	}
+
+	svgObj.binRemove = (spline) => {
+
 	}
 
 
