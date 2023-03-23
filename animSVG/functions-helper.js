@@ -724,8 +724,9 @@ function zoom(x, y, newZoom) {
 	});
 
 	//set new px -> units transfer
-	document.documentElement.style.setProperty("--pxUnits", 1 / newZoom);
-	document.documentElement.style.setProperty("--pxUnits2", 2 / newZoom);
+	document.documentElement.style.setProperty("--pxUnits", (1 / newZoom) + "px");
+	document.documentElement.style.setProperty("--pxUnits2", (2 / newZoom) + "px");
+	document.documentElement.style.setProperty("--pxUnits4", (4 / newZoom) + "px");
 
 	workB = workspace_container.getBoundingClientRect();
 	var [contX, contY] = φGet(workspace_container, ['x', 'y']);
