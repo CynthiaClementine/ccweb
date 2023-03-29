@@ -18,6 +18,91 @@ bezierSplit(p0, c0, c1, p1, percentage)
 
 */
 
+//returns the coordinates of all intersections between the two splines
+function splineSplineIntersect(spline1, spline2, tolerance) {
+	var bounds1 = spline1.bounding.copyWithin();
+	var bounds2 = spline2.bounding.copyWithin();
+
+	workspace_toolTemp.appendChild(φCreate("rect", {
+		'x': bounds1[0],
+		'y': bounds1[1],
+		'width': bounds1[2] - bounds1[0],
+		'height': bounds1[3] - bounds1[1],
+		'stroke': "#FFF",
+		'stroke-width': 0.1,
+		'fill': "none"
+	}));
+	workspace_toolTemp.appendChild(φCreate("rect", {
+		'x': bounds2[0],
+		'y': bounds2[1],
+		'width': bounds2[2] - bounds2[0],
+		'height': bounds2[3] - bounds2[1],
+		'stroke': "#FFF",
+		'stroke-width': 0.1,
+		'fill': "none"
+	}));
+
+	if (bounds1[0] > bounds2[2] || bounds1[1] > bounds2[3] || bounds1[2] < bounds2[0] || bounds1[3] < bounds2[1]) {
+		console.log(`bounds don't overlap`);
+		return [];
+	}
+
+	//approx. separation between the centers of the two boxes
+	var centerSep = Math.min(Math.abs(0.5*(bounds1[2] + bounds1[0]) - 0.5*(bounds2[2] + bounds2[0])), Math.abs(0.5*(bounds1[3] + bounds1[1]) - 0.5*(bounds2[3] + bounds2[1])));
+	//minimum separation between the edges of the two boxes
+	var edgeSep = Math.min(Math.abs(bounds1[0] - bounds2[0]), Math.abs(bounds1[1] - bounds2[1]), Math.abs(bounds1[2] - bounds2[2]), Math.abs(bounds1[3] - bounds2[3]));
+	var minWidth = Math.min(spline1.pathWidth, spline2.pathWidth);
+
+	//if one of them is small, in order to intersect one of the edges has to be close together
+	if ((small1 || small2) && edgeSep > tolerance) {
+		return [];
+	}
+
+	//if the boxes are too small, test intersect
+	var small1 = (bounds1[2] - bounds1[0] < tolerance + spline1.pathWidth && bounds1[3] - bounds1[1] < tolerance + spline1.pathWidth);
+	var small2 = (bounds2[2] - bounds2[0] < tolerance + spline2.pathWidth && bounds2[3] - bounds2[1] < tolerance + spline2.pathWidth);
+	// console.log(`1 dims: ${bounds1[2] - bounds1[0]}x${bounds1[3] - bounds1[1]}, 2 dims: ${bounds2[2] - bounds2[0]}x${bounds2[3] - bounds2[1]}`, small1, small2, tolerance);
+	if (small1 && small2) {
+		if (centerSep > tolerance) {
+			return [];
+		}
+		console.log(`found intersection`);
+		bounds1[0] = Math.min(bounds1[0], bounds2[0]);
+		bounds1[1] = Math.min(bounds1[1], bounds2[1]);
+		bounds1[2] = Math.max(bounds1[2], bounds2[2]);
+		bounds1[3] = Math.max(bounds1[3], bounds2[3]);
+		//return the center of the boxes
+		return [[(bounds1[0] + bounds1[2]) / 2, (bounds1[1] + bounds1[3]) / 2]];
+	}
+
+	var children1;
+	var children2;
+	if (!small1 && !small2) {
+		console.log(`dual branch`);
+		children1 = spline1.splitAt(spline1.curves.length / 2);
+		children2 = spline2.splitAt(spline2.curves.length / 2);
+
+		console.log([spline1], spline1.curves.length / 2, children1);
+
+		return (splineSplineIntersect(children1[0], children2[0], tolerance).concat(
+			splineSplineIntersect(children1[0], children2[1], tolerance),
+			splineSplineIntersect(children1[1], children2[0], tolerance),
+			splineSplineIntersect(children1[1], children2[1], tolerance)
+		));
+	}
+
+	if (small1) {
+		console.log(`1 small`);
+		children2 = spline2.splitAt(spline2.curves.length / 2);
+		return splineSplineIntersect(spline1, children2[0], tolerance).concat(splineSplineIntersect(spline1, children2[1], tolerance));
+	}
+
+
+	console.log(`2 small`);
+	children1 = spline1.splitAt(spline1.curves.length / 2);
+	return splineSplineIntersect(children1[0], spline2, tolerance).concat(splineSplineIntersect(children1[1], spline2, tolerance));
+}
+
 
 function bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, b2p0, b2c0, b2c1, b2p1, tolerance) {
 	var bounds1 = bezierBounds(b1p0, b1c0, b1c1, b1p1);
@@ -150,6 +235,37 @@ function bezierPointFromT(p0, c0, c1, p1, t) {
 		p0[0] * (-t*t*t + 3*t*t - 3*t + 1) + c0[0] * 3*(t*t*t - 2*t*t + t) + c1[0] * 3*(-t*t*t + t*t) + p1[0] * (t*t*t),
 		p0[1] * (-t*t*t + 3*t*t - 3*t + 1) + c0[1] * 3*(t*t*t - 2*t*t + t) + c1[1] * 3*(-t*t*t + t*t) + p1[1] * (t*t*t),
 	]
+}
+
+
+function bezierTFromPoint(p0, c0, c1, p1, p, tMin, tMax, tError, n) {
+	if (n == undefined) {
+		//figure out the extra parameters if they're not specified
+		n = 10;
+		tMin = 0;
+		tMax = 1;
+		//figure out roughly the square area (squarea?) of the bezier curve
+		var bounds = [
+			Math.min(p0[0], c0[0], c1[0], p1[0]),
+			Math.min(p0[1], c0[1], c1[1], p1[1]),
+			Math.max(p0[0], c0[0], c1[0], p1[0]),
+			Math.max(p0[1], c0[1], c1[1], p1[1]),
+		];
+		var squarea = (bounds[2] = bounds[0]) * (bounds[3] - bounds[1]);
+		tError = Math.min(0.1 / squarea, 0.01);
+	}
+
+	//split the curve into n bits
+
+	//whichever bit the point is closest to becomes the new segment to test
+
+	for (var k=0; k<n; k++) {
+	}
+
+	//if the bounds are close enough, escape
+	if (tMax - tMin < tError) {
+		return (tMax + tMin) / 2;
+	}
 }
 
 //given a set of cubic bezier numbers, returns the equation coefficients that make those points
