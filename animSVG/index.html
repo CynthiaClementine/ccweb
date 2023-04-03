@@ -100,6 +100,7 @@ August-23-2021 -->
             }
             #base {
                 position: absolute;
+                stroke-linejoin: round;
             }
             #convos {
                 display: block;
@@ -110,7 +111,7 @@ August-23-2021 -->
                 stroke: #FFFFFF;
                 fill: transparent;
             }
-            .timelineText {
+            .textTimeline {
                 cursor: text;
                 font: 15px Ubuntu; 
                 fill: #FFFFFF;
@@ -118,7 +119,12 @@ August-23-2021 -->
                 text-align: left;
                 user-select: none;
             }
-
+            .textTimelineLength {
+                font: 15px Ubuntu;
+                fill: #FFFFFF;
+                dominant-baseline: middle;
+                user-select: none;
+            }
             .toolLine {
                 fill: transparent;
                 stroke: var(--uilines);
@@ -139,7 +145,7 @@ August-23-2021 -->
 
                 display: none;
             }
-            .helpText {
+            .textHelp {
                 font: 15px Ubuntu;
                 color: #FFFFFF;
             }
@@ -395,7 +401,7 @@ August-23-2021 -->
                 <rect id="timeline_edge_detector" stroke="transparent" fill="var(--uilines)" x="0" y="-5" width="1000" height="10" cursor="ns-resize"/>
 
                 <!--buttons and the like -->
-                <text id="timeline_fps" class="timelineText" x="10" y="20" noselect="true" text-anchor="start" text-decoration="underline" onclick="user_changeFPS()">fps: 24</text>
+                <text id="timeline_fps" class="textTimeline" x="10" y="20" noselect="true" text-anchor="start" text-decoration="underline" onclick="user_changeFPS()">fps: 24</text>
                 <svg id="timeline_button_add" x="10" y="35">
                     <line class="timelineButton" x1="10" y1="4" x2="10" y2="16"/>
                     <line class="timelineButton" x1="4" y1="10" x2="16" y2="10"/>
@@ -450,7 +456,7 @@ August-23-2021 -->
 
         <!--The help section-->
         <div id="help_container">
-            <p id="help_generic" class="helpText">
+            <p id="help_generic" class="textHelp">
                 This is the help section. Hopefully, if you need to do something, this text area will help you accomplish that. 
                 Contained here is information about the program, as well as preferences to change.
             </p>
