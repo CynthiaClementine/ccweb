@@ -9,11 +9,13 @@ getPercentage(val1, val2, checkVal);
 linterp(a, b, percentage);
 linterpMulti(a, b, percentage);
 modulate(n, modulus);
+polyArea(polyPoints);
 randomBounded(min, max);
 rootsCubic(a, b, c, d);
 rootsQuadratic(a, b, c);
 sigmoid(input, outputLowerBound, outputUpperBound);
 easerp(a, b, percentage);
+Ξ(x); -takes the factorial of a number
 
 
 
@@ -202,8 +204,25 @@ function rootsQuadratic(a, b, c) {
 			(-b - Math.sqrt(disc)) / (2 * a)
 		];
 	}
+}
 
+//approximate integral of sin(k)/k from 0 -> x
+function si(x) {
+	var sum = x;
 
+	//if x is too great just default to the end values to avoid computation
+	if (Math.abs(x) > 19.978) {
+		return Math.sign(x) * Math.PI / 2;
+	}
+	//do taylor sum
+	for (var n=5; n<50; n+=4) {
+		sum += (x ** n) / (n * Ξ(n));
+	}
+	for (n=3; n<50; n+=4) {
+		sum -= (x ** n) / (n * Ξ(n));
+	}
+	
+	return sum;
 }
 
 function sigmoid(input, outputLowerBound, outputUpperBound) {
@@ -217,4 +236,13 @@ function easerp(a, b, percentage) {
 		return a + (b - a) * 2 * percentage * percentage;
 	}
 	return a + (b - a) * (1 - 2 * (percentage - 1) * (percentage - 1));
+}
+
+function Ξ(x) {
+	var max = 1;
+	while (x > 1) {
+		max *= x;
+		x -= 1;
+	}
+	return max;
 }
