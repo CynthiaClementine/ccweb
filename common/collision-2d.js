@@ -1,4 +1,16 @@
-//functions for determining 2d collision are stored here, such as if two line segments intersect, if a point is inside a polygon, and other helpful functions relating to 2d position.
+/*functions for determining 2d collision are stored here, such as if two line segments intersect, if a point is inside a polygon, and other helpful functions relating to 2d position.
+
+INDEX
+getOrientation(p1, p2, p3)
+lineIntersect(lin1p1, lin1p2, lin2p1, lin2p2)
+lineLineIntersect(l1p1, l1p2, l2p1, l2p2)
+inPoly(xyPoint, polyPoints)
+pointLineIntersect(p, linp1, linp2, tolerance)
+pointLineDistance(point, lineP1, lineP2)
+lineT(lineP1, lineP2, point)
+pointSegmentDistance(point, lineP1, lineP2)
+
+*/
 
 //will return 0 if points are colinear, -1 if points are counterclockwise, and 1 if points are clockwise.
 function getOrientation(p1, p2, p3) {
@@ -24,10 +36,21 @@ function lineIntersect(lin1p1, lin1p2, lin2p1, lin2p2) {
 	return (getOrientation(lin1p1, lin1p2, lin2p1) != getOrientation(lin1p1, lin1p2, lin2p2) && getOrientation(lin2p1, lin2p2, lin1p1) != getOrientation(lin2p1, lin2p2, lin1p2))
 }
 
-//for naming consistency
+//returns the t coordinate of the first line where it intersects with the second line.
 function lineLineIntersect(l1p1, l1p2, l2p1, l2p2) {
-	return lineIntersect(l1p1, l1p2, l2p1, l2p2);
-}
+	var det, t1, t2;
+	det = (l1p2[0] - l1p1[0]) * (l2p2[1] - l2p1[1]) - (l2p2[0] - l2p1[0]) * (l1p2[1] - l1p1[1]);
+	//if the determinant is 0, the lines must be parallel and therefore don't intersect at a single point
+	if (det == 0) {
+		return undefined;
+	}
+
+	t1 = ((l2p2[1] - l2p1[1]) * (l2p2[0] - l1p1[0]) + (l2p1[0] - l2p2[0]) * (l2p2[1] - l1p1[1])) / det;
+	t2 = ((l1p1[1] - l1p2[1]) * (l2p2[0] - l1p1[0]) + (l1p2[0] - l1p1[0]) * (l2p2[1] - l1p1[1])) / det;
+	if (t1 > 0 && t1 < 1 && t2 > 0 && t2 < 1) {
+		return [t1, 1 - t2];
+	}
+};
 
 
 function inPoly(xyPoint, polyPoints) {
@@ -64,6 +87,19 @@ function pointLineDistance(point, lineP1, lineP2) {
 
 	var t = ((point[0] - lineP1[0]) * changeX + (point[1] - lineP1[1]) * changeY) / (changeX * changeX + changeY * changeY);
 	return Math.sqrt((point[0] - (lineP1[0] + t * changeX)) ** 2 + (point[1] - (lineP1[1] + t * changeY)) ** 2);
+}
+
+function lineT(lineP1, lineP2, point) {
+	var changeX = lineP2[0] - lineP1[0];
+	var changeY = lineP2[1] - lineP1[1];
+
+	//if the two line points are the same just use distance
+	if (changeX == 0 && changeY == 0) {
+		return Math.sqrt((lineP1[0] - point[0]) ** 2 + (lineP1[1] - point[1]) ** 2);
+	}
+
+	//t calculation
+	return ((point[0] - lineP1[0]) * changeX + (point[1] - lineP1[1]) * changeY) / (changeX * changeX + changeY * changeY);
 }
 
 //gives the distance between a line segment and a point
