@@ -284,10 +284,10 @@ function Spline(pathObj, curves) {
 					smolBound = bezierBounds(c[0], c[1], c[2], c[3]);
 					break;
 			}
-			initialBounds[0] = Math.min(initialBounds[0], smolBound[0]) - width;
-			initialBounds[1] = Math.min(initialBounds[1], smolBound[1]) - width;
-			initialBounds[2] = Math.max(initialBounds[2], smolBound[2]) + width;
-			initialBounds[3] = Math.max(initialBounds[3], smolBound[3]) + width;
+			initialBounds[0] = Math.min(initialBounds[0], smolBound[0] - width);
+			initialBounds[1] = Math.min(initialBounds[1], smolBound[1] - width);
+			initialBounds[2] = Math.max(initialBounds[2], smolBound[2] + width);
+			initialBounds[3] = Math.max(initialBounds[3], smolBound[3] + width);
 		});
 
 		pathObj.bounding = initialBounds;
@@ -349,11 +349,11 @@ function Spline(pathObj, curves) {
 		//if t is an integer this is extremely easy
 		if (t % 1 == 0) {
 			//trivial cases
-			if (t == 0) {
-				return [pathObj, undefined];
-			}
-			if (t == pathObj.curves.length - 1) {
+			if (t <= 0) {
 				return [undefined, pathObj];
+			}
+			if (t >= pathObj.curves.length) {
+				return [pathObj, undefined];
 			}
 
 			return [createSpline(pathObj.curves.slice(0, t), pathObj.color, pathObj.pathWidth), createSpline(pathObj.curves.slice(t), pathObj.color, pathObj.pathWidth)];
@@ -363,7 +363,7 @@ function Spline(pathObj, curves) {
 		var cut = pathObj.curves[Math.floor(t)];
 		switch (cut.length) {
 			case 2:
-				cut = [[cut[0], linterpMulti(cut[0], cut[1], t % 1)], [linterpMulti(cut[0], cut[1], t % 1), cut[1]]];
+				cut = [[[cut[0][0], cut[0][1]], linterpMulti(cut[0], cut[1], t % 1)], [linterpMulti(cut[0], cut[1], t % 1), [cut[1][0], cut[1][1]]]];
 				break;
 			case 3:
 				break;
@@ -377,18 +377,24 @@ function Spline(pathObj, curves) {
 		start.push(cut[0]);
 		start = createSpline(start, pathObj.color, pathObj.pathWidth);
 		//end
-		var end = end.curves.slice(Math.ceil(t));
+		var end = pathObj.curves.slice(Math.ceil(t));
 		end.splice(0, 0, cut[1]);
 		end = createSpline(end, pathObj.color, pathObj.pathWidth);
+
+		return [start, end];
 	}
 
 
 	//give the element its properties
 	pathObj.curves = curves;
+	pathObj.pathWidth = +φGet(pathObj, "stroke-width");
 	pathObj.color = φGet(pathObj, "stroke");
 	pathObj.start = curves[0][0];
 	pathObj.end = curves[curves.length-1][curves[curves.length-1].length-1];
 	pathObj.calculateBoundingBox();
+	if (pathObj.bounding == undefined) {
+		console.log(`why???`);
+	}
 
 	return pathObj;
 }
@@ -450,6 +456,33 @@ function Frame(svgObj) {
 		y = Math.floor(y / cubicBinSize);
 
 		return svgObj.bin(x, y);
+	}
+
+	//
+	/**
+	 * gets all the objects in a rectangular set of bins
+	 * @param {Integer} x bin x to start at
+	 * @param {Integer} y bin y to start at
+	 * @param {Integer} endX bin x to end at, inclusive
+	 * @param {Integer} endY bin y to end at, inclusive
+	 * @returns {Array[Objects]} an array of all the objects in those bins
+	 */
+	svgObj.binGet = (x, y, endX, endY) => {
+		var objs = [];
+		var nowBin;
+		for (var j=y; j<=endY; j++) {
+			for (var i=x; i<=endX; i++) {
+				nowBin = svgObj.bin(i, j);
+				if (nowBin.length > 0) {
+					nowBin.forEach(o => {
+						if (!objs.includes(o)) {
+							objs.push(o);
+						}
+					});
+				}
+			}
+		}
+		return objs;
 	}
 
 	svgObj.binModify = (spline, removing) => {
