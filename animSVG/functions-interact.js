@@ -109,11 +109,18 @@ function user_keyframe(n) {
 	var m = timeline;
 	var iden = m.layerIDs[m.s];
 	var frameIsKey = m.l[iden][m.t] != m.l[iden][m.t - 1];
+	var s = m.s;
+	var t = m.t;
 
 	//delete keyframe
 	if (n == 3) {
 		if (frameIsKey) {
-			makeUnKeyframe(m.s, m.t);
+			var delNode = getSelectedFrame();
+			takeAction(() => {
+				makeUnKeyframe(s, t);
+			}, () => {
+				makeKeyframe(s, t, delNode);
+			});
 		}
 		m.changeFrameTo(m.t);
 		return;
@@ -124,7 +131,7 @@ function user_keyframe(n) {
 	var tStorage = m.t;
 	while (frameIsKey) {
 		m.t += 1;
-		frameIsKey = timeline.l[iden][m.t] != timeline.l[iden][m.t - 1];
+		frameIsKey = m.l[iden][m.t] != m.l[iden][m.t - 1];
 	}
 	//only count if not off the end of the timeline
 	if (m.t < m.len) {
@@ -132,7 +139,13 @@ function user_keyframe(n) {
 		if (n == 2) {
 			node = m.l[iden][m.t];
 		}
-		makeKeyframe(timeline.s, timeline.t, node);
+		takeAction(() => {
+			makeKeyframe(s, t, node);
+		}, () => {
+			makeUnKeyframe(s, t);
+			m.changeFrameTo(t);
+		});
+		
 	} else {
 		//if off the end, ignore and revert changes
 		m.t = tStorage;
