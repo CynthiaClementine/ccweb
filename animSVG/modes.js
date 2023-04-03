@@ -198,6 +198,8 @@ class ToolRectangle extends ToolDragShape {
 class ToolPencil {
 	constructor() {
 		this.bufferPoints = [];
+		this.selfIntersects = [];
+		this.intersectNap = false;
 		
 		this.r = 8;
 
@@ -213,18 +215,30 @@ class ToolPencil {
 	}
 
 	escape() {
+		this.reset();
+	}
+
+	reset() {
 		this.bufferPoints = [];
 		workspace_toolTemp.innerHTML = "";
+		this.selfIntersects = [];
+		this.intersectNap = false;
 	}
 
 	appendPoint() {
 		var coords = cursorWorkspaceCoordinates();
+
+		//make sure the coords aren't the same as the last ones
+		if (this.bufferPoints.length > 0 && arrsAreSame(this.bufferPoints[this.bufferPoints.length-1], coords)) {
+			return;
+		}
+
 		this.bufferPoints.push(coords);
 		workspace_toolTemp.appendChild(φCreate('circle', {
 			'cx': coords[0],
 			'cy': coords[1],
 			'r': this.r / 2,
-			'fill': color_stroke
+			'fill': color_stroke,
 		}));
 	}
 
@@ -235,7 +249,7 @@ class ToolPencil {
 		var wh = φGet(workspace_background, ['width', 'height']);
 		var scale = [box.width * wh[0], box.height * wh[1]];
 
-		this.bufferPoints = [];
+		this.reset();
 		//start the line
 		this.appendPoint();
 
@@ -243,11 +257,96 @@ class ToolPencil {
 		this.cData = this.cDataLast;
 	}
 
+	//takes a set of points and puts them into the buffer, without having to use the mouse
+	autoBuffer(points) {
+		points.forEach(p => {
+			this.bufferPoints.push(p);
+			workspace_toolTemp.appendChild(φCreate('circle', {
+				'cx': p[0],
+				'cy': p[1],
+				'r': this.r / 2,
+				'fill': "#FFFFFF22"
+			}));
+			this.checkRecentIntersect();
+		});
+	}
+
+	checkRecentIntersect() {
+		var bp = this.bufferPoints;
+		var lin1 = bp[bp.length - 2];
+		var lin2 = bp[bp.length - 1];
+		var trueT;
+		
+		//find a spot where a cross is happening
+		for (var a=0; a<bp.length-3; a++) {
+			trueT = lineLineIntersect(bp[a], bp[a+1], lin1, lin2);
+			if (trueT != undefined) {
+				//don't log multiple points per intersection
+				if (!this.intersectNap) {
+					console.log(`intersect detected between ${JSON.stringify(bp[a])}, ${JSON.stringify(bp[a+1])} and ${JSON.stringify(lin1)}, ${JSON.stringify(lin2)}`);
+					//log both buffer points where the cross happens
+					this.selfIntersects.push(trueT[0] + a);
+					this.selfIntersects.push(trueT[1] + bp.length - 2);
+
+					//update the nap variable
+					this.intersectNap = true;
+
+					workspace_toolTemp.appendChild(φCreate("circle", {
+						'cx': linterp(lin1[0], lin2[0], trueT[1]),
+						'cy': linterp(lin1[1], lin2[1], trueT[1]),
+						'r': 1,
+						'fill': "#F0F",
+						'stroke': "#0FF"
+					}));
+				}
+				return;
+			}
+		}
+
+		//make sure the nap is off when there's no intersection
+		this.intersectNap = false;
+	}
+
+	//takes in a buffer and times to chop at, and returns a chopped set of buffers
+	chopBuffer(buffer, timings) {
+		//if there are no self-intersections, just use all bufferpoints
+		if (timings.length == 0) {
+			return [buffer];
+		}
+
+		var bits = [];
+
+		//put bounds of buffer in so one loop can handle everything
+		timings.splice(0, 0, 0);
+		timings.push(buffer.length);
+		console.log(timings);
+		var lastT;
+		var nextT;
+		var mainWiggle;
+		for (var f=1; f<timings.length; f++) {
+			lastT = timings[f-1];
+			nextT = timings[f];
+			mainWiggle = buffer.slice(Math.ceil(lastT), Math.ceil(nextT));
+			//test if the start and end need modification
+			if (lastT % 1 != 0) {
+				mainWiggle.splice(0, 0, linterpMulti(buffer[floor(lastT)], buffer[Math.ceil(lastT)], lastT % 1));
+			}
+			if (nextT % 1 != 0) {
+				mainWiggle.push(linterpMulti(buffer[floor(nextT)], buffer[Math.ceil(nextT)], nextT % 1));
+			}
+			bits.push(mainWiggle);
+		}
+		return bits;
+	}
+
 	
 	mouseMove(a) {
 		if (cursor.down) {
 			//add point
 			this.appendPoint();
+
+			//check for self-intersection
+			this.checkRecentIntersect();
 		}
 	}
 	
@@ -263,35 +362,52 @@ class ToolPencil {
 		if (this.bufferPoints.length > 1) {
 			this.pushToWorkspace();
 		}
-		this.bufferPoints = [];
-		workspace_toolTemp.innerHTML = "";
+		this.reset();
 	}
 
 	pushToWorkspace(toleranceOPTIONAL) {
-		var simp = simplifyLineRDP(this.bufferPoints, toleranceOPTIONAL ?? this.fitTolerance);
-		var curves = potrace(simp, false);
-
-		//quantize
-		curves = curves.map(a => {
-			return a.map(b => [+(b[0].toFixed(quantizeTo)), +(b[1].toFixed(quantizeTo))]);
-		});
-
-		var pushCurves = [curves[0]];
-		for (var z=1; z<curves.length; z++) {
-			// if (bezierBezierIntersect())
+		//make sure none of the curves intersect
+		this.selfIntersects = this.selfIntersects.sort((a, b) => a - b);
+		
+		var si = this.selfIntersects;
+		if (si[0] == 0) {
+			si.shift();
+		}
+		if (si[si.length-1] > this.bufferPoints.length - 1) {
+			si.pop();
 		}
 
-		//make sure the curves don't self-intersect
+		var bufferBits = this.chopBuffer(this.bufferPoints, si);
+		var layerObj = timeline.frameAt(timeline.t, timeline.s);
 
-		var tln = timeline;
-		var layerObj = tln.l[tln.layerIDs[tln.s]][tln.t];
-		var spline = createSpline(curves, color_stroke, this.r);
-		takeAction(() => {
+		//for each buffer bit:
+		var finalSplines = [];
+		bufferBits.forEach(b => {
+			//simplify each buffer bit
+			var simp = simplifyLineRDP(b, toleranceOPTIONAL ?? this.fitTolerance);
+			var curves = potrace(simp, false);
+
+			//quantize
+			curves = curves.map(a => {
+				return a.map(d => [+(d[0].toFixed(quantizeTo)), +(d[1].toFixed(quantizeTo))]);
+			});
+
+			//put into workspace
+			var spline = createSpline(curves, color_stroke, this.r);
+			finalSplines.push(spline);
 			frame_addPath(layerObj, spline);
-		}, () => {
-			frame_removePath(layerObj, spline);
 		});
-		
+
+		recordAction(() => {
+			finalSplines.forEach(a => {
+				frame_addPath(layerObj, a);
+			});
+		}, () => {
+			finalSplines.forEach(a => {
+				frame_removePath(layerObj, a);
+			});
+		});
+		return finalSplines;
 	}
 }
 
@@ -360,7 +476,7 @@ class ToolMove {
 						'cy': bin[c][d][1],
 						'r': 4,
 						'stroke': layColor,
-						"stroke-width": `var(--pxUnits2)`,
+						'stroke-width': `var(--pxUnits2)`,
 						'fill': `transparent`,
 
 						'id': `temp_pull_${c}_${d}`,
@@ -374,6 +490,7 @@ class ToolMove {
 						'width': 4,
 						'height': 4,
 						'stroke': layColor,
+						'stroke-width': `var(--pxUnits2)`,
 						'fill': `transparent`,
 
 						'id': `temp_pull_${c}_${d}`,
@@ -462,10 +579,17 @@ class ToolMove {
 	}
 
 	movePathCorner(deltaX, deltaY, c, d) {
-		console.log(`dragging corner`);
+		//see createOverlay for how c and d are constructed
 		var cv = this.selected.curves;
+
+		var cLast = cv[(c + 1) % cv.length];
+		var cCurt = cv[c];
+		var cNext = cv[(c + cv.length - 1) % cv.length];
+		var isLoop = arrsAreSame(cv[cv.length-1][cv[cv.length-1].length-1], cv[c][0]);
+
 		var prevExists = (c > 0);
 		var nextExists = (c < cv.length - 1);
+		var cBuffer;
 
 		var pullPoints = [];
 
@@ -474,9 +598,11 @@ class ToolMove {
 
 		//also pull if it's the same coordinate duplicated
 		if (d == 0) {
-			//d is a start point - try the last end point
-			if (prevExists && cv[c-1][cv[c-1].length-1] != cv[c][d]) {
-				pullPoints.push(cv[c-1][cv[c-1].length-1]);
+			//if d is 0 it must be the very first point + curve in the spline
+			cBuffer = cv[cv.length-1];
+			//grab last end point if necessary
+			if (isLoop && cBuffer[cBuffer.length-1] != cv[c][0]) {
+				pullPoints.push(cBuffer[cBuffer.length-1]);
 			}
 		} else {
 			//d is an end point - try the next start point
@@ -487,16 +613,19 @@ class ToolMove {
 
 		//pull control points along with it, if the control scheme says so
 		if (!button_alt) {
-			//d is start point - because of the way d is constructed, the only time d can be a start point is when there's no previous curve
+			//d is start point - the only time d can be a start point is when there's no previous curve
 			if (d == 0 && cv[c].length == 4) {
 				pullPoints.push(cv[c][1]);
+				if (isLoop && cv[cv.length-1].length == 4) {
+					pullPoints.push(cv[cv.length-1][2]);
+				}
 			}
 
 			//d is end point
 			if (d == 3) {
 				pullPoints.push(cv[c][2]);
-				if (nextExists && cv[c+1].length == 4) {
-					pullPoints.push(cv[c+1][1])
+				if (cv[c+1].length == 4) {
+					pullPoints.push(cv[c+1][1]);
 				}
 			}
 		}
@@ -540,7 +669,6 @@ class ToolMove {
 	}
 
 	mouseMove(a) {
-		console.log(a.movementX);
 		var scaling = φGet(workspace_container, "scaling");
 		var delta = [a.movementX / scaling, a.movementY / scaling];
 
