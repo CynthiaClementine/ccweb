@@ -263,40 +263,48 @@ class Camera {
 
 
 class Character {
-	constructor(x, y, z, spriteDataName) {
+	constructor(x, y, z, spriteDataName, dzMax, dxMax, zAccel, xAccel, jumpHeightMin, jumpHeightMax) {
 		this.dir_down = [0, Math.PI / 2];
 		this.dir_side = [0, 0];
 		this.dir_front = [Math.PI / 2, 0];
-		
-		this.gravStrength = physics_gravity;
-		this.speed = 0.12;
-		this.strafeSpeed = this.speed * 1.2;
-		this.dMax = 3.74;
+
+		//velocities
+		this.dMax = dzMax;
+		this.strafeMax = dxMax;
 		this.fallMax = this.dMax * 1.4;
+		
+		this.speed = zAccel ?? 0.12;
+		this.strafeSpeed = xAccel ?? this.speed * 1.2;
+
+		//jumpStregnth and jumpBoostStrength need to be calculated from jump heights. This happens at the end of the constructor
+		this.jumpTime = physics_jumpTime;
 		this.jumpStrength = 2;
 		this.jumpBoostStrength = 0.1;
+		
+		
 		//coyote frames are frames before the player has landed when a jump will be buffered for later execution.
 		//I've since learned that coyote time usually refers to the time after the player leaves the platform (what's handled here with the onGround system)
-		//but I'm not going to change it
+		//but I'm not going to change it, due to laziness and also "buffer" has more namespace interference
 		this.coyote = 0;
 		this.coyoteSet = player_coyote;
 
 		this.onIce = false;
 		this.onGround = 0;
-		this.jumpTime = physics_jumpTime;
-
-		this.x = x;
-		this.y = y;
-		this.z = z;
 		
 		this.parent = undefined;
 		this.parentPrev = undefined;
+
+		//position, velocity, acceleration
+		this.x = x;
+		this.y = y;
+		this.z = z;
 
 		this.dx = 0;
 		this.dy = 0;
 		this.dz = this.dMax;
 
 		this.ax = 0;
+		this.ay = physics_gravity;
 		this.az = 0;
 		this.friction = 0.9;
 		this.naturalFriction = 0.999;
@@ -318,25 +326,40 @@ class Character {
 		this.texture_current = this.texture_jumpF;
 		this.textureRot = 1;
 
+		this.calculateJumpParams(jumpHeightMin, jumpHeightMax);
+	}
+
+	calculateJumpParams(minH, maxH) {
+		//initial jump strength is relatively easy - use energy
+		//E = 0.5mv^2 = mgh
+		//mgh = 0.5mv^2
+		//sqrt(2gh) = v
+		this.jumpStrength = Math.sqrt(2 * this.ay * minH);
+
+		/*jumpBoost is a little bit more difficult - we know that the velocity starts at jumpStrength and will decrease to 0, reaching it at minH.
+		if the spacebar is released, the slope will be -ay. If the spacebar is held though, the slope will be -(ay - jumpBoostStrength).
+		The maximum amount out of this is jumpTime.
+
+		jumpBoost is a constant velocity added each frame - if we treat all the velocity as if it's added at the start, a CAKE simplification can be used
+
+		Vf^2 = V0^2 + 2aΔy
+		0 = (js + jt*jbs)^2 + 2 * a * maxH
+		0 = (js + jt*jbs)^2 + 2 * a * maxH
+		sqrt(2 * a * maxH) = js + jt*jbs
+		(sqrt(2 * a * maxH) - js) / jt = jbs
+		*/
+		this.jumpBoostStrength = (Math.sqrt(2 * this.ay * maxH) - this.jumpStrength) / this.jumpTime;
 	}
 
 	collide() {
 		//get the closest strip
 		var ref = this.parentPrev;
-		var relPos = spaceToRelativeRotless([this.x, this.y, this.z], [ref.x, ref.y, ref.z], [-1 * ref.theta, 0]);
-		var trueSideStrip = Math.floor((((Math.atan2(relPos[1], relPos[0]) + (Math.PI * (2 + (1 / ref.sides)))) / (Math.PI * 2)) % 1) * ref.sides);
-		trueSideStrip = modulate(trueSideStrip * ref.tilesPerSide, ref.sides * ref.tilesPerSide);
-		//center strip offset is the number of the strip that self is on top of
-		var centerStripOffset = Math.floor((spaceToRelativeRotless([this.x, this.y, this.z], ref.strips[trueSideStrip].pos, ref.strips[trueSideStrip].normal)[1] / ref.tileSize) + 0.5);
-		centerStripOffset = clamp(centerStripOffset + trueSideStrip, trueSideStrip, trueSideStrip + ref.tilesPerSide - 1);
-		//add in side by side strips and collide with them
-		//get the closest tile
-		var selfTile = Math.floor(relPos[2] / ref.tileSize);
+		var [centerStripOffset, selfTile] = stripTileCoordinates(this.x, this.y, this.z, ref);
 
 		for (var n=-1; n<2; n++) {
 			for (var f=-1; f<2; f++) {
-				if (ref.tiles[(centerStripOffset + ref.tiles.length + f) % ref.tiles.length][selfTile+n] != undefined) {
-					ref.tiles[(centerStripOffset + ref.tiles.length + f) % ref.tiles.length][selfTile+n].collideWithEntity(this);
+				if (ref.tiles[modulate(centerStripOffset + f, ref.tiles.length)][selfTile+n] != undefined) {
+					ref.tiles[modulate(centerStripOffset + f, ref.tiles.length)][selfTile+n].collideWithEntity(this);
 				}
 			}
 		}
@@ -361,28 +384,34 @@ class Character {
 		//if player has a parent, change gravity based on parent power
 		if (this.onGround < physics_graceTime - 2) { 
 			this.dy -= linterp(activeGravity * 0.8, activeGravity, this.parentPrev.power);
+		} else {
+			//if the player's on the ground, make sure dy is capped
+			if (this.dy < -1) {
+				this.dy = -1;
+			}
 		}
 
 		//jump boost
-		if (this.dy > 0 && this.onGround <= 0 && controls_spacePressed && this.jumpTime > 0) {
+		if (this.onGround <= 0 && controls_spacePressed && this.jumpTime > 0) {
 			this.dy += this.jumpBoostStrength;
 			this.jumpTime -= 1;
 		}
 		
-		this.dy = clamp(this.dy, -1 * this.fallMax, 2 * this.fallMax);
+		//cap falling speed
+		if (this.dy < -this.fallMax) {
+			this.dy = -this.fallMax;
+		}
 
 		//calculate true ax (different from active AX, I know this makes no sense but trust me the sigmoid is important)
 		if (activeAX != 0) {
-			var volume = ((this.dMax + (this.dx * boolToSigned(activeAX < 0))) / this.dMax) * 9 - 2;
+			var volume = ((this.strafeMax + (this.dx * boolToSigned(activeAX < 0))) / this.strafeMax) * 9 - 2;
 			activeAX = sigmoid(volume, 0, Math.abs(activeAX)) * boolToSigned(activeAX > 0);
 		}
 		this.dx += activeAX;
 		if (this.ax == 0 || this.ax * this.dx < 0) {
 			this.dx *= activeFriction;
 		}
-		if (Math.abs(this.dx) > this.dMax) {
-			this.dx = clamp(this.dx, -1 * this.dMax, this.dMax);
-		}
+		this.dx = clamp(this.dx, -this.strafeMax, this.strafeMax);
 
 
 		//accelerate if too slow
@@ -408,52 +437,60 @@ class Character {
 		//setting camera position
 		this.setCameraPosition();
 
-		//only do the other tick stuff if camera is close enough
-		if (this.cameraDist < 1000 && !editor_active) {
-			//ticking coyote frames / jumping
-			if (this.coyote > 0) {
-				this.handleSpace();
-				this.coyote -= 1;
-			}
-
-			//TODO: this code is ugly and also probably slow. Refactor when / if possible
-			if (this.parent != undefined) {
-				if (!this.parent.coordinateIsInTunnel(this.x, this.y, this.z, true)) {
-					//if in the void, change physics
-					var voidStrength = spaceToRelativeRotless(this.parent.centerPos, [this.x, this.y, this.z], this.dir_down)[2] / this.parent.r;
-					if (this.parent.playerTilePos > this.parent.len - 0.5) {
-						voidStrength *= -0.7;
-						//if the player off the end of the tunnel and is above the midpoint, make them go down faster
-						if (voidStrength > 0) {
-							voidStrength *= 1.8;
-						}
-					}
-					this.modifyDerivitives(this.gravStrength * 0.7 * (voidStrength), 0.95 + (0.0501 * (this.onGround <= 0)), this.naturalFriction, this.ax * 1.5, this.speed / 2);
-					//void spin
-					this.textureRot += render_voidSpinSpeed;
-				} else {
-					//restore proper spin if in tunnel
-					if (Math.abs(this.textureRot - this.dir_down[1]) > render_voidSpinSpeed * 3) {
-						this.textureRot = (this.textureRot + (render_voidSpinSpeed * 3)) % (Math.PI * 2);
-					}
-					//don't accelerate if dz is too great, and reduce friction if on ice
-					this.modifyDerivitives(this.gravStrength, this.friction, this.naturalFriction, this.ax * (1 - (0.2 * this.onIce)), this.speed * (Math.abs(this.dz) <= this.dMax * 1.1));
-				}
-			}
-
-			//moving according to forces
-			var motion = this.giveVelocity();
-
-			this.x += motion[0];
-			this.y += motion[1];
-			this.z += motion[2];
-
-			//colliding with tiles
-			this.collide();
-
-			//choose texture
-			this.chooseTexture();
+		//only do the other tick actions if camera is close enough
+		if (this.cameraDist > 1000 || editor_active) {
+			return;
 		}
+
+		//ticking coyote frames / jumping
+		if (this.coyote > 0) {
+			this.handleSpace();
+			this.coyote -= 1;
+		}
+
+		//TODO: this code is ugly and also probably slow. Refactor when / if possible
+		if (this.parent != undefined) {
+			if (!this.parent.coordinateIsInTunnel(this.x, this.y, this.z, true)) {
+				//if in the void, change physics
+				var voidStrength = spaceToRelativeRotless(this.parent.centerPos, [this.x, this.y, this.z], this.dir_down)[2] / this.parent.r;
+				if (this.parent.playerTilePos > this.parent.len - 0.5) {
+					voidStrength *= -0.7;
+					//if the player off the end of the tunnel and is above the midpoint, make them go down faster
+					if (voidStrength > 0) {
+						voidStrength *= 1.8;
+					}
+				}
+				this.modifyDerivitives(this.ay * 0.7 * (voidStrength), 0.95 + (0.0501 * (this.onGround <= 0)), this.naturalFriction, this.ax * 1.5, this.speed / 2);
+				//void spin
+				this.textureRot += render_voidSpinSpeed;
+			} else {
+				//in the tunnel
+				//restore proper spin
+				if (Math.abs(this.textureRot - this.dir_down[1]) > render_voidSpinSpeed * 3) {
+					this.textureRot = modulate((this.textureRot + (render_voidSpinSpeed * 3)), Math.PI * 2);
+
+					//if the spin is close enough now, reset it
+					if (Math.abs(this.textureRot - this.dir_down[1]) < render_voidSpinSpeed * 3) {
+						this.textureRot = this.dir_down[1];
+					}
+				}
+				//don't accelerate if dz is too great, and reduce friction if on ice
+				this.modifyDerivitives(this.ay, this.friction, this.naturalFriction, this.ax * (this.onIce ? 0.8 : 1), this.speed * (Math.abs(this.dz) <= this.dMax * 1.1));
+			}
+		}
+
+		//moving according to forces
+		var motion = this.giveVelocity();
+
+		this.x += motion[0];
+		this.y += motion[1];
+		this.z += motion[2];
+
+		//colliding with tiles
+		this.collide();
+
+		//choose texture
+		this.chooseTexture();
 	}
 
 	beDrawn() {
@@ -626,18 +663,14 @@ class Texture {
 //well, my friendo, mainly readability and I'm lazy. I don't want to have 37 constructor arguments I have to keep track of, I want to know what each individual property is set to.
 class Angel extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Angel`);
-
-		this.speed = 0.09;
-		this.dMax = 3.96;
+		super(x, y, z, `Angel`, 5, 5.25, 0.09, 0.13, 72, 108);
 		this.fallMax = 3.6;
-		this.dMaxTrue = 9.125;
+		this.dMaxTrue = 9.75;
 		this.naturalFriction = 0.998;
-		this.jumpStrength = 2.8;
-		this.jumpBoostStrength = 0.09;
 
 		this.boost = true;
 		this.boostStrength = 1.32;
+		this.boostJumpMult = 0.75;
 		this.glide = true;
 		this.haltGlide = true;
 		this.glideStrength = 0.2;
@@ -673,7 +706,7 @@ class Angel extends Character {
 			super.handleSpace();
 		} else if (this.boost == true) {
 			this.boost = false;
-			this.dy = this.jumpStrength;
+			this.dy = this.jumpStrength * this.boostJumpMult;
 			if (this.parent != undefined) {
 				this.dz *= linterp(0.98, this.boostStrength, this.parent.power);
 			} else {
@@ -689,23 +722,17 @@ class Angel extends Character {
 
 class Bunny extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Bunny`);
+		super(x, y, z, `Bunny`, 10.75, 6.3, 0.13, 0.4, 60, 240);
 
 		this.texture_walkF = undefined;
 		this.texture_walkL = undefined;
 		this.texture_walkR = undefined;
 
-		this.jumpStrength = 3;
-		this.jumpTime *= 1.3;
-		this.jumpBoostStrength = 0.14;
 		this.jumpCooldown = 5;
 		this.jumpCooldownMax = 7;
 		this.boostFriction = 0.99;
 
-		this.speed = 0.13;
-		this.strafeSpeed = 0.4;
 		this.trueSpeed = 0.9;
-		this.dMax = 11.5;
 		this.fallMax = 11.5;
 		this.dMin = 3;
 		
@@ -766,7 +793,7 @@ class Bunny extends Character {
 
 class Child extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Child`);
+		super(x, y, z, `Child`, 4.7, 3.15, 0.048, 0.06, 75, 157.5);
 		
 		var source = data_sprites.Child;
 		this.texture_walkL = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, true, false, source.walkLeft);
@@ -774,13 +801,10 @@ class Child extends Character {
 		this.texture_jumpL = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, false, false, source.jumpLeft);
 		this.texture_jumpR = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, false, false, source.jumpRight);
 
-		this.gravStrength *= 0.9;
-		this.jumpStrength = 3.14;
-		this.jumpBoostStrength = 0.082;
-		this.speed = 0.048;
-		this.strafeSpeed = this.speed * 1.05;
-		this.dMax = 3.2;
-		this.trueFallMax = 1.13;
+		this.ay *= 0.9;
+		//Why is this not just fallMax? Because fallMax is used for collision - it's the largest value a character is expected to move within a frame.
+		//wacky collision effects will occur since the child's value is super low
+		this.trueFallMax = 1.15;
 
 		this.jumpBuffer = 0;
 		this.coyoteSet = 10;
@@ -801,11 +825,6 @@ class Child extends Character {
 	}
 
 	modifyDerivitives(activeGravity, activeFriction, naturalFriction, activeAX, activeAZ) {
-		//if falling down too fast, make that not happen
-		if (this.dy < -this.trueFallMax) {
-			this.dy = -this.trueFallMax;
-		}
-
 		//decrease bunny boost
 		if (this.bunnyBoost > 1 && this.onGround > 0) {
 			this.bunnyBoost -= this.bunnyDecrease;
@@ -815,33 +834,35 @@ class Child extends Character {
 		}
 		
 		super.modifyDerivitives(activeGravity, activeFriction, naturalFriction, activeAX, activeAZ);
+
+		//if falling down too fast, make that not happen
+		if (this.dy < -this.trueFallMax) {
+			this.dy = -this.trueFallMax;
+		}
 	}
 
 	handleSpace() {
-		if (this.jumpBuffer > 0) {
-			this.jumpBuffer -= 1;
-			if (this.jumpBuffer == 0) {
-				if (this.coyote == 0) {
-					this.coyote = this.coyoteSet;
-				}
-
-				if (this.onGround > 0) {
-					//regular jump effects
-					this.coyote = 0;
-					this.dy = this.jumpStrength * this.bunnyBoost;
-					this.jumpTime = physics_jumpTime;
-					this.onGround = 0;
-
-					//jump boost for jumping soon after hitting the ground
-					this.bunnyBoost += this.bunnyIncrease;
-					if (this.bunnyBoost > this.bunnyBoostMax) {
-						this.bunnyBoost = this.bunnyBoostMax;
-					}
-				}
-
-			}
-		} else {
+		if (this.jumpBuffer <= 0) {
 			this.jumpBuffer = 2;
+			return;
+		}
+
+		this.jumpBuffer -= 1;
+		if (this.jumpBuffer == 0) {
+			if (this.coyote == 0) {
+				this.coyote = this.coyoteSet;
+			}
+
+			if (this.onGround > 0) {
+				//regular jump effects
+				this.coyote = 0;
+				this.dy = this.jumpStrength * this.bunnyBoost;
+				this.jumpTime = physics_jumpTime;
+				this.onGround = 0;
+
+				//jump boost for jumping soon after hitting the ground
+				this.bunnyBoost = Math.min(this.bunnyBoost + this.bunnyIncrease, this.bunnyBoostMax);
+			}
 		}
 	}
 }
@@ -849,12 +870,7 @@ class Child extends Character {
 
 class Duplicator extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Duplicator`);
-
-		this.jumpStrength = 2.85;
-		this.jumpBoostStrength = 0.09;
-		this.speed = 0.11;
-		this.dMax = 3.74;
+		super(x, y, z, `Duplicator`, 5, 5.75, 0.15, 0.13, 45, 120);
 
 		this.duplicates = [];
 		this.duplicatesMax = 10;
@@ -1005,18 +1021,12 @@ class Duplicator extends Character {
 //no thoughts in this brian
 class DuplicatorDuplicate extends Character {
 	constructor(x, y, z, parentDuplicator) {
-		super(x, y, z, `Duplicator`);
-
-		this.jumpStrength = 3;
-		this.jumpBoostStrength = 0.095;
-		this.speed = 0.15;
-		this.dMax = 3.75;
+		super(x, y, z, `Duplicator`, 5.1, 5.77, 0.15, 0.15, 50, 130);
 		this.trueDuplicator = parentDuplicator;
 	}
 
-	//lesser opacity depending on distance
+	//lessen opacity depending on distance
 	beDrawn() {
-		
 		ctx.globalAlpha = clamp(linterp(0.5, 0, (getDistance(this, this.trueDuplicator) / this.trueDuplicator.duplicatesMaxDistance) + 0.1), 0, 0.5);
 		super.beDrawn();
 		ctx.globalAlpha = 1;
@@ -1040,17 +1050,13 @@ class DuplicatorDuplicate extends Character {
 
 class Gentleman extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Gentleman`);
+		super(x, y, z, `Gentleman`, 4.65, 5, 0.05, 0.12, 120, 165);
 
 		this.texture_flyF = new Texture(data_sprites.Gentleman.sheet, data_sprites.spriteSize, 1e1001, false, false, data_sprites.Gentleman.flyForwards);
 		this.texture_flyL = new Texture(data_sprites.Gentleman.sheet, data_sprites.spriteSize, 1e1001, false, false, data_sprites.Gentleman.flySideways);
 		this.texture_flyR = new Texture(data_sprites.Gentleman.sheet, data_sprites.spriteSize, 1e1001, false, true, data_sprites.Gentleman.flySideways);
 
-		this.jumpStrength = 3.6;
-		this.jumpBoostStrength = 0.05;
-		this.speed = 0.05;
-		this.dMax = 3.3;
-		this.dMaxTrue = 4.95;
+		this.dMaxTrue = 8.5;
 		this.naturalFriction = 0.9994;
 
 		this.attracting = undefined;
@@ -1222,28 +1228,18 @@ class Gentleman extends Character {
 
 class Lizard extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Lizard`);
-
-		this.jumpStrength = 4.3;
-		this.jumpBoostStrength = 0.13;
-		this.speed = 0.09;
-		this.dMax = 2.94;
+		super(x, y, z, `Lizard`, 4, 5.25, 0.09, 0.12, 120, 255);
 	}
 }
 
 class Pastafarian extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Pastafarian`);
+		super(x, y, z, `Pastafarian`, 6, 5.25, 0.13, 0.13, 90, 139.5);
 
 		this.texture_walkL = new Texture(data_sprites.Pastafarian.sheet, data_sprites.spriteSize, data_sprites.Pastafarian.frameTime, true, false, data_sprites.Pastafarian.walkLeft);
 		this.texture_walkR = new Texture(data_sprites.Pastafarian.sheet, data_sprites.spriteSize, data_sprites.Pastafarian.frameTime, true, false, data_sprites.Pastafarian.walkRight);
 		this.texture_jumpL = new Texture(data_sprites.Pastafarian.sheet, data_sprites.spriteSize, data_sprites.Pastafarian.frameTime, false, false, data_sprites.Pastafarian.jumpLeft);
 		this.texture_jumpR = new Texture(data_sprites.Pastafarian.sheet, data_sprites.spriteSize, data_sprites.Pastafarian.frameTime, false, false, data_sprites.Pastafarian.jumpRight);
-
-		this.jumpStrength = 4.5;
-		this.jumpBoostStrength = 0;
-		this.speed = 0.13;
-		this.dMax = 3.63;
 		this.fallMax *= 1.05;
 
 		this.personalBridgeStrength = 1;
@@ -1287,21 +1283,17 @@ class Pastafarian extends Character {
 }
 
 
-
 class Runner extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Runner`);
-
-		this.jumpStrength = 2.9;
-		this.jumpBoostStrength = 0.12;
+		super(x, y, z, `Runner`, 5.65, 6.75, 0.12, 0.16, 45, 135);
+		//the runner can strafe faster on the ground
+		this.strafeMaxes = [6.75, 6];
 		this.friction = 0.92;
-		this.speed = 0.12;
-		this.dMax = 4;
 	}
 
 	tick() {
 		//strafe speed is greater on ground
-		this.strafeSpeed = (this.onGround < 0) ? this.speed * 1.3 : this.speed * 2;
+		this.strafeMax = this.strafeMaxes[+(this.onGround < 0)];
 		super.tick();
 	}
 }
@@ -1309,27 +1301,17 @@ class Runner extends Character {
 
 class Skater extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Skater`);
+		super(x, y, z, `Skater`, 9.8, 5.25, 0.07, 0.11, 45, 90);
 
-		this.gravStrength += 0.01;
-		this.jumpStrength = 2.5;
-		this.jumpBoostStrength = 0.065;
-		this.speed = 0.07;
-		this.strafeSpeed = this.speed * 1.6;
-		this.dMax = 11.1;
+		this.abilityTransformTime += 0.01;
 		this.fallMax = this.r * 0.5;
 	}
 }
 
 class Student extends Character {
 	constructor(x, y, z) {
-		super(x, y, z, `Student`);
+		super(x, y, z, `Student`, 4.75, 4.5, 0.1, 0.13, 60, 70);
 
-		this.jumpStrength = 2.2;
-		this.jumpBoostStrength = 0.05;
-		this.speed = 0.10;
-		this.strafeSpeed = this.speed * 1.3;
-		this.dMax = 3.2;
 		this.r -= 2;
 		this.fallMax = 5.5;
 
