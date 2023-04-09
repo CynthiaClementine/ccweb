@@ -247,6 +247,7 @@ var data_sprites = {
 
 	Map: {
 		sheet: getImage('images/mapSprites.png'),
+		map: [[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]],
 		planet: [[0, 0]],
 		crazy: [[1, 0]],
 		battery: [[2, 0]],
@@ -255,6 +256,7 @@ var data_sprites = {
 		onwards: [[5, 0], [6, 0]],
 		snowflakes: [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1]],
 		boxes: [[0, 4], [1, 4]],
+		star: [[7, 1]]
 	},
 
 	Angel: {
