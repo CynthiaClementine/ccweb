@@ -64,6 +64,7 @@
 	outputTunnel();
 	pickNewParent(object, oldParent);
 	placeTunnelSet(setName);
+	playedBefore(cutsceneID);
 
 	power_falseAlarm(powStart, powEnd, time);
 	power_fast(powStart, powEnd, time);
@@ -85,6 +86,7 @@
 	spliceIn();
 	spliceOut();
 	stealAudioConsent();
+	stripTileCoordinates(x, y, z, tunnel);
 	toggleForcedReset();
 
 	tunnel_applyProperty(setPrefix, codeToExecuteSTRING);
@@ -1507,6 +1509,10 @@ function placeTunnelSet(setName) {
 	sortWorldArray();
 }
 
+function playedBefore(cutsceneID) {
+	return data_persistent.effectiveCutscenes.includes(cutsceneID);
+}
+
 
 
 
@@ -1758,6 +1764,22 @@ function stealAudioConsent(a) {
 		}
 		audio_consentRequired = false;
 	}
+}
+
+//given an xyz pos and a tunnel, returns a corresponding coordinates array in integer [strip, tile] form
+function stripTileCoordinates(x, y, z, tunnel) {
+	//get the closest strip
+	var relPos = spaceToRelativeRotless([x, y, z], [tunnel.x, tunnel.y, tunnel.z], [-tunnel.theta, 0]);
+	var firstSideStrip = Math.floor((((Math.atan2(relPos[1], relPos[0]) + (Math.PI * (2 + (1 / tunnel.sides)))) / (Math.PI * 2)) % 1) * tunnel.sides);
+	firstSideStrip = modulate(firstSideStrip * tunnel.tilesPerSide, tunnel.sides * tunnel.tilesPerSide);
+
+	//center strip offset is the number of the strip that the coordinates are on top of
+	var trueStrip = Math.floor((spaceToRelativeRotless([x, y, z], tunnel.strips[firstSideStrip].pos, tunnel.strips[firstSideStrip].normal)[1] / tunnel.tileSize) + 0.5);
+	trueStrip = clamp(trueStrip + firstSideStrip, firstSideStrip, firstSideStrip + tunnel.tilesPerSide - 1);
+	//get the closest tile
+	var selfTile = Math.floor(relPos[2] / tunnel.tileSize);
+
+	return [trueStrip, selfTile];
 }
 
 function toggleForcedReset(value) {
