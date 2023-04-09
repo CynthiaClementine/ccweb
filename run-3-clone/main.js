@@ -85,7 +85,7 @@ const color_grey_lightest = "#FEF";
 const color_ice = "#D1E4E6";
 const color_keyPress = "#8FC";
 const color_keyUp = "#666";
-const color_map_bg = "#FEA";
+const color_map_bg = "#FEB";
 const color_map_bg_dark = "#DCC";
 const color_map_writing = "#010";
 const color_menuSelectionOutline = "#88F";
@@ -239,8 +239,8 @@ var physics_crumblingShrinkStart = 50;
 var physics_crumblingShrinkTime = 150;
 var physics_graceTime = 6;
 var physics_graceTimeRamp = 10;
-var physics_gravity = 0.13;
-var physics_jumpTime = 30;
+var physics_gravity = 0.15; //0.13
+var physics_jumpTime = 20;
 var physics_maxBridgeDistance = 350;
 
 let player;
@@ -733,6 +733,7 @@ function handleKeyNegate_player(a) {
 		case 'arrowup':
 		case ' ':
 			controls_spacePressed = false;
+			player.jumpTime = 0;
 			break;
 	}
 }
