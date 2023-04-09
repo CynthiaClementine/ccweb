@@ -261,7 +261,10 @@ class Tile extends FreePoly {
 	doRotationEffects(entity) {
 		var cameraRotAttempt;
 		//if player is jumping, keep their relative velocity
-		var newDy = Math.cos(modularDifference(entity.dir_down[1], this.dir_down[1], Math.PI * 2)) * entity.dy;
+		//relative velocity is calculated by looking at the dot product, because it's tells how much the vectors align
+		var cart1 = polToCart(this.dir_down[0], this.dir_down[1], 1);
+		var cart2 = polToCart(entity.dir_down[0], entity.dir_down[1], 1);
+		var newDy = (cart1[0] * cart2[0] + cart1[1] * cart2[1] + cart1[2] * cart2[2]) * entity.dy;
 		entity.dy = ((newDy > 0.5) * newDy) || -1;
 
 		entity.dir_front = [(Math.PI * 2) - this.parent.theta + (Math.PI * player.backwards), 0];
@@ -333,28 +336,27 @@ class Tile_Box extends Tile {
 		*/
 		
 		this.points = points;
-		//TODO: these polys are misnamed, fix that
 		this.polys = {
-			"uu": new FreePoly([points[0], points[1], points[2], points[3]], this.color),
-			"ub": new FreePoly([points[0], points[1], points[9], points[8]], this.color),
-			"uf": new FreePoly([points[3], points[2], points[10], points[11]], this.color),
-			"ul": new FreePoly([points[1], points[2], points[10], points[9]], this.color),
-			"ur": new FreePoly([points[0], points[3], points[11], points[8]], this.color),
+			"uu": new FreePoly([points[4], points[5], points[6], points[7]], this.color),
+			"ub": new FreePoly([points[4], points[5], points[9], points[8]], this.color),
+			"uf": new FreePoly([points[7], points[6], points[10], points[11]], this.color),
+			"ul": new FreePoly([points[5], points[6], points[10], points[9]], this.color),
+			"ur": new FreePoly([points[4], points[7], points[11], points[8]], this.color),
 
-			"dd": new FreePoly([points[4], points[5], points[6], points[7]], this.color),
-			"db": new FreePoly([points[4], points[5], points[9], points[8]], this.color),
-			"df": new FreePoly([points[7], points[6], points[10], points[11]], this.color),
-			"dl": new FreePoly([points[5], points[6], points[10], points[9]], this.color),
-			"dr": new FreePoly([points[4], points[7], points[11], points[8]], this.color),
+			"dd": new FreePoly([points[0], points[1], points[2], points[3]], this.color),
+			"db": new FreePoly([points[0], points[1], points[9], points[8]], this.color),
+			"df": new FreePoly([points[3], points[2], points[10], points[11]], this.color),
+			"dl": new FreePoly([points[1], points[2], points[10], points[9]], this.color),
+			"dr": new FreePoly([points[0], points[3], points[11], points[8]], this.color),
 		}
 		var h = this.polys;
 
 		//I am aware that putting the front and back faces first for insertion may create more clipping planes. However, the player can't be clipped, 
 		//and therefore I don't want a lot of planes to intersect them. Putting the planes that the player will generally be perpendicular to first
 		//means that the player won't be clipped through a plane as often, causing errors less often.
-		this.drawPolysIn = [h["uf"], h["ub"], h["ul"], h["ur"], h["uu"]];
+		this.drawPolysIn = [h["df"], h["db"], h["dl"], h["dr"], h["dd"]];
 		this.drawPolysIn.forEach(a => {a.calculateNormal();});
-		this.drawPolysOut = [h["df"], h["db"], h["dl"], h["dr"], h["dd"]];
+		this.drawPolysOut = [h["uf"], h["ub"], h["ul"], h["ur"], h["uu"]];
 		this.drawPolysOut.forEach(a => {a.calculateNormal();});
 		
 		this.dir_right = [this.normal[0], this.normal[1] + (Math.PI / 2)];
@@ -429,16 +431,29 @@ class Tile_Box extends Tile {
 				if (distX > distY && distX > distZ) {
 					this.collide_forwardsBackwards(entity, entityCoords);
 				} else {
+					var st = stripTileCoordinates(this.polys["ub"].x, this.polys["ub"].y, this.polys["ub"].z, this.parent);
+					var totalLen = this.parent.sides * this.parent.tilesPerSide;
+					//check to make sure colliding with the sides is even allowed - if there's another normal box there, the sides will be unreachable
+					var sideReachable = true;
+					var sideCheck = boolToSigned(entityCoords[1] > 0);
+					if (this.parent.tiles[modulate(st[0] + sideCheck, totalLen)][st[1]] != undefined) {
+						sideReachable = (this.parent.tiles[modulate(st[0]+sideCheck, totalLen)][st[1]].constructor.name != "Tile_Box");
+					}
+
 					//which side of collision should take priority? That depends on how the player is falling.
 					//try to keep the player on the SAME SIDE as they're currently on, no auto-rotating
 					var betweenAngle = modularDifference(player.dir_down[1], this.dir_down[1], Math.PI * 2);
-					if (betweenAngle < Math.PI * 0.26 && entityCoords[2] + player.r > distY) {
+					if (!sideReachable || (betweenAngle < Math.PI * 0.26 && entityCoords[2] + player.r > distY)) {
+						//player is on top face
 						this.collide_upDown(entity, entityCoords);
 					} else if (betweenAngle > Math.PI * 0.75 && -entityCoords[2] + player.r > distY) {
+						//player is on bottom face
 						this.collide_upDown(entity, entityCoords);
 					} else if (distY + player.r > distZ) {
+						//player has the sides
 						this.collide_leftRight(entity, entityCoords);
 					} else {
+						//if all else fails, try top/bottom, because it's better to put the player there then have them do wacky side shenanigans
 						this.collide_upDown(entity, entityCoords);
 					}
 				}
@@ -549,7 +564,6 @@ class Tile_Box extends Tile {
 				p.cameraDist = this.cameraDist;
 				p.playerDist = this.playerDist;
 			});
-
 			this.drawPolysOut.forEach(p => {
 				p.cameraDist = this.cameraDist;
 				p.playerDist = this.playerDist;
