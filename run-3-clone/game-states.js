@@ -109,10 +109,6 @@ class State_World {
 				if (this.toPause) {
 					this.toPause = false;
 					this.substate = 1;
-					ctx.lineWidth = canvas.height / 240;
-					//play button
-					drawTriangle(canvas.width * 0.03, canvas.height * 0.05, canvas.height * 0.04, 0);
-					ctx.stroke();
 					return;
 				}
 				
@@ -134,7 +130,14 @@ class State_World {
 				ctx.fillStyle = color_text_bright;
 				ctx.font = `${canvas.height / 15}px Comfortaa`;
 				ctx.textAlign = "center";
-				ctx.fillText((player.parent || {id: "Space"}).id, canvas.width * 0.5, canvas.height * 0.08);
+				ctx.fillText((player.parent || {id: "Space"}).id, canvas.width * 0.5, canvas.height * 0.06);
+
+				//play button
+				ctx.fillStyle = color_grey_light;
+				ctx.strokeStyle = color_grey_dark;
+				ctx.lineWidth = canvas.height / 240;
+				drawTriangle(canvas.width * 0.03, canvas.height * 0.05, canvas.height * 0.04, 0);
+				ctx.stroke();
 				break;
 			case 3:
 				//drawing rejection text
@@ -1055,6 +1058,7 @@ class State_Game extends State_World {
 		super();
 		this.readFrom = world_objects;
 		this.isMainGame = true;
+		this.mapIcon = new Texture(data_sprites.Map.sheet, data_sprites.spriteSize * 2, 1e1001, false, false, [data_sprites.Map.map[2]]);
 
 		this.orderWorld();
 	}
@@ -1075,6 +1079,9 @@ class State_Game extends State_World {
 				drawArrow((canvas.width * 0.5) - (canvas.width * 0.04) + (canvas.width * 0.08 * player.backwards), canvas.height * 0.94, color_grey_light, Math.PI * player.backwards, canvas.width * 0.045, canvas.width * 0.025, canvas.height * 0.03, canvas.height * 0.06);
 				ctx.lineWidth = 2;
 			}
+
+			//draw map icon
+			this.mapIcon.beDrawn(canvas.width * 0.945, canvas.height * 0.055, 0, canvas.height * 0.14);
 		}
 	}
 
@@ -1117,6 +1124,12 @@ class State_Game extends State_World {
 				this.toPause = true;
 				this.execute();
 				return;
+			}
+
+			//map interact
+			if (cursor_x > canvas.width * 0.86 && cursor_y < canvas.height * 0.13) {
+				loading_state = new State_Map();
+				loading_state.doWorldEffects();
 			}
 		}
 	}
@@ -1446,17 +1459,44 @@ class State_Map {
 		this.cursorPos = [-100, -100];
 		this.cutsceneIcons = [
 			new MapTexture(-6075, -224119, data_sprites.Map.planet, 'planetMissing', `true`),
-			new MapTexture(28349, -89119, data_sprites.Map.crazy, 'insanity', `data_persistent.effectiveCutscenes.includes('insanity')`),
+			new MapTexture(28349, -89119, data_sprites.Map.crazy, 'insanity', `playedBefore('insanity')`),
 			new MapTexture(18900, -22720, [[2,0]], 'studentTeacher', `getObjectFromID("U-2").discovered`),
 			new MapTexture(-25200, 13030, data_sprites.Map.teapot, 'teapot', `getObjectFromID("A-3").discovered`),
 			new MapTexture(8775, -137381, data_sprites.Map.batteryName, 'batteries', `getObjectFromID("Winter Games, Part 2").discovered`),
-			new MapTexture(-38812, 65118, [data_sprites.Map.onwards[0]], 'theGap', `(data_persistent.effectiveCutscenes.includes('wormholeInSight') && data_persistent.effectiveCutscenes.includes('boring'));`),
-			new MapTexture(-38812, 84029, [data_sprites.Map.onwards[1]], 'theGap', `(data_persistent.effectiveCutscenes.includes('wormholeInSight') && data_persistent.effectiveCutscenes.includes('boring'));`),
+			new MapTexture(-38812, 65118, [data_sprites.Map.onwards[0]], 'theGap', `(playedBefore('wormholeInSight') && playedBefore('boring'));`),
+			new MapTexture(-38812, 84029, [data_sprites.Map.onwards[1]], 'theGap', `(playedBefore('wormholeInSight') && playedBefore('boring'));`),
+			
+			//snowflakes
 			new MapTexture(78975, -177207, [data_sprites.Map.snowflakes[0]], undefined, `getObjectFromID("Winter Games, Part 14").discovered`),
 			new MapTexture(1350, -118144, [data_sprites.Map.snowflakes[1]], undefined, `getObjectFromID("Winter Games, Part 7").discovered`),
 			new MapTexture(20925, -114769, [data_sprites.Map.snowflakes[2]], undefined, `getObjectFromID("Winter Games, Part 7").discovered`),
 			new MapTexture(63112, -149194, [data_sprites.Map.snowflakes[3]], undefined, `getObjectFromID("Winter Games, Part 11").discovered`),
 			new MapTexture(46575, -126244, [data_sprites.Map.snowflakes[4]], undefined, `getObjectFromID("Winter Games, Part 7").discovered`),
+
+			//tunnel set end stars
+			new MapTexture(-36898, 21400, data_sprites.Map.star, `boring`, `playedBefore('boring')`),
+			new MapTexture(-32098, -115100, data_sprites.Map.star, `candy`, `playedBefore('candy')`),
+			new MapTexture(8768, 114705, data_sprites.Map.star, `changeTheSubject`, `playedBefore('changeTheSubject')`),
+			new MapTexture(-81598, -173000, data_sprites.Map.star, `conspiracy`, `playedBefore('conspiracy')`),
+			new MapTexture(39902, 106000, data_sprites.Map.star, `dontKnockIt`, `playedBefore('dontKnockIt')`),
+			new MapTexture(139201, -171300, data_sprites.Map.star, `goldMedal`, `playedBefore('goldMedal')`),
+			new MapTexture(-66532, -86900, data_sprites.Map.star, `grandOpening`, `playedBefore('grandOpening')`),
+			new MapTexture(56168, -23600, data_sprites.Map.star, `inflation`, `playedBefore('inflation')`),
+			new MapTexture(-69832, 12400, data_sprites.Map.star, `myTurn`, `playedBefore('myTurn')`),
+			new MapTexture(125468, -111500, data_sprites.Map.star, `naming`, `playedBefore('naming')`),
+			new MapTexture(73268, -114500, data_sprites.Map.star, `niceToMeetYou`, `playedBefore('niceToMeetYou')`),
+			new MapTexture(75368, -27500, data_sprites.Map.star, `orbits`, `playedBefore('orbits')`),
+			new MapTexture(57068, -67100, data_sprites.Map.star, `socraticMethod`, `playedBefore('socraticMethod')`),
+			new MapTexture(-74632, -87500, data_sprites.Map.star, `thanksForPlaytesting`, `playedBefore('thanksForPlaytesting')`),
+			new MapTexture(18968, 142422, data_sprites.Map.star, `wormholeInSight`, `playedBefore('wormholeInSight')`),
+
+			new MapTexture(-2332, 161473, data_sprites.Map.star, `fame`, `playedBefore('fame')`),
+			new MapTexture(-36832, 192973, data_sprites.Map.star, `truancy`, `playedBefore('truancy')`),
+
+			new MapTexture(28268, -250400, data_sprites.Map.star, `ABCD`, `playedBefore('ABCD')`),
+			new MapTexture(20768, -159200, data_sprites.Map.star, `obvious`, `playedBefore('obvious')`),
+			new MapTexture(63068, -200900, data_sprites.Map.star, `sneaking`, `playedBefore('sneaking')`),
+			new MapTexture(77468, -267800, data_sprites.Map.star, `stopSolvingProblems`, `playedBefore('stopSolvingProblems')`)
 		];
 		this.boxIcon_lower = new Texture(data_sprites.Map.sheet, data_sprites.spriteSize * 2, 1e1001, false, false, [data_sprites.Map.boxes[1]]);
 		this.boxIcon_tunnel = new Texture(data_sprites.Map.sheet, data_sprites.spriteSize * 2, 1e1001, false, false, [data_sprites.Map.boxes[0]]);
@@ -1475,7 +1515,8 @@ class State_Map {
 	}
 
 	doWorldEffects() {
-		world_camera.x = 0;
+		//offset X to center the map more
+		world_camera.x = 10000;
 		world_camera.y = map_height;
 		world_camera.z = map_zStorage;
 
@@ -1567,7 +1608,7 @@ class State_Map {
 			}
 
 			//if the camera is moving, update what the user has selected
-			if (!editor_active && Math.abs(world_camera.targetZ - world_camera.z) > 1) {
+			if (!editor_active && (Math.abs(world_camera.targetZ - world_camera.z) > 1 || Math.abs(this.mouseChangeZ) > 0)) {
 				this.cursorPos = [-100, -100];
 				this.objSelected = undefined;
 				this.selectMapObject();
@@ -2369,7 +2410,45 @@ class State_Menu {
 		}
 	}
 
-	handleKeyNegate(a) {
+	handleKeyNegate(a) {}
+}
+
+class State_Menu_Achievements {
+	constructor() {
 
 	}
+
+	handleKeyNegate(a) {}
+}
+
+class State_Menu_Credits {
+	constructor() {
+
+	}
+
+	handleKeyNegate(a) {}
+}
+
+class State_Menu_Cutscenes {
+	constructor() {
+
+	}
+
+	handleKeyNegate(a) {}
+}
+
+class State_Menu_Leaderboards {
+	constructor() {
+
+	}
+
+	handleKeyNegate(a) {}
+}
+
+class State_Menu_Settings {
+	constructor() {
+
+	}
+
+	handleKeyNegate(a) {}
 }
