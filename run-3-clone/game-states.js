@@ -15,7 +15,7 @@ class State_World {
 
 		//make sure to switch into substate 3 if the player is in a bad tunnel
 		if (player.parentPrev != undefined) {
-			if (player.parentPrev.bannedCharacters[player.constructor.name] != undefined) {
+			if (player.parentPrev.bannedCharacters[player.id] != undefined) {
 				this.substate = 3;
 			}
 		}
@@ -157,9 +157,9 @@ class State_World {
 				var targetWidth = 0.75 * canvas.width;
 				var targetText = "";
 
-				if (eval(player.parentPrev.bannedCharacters[player.constructor.name]) != undefined) {
+				if (eval(player.parentPrev.bannedCharacters[player.id]) != undefined) {
 					ctx.fillText(`Exit to the map or choose a different character to continue.`, canvas.width * 0.5, canvas.height * 0.5)
-					targetText = eval(player.parentPrev.bannedCharacters[player.constructor.name]);
+					targetText = eval(player.parentPrev.bannedCharacters[player.id]);
 					//resize font based on text size
 					ctx.font = `${Math.floor(textSize * (targetWidth / ctx.measureText(targetText).width))}px Comfortaa`;
 					ctx.fillText(targetText, canvas.width * 0.5, canvas.height * 0.4);
@@ -201,7 +201,7 @@ class State_World {
 		player.parentPrev = player.parent;
 
 		//reset all nearby objects if they're a pastafarian
-		if (player.constructor.name == "Pastafarian") {
+		if (player.id == "Pastafarian") {
 			this.nearObjs.forEach(t => {
 				t.resetWithoutPlayer();
 			});
@@ -229,7 +229,7 @@ class State_World {
 		this.textTime = tunnel_textTime;
 
 		//switch state if in an invalid tunnel
-		if (player.parent.bannedCharacters[player.constructor.name] != undefined) {
+		if (player.parent.bannedCharacters[player.id] != undefined) {
 			this.substate = 3;
 		}
 	}
@@ -246,7 +246,7 @@ class State_World {
 				this.textTime = tunnel_textTime;
 
 				//switch state if in an invalid tunnel
-				if (player.parent.bannedCharacters[player.constructor.name] != undefined) {
+				if (player.parent.bannedCharacters[player.id] != undefined) {
 					this.substate = 3;
 				}
 				return;
@@ -345,34 +345,18 @@ class State_World {
 		}
 
 		handleKeyPress_player(a);
-		switch(a.key.toLowerCase()) {
-			// w / ^ / space
-			case 'w':
-			case 'arrowup':
-			case ' ':
-				if (!controls_spacePressed) {
-					//if it's infinite mode, restart
-					if (loading_state.constructor.name == "State_Infinite" && this.substate == 2) {
-						this.pushScoreToLeaderboard();
-						loading_state = new State_Infinite();
-						loading_state.doWorldEffects();
-					}
-				}
-				break;
-			case 'enter':
-				//enter, return to 0 state
-				if (this.substate == 1) {
-					this.substate = 0;
-				}
-				break;
+
+		//enter, return to main state
+		if (this.substate == 1 && a.key.toLowerCase() == 'enter') {
+			this.substate = 0;
 		}
 	}
 
 	handleKeyNegate(a) {
-		if (!editor_active) {
-			handleKeyNegate_player(a);
-		} else {
+		if (editor_active) {
 			handleKeyNegate_camera(a);
+		} else {
+			handleKeyNegate_player(a);
 		}
 	}
 }
@@ -393,7 +377,7 @@ class State_Challenge extends State_World {
 		this.addTextToQueue();
 
 		//place player
-		this.oldPlayerType = data_characters.map[player.constructor.name];
+		this.oldPlayerType = data_characters.map[player.id];
 		this.targetParent = getObjectFromID(this.data[this.line].level);
 		this.placePlayer();
 	}
@@ -1151,6 +1135,10 @@ class State_Infinite extends State_World {
 		this.time = 0;
 		this.distance = 0;
 		this.powercells = 0;
+		this.powercellsRequired = 0;
+
+		this.grace = 60;
+		this.graceMax = 60;
 
 		this.characterData = {};
 
@@ -1205,12 +1193,12 @@ class State_Infinite extends State_World {
 		player.dy = 0.3;
 
 		//add player's type to data object
-		this.characterData[player.constructor.name] = {
+		this.characterData[player.id] = {
 			distance: 0,
 			powercells: 0,
 			time: 0
 		};
-		this.charactersUsed.push(player.constructor.name);
+		this.charactersUsed.push(player.id);
 
 		//make sure the tunnel is marked as visited
 		this.makeVisited(+player.parentPrev.id.slice(3));
@@ -1253,14 +1241,14 @@ class State_Infinite extends State_World {
 					//max is used so that going backwards doesn't count
 					var difference = Math.max(0, (newPlayerPos[1] - this.lastPlayerPos[1]));
 					this.distance += difference / 30;
-					this.characterData[player.constructor.name].distance += difference / 30;
+					this.characterData[player.id].distance += difference / 30;
 				}
 				this.lastPlayerPos[0] = player.parentPrev;
 				this.lastPlayerPos[1] = newPlayerPos[1];
 
 				//calculate time
 				this.time += 1;
-				this.characterData[player.constructor.name].time += 1;
+				this.characterData[player.id].time += 1;
 
 				super.execute();
 				//drawing stats text
@@ -1292,20 +1280,46 @@ class State_Infinite extends State_World {
 					drawInfiniteEndScreen();
 					this.drawEnding = false;
 				}
+				if (this.grace > 0) {
+					this.grace -= 1;
+				}
+		}
+	}
+
+	handleKeyPress(a) {
+		super.handleKeyPress(a);
+		//if space is being pressed and it's the end screen, restart (after a grace period to avoid accidental restarts)
+		if (this.substate != 2 || this.grace > 0) {
+			return;
+		}
+		var lowe = a.key.toLowerCase();
+		if (lowe == 'w' || lowe == 'arrowup' || lowe == ' ') {
+			this.finishInfiniteRun();
 		}
 	}
 
 	handlePlayerDeath() {
 		if (this.distance > 20) {
 			this.substate = 2;
-			data_persistent.powercells += this.characterData[player.constructor.name].powercells;
+			data_persistent.powercells += this.characterData[player.id].powercells;
+			//check number required
+			this.powercellsRequired = 5 * (2 ** this.charactersUsed.length) - 5;
 		} else {
 			super.handlePlayerDeath();
 			data_persistent.deathsE -= 1;
 			this.distance = 0;
 			this.lastPlayerPos = [player.x - player.parentPrev.x, player.z - player.parentPrev.z];
-			this.characterData[player.constructor.name].distance = 0;
+			this.characterData[player.id].distance = 0;
 		}
+	}
+
+	finishInfiniteRun() {
+		this.grace = this.graceMax;
+		//reset player back to the first character they used
+		replacePlayer(data_characters.map[this.charactersUsed[0]]);
+		this.pushScoreToLeaderboard();
+		loading_state = new State_Infinite();
+		loading_state.doWorldEffects();
 	}
 
 
@@ -1318,9 +1332,7 @@ class State_Infinite extends State_World {
 				loading_state = new State_Menu();
 				break;
 			case 2:
-				this.pushScoreToLeaderboard();
-				loading_state = new State_Infinite();
-				loading_state.doWorldEffects();
+				this.finishInfiniteRun();
 				break;
 		}
 	}
@@ -1330,6 +1342,17 @@ class State_Infinite extends State_World {
 		if (this.substate == 2) {
 			//updating cursor position
 			updateCursorPos(a);
+
+			//if outside of the box start a new run
+			if (Math.abs(cursor_x - canvas.width * 0.5) > canvas.width * 0.4 || Math.abs(cursor_y - canvas.height * 0.5) > canvas.height * 0.4) {
+				this.finishInfiniteRun();
+				return;
+			}
+
+			//can only choose a new player if there are enough powercells
+			if (this.powercells < this.powercellsRequired) {
+				return;
+			}
 
 			//getting character order to choose from them
 			var characterList = [];
@@ -1347,13 +1370,14 @@ class State_Infinite extends State_World {
 				var offY = canvas.height * 0.25 * Math.floor(a / 5);
 				var offX = canvas.width * 0.6 * ((a % 5) / 5);
 
-				//only continue if the character
+				//only continue if the character exists and is unlocked
 				if (textures_common[data_characters.map[characterList[a]]] != undefined && data_persistent.unlocked.includes(characterList[a])) {
 					//if the player has clicked on the box for the character, send them into the infinite mode thingy again
 					if (cursor_x > (canvas.width * 0.35) + offX - menu_characterSize && cursor_x < (canvas.width * 0.35) + offX + menu_characterSize && 
 						cursor_y > (canvas.height * 0.13) + offY && cursor_y < (canvas.height * 0.13) + offY + (menu_characterSize * 2)) {
 						this.drawEnding = true;
-						player = eval(`new ${characterList[a]}(${player.x}, ${player.y}, ${player.z})`); 
+						player = eval(`new ${characterList[a]}(${player.x}, ${player.y}, ${player.z})`);
+						this.powercells -= this.powercellsRequired;
 						this.placePlayer();
 					}
 				}
@@ -2043,40 +2067,20 @@ class State_Menu {
 		this.characterSelected = 0;
 		this.displayCharacterSelected = 0;
 
+		this.displayCostumeSelected = costumes_active;
+
 		//switch character selected
 		for (var t=0; t<data_characters.indexes.length; t++) {
-			if (player.constructor.name == data_characters.indexes[t]) {
+			if (player.id == data_characters.indexes[t]) {
 				this.characterSelected = t;
 				this.displayCharacterSelected = t;
 			}
 		}
-		this.substate = 0;
-		this.nodeSelected = undefined;
-		this.readFrom = [];
 
-		//settings for settings menu
-		this.settings = [
-			new PropertySlider(0.05, 0.15 + (0 * menu_propertyHeight), 0.4, 0.2, 'music volume', `audio_channel1.volume = value;`, `audio_channel1.volume`, 0, 1, 0.01, false),
-			new PropertySlider(0.05, 0.15 + (1 * menu_propertyHeight), 0.4, 0.2, 'effects volume', `audio_channel2.volume = value;`, `audio_channel2.volume`, 0, 1, 0.01, false),
-			
-			new PropertyToggle(0.05, 0.15 + (3 * menu_propertyHeight), 0.4, `high resolution`, `data_persistent.settings.highResolution`),
-			new PropertyToggle(0.05, 0.15 + (4 * menu_propertyHeight), 0.4, `anti-aliasing for sprites`, `data_persistent.settings.antiAlias`),
-			new PropertyToggle(0.05, 0.15 + (5 * menu_propertyHeight), 0.4, `precise tunnel rendering`, `data_persistent.settings.altRender`),
-			new PropertyToggle(0.05, 0.15 + (6 * menu_propertyHeight), 0.4, `render every other frame`, `data_persistent.settings.halfRender`),
-			new PropertyToggle(0.05, 0.15 + (7 * menu_propertyHeight), 0.4, `alternate camera rotation`, `data_persistent.settings.altCamera`),
-
-			new PropertyToggle(0.525, 0.15 + (3 * menu_propertyHeight), 0.4, `editor - show polygon outlines`, `data_persistent.settings.enableOutlines`),
-			new PropertyToggle(0.525, 0.15 + (4 * menu_propertyHeight), 0.4, `editor - show light bridge tiles`, `data_persistent.settings.pastaView`),
-			new PropertyToggle(0.525, 0.15 + (5 * menu_propertyHeight), 0.4, `editor - use gimbal camera`, `data_persistent.settings.gimbal`),
-			new PropertyToggle(0.525, 0.15 + (6 * menu_propertyHeight), 0.4, `editor - show entrance warning`, `data_persistent.settings.eWarn`),
-
-			new PropertyToggle(0.525, 0.15 + (0 * menu_propertyHeight), 0.4, `contain mouse inputs to canvas`, `data_persistent.settings.maskCursor`),
-
-		];
 		this.buttons = [
-			new PropertyButton(0.5, menu_ringHeight - (menu_buttonHeight * 2), menu_buttonWidth, menu_buttonHeight, "Infinite Mode", `loading_state = new State_Infinite(); loading_state.doWorldEffects();`),
+			new PropertyButton(0.5, menu_ringHeight - (menu_buttonHeight * 1.5), menu_buttonWidth, menu_buttonHeight, "Infinite Mode", `loading_state = new State_Infinite(); loading_state.doWorldEffects();`),
 			new PropertyButton(0.5, menu_ringHeight   						 , menu_buttonWidth, menu_buttonHeight, "Explore Mode", `loading_state = new State_Map(); loading_state.doWorldEffects();`),
-			new PropertyButton(0.5, menu_ringHeight + (menu_buttonHeight * 2), menu_buttonWidth, menu_buttonHeight, "Edit Mode", `loading_state.exitToEdit();`),
+			new PropertyButton(0.5, menu_ringHeight + (menu_buttonHeight * 1.5), menu_buttonWidth, menu_buttonHeight, "Edit Mode", `loading_state.exitToEdit();`),
 		];
 		this.readFrom = orderObjects(world_objects, 6);
 
@@ -2100,355 +2104,437 @@ class State_Menu {
 		ctx.fillStyle = color_bg;
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-		//back button in case of non-main states
-		if (this.substate > 0) {
-			drawArrow(canvas.width * 0.08, canvas.height * 0.05, color_grey_light, Math.PI, canvas.width * 0.04, canvas.width * 0.02, canvas.height * 0.02, canvas.height * 0.04);
+		//swivel display character
+		this.displayCharacterSelected = ((this.displayCharacterSelected * (render_animSteps - 1)) + this.characterSelected) / render_animSteps;
+
+		//selection box for username
+		drawSelectionBox(canvas.width * ((player_maxNameWidth / 2) + 0.02), canvas.height * 0.0375, canvas.width * (player_maxNameWidth + 0.02), canvas.height * 0.055);
+
+		//title card
+		ctx.font = `${canvas.height / 8}px Comfortaa`;
+		ctx.textAlign = `center`;
+		ctx.fillStyle = color_text_bright;
+		ctx.fillText(`Run 3`, canvas.width * 0.5, canvas.height * 0.09);
+
+		//name + powercell readout
+		ctx.font = `${canvas.height / 32}px Comfortaa`;
+		ctx.textAlign = `left`;
+
+		ctx.fillText(data_persistent.name, canvas.width * 0.02, canvas.height * 0.04);
+		ctx.fillText(`${data_persistent.powercells} power cells`, canvas.width * 0.02, canvas.height * 0.09);
+		ctx.textAlign = `center`;
+		
+		ctx.strokeStyle = color_grey_dark;
+		this.buttons.forEach(b => {
+			b.tick();
+			b.beDrawn();
+		});
+
+		//lower left buttons
+		for (var b=0; b<4; b++) {
+			drawTile2d((canvas.width * 0.01) + (canvas.width * (b * 0.07)), canvas.height - (canvas.width * 0.07), canvas.width * 0.06, 40 + b);
 		}
 
+		//drawing characters
 
-		switch (this.substate) {
-			case 0:
-				//swivel display character
-				this.displayCharacterSelected = ((this.displayCharacterSelected * (render_animSteps - 1)) + this.characterSelected) / render_animSteps;
+		//selection box
+		var offCoords = polToXY(canvas.width / 2, canvas.height * menu_ringHeight, (Math.PI * 2 * (this.displayCharacterSelected / data_characters.indexes.length)) - (Math.PI * 0.5), menu_characterCircleRadius * canvas.height);
+		drawSelectionBox(offCoords[0], offCoords[1] - 5, menu_characterSize * 2, menu_characterSize * 2);
 
-				//selection box for username
-				drawSelectionBox(canvas.width * ((player_maxNameWidth / 2) + 0.02), canvas.height * 0.0375, canvas.width * (player_maxNameWidth + 0.02), canvas.height * 0.055);
+		for (var h=0; h<data_characters.indexes.length; h++) {
+			offCoords = polToXY(canvas.width / 2, canvas.height * menu_ringHeight, (Math.PI * 2 * (h / data_characters.indexes.length)) - (Math.PI * 0.5), menu_characterCircleRadius * canvas.height);
+			//character texture
+			textures_common[h].frame = +(modularDifference(this.displayCharacterSelected, h, data_characters.indexes.length) < 0.5 && data_persistent.unlocked.includes(data_characters.indexes[h]));
+			textures_common[h].beDrawn(offCoords[0], offCoords[1], 0, menu_characterSize * 1.7);
+			if (!data_persistent.unlocked.includes(data_characters.indexes[h])) {
+				drawLock(offCoords[0], offCoords[1] - (menu_characterSize * 0.25), menu_characterSize, menu_characterSize);
+			}
+		}
 
-				//title card
-				ctx.font = `${canvas.height / 8}px Comfortaa`;
-				ctx.textAlign = `center`;
-				ctx.fillStyle = color_text_bright;
-				ctx.fillText(`Run 3`, canvas.width * 0.5, canvas.height * 0.09);
+		//drawing character text, if there is any
+		if (this.characterTextTime > 0) {
+			this.characterTextTime -= 1;
 
-				//name + powercell readout
-				ctx.font = `${canvas.height / 32}px Comfortaa`;
-				ctx.textAlign = `left`;
+			ctx.globalAlpha = 1 - Math.pow(1.8 * (this.characterTextTime / menu_characterTextTime) - 1, 10);
+			//box
+			ctx.fillStyle = color_grey_dark;
+			ctx.strokeStyle = color_grey_dark;
+			drawRoundedRectangle(canvas.width * (0.5 - (menu_characterTextWidth / 2)), canvas.height * 0.74, canvas.width * menu_characterTextWidth, canvas.height * (0.01 + (0.03 * this.characterTextObj.processedContent.length)), canvas.height / 96);
 
-				ctx.fillText(data_persistent.name, canvas.width * 0.02, canvas.height * 0.04);
-				ctx.fillText(`${data_persistent.powercells} power cells`, canvas.width * 0.02, canvas.height * 0.09);
-				ctx.textAlign = `center`;
-				
-				ctx.strokeStyle = color_grey_dark;
-				this.buttons.forEach(b => {
-					b.tick();
-					b.beDrawn();
-				});
+			//text
+			this.characterTextObj.beDrawn();
+			ctx.globalAlpha = 1;
+		}
 
-				//lower left buttons
-				for (var b=0; b<4; b++) {
-					drawTile2d((canvas.width * 0.01) + (canvas.width * (b * 0.07)), canvas.height - (canvas.width * 0.07), canvas.width * 0.06, 40 + b);
-				}
-
-				//drawing characters
-
-				//selection box
-				var offCoords = polToXY(canvas.width / 2, canvas.height * menu_ringHeight, (Math.PI * 2 * (this.displayCharacterSelected / data_characters.indexes.length)) - (Math.PI * 0.5), menu_characterCircleRadius * canvas.height);
-				drawSelectionBox(offCoords[0], offCoords[1] - 5, menu_characterSize * 2, menu_characterSize * 2);
-
-				for (var h=0; h<data_characters.indexes.length; h++) {
-					offCoords = polToXY(canvas.width / 2, canvas.height * menu_ringHeight, (Math.PI * 2 * (h / data_characters.indexes.length)) - (Math.PI * 0.5), menu_characterCircleRadius * canvas.height);
-					//character texture
-					textures_common[h].frame = +(modularDifference(this.displayCharacterSelected, h, data_characters.indexes.length) < 0.5 && data_persistent.unlocked.includes(data_characters.indexes[h]));
-					textures_common[h].beDrawn(offCoords[0], offCoords[1], 0, menu_characterSize * 1.7);
-					if (!data_persistent.unlocked.includes(data_characters.indexes[h])) {
-						drawLock(offCoords[0], offCoords[1] - (menu_characterSize * 0.25), menu_characterSize, menu_characterSize);
-					}
-				}
-
-				//drawing character text, if there is any
-				if (this.characterTextTime > 0) {
-					this.characterTextTime -= 1;
-
-					ctx.globalAlpha = 1 - Math.pow(1.8 * (this.characterTextTime / menu_characterTextTime) - 1, 10);
-					//box
-					ctx.fillStyle = color_grey_dark;
-					ctx.strokeStyle = color_grey_dark;
-					drawRoundedRectangle(canvas.width * (0.5 - (menu_characterTextWidth / 2)), canvas.height * 0.74, canvas.width * menu_characterTextWidth, canvas.height * (0.01 + (0.03 * this.characterTextObj.processedContent.length)), canvas.height / 96);
-
-					//text
-					this.characterTextObj.beDrawn();
-					ctx.globalAlpha = 1;
-				}
-				if (editor_active) {
-					ctx.strokeStyle = color_grey_lightest;
-					ctx.beginPath();
-					ctx.arc(canvas.width / 2, canvas.height * menu_ringHeight, canvas.height * menu_characterCircleRadius - menu_characterSize, 0, Math.PI * 2);
-					ctx.stroke();
-					ctx.arc(canvas.width / 2, canvas.height * menu_ringHeight, canvas.height * menu_characterCircleRadius + menu_characterSize, 0, Math.PI * 2);
-					ctx.stroke();
-				}
-				break;
-			case 1:
-				//leaderboards
-				var baseHeight = 0.125;
-				var offHeight = 0.0625;
-				var ws = [0.035, 0.34, 0.48, 0.625];
-
-				ctx.font = `${Math.floor(canvas.height / 32)}px Comfortaa`;
-				ctx.textAlign = "left";
-				ctx.fillStyle = color_text_bright;
-				//headers
-				ctx.fillText("Username", canvas.width * ws[0], canvas.height * baseHeight);
-				ctx.fillText("Distance", canvas.width * ws[1], canvas.height * baseHeight);
-				ctx.fillText((data_persistent.effectiveCutscenes.includes("batteries")) ? "Batteries" : "Powercells", canvas.width * ws[2], canvas.height * baseHeight);
-				ctx.fillText("Characters Used", canvas.width * ws[3], canvas.height * baseHeight);
-
-				//actual highscores
-				for (var j=0; j<data_persistent.highscores.length; j++) {
-					ctx.fillText(data_persistent.highscores[j][0], canvas.width * ws[0], canvas.height * (baseHeight + offHeight * (j + 1)), canvas.width * (ws[1] - ws[0] * 0.8));
-					//normal data
-					ctx.fillText(data_persistent.highscores[j][1] + "m", canvas.width * ws[1], canvas.height * (baseHeight + offHeight * (j + 1)));
-					ctx.fillText(data_persistent.highscores[j][2], canvas.width * 0.5, canvas.height * (baseHeight + offHeight * (j + 1)));
-
-					//characters used
-					for (var k=0; k<data_persistent.highscores[j][3].length; k++) {
-						var charIndex = data_characters.map[data_persistent.highscores[j][3][k]];
-						textures_common[charIndex].frame = 0;
-						textures_common[charIndex].beDrawn((canvas.width * ws[3]) + (menu_characterSize * 0.75 * (k + 0.5)), canvas.height * (baseHeight + offHeight * (j + 1)), 0, menu_characterSize * 0.75);
-					}
-				}
-
-				//pie charts for deaths and levels visited
-				ctx.font = `${Math.floor(canvas.height / 40)}px Comfortaa`;
-
-				drawPieChart(canvas.width / 4, canvas.height * 0.9, canvas.height * 0.045, canvas.height * 0.025, `Total: `, 
-							data_persistent.deathsE, color_deathE, `Explore retries: `, 
-							data_persistent.deathsI, color_deathI, `Infinite retries: `);
-
-				var visitStats = calculateLevelsVisited();
-				drawPieChart(canvas.width * 3 / 4, canvas.height * 0.9, canvas.height * 0.045, canvas.height * 0.025, `Total: `, 
-							visitStats[0], color_deathE, `Explore visited: `, 
-							world_objects.length - 2 - visitStats[0], color_deathE2, `Undiscovered: `,
-							infinite_data.length - visitStats[1], color_deathI2, `Undiscovered: `,
-							visitStats[1], color_deathI, `Infinite visited: `,);
-				break;
-			case 2:
-				//reset save data button
-				drawSelectionBox(canvas.width * 0.5, canvas.height * 0.935, canvas.width * 0.4, canvas.height * 0.08);
-				ctx.fillStyle = color_text_danger;
-				ctx.textAlign = "center";
-				ctx.font = `${canvas.height / 20}px Comfortaa`;
-				ctx.fillText(`Delete save data`, canvas.width * 0.5, canvas.height * 0.94);
-
-				
-				//settings menu
-				this.settings.forEach(s => {
-					if (s.constructor.name == "PropertyButton") {
-						s.tick();
-					}
-					s.beDrawn();
-				});
-				break;
-			case 3:
-				//cutscene viewer menu
-				ctx.lineWidth = 1;
-				data_cutsceneTree.tick();
-				data_cutsceneTree.beDrawn_line();
-				data_cutsceneTree.beDrawn_handle();
-				break;
-			case 4:
-				//credits
-				ctx.fillStyle = color_text_bright;
-				ctx.font = `${canvas.height / 25}px Comfortaa`;
-				ctx.textAlign = "left";
-				for (var l=0; l<credits.length; l++) {
-					ctx.fillText(credits[l], canvas.width * 0.03, canvas.height * (0.14 + 0.05 * l));
-				}
-				break;
+		if (editor_active) {
+			ctx.strokeStyle = color_grey_lightest;
+			ctx.beginPath();
+			ctx.arc(canvas.width / 2, canvas.height * menu_ringHeight, canvas.height * menu_characterCircleRadius - menu_characterSize, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.arc(canvas.width / 2, canvas.height * menu_ringHeight, canvas.height * menu_characterCircleRadius + menu_characterSize, 0, Math.PI * 2);
+			ctx.stroke();
 		}
 	}
 
-	handleEscape() {
-		this.substate = 0;
-	}
+	handleEscape() {}
 
 	handleMouseDown(a) {
 		updateCursorPos(a);
-		//any substate > 0 shares the back button functionality
-		if (this.substate > 0 && cursor_x < canvas.width * 0.1 && cursor_y < canvas.height * 0.1) {
-			this.substate = 0;
+
+		//collision with buttons
+		this.buttons.forEach(b => {
+			b.interact();
+		});
+		if (loading_state != this) {
 			return;
 		}
 
-		switch (this.substate) {
-			case 0:
-				//collision with buttons
-				this.buttons.forEach(b => {
-					b.interact();
-				});
-				if (loading_state != this) {
+		//collision with name changer
+		if (cursor_x < canvas.width * 0.25 && cursor_y < canvas.height * 0.1) {
+			var value = prompt("Enter new username please:", data_persistent.name);
+			if (isValidString(value)) {
+				//make sure name fits in the box
+				ctx.font = `${canvas.height / 32}px Comfortaa`;
+				var charNum = value.length;
+				while (ctx.measureText(value).width > canvas.width * player_maxNameWidth) {
+					charNum -= 1;
+					value = value.substring(0, charNum);
+				}
+				data_persistent.name = value;
+			}
+			return;
+		}
+
+		//collision with characters.
+		var [cDist, cAngle] = XYtoPol(cursor_x - (canvas.width / 2), cursor_y - (canvas.height * menu_ringHeight));
+
+		//characters are positioned in a ring. If the cursor is on that ring, it could intersect with a character
+		if (cDist < canvas.height * menu_characterCircleRadius + menu_characterSize && cDist > canvas.height * menu_characterCircleRadius - menu_characterSize) {
+			//character based on angle
+			var clickedCharNum = ((cAngle + Math.PI * 0.5) % (Math.PI * 2)) / (Math.PI * 2) * 10;
+			clickedCharNum = Math.round(clickedCharNum) % 10;
+			var clickedCharStr = data_characters.indexes[clickedCharNum];
+			
+			//if the character is selectable
+			if (data_persistent.unlocked.includes(clickedCharStr)) {
+				//if they aren't already selected, update the selection
+				if (this.characterSelected != clickedCharNum) {
+					this.characterTextTime = 0;
+					this.characterSelected = clickedCharNum;
+					replacePlayer(clickedCharNum);
+					if (Math.abs(this.characterSelected - this.displayCharacterSelected) > data_characters.indexes.length / 2) {
+						if (this.characterSelected < this.displayCharacterSelected) {
+							this.displayCharacterSelected -= data_characters.indexes.length;
+						} else {
+							this.displayCharacterSelected += data_characters.indexes.length;
+						}
+					}
 					return;
 				}
 
-				//collision with name changer
-				if (cursor_x < canvas.width * 0.25 && cursor_y < canvas.height * 0.1) {
-					var value = prompt("Enter new username please:", data_persistent.name);
-					if (isValidString(value)) {
-						//make sure name fits in the box
-						ctx.font = `${canvas.height / 32}px Comfortaa`;
-						var charNum = value.length;
-						while (ctx.measureText(value).width > canvas.width * player_maxNameWidth) {
-							charNum -= 1;
-							value = value.substring(0, charNum);
-						}
-						data_persistent.name = value;
-					}
-					return;
+				//if they are already selected, display their text box
+				//if already displaying that, display a trivia instead
+				var triviaBin = data_characters[clickedCharStr].trivia;
+				var text = (this.characterTextTime > 0) ? triviaBin[Math.floor(randomBounded(0, triviaBin.length))] : data_characters[clickedCharStr].text;
+				
+				this.characterTextTime = menu_characterTextTime;
+				this.characterTextObj = new SceneText(0.5, 0.75, menu_characterTextWidth / 2.02, 1 / 35, text, true);
+				return;
+			}
+		}
+
+		//collision with lower buttons
+		var states = [State_Menu_Leaderboards, State_Menu_Settings, State_Menu_Cutscenes, State_Menu_Credits]
+		for (var b=0; b<4; b++) {
+			var xOff = (canvas.height * 0.01) + (canvas.width * (b * 0.07));
+			var yOff = canvas.height * 0.9;
+
+			if (cursor_x > xOff && cursor_x < xOff + canvas.width * 0.06 && cursor_y > yOff && cursor_y < yOff + canvas.width * 0.06) {
+				//if cutscene mode, update viewership
+				if (b == 2) {
+					data_cutsceneTree.getVisible();
 				}
 
-				//collision with characters.
-				var [cDist, cAngle] = XYtoPol(cursor_x - (canvas.width / 2), cursor_y - (canvas.height * menu_ringHeight));
-
-				//characters are positioned in a ring. If the cursor is on that ring, it could intersect with a character
-				if (cDist < canvas.height * menu_characterCircleRadius + menu_characterSize && cDist > canvas.height * menu_characterCircleRadius - menu_characterSize) {
-					//character based on angle
-					var clickedCharNum = ((cAngle + Math.PI * 0.5) % (Math.PI * 2)) / (Math.PI * 2) * 10;
-					clickedCharNum = Math.round(clickedCharNum) % 10;
-					var clickedCharStr = data_characters.indexes[clickedCharNum];
-					
-					//if the character is selectable
-					if (data_persistent.unlocked.includes(clickedCharStr)) {
-						//if they aren't already selected, update the selection
-						if (this.characterSelected != clickedCharNum) {
-							this.characterTextTime = 0;
-							this.characterSelected = clickedCharNum;
-							replacePlayer(clickedCharNum);
-							if (Math.abs(this.characterSelected - this.displayCharacterSelected) > data_characters.indexes.length / 2) {
-								if (this.characterSelected < this.displayCharacterSelected) {
-									this.displayCharacterSelected -= data_characters.indexes.length;
-								} else {
-									this.displayCharacterSelected += data_characters.indexes.length;
-								}
-							}
-							return;
-						}
-
-						//if they are already selected, display their text box
-						//if already displaying that, display a trivia instead
-						var triviaBin = data_characters[clickedCharStr].trivia;
-						var text = (this.characterTextTime > 0) ? triviaBin[Math.floor(randomBounded(0, triviaBin.length))] : data_characters[clickedCharStr].text;
-						
-						this.characterTextTime = menu_characterTextTime;
-						this.characterTextObj = new SceneText(0.5, 0.75, menu_characterTextWidth / 2.02, 1 / 35, text, true);
-						return;
-					}
-				}
-
-				//collision with lower buttons
-				for (var b=0; b<4; b++) {
-					var xOff = (canvas.height * 0.01) + (canvas.width * (b * 0.07));
-					var yOff = canvas.height * 0.9;
-
-					if (cursor_x > xOff && cursor_x < xOff + canvas.width * 0.06 && cursor_y > yOff && cursor_y < yOff + canvas.width * 0.06) {
-						this.substate = b + 1;
-						//if cutscene mode, update viewership
-						if (this.substate == 3) {
-							data_cutsceneTree.getVisible();
-						}
-						return;
-					}
-				}
-				break;
-			case 2:
-				//reset button
-				if (cursor_x > canvas.width * 0.3 && cursor_x < canvas.width * 0.7 && cursor_y > canvas.height * 0.9) {
-					trueReset();
-					return;
-				}
-				var currentRes = data_persistent.settings.highResolution;
-				//others
-				this.settings.forEach(s => {
-					s.interact();
-				});
-				//update resolution if required
-				if (data_persistent.settings.highResolution != currentRes) {
-					updateResolution();
-				}
-				//anti-aliasing
-				ctx.imageSmoothingEnabled = data_persistent.settings.antiAlias;
-				break;
-			case 3:
-				//try to select a cutscene node
-				this.nodeSelected = undefined;
-				this.nodeSelected = data_cutsceneTree.becomeSelected(canvas.height / 10);
-				//cutscene viewer
-				if (!editor_active) {
-					//activating cutscene
-					if (this.nodeSelected != undefined) {
-						loading_state = new State_Cutscene(this.nodeSelected.cutsceneRef, this);
-						loading_state.readFrom = world_objects;
-						loading_state.orderWorld();
-					}
-				}
-				break;
+				loading_state = new states[b]();
+				return;
+			}
 		}
 	}
 
 	handleMouseMove(a) {
 		updateCursorPos(a);
-		if (this.substate == 3 && cursor_down && editor_active && this.nodeSelected != undefined) {
-			this.nodeSelected.trueX = ((cursor_x / canvas.width) - 0.5) / (1 - menu_cutsceneParallax);
-			this.nodeSelected.trueY = ((cursor_y / canvas.height) - 0.5) / (1 - menu_cutsceneParallax);
+	}
+
+	handleKeyPress(a) {}
+
+	handleKeyNegate(a) {}
+}
+
+class State_Menu_Sub {
+	constructor() {
+	}
+
+	execute() {
+		//back arrow
+		ctx.fillStyle = color_bg;
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		drawArrow(canvas.width * 0.08, canvas.height * 0.05, color_grey_light, Math.PI, canvas.width * 0.04, canvas.width * 0.02, canvas.height * 0.02, canvas.height * 0.04);
+	}
+
+	handleEscape() {
+		//go back to the main menu
+		loading_state = new State_Menu();
+	}
+
+	handleKeyPress(a) {}
+
+	handleKeyNegate(a) {}
+
+	handleMouseDown(a) {
+		updateCursorPos(a);
+		//any substate shares the back button functionality
+		if (cursor_x < canvas.width * 0.1 && cursor_y < canvas.height * 0.1) {
+			loading_state = new State_Menu();
+			return 31;
+		}
+	}
+
+	handleMouseMove(a) {
+		updateCursorPos(a);
+	}
+}
+
+class State_Menu_Achievements extends State_Menu_Sub {
+	constructor() {
+		super();
+	}
+
+	execute() {
+		super.execute();
+	}
+
+	handleMouseDown(a) {
+		if (super.handleMouseDown(a) == 31) {
+			return;
+		}
+	}
+}
+
+//substate 4
+class State_Menu_Credits extends State_Menu_Sub {
+	constructor() {
+		super();
+	}
+
+	execute() {
+		super.execute();
+
+		ctx.fillStyle = color_text_bright;
+		ctx.font = `${canvas.height / 25}px Comfortaa`;
+		ctx.textAlign = "left";
+		for (var l=0; l<credits.length; l++) {
+			ctx.fillText(credits[l], canvas.width * 0.03, canvas.height * (0.14 + 0.05 * l));
+		}
+	}
+
+	handleMouseDown(a) {
+		if (super.handleMouseDown(a) == 31) {
+			return;
+		}
+	}
+}
+
+//substate 3
+class State_Menu_Cutscenes extends State_Menu_Sub {
+	constructor() {
+		super();
+
+		this.readFrom = orderObjects(world_objects, 6);
+		this.nodeSelected = undefined;
+	}
+
+	execute() {
+		super.execute();
+
+		//cutscene viewer menu
+		ctx.lineWidth = 1;
+		data_cutsceneTree.tick();
+		data_cutsceneTree.beDrawn_line();
+		data_cutsceneTree.beDrawn_handle();
+	}
+
+	handleMouseDown(a) {
+		if (super.handleMouseDown(a) == 31) {
 			return;
 		}
 
-		if (this.substate == 2) {
-			this.settings.forEach(s => {
-				if (s.constructor.name == "PropertySlider") {
-					s.interact();
-				}
-			});
+		//try to select a cutscene node
+		this.nodeSelected = undefined;
+		this.nodeSelected = data_cutsceneTree.becomeSelected(canvas.height / 10);
+		//cutscene viewer
+		if (!editor_active) {
+			//activating cutscene
+			if (this.nodeSelected != undefined) {
+				loading_state = new State_Cutscene(this.nodeSelected.cutsceneRef, this);
+				loading_state.readFrom = world_objects;
+				loading_state.orderWorld();
+			}
+		}
+	}
+
+	handleMouseMove(a) {
+		super.handleMouseMove(a);
+		if (cursor_down && editor_active && this.nodeSelected != undefined) {
+			this.nodeSelected.trueX = ((cursor_x / canvas.width) - 0.5) / (1 - menu_cutsceneParallax);
+			this.nodeSelected.trueY = ((cursor_y / canvas.height) - 0.5) / (1 - menu_cutsceneParallax);
 		}
 	}
 
 	handleKeyPress(a) {
-		if (a.key.toLowerCase() == ']' && this.substate == 3) {
+		if (a.key.toLowerCase() == ']') {
 			//editor updating
 			setTimeout(() => {
 				data_cutsceneTree.getVisible();
 			}, 1);
 		}
 	}
-
-	handleKeyNegate(a) {}
 }
 
-class State_Menu_Achievements {
+//substate 1
+class State_Menu_Leaderboards extends State_Menu_Sub {
 	constructor() {
-
+		super();
 	}
 
-	handleKeyNegate(a) {}
+	execute() {
+		super.execute();
+
+		//leaderboards
+		var baseHeight = 0.125;
+		var offHeight = 0.0625;
+		var ws = [0.035, 0.34, 0.48, 0.625];
+
+		ctx.font = `${Math.floor(canvas.height / 32)}px Comfortaa`;
+		ctx.textAlign = "left";
+		ctx.fillStyle = color_text_bright;
+		//headers
+		ctx.fillText("Username", canvas.width * ws[0], canvas.height * baseHeight);
+		ctx.fillText("Distance", canvas.width * ws[1], canvas.height * baseHeight);
+		ctx.fillText((data_persistent.effectiveCutscenes.includes("batteries")) ? "Batteries" : "Powercells", canvas.width * ws[2], canvas.height * baseHeight);
+		ctx.fillText("Characters Used", canvas.width * ws[3], canvas.height * baseHeight);
+
+		//actual highscores
+		for (var j=0; j<data_persistent.highscores.length; j++) {
+			ctx.fillText(data_persistent.highscores[j][0], canvas.width * ws[0], canvas.height * (baseHeight + offHeight * (j + 1)), canvas.width * (ws[1] - ws[0] * 0.8));
+			//normal data
+			ctx.fillText(data_persistent.highscores[j][1] + "m", canvas.width * ws[1], canvas.height * (baseHeight + offHeight * (j + 1)));
+			ctx.fillText(data_persistent.highscores[j][2], canvas.width * 0.5, canvas.height * (baseHeight + offHeight * (j + 1)));
+
+			//characters used
+			for (var k=0; k<data_persistent.highscores[j][3].length; k++) {
+				var charIndex = data_characters.map[data_persistent.highscores[j][3][k]];
+				textures_common[charIndex].frame = 0;
+				textures_common[charIndex].beDrawn((canvas.width * ws[3]) + (menu_characterSize * 0.75 * (k + 0.5)), canvas.height * (baseHeight + offHeight * (j + 1)), 0, menu_characterSize * 0.75);
+			}
+		}
+
+		//pie charts for deaths and levels visited
+		ctx.font = `${Math.floor(canvas.height / 40)}px Comfortaa`;
+
+		drawPieChart(canvas.width / 4, canvas.height * 0.9, canvas.height * 0.045, canvas.height * 0.025, `Total: `, 
+					data_persistent.deathsE, color_deathE, `Explore retries: `, 
+					data_persistent.deathsI, color_deathI, `Infinite retries: `);
+
+		var visitStats = calculateLevelsVisited();
+		drawPieChart(canvas.width * 3 / 4, canvas.height * 0.9, canvas.height * 0.045, canvas.height * 0.025, `Total: `, 
+					visitStats[0], color_deathE, `Explore visited: `, 
+					world_objects.length - 2 - visitStats[0], color_deathE2, `Undiscovered: `,
+					infinite_data.length - visitStats[1], color_deathI2, `Undiscovered: `,
+					visitStats[1], color_deathI, `Infinite visited: `,);
+	}
+
+	handleMouseDown(a) {
+		if (super.handleMouseDown(a) == 31) {
+			return;
+		}
+	}
 }
 
-class State_Menu_Credits {
+//substate 2
+class State_Menu_Settings extends State_Menu_Sub {
 	constructor() {
+		super();
 
+		//settings for settings menu
+		this.settings = [
+			new PropertySlider(0.05, 0.15 + (0 * menu_propertyHeight), 0.4, 0.2, 'music volume', `audio_channel1.volume = value;`, `audio_channel1.volume`, 0, 1, 0.01, false),
+			new PropertySlider(0.05, 0.15 + (1 * menu_propertyHeight), 0.4, 0.2, 'effects volume', `audio_channel2.volume = value;`, `audio_channel2.volume`, 0, 1, 0.01, false),
+			
+			new PropertyToggle(0.05, 0.15 + (3 * menu_propertyHeight), 0.4, `high resolution`, `data_persistent.settings.highResolution`),
+			new PropertyToggle(0.05, 0.15 + (4 * menu_propertyHeight), 0.4, `anti-aliasing for sprites`, `data_persistent.settings.antiAlias`),
+			new PropertyToggle(0.05, 0.15 + (5 * menu_propertyHeight), 0.4, `precise tunnel rendering`, `data_persistent.settings.altRender`),
+			new PropertyToggle(0.05, 0.15 + (6 * menu_propertyHeight), 0.4, `render every other frame`, `data_persistent.settings.halfRender`),
+			new PropertyToggle(0.05, 0.15 + (7 * menu_propertyHeight), 0.4, `alternate camera rotation`, `data_persistent.settings.altCamera`),
+
+			new PropertyToggle(0.525, 0.15 + (3 * menu_propertyHeight), 0.4, `editor - show polygon outlines`, `data_persistent.settings.enableOutlines`),
+			new PropertyToggle(0.525, 0.15 + (4 * menu_propertyHeight), 0.4, `editor - show light bridge tiles`, `data_persistent.settings.pastaView`),
+			new PropertyToggle(0.525, 0.15 + (5 * menu_propertyHeight), 0.4, `editor - use gimbal camera`, `data_persistent.settings.gimbal`),
+			new PropertyToggle(0.525, 0.15 + (6 * menu_propertyHeight), 0.4, `editor - show entrance warning`, `data_persistent.settings.eWarn`),
+
+			new PropertyToggle(0.525, 0.15 + (0 * menu_propertyHeight), 0.4, `contain mouse inputs to canvas`, `data_persistent.settings.maskCursor`)
+		];
 	}
 
-	handleKeyNegate(a) {}
-}
+	execute() {
+		super.execute();
 
-class State_Menu_Cutscenes {
-	constructor() {
+		//reset save data button
+		drawSelectionBox(canvas.width * 0.5, canvas.height * 0.935, canvas.width * 0.4, canvas.height * 0.08);
+		ctx.fillStyle = color_text_danger;
+		ctx.textAlign = "center";
+		ctx.font = `${canvas.height / 20}px Comfortaa`;
+		ctx.fillText(`Delete save data`, canvas.width * 0.5, canvas.height * 0.94);
 
+		
+		//settings menu
+		this.settings.forEach(s => {
+			if (s.constructor.name == "PropertyButton") {
+				s.tick();
+			}
+			s.beDrawn();
+		});
 	}
 
-	handleKeyNegate(a) {}
-}
+	handleMouseDown(a) {
+		if (super.handleMouseDown(a) == 31) {
+			return;
+		}
 
-class State_Menu_Leaderboards {
-	constructor() {
-
+		//reset button
+		if (cursor_x > canvas.width * 0.3 && cursor_x < canvas.width * 0.7 && cursor_y > canvas.height * 0.9) {
+			trueReset();
+			return;
+		}
+		var currentRes = data_persistent.settings.highResolution;
+		//others
+		this.settings.forEach(s => {
+			s.interact();
+		});
+		//update resolution if required
+		if (data_persistent.settings.highResolution != currentRes) {
+			updateResolution();
+		}
+		//anti-aliasing
+		ctx.imageSmoothingEnabled = data_persistent.settings.antiAlias;
 	}
 
-	handleKeyNegate(a) {}
-}
+	handleMouseMove(a) {
+		super.handleMouseMove(a);
 
-class State_Menu_Settings {
-	constructor() {
-
+		this.settings.forEach(s => {
+			if (s.constructor.name == "PropertySlider") {
+				s.interact();
+			}
+		});
 	}
-
-	handleKeyNegate(a) {}
 }
