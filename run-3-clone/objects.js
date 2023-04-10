@@ -293,6 +293,7 @@ class Character {
 		
 		this.parent = undefined;
 		this.parentPrev = undefined;
+		this.id = spriteDataName;
 
 		//position, velocity, acceleration
 		this.x = x;
