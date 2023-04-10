@@ -105,7 +105,7 @@ var data_characters = {
 		color: "#333",
 		text: `Employs magnets for rapid procurement of power cells.`,
 		trivia: [
-			`The Gentleman’s philosophy: the correlation between vocabulary and social standing is not coincidental.`,
+			`The Gentleman's philosophy: the correlation between vocabulary and social standing is not coincidental.`,
 			`The Gentleman retains partial maneuverability with his electromagnet engaged. By maneuvering left and right, he can influence his eventual motion upon reaching the power cell.`,
 			`The Gentleman will not abandon a power cell he has already claimed, but he exercises discretion in claiming the cells in the first place.`,
 			`The lower classes have their uses.`,
@@ -122,10 +122,10 @@ var data_characters = {
 		color: "#5A5",
 		text: `Lizards are known for being green and jumping really high.`,
 		trivia: [
-			`The Lizard’s philosophy: find somewhere bright and sit there for hours.`,
+			`The Lizard's philosophy: find somewhere bright and sit there for hours.`,
 			`The Lizard does not, and perhaps, can not, understand the concept of jumping low.`,
 			`Like many animals, lizards have personalities. This one just happens to be boring.`,
-			`No one’s claiming the Lizard as their pet. It seems to have wandered out here on its own.`,
+			`No one's claiming the Lizard as their pet. It seems to have wandered out here on its own.`,
 			`The Bunny and the Lizard can jump so high as a result of their strength and weight.`
 		]
 	},
@@ -144,7 +144,7 @@ var data_characters = {
 		color: "#777",
 		text: `Wants to see everything at least once, and she does mean everything.`,
 		trivia: [
-			`The Runner’s philosophy: you can’t plan for everything. Instead, plan for the fact that you can’t plan for everything.`,
+			`The Runner's philosophy: you can't plan for everything. Instead, plan for the fact that you can't plan for everything.`,
 			`Who needs flashy special abilities when you have precision and agility?`,
 			`Both the Runner and the Angel have leadership skills, but you wouldn't know it from listening to the Angel.`,
 			`True to her name, the Runner performs best on the ground, where she can move and change directions faster.`,
@@ -158,11 +158,11 @@ var data_characters = {
 		color: "#DAA",
 		text: `Enjoys challenging himself almost as much as he enjoys going fast.`,
 		trivia: [
-			`The Skater’s philosophy: challenging yourself helps you improve. Once you improve, you can challenge yourself even more!`,
+			`The Skater's philosophy: challenging yourself helps you improve. Once you improve, you can challenge yourself even more!`,
 			`Since he wanders so much, there was a brief time when the Skater had met everyone on the Planet.`,
 			`The Skater likes to travel, but mostly he just hates staying still.`,
 			`Tunnel running could be the next big sport, and the Skater intends to get a head start.`,
-			`The Skater is faster than anyone here. Well, maybe not that rabbit, but animals don’t count.`,
+			`The Skater is faster than anyone here. Well, maybe not that rabbit, but animals don't count.`,
 			`The Skater takes a few minutes each day to maintain his skates. His last pair ran out at a bad time, and he can't afford to lose this pair.`,
 			`Ramps convert speed into jump height. Guess who benefits most?`
 		]
