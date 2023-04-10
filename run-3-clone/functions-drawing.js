@@ -377,10 +377,7 @@ function drawInfiniteEndScreen() {
 	drawRoundedRectangle(canvas.width * 0.1, canvas.height * 0.1, canvas.width * 0.8, canvas.height * 0.8, canvas.width * 0.04);
 
 	//getting character order to draw them
-	var drawingCharacters = [];
-	loading_state.charactersUsed.forEach(c => {
-		drawingCharacters.push(c);
-	});
+	var drawingCharacters = [...loading_state.charactersUsed];
 
 	data_characters.indexes.forEach(c => {
 		if (!drawingCharacters.includes(c)) {
@@ -400,9 +397,18 @@ function drawInfiniteEndScreen() {
 	ctx.fillStyle = color_grey_light;
 	ctx.strokeStyle = color_menuSelectionOutline;
 	ctx.lineWidth = canvas.height / 96;
-	
-	ctx.font = `${canvas.height / 42}px Comfortaa`;
 
+	//decide if the boxes should be drawn
+	var drawBoxes = (loading_state.powercellsRequired <= loading_state.powercells);
+	//if we can't draw the boxes indicate that
+	if (!drawBoxes && loading_state.charactersUsed.length < 10) {
+		ctx.font = `${canvas.height / 45}px Comfortaa`;
+		ctx.fillStyle = color_text;
+		ctx.fillText(`${loading_state.powercellsRequired} powercells`, canvas.width * 0.12, canvas.height * 0.17);
+		ctx.fillText(`required to continue`, canvas.width * 0.12, canvas.height * 0.19);
+	}
+
+	ctx.font = `${canvas.height / 42}px Comfortaa`;
 	for (var a=0; a<11; a++) {
 		var offY = canvas.height * 0.25 * Math.floor(a / 5);
 		var offX = canvas.width * 0.6 * ((a % 5) / 5);
@@ -411,8 +417,6 @@ function drawInfiniteEndScreen() {
 		var textOffset2 = menu_characterSize * 2.1;
 
 		ctx.fillStyle = color_text;
-		
-		
 
 		//labels for every line
 		if (a % 5 == 0) {
@@ -430,7 +434,7 @@ function drawInfiniteEndScreen() {
 			//if the character hasn't been used, display the selection box
 			if (a >= loading_state.charactersUsed.length) {
 				//only draw selection if they can actually be selected
-				if (data_persistent.unlocked.includes(drawingCharacters[a])) {
+				if (drawBoxes && data_persistent.unlocked.includes(drawingCharacters[a])) {
 					drawSelectionBox((canvas.width * 0.35) + offX, (canvas.height * 0.13) + offY + menu_characterSize, menu_characterSize * 2, menu_characterSize * 2);
 				}
 			} else {
