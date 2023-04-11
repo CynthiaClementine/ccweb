@@ -370,44 +370,45 @@ class Tile_Box extends Tile {
 	
 
 	beDrawn() {
-		if ((this.size / this.cameraDist) * world_camera.scale > render_minTileSize * 0.5 && this.cameraDist < render_maxColorDistance * 2) {
-
-			//getting camera position relative to self for proper ordering
-			var relCPos = spaceToRelativeRotless([world_camera.x, world_camera.y, world_camera.z], [this.x, this.y, this.z], this.normal);
-			var color = this.getColor();
-			
-			//top / bottom switch
-			if (relCPos[2] > 0) {
-				drawWorldPoly([this.points[0], this.points[1], this.points[2], this.points[3]], color);
-			} else {
-				drawWorldPoly([this.points[4], this.points[5], this.points[6], this.points[7]], color);
-			}
-
-			//forward / back switch
-			if (relCPos[0] > 0) {
-				drawWorldPoly([this.points[3], this.points[2], this.points[6], this.points[7]], color);
-			} else {
-				drawWorldPoly([this.points[0], this.points[1], this.points[5], this.points[4]], color);
-			}
-
-			//left / right switch
-			if (relCPos[1] > 0) {
-				this.leftTile.cameraDist = this.cameraDist;
-				this.rightTile.playerDist = this.playerDist;
-				this.rightTile.beDrawn();
-			} else {
-				this.leftTile.cameraDist = this.cameraDist;
-				this.leftTile.playerDist = this.playerDist;
-				this.leftTile.beDrawn();
-			}
-		} else {
-			//simple circle for far away
+		//when far away
+		if ((this.size / this.cameraDist) * world_camera.scale < render_minTileSize * 0.5 || this.cameraDist > render_maxColorDistance * 2) {
+			//draw a simple circle
 			if (!isClipped([this.x, this.y, this.z])) {
 				var pos = spaceToCamera([this.x, this.y, this.z]);
 				var pos2 = cameraToScreen([pos[0], pos[1] + this.size * 0.5, pos[2]]);
 				pos = cameraToScreen(pos);
 				drawCircle(this.getColor(), pos[0], pos[1], getDistance2d(pos2, pos));
 			}
+			return;
+		}
+
+		//getting camera position relative to self for proper ordering
+		var relCPos = spaceToRelativeRotless([world_camera.x, world_camera.y, world_camera.z], [this.x, this.y, this.z], this.normal);
+		var color = this.getColor();
+		
+		//top / bottom switch
+		if (relCPos[2] > 0) {
+			drawWorldPoly([this.points[0], this.points[1], this.points[2], this.points[3]], color);
+		} else {
+			drawWorldPoly([this.points[4], this.points[5], this.points[6], this.points[7]], color);
+		}
+
+		//forward / back switch
+		if (relCPos[0] > 0) {
+			drawWorldPoly([this.points[3], this.points[2], this.points[6], this.points[7]], color);
+		} else {
+			drawWorldPoly([this.points[0], this.points[1], this.points[5], this.points[4]], color);
+		}
+
+		//left / right switch
+		if (relCPos[1] > 0) {
+			this.leftTile.cameraDist = this.cameraDist;
+			this.rightTile.playerDist = this.playerDist;
+			this.rightTile.beDrawn();
+		} else {
+			this.leftTile.cameraDist = this.cameraDist;
+			this.leftTile.playerDist = this.playerDist;
+			this.leftTile.beDrawn();
 		}
 	}
 
@@ -443,18 +444,27 @@ class Tile_Box extends Tile {
 					//which side of collision should take priority? That depends on how the player is falling.
 					//try to keep the player on the SAME SIDE as they're currently on, no auto-rotating
 					var betweenAngle = modularDifference(player.dir_down[1], this.dir_down[1], Math.PI * 2);
-					if (!sideReachable || (betweenAngle < Math.PI * 0.26 && entityCoords[2] + player.r > distY)) {
-						//player is on top face
-						this.collide_upDown(entity, entityCoords);
-					} else if (betweenAngle > Math.PI * 0.75 && -entityCoords[2] + player.r > distY) {
-						//player is on bottom face
-						this.collide_upDown(entity, entityCoords);
-					} else if (distY + player.r > distZ) {
-						//player has the sides
-						this.collide_leftRight(entity, entityCoords);
-					} else {
-						//if all else fails, try top/bottom, because it's better to put the player there then have them do wacky side shenanigans
-						this.collide_upDown(entity, entityCoords);
+					switch (true) {
+						case (!sideReachable && distX > distZ):
+							//same check for forwards/backwards but without taking the sides into account
+							this.collide_forwardsBackwards(entity, entityCoords);
+							break;
+						case (!sideReachable || (betweenAngle < Math.PI * 0.26 && entityCoords[2] + player.r > distY)):
+							//player is on top face
+							this.collide_upDown(entity, entityCoords);
+							break;
+						case (betweenAngle > Math.PI * 0.75 && -entityCoords[2] + player.r > distY):
+							//player is on bottom face
+							this.collide_upDown(entity, entityCoords);
+							break;
+						case (distY + player.r > distZ):
+							//player has the sides
+							this.collide_leftRight(entity, entityCoords);
+							break;
+						default:
+							//if all else fails, try top/bottom, because it's better to put the player there then have them do wacky side shenanigans
+							this.collide_upDown(entity, entityCoords);
+							break;
 					}
 				}
 			}
@@ -1107,6 +1117,17 @@ class Tile_Ramp extends Tile {
 		this.dir_down = this.normal;
 		this.normal = calculateNormal(this.points);
 		this.dir_right = [this.dir_down[0], this.dir_down[1] + (Math.PI / 2)];
+	}
+
+	collideWithEntity(entity) {
+		//if the player's backwards, make sure not to collide with them when they're above the ramp
+		if (player.backwards) {
+			var entityCoords = spaceToRelativeRotless([entity.x, entity.y, entity.z], [this.x, this.y, this.z], this.dir_down);
+			if (entityCoords[0] > this.size / 2) {
+				return;
+			}
+		}
+		super.collideWithEntity(entity);
 	}
 
 	doCollisionEffects(entity) {
