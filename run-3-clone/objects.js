@@ -316,6 +316,15 @@ class Character {
 		this.drawR = this.r / getDistance(this, world_camera);
 		this.color = color_character;
 
+		this.calculateTextures(spriteDataName);
+
+		this.texture_current = this.texture_jumpF;
+		this.textureRot = 1;
+
+		this.calculateJumpParams(jumpHeightMin, jumpHeightMax);
+	}
+
+	calculateTextures(spriteDataName) {
 		var source = data_sprites[spriteDataName];
 		this.texture_walkF = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, true, false, source.walkForwards);
 		this.texture_walkL = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, true, false, source.walkLeft);
@@ -323,11 +332,6 @@ class Character {
 		this.texture_jumpF = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, false, false, source.jumpForwards);
 		this.texture_jumpL = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, false, false, source.jumpSideways);
 		this.texture_jumpR = new Texture(source.sheet, data_sprites.spriteSize, source.frameTime, false, true, source.jumpSideways);
-
-		this.texture_current = this.texture_jumpF;
-		this.textureRot = 1;
-
-		this.calculateJumpParams(jumpHeightMin, jumpHeightMax);
 	}
 
 	calculateJumpParams(minH, maxH) {
@@ -789,6 +793,19 @@ class Bunny extends Character {
 		this.texture_jumpF.frame = this.texture_current.frame;
 		this.texture_jumpL.frame = this.texture_current.frame;
 		this.texture_jumpR.frame = this.texture_current.frame;
+	}
+}
+
+class Chinchilla extends Bunny {
+	constructor(x, y, z) {
+		super(x, y, z);
+		//slightly lower jump and speed, but maintains speed better
+		this.calculateJumpParams(60, 200);
+
+		this.boostFriction = 0.993;
+		this.dMin = 4;
+		this.dMax = 10.25;
+		this.speed = 0.09;
 	}
 }
 
@@ -1259,18 +1276,16 @@ class Pastafarian extends Character {
 
 	handleSpace() {
 		if (this.onGround > 0) {
-			//yeah this is a long way to go, sorry. TODO: refactor this? Perhaps into Tunnel class as getClosestTile(x, y, z)
-			var ref = this.parentPrev;
-			var relPos = spaceToRelativeRotless([this.x, this.y, this.z], [ref.x, ref.y, ref.z], [-1 * ref.theta, 0]);
-			var trueSideStrip = Math.floor((((Math.atan2(relPos[1], relPos[0]) + (Math.PI * (2 + (1 / ref.sides)))) / (Math.PI * 2)) % 1) * ref.sides);
-			trueSideStrip = modulate(trueSideStrip * ref.tilesPerSide, ref.sides * ref.tilesPerSide);
-			var centerStripOffset = Math.floor((spaceToRelativeRotless([this.x, this.y, this.z], ref.strips[trueSideStrip].pos, ref.strips[trueSideStrip].normal)[1] / ref.tileSize) + 0.5);
-			centerStripOffset = clamp(centerStripOffset + trueSideStrip, trueSideStrip, trueSideStrip + ref.tilesPerSide - 1);
-			var selfTile = Math.floor((relPos[2] / ref.tileSize) - 0.2);
-			if (ref.tiles[centerStripOffset][selfTile] != undefined) {
+			//offset so stripTileCoordinates gets it right
+			var offset = polToCart(this.dir_front[0], this.dir_front[1], this.parentPrev.tileSize / 2);
+			var stCoords = stripTileCoordinates(this.x - offset[0], this.y - offset[1], this.z - offset[2], this.parentPrev);
+			
+			if (this.parentPrev.tiles[stCoords[0]][stCoords[1]] != undefined) {
+				var tile = this.parentPrev.tiles[stCoords[0]][stCoords[1]];
+				var tileName = tile.constructor.name;
 				//crumbling tiles can only be collided with under special conditions - I don't want the player to get trapped out of the tunnel
-				var collide2 = (ref.tiles[centerStripOffset][selfTile].constructor.name == "Tile_Crumbling") && (spaceToRelativeRotless([this.x, this.y, this.z], ref.tiles[centerStripOffset][selfTile].home, ref.tiles[centerStripOffset][selfTile].normal)[2] > 0);
-				if (ref.tiles[centerStripOffset][selfTile].constructor.name == "Tile_Plexiglass" || collide2) {
+				var collide2 = (tileName == "Tile_Crumbling") && (spaceToRelativeRotless([this.x, this.y, this.z],tile.home, tile.normal)[2] > 0);
+				if (tileName == "Tile_Plexiglass" || collide2) {
 					//if on a bridge tile, boost the bridge strength
 					this.personalBridgeStrength += this.bridgeBoost;
 					if (this.personalBridgeStrength > 1) {
