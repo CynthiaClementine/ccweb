@@ -301,12 +301,6 @@ class IMNode {
 		var sZ = -40000;
 		var sT = 0;
 		if (this.parent != undefined) {
-			switch(makeCode) {
-				case 0:
-				default:
-					
-					break;
-			}
 			if (makeCode != undefined) {
 				//decide whether left or right
 				if (makeCode == 1) {
@@ -330,9 +324,7 @@ class IMNode {
 		//randomly change theta a bit
 		sT = modulate(sT + randomBounded(-infinite_wobble, infinite_wobble), Math.PI * 2);
 
-
 		var value = Math.floor(randomBounded(this.difficulty, this.difficulty + infinite_levelRange));
-		
 
 		//different choice if levels are being forced
 		if (infinite_levelConstraints.length == 0) {
@@ -376,7 +368,7 @@ class IMNode {
 		//chance of a branch
 		if (this.cooldown == 0 && Math.random() < infinite_branchChance) {
 			//one branch and one continue
-			if (Math.random() < 0.5) {
+			if (Math.random() < 0.5 || infinite_unstableCharacters.includes(player.id)) {
 				this.leftNode = new IMNode(this, newDifficulty, Math.floor(Math.random() * 1.99));
 				this.leftNode.cooldown = infinite_branchCooldown;
 
