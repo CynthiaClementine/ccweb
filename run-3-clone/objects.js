@@ -557,7 +557,8 @@ class Character {
 
 	setCameraPosition() {
 		var vertOffset = polToCart(this.dir_down[0], (!data_persistent.settings.altCamera * this.dir_down[1]) + (data_persistent.settings.altCamera * (world_camera.rot + (Math.PI / 2))), 70);
-		var horizOffset = polToCart(this.dir_front[0], this.dir_front[1], -95);
+		//target distance varies with forwards velocity to correct for camera lagging behind the player
+		var horizOffset = polToCart(this.dir_front[0], this.dir_front[1], -95 + camera_zCorrection * this.dz);
 		world_camera.targetX = this.x + vertOffset[0] + horizOffset[0];
 		world_camera.targetY = this.y + vertOffset[1] + horizOffset[1];
 		world_camera.targetZ = this.z + vertOffset[2] + horizOffset[2];
@@ -1125,7 +1126,8 @@ class Gentleman extends Character {
 				this.attractionForce = undefined;
 			}
 		}
-		super.modifyDerivitives(activeGravity, activeFriction, naturalFriction, activeAX, activeAZ);
+		//don't accelerate forwards while attracting an object
+		super.modifyDerivitives(activeGravity, activeFriction, naturalFriction, activeAX, activeAZ * (this.attracting == undefined));
 	}
 
 	handleSpace() {
