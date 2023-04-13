@@ -1137,8 +1137,8 @@ class State_Infinite extends State_World {
 		this.powercells = 0;
 		this.powercellsRequired = 0;
 
-		this.grace = 60;
-		this.graceMax = 60;
+		this.grace = 30;
+		this.graceMax = this.grace;
 
 		this.characterData = {};
 
@@ -1505,10 +1505,10 @@ class State_Map {
 			new MapTexture(39902, 106000, data_sprites.Map.star, `dontKnockIt`, `playedBefore('dontKnockIt')`),
 			new MapTexture(139201, -171300, data_sprites.Map.star, `goldMedal`, `playedBefore('goldMedal')`),
 			new MapTexture(-66532, -86900, data_sprites.Map.star, `grandOpening`, `playedBefore('grandOpening')`),
-			new MapTexture(56168, -23600, data_sprites.Map.star, `inflation`, `playedBefore('inflation')`),
+			new MapTexture(57402, -22601, data_sprites.Map.star, `inflation`, `playedBefore('inflation')`),
 			new MapTexture(-69832, 12400, data_sprites.Map.star, `myTurn`, `playedBefore('myTurn')`),
 			new MapTexture(125468, -111500, data_sprites.Map.star, `naming`, `playedBefore('naming')`),
-			new MapTexture(73268, -114500, data_sprites.Map.star, `niceToMeetYou`, `playedBefore('niceToMeetYou')`),
+			new MapTexture(72538, -113524, data_sprites.Map.star, `niceToMeetYou`, `playedBefore('niceToMeetYou')`),
 			new MapTexture(75368, -27500, data_sprites.Map.star, `orbits`, `playedBefore('orbits')`),
 			new MapTexture(57068, -67100, data_sprites.Map.star, `socraticMethod`, `playedBefore('socraticMethod')`),
 			new MapTexture(-74632, -87500, data_sprites.Map.star, `thanksForPlaytesting`, `playedBefore('thanksForPlaytesting')`),
@@ -1519,7 +1519,7 @@ class State_Map {
 
 			new MapTexture(28268, -250400, data_sprites.Map.star, `ABCD`, `playedBefore('ABCD')`),
 			new MapTexture(20768, -159200, data_sprites.Map.star, `obvious`, `playedBefore('obvious')`),
-			new MapTexture(63068, -200900, data_sprites.Map.star, `sneaking`, `playedBefore('sneaking')`),
+			new MapTexture(64045, -200706, data_sprites.Map.star, `sneaking`, `playedBefore('sneaking')`),
 			new MapTexture(77468, -267800, data_sprites.Map.star, `stopSolvingProblems`, `playedBefore('stopSolvingProblems')`)
 		];
 		this.boxIcon_lower = new Texture(data_sprites.Map.sheet, data_sprites.spriteSize * 2, 1e1001, false, false, [data_sprites.Map.boxes[1]]);
