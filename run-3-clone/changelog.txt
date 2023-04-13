@@ -1,14 +1,47 @@
 
 
-V1.25 - PENDING
-
+V1.3 - THE CONSISTENCY UPDATE PART 2 - (?????)
     TODO:
-        improved jump arcs
-        change character constructor to use jump heights instead of jump gravity
-        stars for cutscenes at end of tunnels?
+        add achievement panel?
         back / forward buttons for switching between levels
-        while duplicator's in void, duplicates don't interact with tiles
-        dy should have a min value when on the ground
+        also todo: make "River" text instead of a cutscene
+        pastafarian is too pointy, make less pointy
+        fix student flippy glitch
+        ringed boxes in bridge building look wacky
+        ramp sides succing the player? (IM-184)
+        inside-box camera optimization could allow for the sides of all connected boxes to be ignored
+            this seems to also require plane clipping
+
+
+
+
+V1.25 - THE CONSISTENCY UPDATE PART 1 - (April-12-2023)
+    Bug Fixes:
+        fixed occasional map selection issues when dragging the map
+        improved box collision
+        improved ramp collision
+        characters no longer retain their negative velocity after landing
+        you can no longer boost your jump after releasing the jump button
+        fixed pastafarian bridge not being powered correctly
+
+    Gameplay:
+        characters speeds and acceleration now exactly match their original run 3 values
+        vertical velocity handles slightly better when switching gravity
+        power cells are now required to continue after death in infinite mode
+        some characters (the Bunny, Pastafarian, and Skater) are difficult to jump tunnels with. To solve this issue, infinite mode will no longer require a tunnel switch if you're playing with those characters.
+
+    Visuals:
+        added stars to indicate when a tunnel set has been completed
+        slightly desaturated the map background color
+        slightly improved sideways jump sprites for the angel and runner
+
+    misc:
+        added map icon to pause menu
+
+    development:
+        character constructors are now more compact, and use jump heights instead of velocities 
+        different menus are now their own classes for readability
+        when the camera is inside a box the entire rest of the tunnel is optimized out
 
 
 
@@ -141,7 +174,8 @@ V1.14 - November-11-2021
 
 
 V1.13 - October-22-2021
-fixed issue where framerate would double on 120Hz monitors
+    fixed issue where framerate would double on 120Hz monitors
 
 
 V1.1 - FINAL MAIN RELEASE - June-1-2021
+    Added the bridge building section, cutscenes galore, and many many bug fixes (no more mysterious spooky black lines!)
