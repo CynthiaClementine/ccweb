@@ -74,6 +74,7 @@ var data_characters = {
 			`Aim for the corners of the tunnel to bounce twice in a row.`
 		]
 	},
+	"Chinchilla": {text: `The Child was afraid of chinchillas, so his father painted the Bunny gray. The Child is still afraid of chinchillas.`},
 	"Child": {
 		color: "#8F8",
 		text: `Sometimes clever, sometimes immature. For example; he carries a balloon to help him jump further, but it's filled with water so he can splash people.`,
@@ -87,6 +88,7 @@ var data_characters = {
 			`Sometimes he leaves his balloon behind and hides. The adults never notice because he's so clever.`
 		]
 	},
+	"Ghost": {text: `He worked very hard on this costume. Pretend to be scared, ok?`},
 	"Duplicator": {
 		color: "#BEE",
 		text: `Suspicious of others, but trusts alien technology that's been lying around for ages. Makes sense.`,
@@ -114,10 +116,6 @@ var data_characters = {
 			`In what he considers to be a mildly amusing symmetry, the Gentleman's electromagnet is activated by electromagnetic waves.`
 		]
 	},
-	"Ice Skater": {
-		color: undefined,
-		text: `Everyone tries new things sometimes.`
-	},
 	"Lizard": {
 		color: "#5A5",
 		text: `Lizards are known for being green and jumping really high.`,
@@ -140,6 +138,7 @@ var data_characters = {
 			`Applying excessive pressure to the Flying Spaghetti Monster's bridge offends him. To show your devotion, refrain from jumping from it or onto it.`
 		]
 	},
+	"Pirate": {text: `Yarr!`},
 	"Runner": {
 		color: "#777",
 		text: `Wants to see everything at least once, and she does mean everything.`,
@@ -154,6 +153,8 @@ var data_characters = {
 			`The Runner supervised the construction of the City, and several smaller cities.`
 		]
 	},
+	"Pumpkin": {text: `Well, I guess that's one idea for a costume. Isn't it heavy, though?`},
+	"Skiier": {text: `She found a box full of ski gear and grabbed the items that fit. Hopefully the original owner won't mind.`},
 	"Skater": {
 		color: "#DAA",
 		text: `Enjoys challenging himself almost as much as he enjoys going fast.`,
@@ -167,6 +168,7 @@ var data_characters = {
 			`Ramps convert speed into jump height. Guess who benefits most?`
 		]
 	},
+	"Ice Skater": {text: `Everyone tries new things sometimes.`},
 	"Student": {
 		color: "#D64",
 		text: `Once you figure out how something works, it's yours to use. This includes gravity.`,
