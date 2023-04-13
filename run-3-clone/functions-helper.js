@@ -1213,6 +1213,14 @@ function HSVtoRGB(hsvObject) {
 	return RGBString;
 }
 
+function isBox(tileID) {
+	return (tileID == 9 || tileID == 10 || tileID == 109);
+}
+
+function isRegularBox(tileID) {
+	return (tileID == 9 || tileID == 109);
+}
+
 //says whether a tile is a complex tile or not
 function isComplex(tile) {
 	return ((tile.fallRate ?? tile.rampPushForce ?? tile.polys ?? tile.verticalObj) != undefined);
@@ -1518,7 +1526,6 @@ function playedBefore(cutsceneID) {
 
 
 
-
 //power functions!
 //each power function takes in a start power, end power, and a time. The time determines what the power will be.
 function power_falseAlarm(powStart, powEnd, time) {
@@ -1766,7 +1773,7 @@ function stealAudioConsent(a) {
 	}
 }
 
-//given an xyz pos and a tunnel, returns a corresponding coordinates array in integer [strip, tile] form
+//given an xyz pos and a tunnel, returns a corresponding coordinates array in [strip (integer), tile (number)] form
 function stripTileCoordinates(x, y, z, tunnel) {
 	//get the closest strip
 	var relPos = spaceToRelativeRotless([x, y, z], [tunnel.x, tunnel.y, tunnel.z], [-tunnel.theta, 0]);
@@ -1777,7 +1784,7 @@ function stripTileCoordinates(x, y, z, tunnel) {
 	var trueStrip = Math.floor((spaceToRelativeRotless([x, y, z], tunnel.strips[firstSideStrip].pos, tunnel.strips[firstSideStrip].normal)[1] / tunnel.tileSize) + 0.5);
 	trueStrip = clamp(trueStrip + firstSideStrip, firstSideStrip, firstSideStrip + tunnel.tilesPerSide - 1);
 	//get the closest tile
-	var selfTile = Math.floor(relPos[2] / tunnel.tileSize);
+	var selfTile = (relPos[2] / tunnel.tileSize);
 
 	return [trueStrip, selfTile];
 }

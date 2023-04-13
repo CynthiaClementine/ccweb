@@ -351,7 +351,7 @@ class CutsceneTrigger_NoJumpWithChar extends CustomCutsceneTrigger {
 
 	tick() {
 		//only work if player isn't backwards and is in the array
-		if (!player.backwards && player.parentPrev == this.parent && this.charactersArr.includes(player.constructor.name)) {
+		if (!player.backwards && player.parentPrev == this.parent && this.charactersArr.includes(player.id)) {
 			//if the player has passed the finish without failing, they've done it
 			if (this.parent.playerTilePos > this.parent.len && this.validCondition) {
 				activateCutsceneFromTunnel(1, this.cutscene, 1);
@@ -1275,8 +1275,37 @@ class Tunnel {
 		}
 	}
 
+	cameraIsInBox() {
+		var cameraST = stripTileCoordinates(world_camera.x, world_camera.y, world_camera.z, this);
+		cameraST[1] = Math.floor(cameraST[1] - 0.5);
+		var val = this.data[cameraST[0]][cameraST[1]];
+		//camera doesn't match box vals
+		if (!isBox(val)) {
+			return false;
+		}
+		
+		//if the camera ST coords yield a box, check to see if the camera's inside the box
+		var tl = this.tiles[cameraST[0]][cameraST[1]];
+		var safeTLSize = tl.size / 2;
+		var boxRel = spaceToRelativeRotless([world_camera.x, world_camera.y, world_camera.z], [tl.x, tl.y, tl.z], tl.normal);
+		//rotated boxes are special because their sides are smaller
+		if (val == 10) {
+			if (Math.abs(boxRel[0]) > safeTLSize) {
+				return false;
+			}
+			if (Math.max(Math.abs(boxRel[1]), Math.abs(boxRel[2])) > safeTLSize / Math.sqrt(2)) {
+				return false;
+			}
+			return true;
+		}
+
+		//regular boxes are just a quick distance check
+		return (Math.max(Math.abs(boxRel[0]), Math.abs(boxRel[1]), Math.abs(boxRel[2])) < safeTLSize);
+	}
+
 	//an attempt to perfectly draw a tunnel, always
 	beDrawn_playerParentAlternate() {
+		// console.log('hi');
 		//here's the idea: BSTs can draw space perfectly. What if just create a BST for all the complex parts of the tunnel?
 		var insideBST = new B3Node();
 		var outFarBST = new B3Node();
@@ -1300,54 +1329,123 @@ class Tunnel {
 		var sortObjs = [player, ...this.freeObjs, ...(player.duplicates || [])];
 
 		//sort tiles
+		/*I give up. you win player_03. congrats. im super happy for you, so glad you get to do this full time and goof off constantly. 
+		Maybe I'm just too stupid to create a good rendering engine. Maybe in 5 years I'll come back and you'll have finished the game in a twist of fate.
+		Either way, I'm done for now. I can't do it. I can't throw myself at this problem and fail over and over again. I need to do something else before I go insane.*/
 		if (!this.simple) {
+			//check if the camera is inside a box - if it is, only the box can be drawn and everything else can be skipped
+			if (this.cameraIsInBox()) {
+				var cameraST = stripTileCoordinates(world_camera.x, world_camera.y, world_camera.z, this);
+				cameraST[1] = Math.floor(cameraST[1] - 0.5);
+				this.tiles[cameraST[0]][cameraST[1]].beDrawn();
+				return;
+			}
 			for (var s=0; s<this.realTilesComplex.length; s++) {
+				// console.log(`oh yeah we're in`);
 				this.realTilesComplex[s].forEach(r => {
 					//only add tiles to the BST if if they're visible and need ordering (visible but far away tiles don't need ordering, because they're dark, I don't care)
-					if (r.playerDist < render_maxColorDistance + r.size) {
-						//put crumbling tiles outside
-						if (r.crumbleSet != undefined) {
-							if (stripsAreBlocking[s]) {
-								outNearBST.addObj(r);
-							} else {
-								outFarBST.addObj(r);
-							}
-							return;
+					
+					if (r.playerDist >= render_maxColorDistance + r.size) {
+						//if it's large enough to be drawn just draw it first
+						if ((r.size / r.cameraDist) * world_camera.scale > render_minTileSize) {
+							r.beDrawn();
 						}
-
-						//warning tiles have two parts
-						if (r.verticalObj != undefined) {
-							insideBST.addObj(r);
-							insideBST.addObj(r.verticalObj);
-							return;
-						}
-						//boxes have up to 6 parts
-						if (r.drawPolysIn != undefined) {
-							r.drawPolysIn.forEach(q => {
-								insideBST.addObj(q);
-							});
-
-							if (stripsAreBlocking[s]) {
-								r.drawPolysOut.forEach(q => {
-									outNearBST.addObj(q);
-								});
-							} else {
-								r.drawPolysOut.forEach(q => {
-									outFarBST.addObj(q);
-								});
-							}
-							return;
-						}
-
-						//base case
-						insideBST.addObj(r);
 						return;
 					}
 
-					if ((r.size / r.cameraDist) * world_camera.scale > render_minTileSize) {
-						//if it's too dark to be lit, just draw it first
-						r.beDrawn();
+					//put crumbling tiles outside
+					if (r.crumbleSet != undefined) {
+						(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r);
+						return;
 					}
+
+					//warning tiles have two parts
+					if (r.verticalObj != undefined) {
+						insideBST.addObj(r);
+						insideBST.addObj(r.verticalObj);
+						return;
+					}
+					//boxes have many parts
+					if (r.drawPolysIn != undefined) {
+						//spun boxes must always get all their polygons drawn
+						//NO, FALSE, forwards/backwards could be ignored
+						var stCoords = stripTileCoordinates(r.x, r.y, r.z, r.parent);
+						stCoords[1] = Math.floor(stCoords[1] - 0.5);
+						//front, back, left, right
+						var sideIDs = [
+							r.parent.data[stCoords[0]][stCoords[1]+1], 
+							r.parent.data[stCoords[0]][stCoords[1]-1], 
+							r.parent.data[modulate(stCoords[0]-1, tunnelSize)][stCoords[1]], 
+							r.parent.data[modulate(stCoords[0]+1, tunnelSize)][stCoords[1]]
+						];
+
+						
+						//spun boxes
+						if (r.parent.data[stCoords[0]][stCoords[1]] == 10) {
+							//if the front is a box
+							if (!isBox(sideIDs[0])) {
+								insideBST.addObj(r.drawPolysIn[0]);
+								(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[0]);
+							}
+
+							//if the back is a box
+							if (!isBox(sideIDs[1])) {
+								insideBST.addObj(r.drawPolysIn[1]);
+								(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[1]);
+							}
+
+							insideBST.addObj(r.drawPolysIn[2]);
+							insideBST.addObj(r.drawPolysIn[3]);
+
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[2]);
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[3]);
+						} else {
+							//regular boxes
+							// if (!isRegularBox(sideIDs[0])) {
+							// 	insideBST.addObj(r.drawPolysIn[0]);
+							// 	(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[0]);
+							// }
+
+							// if (!isRegularBox(sideIDs[1])) {
+							// 	insideBST.addObj(r.drawPolysIn[1]);
+							// 	(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[1]);
+							// }
+							// //only the top can be cut off the sides, because at corners boxes slope outwards
+							// if (!isRegularBox(sideIDs[2])) {
+							// 	insideBST.addObj(r.drawPolysIn[2]);
+							// }
+							// if (!isRegularBox(sideIDs[3])) {
+							// 	insideBST.addObj(r.drawPolysIn[3]);
+							// }
+							
+							insideBST.addObj(r.drawPolysIn[0]);
+							insideBST.addObj(r.drawPolysIn[1]);
+							insideBST.addObj(r.drawPolysIn[2]);
+							insideBST.addObj(r.drawPolysIn[3]);
+							insideBST.addObj(r.drawPolysIn[4]);
+							
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[0]);
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[1]);
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[2]);
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[3]);
+							(stripsAreBlocking[s] ? outNearBST : outFarBST).addObj(r.drawPolysOut[4]);
+
+							//boxes could also have rings?
+							if (r.rightTile.ring != undefined) {
+								//rings are finicky, so determine if a ring can just be ignored
+								if (!isRegularBox(sideIDs[2])) {
+									insideBST.addObj(r.leftTile.ring);
+								}
+								if (!isRegularBox(sideIDs[3])) {
+									insideBST.addObj(r.rightTile.ring);
+								}
+							}
+						}
+						return;
+					}
+
+					//base case
+					insideBST.addObj(r);
 				});
 			}
 		}
@@ -2300,14 +2398,14 @@ class Tunnel {
 
 		//character specfic stuff
 		//duplicator
-		if (player.duplicates != undefined) {
+		if (player.id == "Duplicator") {
 			player.duplicates = [];
 			player.duplicateGenerationCountup = 0;
 			return;
 		} 
 		
 		//pastafarian
-		if (player.personalBridgeStrength != undefined) {
+		if (player.id == "Pastafarian") {
 			player.personalBridgeStrength = 1;
 			return;
 		}
@@ -2316,10 +2414,10 @@ class Tunnel {
 	placePowercells() {
 		//placing power cells
 		var truePowercells = powercells_perTunnel;
-		if (player.constructor.name == "Gentleman") {
-			truePowercells = Math.round(truePowercells * powercells_gentlemanMultiplier);
+		if (player.id == "Gentleman") {
+			truePowercells *= powercells_gentlemanMultiplier;
 		}
-		for (var a=0; a<truePowercells; a++) {
+		for (var a=0; a<Math.round(truePowercells); a++) {
 			var rotation = randomBounded(0, Math.PI * 2);
 
 			//get offset
@@ -2432,7 +2530,7 @@ class Tunnel {
 		removeInvalidObjects(this);
 		//add powercells if gentleman exists
 		if (this.freeObjs.length == 0) {
-			if (player.constructor.name == "Gentleman" || loading_state.constructor.name == "State_Infinite") {
+			if (player.id == "Gentleman" || loading_state.constructor.name == "State_Infinite") {
 				this.placePowercells();
 			}
 		}

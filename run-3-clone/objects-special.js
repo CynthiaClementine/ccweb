@@ -27,19 +27,30 @@ class B3Node {
 			return;
 		}
 
+		/*
+		//object is too close and must be split
+		if (Math.abs(objZ) < object.size / 2) {
+			this.hie = this.hie ?? new B3Node();
+			this.low = this.low ?? new B3Node();
+
+			var split = object.clipAtPlane([this.objs[0].x, this.objs[0].y, this.objs[0].z], [this.objs[0].normal]);
+			if (split[0]) {
+				this.hie.addObj(split[0]);
+			}
+			if (split[1]) {
+				this.low.addObj(split[1]);
+			}
+		} */
+
 		//if self already contains an object use the object's normal to place the next object
 		if (objZ > 0) {
 			//front object
-			if (this.hie == undefined) {
-				this.hie = new B3Node();
-			}
+			this.hie = this.hie ?? new B3Node();
 			this.hie.addObj(object);
 			return;
 		} 
 
-		if (this.low == undefined) {
-			this.low = new B3Node();
-		}
+		this.low = this.low ?? new B3Node();
 		this.low.addObj(object);
 	}
 

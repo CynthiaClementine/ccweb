@@ -35,6 +35,8 @@ var ctx;
 var centerX;
 var centerY;
 
+var camera_zCorrection = 3.5;
+
 var challenge_fadeTime = 40;
 var challenge_opacity = 0.05;
 
@@ -83,6 +85,7 @@ const color_grey_dark = "#666";
 const color_grey_light = "#CCC";
 const color_grey_lightest = "#FEF";
 const color_ice = "#D1E4E6";
+const color_ice_dark = "#7EB3C7";
 const color_keyPress = "#8FC";
 const color_keyUp = "#666";
 const color_map_bg = "#FEB";
@@ -101,6 +104,10 @@ const color_trigger = "#A60";
 const color_warning = "#FFDB29";
 const color_warning_secondary = "#8C8C89";
 const colors_powerCells = ["#888888", "#8888FF", "#88FF88", "#88FFFF", "#FF8888", "#FF88FF", "#FFFF88", "#FFFFFF"];
+
+//bit representation from 0 to 3
+var costumes_unlocked = 0b00;
+var costumes_active = 0;
 
 var credits = [
 	`CREDITS:`,
@@ -193,7 +200,7 @@ var editor_cutsceneWidth = 0.15;
 
 //for custom worlds
 var editor_maxCutscenes = 21;
-var editor_cutscenes = {}
+var editor_cutscenes = {};
 var editor_objects = [];
 var editor_spawn = undefined;
 var editor_locked = false;
@@ -207,6 +214,8 @@ var infinite_levelRange = 40;
 var infinite_wobble = 0.3;
 var infinite_levelConstraints = [];
 var infinite_levelsVisited = "";
+//the unstable characters go too fast 
+var infinite_unstableCharacters = [`Bunny`, `Pastafarian`, `Skater`];
 
 
 
@@ -239,7 +248,7 @@ var physics_crumblingShrinkStart = 50;
 var physics_crumblingShrinkTime = 150;
 var physics_graceTime = 6;
 var physics_graceTimeRamp = 10;
-var physics_gravity = 0.15; //0.13
+var physics_gravity = 0.15;
 var physics_jumpTime = 20;
 var physics_maxBridgeDistance = 350;
 
@@ -604,12 +613,6 @@ function handleKeyPress_player(a) {
 		case 'arrowup':
 		case ' ':
 			if (!controls_spacePressed) {
-				//if it's infinite mode, restart
-				if (loading_state instanceof State_Infinite && loading_state.substate == 2) {
-					loading_state.pushScoreToLeaderboard();
-					loading_state = new State_Infinite();
-					loading_state.doWorldEffects();
-				}
 				player.handleSpace();
 			}
 			controls_spacePressed = true;

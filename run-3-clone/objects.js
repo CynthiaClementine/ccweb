@@ -360,9 +360,10 @@ class Character {
 		//get the closest strip
 		var ref = this.parentPrev;
 		var [centerStripOffset, selfTile] = stripTileCoordinates(this.x, this.y, this.z, ref);
+		selfTile = Math.floor(selfTile);
 
-		for (var n=-1; n<2; n++) {
-			for (var f=-1; f<2; f++) {
+		for (var n=-1; n<=1; n++) {
+			for (var f=-1; f<=1; f++) {
 				if (ref.tiles[modulate(centerStripOffset + f, ref.tiles.length)][selfTile+n] != undefined) {
 					ref.tiles[modulate(centerStripOffset + f, ref.tiles.length)][selfTile+n].collideWithEntity(this);
 				}
@@ -1278,9 +1279,9 @@ class Pastafarian extends Character {
 
 	handleSpace() {
 		if (this.onGround > 0) {
-			//offset so stripTileCoordinates gets it right
-			var offset = polToCart(this.dir_front[0], this.dir_front[1], this.parentPrev.tileSize / 2);
-			var stCoords = stripTileCoordinates(this.x - offset[0], this.y - offset[1], this.z - offset[2], this.parentPrev);
+			var stCoords = stripTileCoordinates(this.x, this.y, this.z, this.parentPrev);
+			//offset because stCoordinates are misaligned with tiles
+			stCoords[1] = Math.floor(stCoords[1] - 0.5);
 			
 			if (this.parentPrev.tiles[stCoords[0]][stCoords[1]] != undefined) {
 				var tile = this.parentPrev.tiles[stCoords[0]][stCoords[1]];

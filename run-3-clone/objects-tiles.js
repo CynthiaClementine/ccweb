@@ -385,27 +385,31 @@ class Tile_Box extends Tile {
 		//getting camera position relative to self for proper ordering
 		var relCPos = spaceToRelativeRotless([world_camera.x, world_camera.y, world_camera.z], [this.x, this.y, this.z], this.normal);
 		var color = this.getColor();
+		var r = this.size / 2;
 		
 		//top / bottom switch
-		if (relCPos[2] > 0) {
+		if (relCPos[2] > -r) {
 			drawWorldPoly([this.points[0], this.points[1], this.points[2], this.points[3]], color);
-		} else {
+		} 
+		if (relCPos[2] < r) {
 			drawWorldPoly([this.points[4], this.points[5], this.points[6], this.points[7]], color);
 		}
 
 		//forward / back switch
-		if (relCPos[0] > 0) {
+		if (relCPos[0] > -r) {
 			drawWorldPoly([this.points[3], this.points[2], this.points[6], this.points[7]], color);
-		} else {
+		} 
+		if (relCPos[0] < r) {
 			drawWorldPoly([this.points[0], this.points[1], this.points[5], this.points[4]], color);
 		}
 
 		//left / right switch
-		if (relCPos[1] > 0) {
+		if (relCPos[1] > -r) {
 			this.leftTile.cameraDist = this.cameraDist;
 			this.rightTile.playerDist = this.playerDist;
 			this.rightTile.beDrawn();
-		} else {
+		} 
+		if (relCPos[1] < r) {
 			this.leftTile.cameraDist = this.cameraDist;
 			this.leftTile.playerDist = this.playerDist;
 			this.leftTile.beDrawn();
@@ -432,14 +436,13 @@ class Tile_Box extends Tile {
 				if (distX > distY && distX > distZ) {
 					this.collide_forwardsBackwards(entity, entityCoords);
 				} else {
-					var st = stripTileCoordinates(this.polys["ub"].x, this.polys["ub"].y, this.polys["ub"].z, this.parent);
+					var st = stripTileCoordinates(this.x, this.y, this.z, this.parent);
+					st[1] = Math.floor(st[1] - 0.5);
 					var totalLen = this.parent.sides * this.parent.tilesPerSide;
 					//check to make sure colliding with the sides is even allowed - if there's another normal box there, the sides will be unreachable
-					var sideReachable = true;
 					var sideCheck = boolToSigned(entityCoords[1] > 0);
-					if (this.parent.tiles[modulate(st[0] + sideCheck, totalLen)][st[1]] != undefined) {
-						sideReachable = (this.parent.tiles[modulate(st[0]+sideCheck, totalLen)][st[1]].constructor.name != "Tile_Box");
-					}
+					var sideValue = this.parent.data[modulate(st[0] + sideCheck, totalLen)][st[1]];
+					var sideReachable = !isRegularBox(sideValue);
 
 					//which side of collision should take priority? That depends on how the player is falling.
 					//try to keep the player on the SAME SIDE as they're currently on, no auto-rotating
