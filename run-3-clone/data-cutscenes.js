@@ -55,7 +55,8 @@ var cutsceneData_boring = {
 
 var cutsceneData_candy = {
 	id: 'Candy',
-	//unlock child and move new tunnel forwards, this is a super hacky solution but whatever
+	//unlock child and move new tunnel forwards
+	//also unlock halloween costumes - halloween is 2s place
 	effects: `unlockCharacter("Child");
 		if (getObjectFromID("New Tunnel, Part 1").z < -160000) {
 			var a = 1;
@@ -65,7 +66,8 @@ var cutsceneData_candy = {
 				a += 1;
 				targetTunnel = getObjectFromID(\`New Tunnel, Part \${a}\`);
 			}
-		}`,
+		}
+		costumes_unlocked = costumes_unlocked | 2;`,
 	frames: [
 		`CAM~-32105.7141~46.6653~-119622.2184~6.3737~0.0108~1.7800|LGT~-32200.6863~66.5684~-118958.5940|SPR~0.5148~0.5938~0.0188~data_sprites.Angel.sheet~0.0000~true~0~4|LGT~-32241.5849~74.8115~-119359.3878|SPR~0.5164~0.7271~0.0188~data_sprites.Child.sheet~0.0000~false~0~9|SPR~0.5164~0.7104~0.0516~data_sprites.Child.sheet~0.0000~false~15~9|BUB~0.8023~0.5302~0.1641~0.0792|TRI~0.6992~0.5656~0.5719~0.6896~0.0086|TXT~0.7992~0.5000~0.1461~0.0500~Hey, look what I found...~false`, 
 		`CAM~-32105.7141~46.6653~-119622.2184~6.3737~0.0108~1.7800|LGT~-32200.6863~66.5684~-118958.5940|SPR~0.5148~0.5938~0.0188~data_sprites.Angel.sheet~0.0000~true~0~4|LGT~-32241.5849~74.8115~-119359.3878|SPR~0.5117~0.7302~0.0266~data_sprites.Child.sheet~0.0000~false~0~9|SPR~0.5141~0.7479~0.0563~data_sprites.Child.sheet~0.0000~false~10~1|BUB~0.7852~0.7125~0.0953~0.0396|TRI~0.7133~0.7333~0.5633~0.7688~0.0062|TXT~0.7820~0.6990~0.0867~0.0479~Candy!~false`, 
@@ -167,7 +169,8 @@ var cutsceneData_dontKnockIt = {
 
 var cutsceneData_goldMedal = {
 	id: 'Gold Medal',
-	effects: '',
+	//unlock winter costumes
+	effects: `costumes_unlocked = costumes_unlocked | 1;`,
 	frames: [
 		`CAM~123665.7689~112.6689~-186344.0645~7.1636~-0.1200~2.3400|LGT~123756.3840~114.2318~-186127.2122|LGT~123776.3410~166.1499~-186228.1750|SPR~0.4102~0.7167~0.0547~data_sprites.Child.sheet~0.0000~false~13~3|SPR~0.5469~0.6854~0.0336~data_sprites.Skater.sheet~0.0000~true~12~4|BUB~0.3055~0.2010~0.1000~0.0542|BUB~0.3328~0.3937~0.2367~0.0365|TRI~0.3469~0.4229~0.3977~0.6021~0.0086|BUB~0.7625~0.6563~0.0414~0.0406|BUB~0.6617~0.8969~0.2711~0.0385|TXT~0.6687~0.8833~0.2391~0.0417~That certainly is nice of you.~false|BOX~0.7695~0.7740~0.0047~0.1000|TRI~0.7336~0.6521~0.6297~0.6677~0.0078|TXT~0.7594~0.6469~0.0594~0.0406~Oh!~false|TXT~0.3031~0.1833~0.1000~0.0500~You won!~false|BOX~0.3117~0.3198~0.0039~0.1000|TXT~0.3336~0.3802~0.2000~0.0438~You get a gold medal!~false`, 
 		`CAM~123665.3314~112.6689~-186343.5348~7.1636~-0.1200~2.3400|LGT~123768.5285~153.6396~-186172.7185|LGT~123776.3410~166.1499~-186228.1750|SPR~0.4164~0.7177~0.0500~data_sprites.Child.sheet~0.0000~false~0~7|SPR~0.5000~0.6927~0.0359~data_sprites.Skater.sheet~0.0000~true~15~4|BUB~0.3922~0.4125~0.1344~0.0490|TRI~0.3469~0.4229~0.3977~0.6021~0.0086|BUB~0.7625~0.8354~0.2250~0.0667|TXT~0.7664~0.7990~0.1906~0.0417~Don't worry. It's the thought that counts.~false|TRI~0.6005~0.7948~0.5531~0.7292~0.0078|TXT~0.3961~0.3875~0.1250~0.0292~Yeah, well, it's the closest I could find.~false|BUB~0.6195~0.1802~0.0438~0.0375|TXT~0.6156~0.1552~0.1000~0.0500~...~false|BOX~0.6234~0.2708~0.0055~0.0750|BUB~0.6258~0.3177~0.1711~0.0406|BOX~0.7047~0.5615~0.0047~0.2302|TXT~0.6266~0.3021~0.1711~0.0490~This is bronze.~false|TXT~0.6102~0.3688~0.1563~0.0198~Or is it copper?~true`, 
