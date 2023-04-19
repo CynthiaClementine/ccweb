@@ -1335,7 +1335,7 @@ class SceneSprite extends SceneBox {
 
 		//special case for map sprite sheet
 		if (this.sheet == "data_sprites.Map.sheet") {
-			this.texture = new Texture(eval(this.sheet), data_sprites.spriteSize * 2, 1e1001, false, this.b, [[this.textureX, this.textureY]]);
+			this.texture.size *= 2;
 		}
 	}
 
@@ -1816,8 +1816,8 @@ class PropertyTextBox {
 		//update self's values if cursor is down
 		if (cursor_down) {
 			//if in the area, modify value
-			if (cursor_y > (canvas.height * this.y) - cursor_hoverTolerance && cursor_y < (canvas.height * this.y) + cursor_hoverTolerance) {
-				if (cursor_x < (canvas.width * (this.x + this.width)) + cursor_hoverTolerance && cursor_x > (canvas.width * this.x) - cursor_hoverTolerance) {
+			if (Math.abs((canvas.height * this.y) - cursor_y) < cursor_hoverTolerance) {
+				if (Math.abs((canvas.width * this.x) - cursor_x) < cursor_hoverTolerance + canvas.width * this.width * 0.5) {
 					var value = prompt(this.boxLabel, eval(this.boxContent));
 					//sanitize input because users are evil gremlins (sorry any user that's reading this, you're not an evil gremlin, but your typing habits could cause problems)
 					if (isValidString(value)) {
@@ -1831,9 +1831,9 @@ class PropertyTextBox {
 							player = new Pastafarian(player.x, player.y, player.z);
 						}
 					}
+					//repeat pop-up prevention
+					cursor_down = false;
 				}
-				//repeat pop-up prevention
-				cursor_down = false;
 			}
 		}
 	}
