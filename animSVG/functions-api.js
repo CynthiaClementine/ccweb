@@ -23,7 +23,6 @@ setColorHSVA(h, s, v, a)
 function getSelectedFrame() {
 	var id = timeline.layerIDs[timeline.s];
 	var layer = timeline.l[id][timeline.t];
-
 	return layer;
 }
 /**
