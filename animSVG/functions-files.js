@@ -82,11 +82,13 @@ function import_parseWorkspaceData(dataText) {
 	container.innerHTML = dataText;
 	workspace_permanent.innerHTML = container.children[0].innerHTML;
 
+	
+
 	//at this point every layer will be visible - need to make them all invisible before beginning
 	for (var k=0; k<workspace_permanent.children.length; k++) {
 		for (var j=0; j<workspace_permanent.children[k].children.length; j++) {
 			φSet(workspace_permanent.children[k].children[j], {"display": "none"});
-			console.log(φGet(workspace_permanent.children[k].children[j], "id"), `invisible`);
+			// console.log(φGet(workspace_permanent.children[k].children[j], "id"), `invisible`);
 		}
 	}
 }
@@ -148,6 +150,21 @@ function import_parseTimelineData(timeData) {
 }
 
 /**
+ * Applies a function to a node as well as all its child nodes
+ * @param {Object} node the node to apply code to
+ * @param {Function} func the function to apply. Takes in the node as an argument
+ */
+function applyFunction(node, func) {
+	func(node);
+
+	if (node.children.length > 0) {
+		for (var c=0; c<node.children.length; c++) {
+			applyFunction(node.children[c], func);
+		}
+	}
+}
+
+/**
  * Creates a canvas with the data of a specified frame
  * @param {Number} frame The 0-indexed number of the timeline's frame to turn into canvas data
  * @param {Number} width the resulting canvas width in pixels
@@ -178,6 +195,26 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 	for (var f=timeline.layerIDs.length-1; f>-1; f--) {
 		largeContainer.appendChild(timeline.l[timeline.layerIDs[f]][frame].cloneNode(true));
 	}
+	var props = φGet(workspace_container, ['x', 'y', 'width', 'height']);
+	φSet(largeContainer, {
+		'x': props[0],
+		'y': props[1],
+		'width': props[2],
+		'height': props[3],
+	});
+
+	//remove styling if it's necessary
+	if (detailLevel == 0) {
+		
+		applyFunction(largeContainer, (n) => {
+			φSet(n, {
+				'stroke': "#000",
+				'stroke-width': "var('pxUnits4')"
+			});
+		});
+		φSet(largeContainer, {'fill': "#FFF", 'stroke': "none"});
+		console.log(`applying`);
+	}
 
 	var [w, h, scaling] = φGet(workspace_container, ["width", "height", "scaling"]);
 	var scaleFactor = height / h;
@@ -186,7 +223,7 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 	atx.clearRect(0, 0, canvas.width, canvas.height);
 
 	//turn the svg into image data
-	var data = new XMLSerializer().serializeToString(workspace_container);
+	var data = new XMLSerializer().serializeToString(largeContainer);
 	var img = new Image();
 	var svgBlob = new Blob([data], {type: "image/svg+xml;charset=utf-8"});
 	var url = URL.createObjectURL(svgBlob);
