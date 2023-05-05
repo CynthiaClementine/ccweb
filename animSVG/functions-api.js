@@ -4,7 +4,7 @@ functions that can accomplish the same tasks as user input, but with the benefit
 
 
 INDEX
-
+changeBrushSize(newSize)
 getSelectedFrame();
 toggleOnionSkin()
 toggleTimelinePlayback()
@@ -16,6 +16,12 @@ select(layer, frame)
 setColorRGBA(r, g, b, a)
 setColorHSVA(h, s, v, a)
 */
+
+
+
+function changeBrushSize(newSize) {
+	data_persistent.brushSize = clamp(newSize, 1, 100);
+}
 
 /**
  * Gives the object of the current Frame selected. If multiple frames are selected, returns an array of objects.
@@ -91,19 +97,9 @@ function toggleTimelinePlayback() {
  * @returns {Boolean} whether the operation succeeded or not
  */
 function fill(workspaceX, workspaceY) {
-	var layers = timeline.layerIDs.slice(0);
-	//prioritize the selected layer
-	var selected = layers[timeline.s];
-	layers.splice(timeline.s, 1);
-	layers.splice(0, 0, selected);
-
-	//try to fill each layer and go with the first one that succeeds
-	for (var k=0; k<layers.length; k++) {
-		if (timeline.l[layers[k]][timeline.t].fill(workspaceX, workspaceY)) {
-			return true;
-		}
-	}
-	return false;
+	changeToolTo("Fill");
+	toolCurrent.forceFillCoordinates = [workspaceX, workspaceY];
+	toolCurrent.mouseDown();
 }
 
 /**
