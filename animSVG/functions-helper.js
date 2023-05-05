@@ -87,7 +87,7 @@ function createTimelineBlocks(layerID, startFrame, endFrame) {
 			'x': -5,
 			'y': (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight,
 			'id': `layer_${layerID}_text`, 
-			'class': 'timelineText',
+			'class': 'textTimeline',
 			'text-anchor': 'end',
 			'innerHTML': timeline.names[layerID],
 			'noselect': 'on',
@@ -126,6 +126,8 @@ function changeAnimationLength(newLength) {
 	if (newLength == timeline.len) {
 		return;
 	}
+
+	//set the timeout for length changing
 
 	//if it's shorter than the current length
 	var labPer = timeline_labelPer;
@@ -172,7 +174,7 @@ function changeAnimationLength(newLength) {
 				'x': (timeline_blockW + 1) * (k + 0.5),
 				'y': labHeight,
 				'id': `label_${k}`, 
-				'class': 'timelineText',
+				'class': 'textTimelineLength',
 				'text-anchor': 'middle',
 				'innerHTML': k,
 				'noselect': 'on',
@@ -208,14 +210,13 @@ function clampWorkspace() {
 
 
 function createUid() {
-	var chars = `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZςερτυθιοπασδφγηξκλζχψωβνμ`;
 	var idLen = 5;
 	var uid = "";
 
 	//represent the uid number as valid characters
 	var h = 0;
-	while (Math.floor(uidCount / (chars.length ** h)) > 0 || h == 0) {
-		uid = chars[Math.floor(uidCount / (chars.length ** h)) % chars.length] + uid;
+	while (Math.floor(uidCount / (uidChars.length ** h)) > 0 || h == 0) {
+		uid = uidChars[Math.floor(uidCount / (uidChars.length ** h)) % uidChars.length] + uid;
 		h += 1;
 	}
 
@@ -238,6 +239,24 @@ function cursorWorkspaceCoordinates() {
 
 
 /**
+ * Creates a fill object to be added to the DOM
+ * @param {*} curves Coordinates of the curves the fill consists of
+ * @param {*} color The color of the fill
+ */
+function createFill(loops, color) {
+	var node = φCreate("path", {
+		'fill': color,
+		'stroke': 'none',
+		//evenodd allows the loops to be in any order
+		'fill-rule': 'evenodd'
+	});
+	node = Fill(node, loops);
+	node.redraw();
+	return node;
+}
+
+
+/**
  * Creates a spline object to be added to the DOM
  * @param {Number[][][]} curves Coordinates of the curves the spline consists of
  * @param {RGBAString} color the color of the spline path
@@ -254,9 +273,204 @@ function createSpline(curves, color, pathWidth) {
 
 	node = Spline(node, curves);
 	node.redraw();
-	node.calculateBoundingBox();
 
 	return node;
+}
+
+/**
+ * Given a set of points corresponding to connected straight lines, returns the connected curves that correspond to those lines
+ * @param {Frame} frameObj 
+ * @param {Number[][]} edges 
+ */
+function curvesFromEdgePath(frameObj, edges, tolerance) {
+	var debugCurves = true;
+	if (debugCurves) {console.log(`in`);}
+	var attempts = 1000;
+	var path, pt, bin;
+	var paths = [];
+	while (edges.length > 0) {
+		//might as well start at the start
+		pt = edges[0];
+		if (debugCurves) {console.log(pt);}
+		bin = frameObj.binAt(pt[0], pt[1]);
+		if (debugCurves) {console.log(bin.length, bin.filter(s => s.intersectsPoint(pt[0], pt[1])).length);}
+		if (debugCurves) {console.log(bin[0]);}
+		bin = bin.filter(s => s.intersectsPoint(pt[0], pt[1]));
+
+		//if there are no splines in the bin, how?
+		if (bin.length == 0) {
+			console.log(`mystery issue`);
+			return [];
+		}
+
+		//pick random points until there's only one curve that the point is on
+		while (bin.length != 1 && attempts > 0) {
+			attempts -= 1;
+			pt = edges[floor(randomBounded(0, edges.length-0.01))];
+			bin = frameObj.binAt(pt[0], pt[1]).filter(s => s.intersectsPoint(pt[0], pt[1]));
+		}
+
+		if (attempts == 0) {
+			console.log(`oops, all corners!`);
+			return [];
+		}
+
+		//since there's only one spline, can be sure that the selected point is in the middle of the spline and therefore the entire spline is on the path
+		paths.push(bin[0]);
+
+		//remove all the points on that path
+		edges = edges.filter(a => !(bin[0].intersectsPoint(a[0], a[1])));
+
+		//repeat this process until all the points have been consumed
+	}
+
+	paths.forEach(p => {
+		φSet(p, {'stroke': "#FFF"});
+	});
+	return loopifyPaths(paths);
+}
+
+/**
+ * takes in a series of coordinates and arranges them into loops
+ * @param {Number[][][]} paths 
+ * @returns {Number[][][][]} The array of loops
+ */
+function loopifyPaths(paths) {
+	//fill requirements result in a series of loops
+	var loopsList = [];
+
+	//if the start and end are the same the curve is a finished loop by itself, and therefore should be removed
+	for (var q=0; q<paths.length; q++) {
+		if (arrsAreSame(paths[q].start, paths[q].end)) {
+			loopsList.push([paths[q].curves]);
+			paths.splice(q, 1);
+			q -= 1;
+		}
+	}
+
+	if (paths.length == 0) {
+		return loopsList;
+	}
+
+	//now that we're past that initial step, longer loops can be checked
+	var protoPath;
+	var oldEnd, newStart;
+
+	//after getting a loop, splice it out - repeat until no loops left
+	while (paths.length > 0) {
+		protoPath = loopifyOnce(paths);
+		console.log(`found loop with ${protoPath.length} splines`);
+
+		//remove all the paths that constitute that loop, and convert the loop into coordinates
+		for (var s=0; s<protoPath.length; s++) {
+			paths.splice(paths.indexOf(protoPath[s]), 1);
+			protoPath[s] = protoPath[s].curves;
+
+			//if the start and end don't match up, flip the curve so they do
+			if (s > 0) {
+				oldEnd = protoPath[s-1][protoPath[s-1].length-1];
+				oldEnd = oldEnd[oldEnd.length-1];
+				newStart = protoPath[s][0][0];
+				if (!arrsAreSame(oldEnd, newStart)) {
+					//reverse the order of the curves, as well as the order of the points in said curve
+					protoPath[s].reverse();
+					protoPath[s].forEach(c => c.reverse());
+				}
+			}
+		}
+		console.log(`after process, there are ${paths.length} splines left`);
+		loopsList.push(protoPath);
+	}
+	console.log(`found ${loopsList.length} loops`);
+
+	return loopsList;
+}
+
+//a loop is just a direct connection from the start of one node to the end of that same node - so DFS works
+//this does DFS basically
+function loopifyOnce(paths) {
+	var debugLoop = false;
+	//just for my sanity
+	paths.forEach(j => {
+		assignRID(j);
+	});
+
+	//get the starting node
+	var protoPath = [paths[0]];
+	var protoEnds = [true];
+	//endTarget indicates we're looking for paths that connect to the end
+	var lastNode = protoPath[0];
+	var candidate;
+	var endTarget = true;
+	var maxIterations = 1000;
+	var targetPoint;
+	var tol;
+
+	if (debugLoop) {console.log(`starting with ${paths[0].id}`);}
+
+	while (maxIterations > 0) {
+		maxIterations -= 1;
+
+		lastNode = protoPath[protoPath.length-1];
+		targetPoint = protoEnds[protoEnds.length-1] ? lastNode.end : lastNode.start;
+		if (debugLoop) {console.log(`searching for point ${JSON.stringify(targetPoint)}`);}
+
+		for (var g=0; g<paths.length; g++) {
+			//look for the first path that connects
+			tol = (+φGet(lastNode, 'stroke-width') + +φGet(paths[g], 'stroke-width')) / 2;
+			tol = tol * tol;
+			if (paths[g] != lastNode && d2_distSquared(targetPoint, paths[g].start) <= tol || d2_distSquared(targetPoint, paths[g].end) <= tol) {
+				if (debugLoop) {console.log(`found connection with ${paths[g].id}`);}
+				//if the path that connects is the original path (and we're not at the very start) then end the process and start a new protoPath
+				if (paths[g] == protoPath[0]) {
+					if (debugLoop) {console.log(`original`);}
+					if (protoPath.length > 1) {
+						if (debugLoop) {console.log(`origin ending`);}
+						return protoPath;
+					}
+				} else {
+					if (debugLoop) {console.log(`new`);}
+					//update the candidate + target variable
+					candidate = paths[g];
+					endTarget = arrsAreSame(targetPoint, paths[g].start);
+				}
+			}
+		}
+	
+		//if we have a valid candidate push it onto the protopath and repeat
+		if (candidate != undefined) {
+			protoPath.push(candidate);
+			protoEnds.push(endTarget);
+		} else {
+			//if there are no paths left at all, the start must have been invalid
+			if (protoPath.length == 1) {
+				if (debugLoop) {console.log(`${paths[0].id} was an invalid start!`);}
+			}
+
+			//if there's no valid candidate, that means there are no paths that connect to the end of this path, meaning this path is invalid and should be removed
+			paths.splice(paths.indexOf(lastNode), 1);
+			protoPath.pop();
+			protoEnds.pop();
+
+			if (protoPath.length == 0) {
+				return protoPath;
+			}
+		}
+
+		candidate = undefined;
+		endTarget = protoEnds[protoEnds.length-1];
+	}
+	if (debugLoop) {console.log(`out of time!`, paths);}
+	return paths;
+}
+
+//given a point and an array of points, gives the minimum cloud distance to the point
+function minTaxiTo(point, pointCloud) {
+	var tDist = 1e1001;
+	pointCloud.forEach(p => {
+		tDist = Math.min(Math.abs(p[0] - point[0]) + Math.abs(p[1] - point[1]), tDist);
+	});
+	return tDist;
 }
 
 //gives the cursor's [x, y] coordinates relative to a node
@@ -264,6 +478,22 @@ function cursorRelativeTo(node) {
 	var box = node.getBoundingClientRect();
 	return [cursor.x - box.x, cursor.y - box.y];
 }
+
+
+function frame_addFill(layerNode, fill) {
+	//still have to check for previously empty because of copy / paste options
+	layerNode.fills.appendChild(fill);
+	layerNode.binModify(fill, false);
+
+	if (layerNode.fills.children.length == 1) {
+		//change to indicate the frame is full
+		var uid = φGet(layerNode, 'uid');
+		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
+		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
+		return fill;
+	}
+}
+
 
 
 
@@ -274,15 +504,153 @@ function cursorRelativeTo(node) {
  * @param {Spline} spline the Spline path object to add
  */
 function frame_addPath(layerNode, spline) {
-	layerNode.lines.appendChild(spline);
-	layerNode.binModify(spline, false);
+	var debugIntersects = false;
 
-	//if the layer was previously empty change to full
-	var uid = φGet(layerNode, 'uid');
-	if (layerNode.lines.children.length == 1) {
+	//previously empty makes it easy
+	if (layerNode.lines.children.length == 0) {
+		layerNode.lines.appendChild(spline);
+		layerNode.binModify(spline, false);
+
+		//change to indicate the frame is full
+		var uid = φGet(layerNode, 'uid');
 		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
 		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
+		return spline;
 	}
+
+	//if there are lines already:
+	var plancLen = 0.5 / (10 ** quantizeTo);
+	var inserting = [spline];
+	var insertingBounds = [spline.bounding.map(a => Math.floor(a / cubicBinSize))];
+	for (var n=0; n<inserting.length; n++) {
+		//search through all the lines that the spline could intersect and cut them if necessary
+		var possibleObjs = layerNode.binGet(insertingBounds[n][0], insertingBounds[n][1], insertingBounds[n][2], insertingBounds[n][3]);
+
+		possibleObjs.forEach(p => {
+			var intersections = splineSplineIntersect(p, inserting[n], plancLen / 4);
+			if (intersections.length == 0) {
+				return;
+			}
+
+			if (debugIntersects) {console.log(`intersection detected: [new, old]`, [inserting[n], p]);}
+
+			//merge identical intersections
+			intersections = simplifyLineDuplicates(intersections, plancLen * 1.5);
+			if (debugIntersects) {console.log(`intersections are ${JSON.stringify(intersections)}`);}
+			if (true) {
+				intersections.forEach(g => {
+					workspace_toolTemp.appendChild(φCreate("circle", {
+						'cx': g[0],
+						'cy': g[1],
+						'r': 0.1,
+						'fill': "#F0F",
+						'stroke': "#0FF",
+						'stroke-width': 0.075
+					}));
+				});
+			}
+
+			//remove existing intersecting spline so it can be chopped without consequence
+			layerNode.binModify(p, true);
+			layerNode.lines.removeChild(p);
+			var pTimes = pointsToOrderedT(p, intersections);
+			if (debugIntersects) {console.log(p.start, p.end, intersections, pTimes);}
+			//merge identical times
+			//this whole "not less than" is done to account for undefineds. Checking for "greater than" returns false when comparing against undefineds, even though it should be allowed
+			pTimes = pTimes.filter((num, ind) => !(Math.abs(pTimes[ind] - pTimes[ind+1]) < 0.001));
+			var pBits = multiSlice(p, pTimes);
+			if (debugIntersects) {console.log(`pbits`, pBits);}
+			var nTimes = pointsToOrderedT(inserting[n], intersections);
+			// console.log(JSON.stringify(nTimes));
+			var nBits = multiSlice(inserting[n], nTimes);
+			var boundsBits = nBits.map(b => b.bounding.map(a => floor(a / cubicBinSize)));
+
+			//add all p bits, put n bits into array for checking
+			pBits.forEach(q => {
+				layerNode.lines.appendChild(q);
+				layerNode.binModify(q, false);
+			});
+
+			inserting.splice(n, 1, ...nBits);
+			insertingBounds.splice(n, 1, ...boundsBits);
+			
+		});
+
+		//also need to cut 
+		//after checking all the possible objects this insert object can be added
+		layerNode.lines.appendChild(inserting[n]);
+		layerNode.binModify(inserting[n], false);
+	}
+	
+	return spline;
+}
+
+function pointsToOrderedT(spline, points) {
+	var tVals = points.map(p => spline.getTFromPoint(p[0], p[1]));
+	return tVals.sort((a, b) => a - b);
+}
+
+function multiSlice(spline, sliceTimes) {
+	// console.log(JSON.stringify(sliceTimes));
+	//don't clip ends because.. that's not a clip
+	while (sliceTimes[0] <= 0) {
+		sliceTimes.shift();
+	}
+	if (sliceTimes[sliceTimes.length-1] >= spline.curves.length) {
+		sliceTimes.pop();
+	}
+
+	//only continue if there are still intersections
+	if (sliceTimes.length == 0) {
+		return [spline];
+	}
+
+	var cut = [];
+	var remainder = spline;
+	var importantPs = [];
+	var buffer1;
+	for (var s=0; s<sliceTimes.length; s++) {
+		if (sliceTimes[s] % 1 != 0) {
+			//slicing at a non-integer will cause the other Ts of that curve to shift around (because velocities, etc).
+			//To fix this, convert the Ts into Points, then after splitting, convert back
+			//t -> points
+			var t = s + 1;
+			importantPs = [];
+			while (t < sliceTimes.length && floor(sliceTimes[t]) == floor(sliceTimes[s])) {
+				importantPs.push(remainder.getPointFromT(sliceTimes[t]));
+				t += 1;
+			}
+			//split
+			[buffer1, remainder] = remainder.splitAt(sliceTimes[s]);
+			cut.push(buffer1);
+
+			//points -> t
+			for (t=0; t<importantPs.length; t++) {
+				sliceTimes[t+s+1] = remainder.getTFromPoint(importantPs[t]);
+			}
+
+			//make sure all the other slice times are in remainder coordinates
+			var reduction = floor(sliceTimes[s]);
+			for (t=s+1; t<sliceTimes.length; t++) {
+				sliceTimes[t] -= reduction;
+			}
+		} else {
+			//simple integer case
+			console.log(sliceTimes[s]);
+			[buffer1, remainder] = remainder.splitAt(sliceTimes[s]);
+			console.log(buffer1, remainder);
+			cut.push(buffer1);
+			//make sure all the other slice times are now in remainder coordinates
+			for (var t=s+1; t<sliceTimes.length; t++) {
+				sliceTimes[t] -= sliceTimes[s];
+			}
+		}
+	}
+
+	//add the remainder at the end
+	cut.push(remainder);
+
+	return cut;
 }
 
 /**
@@ -416,7 +784,7 @@ function bezIntersections(curve, testCurves) {
 				}
 				break;
 			case 8:
-				if (bezierBezierIntersect(curve[0], curve[1], curve[2], curve[3], testCurves[g][0], testCurves[g][1], testCurves[g][2], testCurves[g][3], plancLen)) {
+				if (bezierBezierIntersect(curve[0], curve[1], curve[2], curve[3], testCurves[g][0], testCurves[g][1], testCurves[g][2], testCurves[g][3], plancLen).length > 0) {
 					nums.push(g);
 				}
 				break;
@@ -436,7 +804,6 @@ function bezIntersections(curve, testCurves) {
  */
 function frame_create(frameID, layerID) {
 	console.log(`creating ${frameID}`);
-	ends[frameID] = {};
 	var temp = φCreate('svg');
 	temp.innerHTML =
 	`<g id="frame_${frameID}" uid="${frameID}" display="none">
@@ -444,15 +811,12 @@ function frame_create(frameID, layerID) {
 			<use id="MASTER_layerKey_${frameID}" href="#MASTER_frameEmptyKey"/>
 			<use id="MASTER_layer_${frameID}" href="#MASTER_frameEmpty"/>
 		</defs>
-		<g id="lines"></g>
 		<g id="fills"></g>
+		<g id="lines"></g>
 	</g>`;
 	temp = temp.children[0];
 
 	temp = Frame(temp);
-
-	//properties
-	
 
 	if (layerID) {
 		document.getElementById(`layer_${layerID}`).appendChild(temp);
@@ -464,20 +828,11 @@ function frame_create(frameID, layerID) {
 function frame_copy(frameNode, layerID) {
 	var newLayer = frame_create(createUid());
 
-	//have to reference children here to make sure the references don't get misaligned
-	
-	newLayer.children["lines"].innerHTML = frameNode.lines.cloneNode(true).innerHTML;
-	newLayer.children["fills"].innerHTML = frameNode.fills.cloneNode(true).innerHTML;
-	newLayer.lines = newLayer.children["lines"];
-	newLayer.fills = newLayer.children["fills"];
-	console.log(`copied from ${frameNode.id}`);
-
-	//make sure the frame models are correct
-	if (newLayer.lines.children.length > 0 || newLayer.fills.children.length > 0) {
-		var uid = φGet(newLayer, 'uid');
-		φSet(newLayer.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
-		φSet(newLayer.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
+	//add all lines + fills to the new layer
+	for (var l=0; l<frameNode.lines.children.length; l++) {
+		frame_addPath(newLayer, Spline(frameNode.lines.children[l].cloneNode(), JSON.parse(JSON.stringify(frameNode.lines.children[l].curves))));
 	}
+	console.log(`copied from ${frameNode.id}`);
 
 	if (layerID) {
 		document.getElementById(`layer_${layerID}`).appendChild(newLayer);
@@ -681,12 +1036,13 @@ function simplifyLineRDPwithTime(points, tolerance, timingArr, start, end) {
 }
 
 //removes duplicate points right next to each other
-function simplifyLineDuplicates(points) {
+function simplifyLineDuplicates(points, tolerance) {
+	tolerance = (tolerance * tolerance) ?? 0;
 	var newPts = [];
 	var lastX = 1e1001;
 	var lastY = 1e1001;
 	for (var q=0; q<points.length; q++) {
-		if (points[q][0] != lastX || points[q][1] != lastY) {
+		if ((points[q][0] - lastX) ** 2 + (points[q][1] - lastY) ** 2 > tolerance) {
 			[lastX, lastY] = points[q];
 			newPts.push(points[q]);
 		}
