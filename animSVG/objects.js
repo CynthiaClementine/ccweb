@@ -107,42 +107,116 @@ The svg element must already have some necessary extra attributes for this to wo
 For example, the Symbol class requires the Use element it's taking in to already have a src= attribute, even though src= is a Symbol's attribute, not necessarily a Use's one.
 This is done so I can export the classes easier. When saved, all the js properties/methods dissapear, so the key data needs to be in these attributes.
 */
-function Spline(pathObj, curves) {
-	//if curves aren't defined then figure them out from the path object itself
-	if (curves == undefined) {
-		var curveStr = φGet(pathObj, "d").split(" ");
-		//remove the M at the start
-		curveStr.shift();
-
-		//set starting pos
-		var start = [+curveStr[0], +curveStr[1]];
-		curves = [];
-		curveStr = curveStr.slice(2);
 
 
-		var current = [start];
-		var modeMap = {
-			"L": 0,
-			"Q": 1,
-			"C": 2
-		};
+function curveArrToStr(curveArr) {
+	
+}
+function curveStrToArr(curveStr) {
+	var curves = [];
+	var spl = curveStr.split(" ");
 
-		var mode;
-		while (curveStr.length > 0) {
-			mode = modeMap[curveStr[0]];
+	//remove the M at the start
+	spl.shift();
 
-			for (var b=0; b<=mode; b++) {
-				current.push([+curveStr[2*b + 1], +curveStr[2*b + 2]]);
-			}
+	//set starting pos
+	var start = [+spl[0], +spl[1]];
+	curves = [];
+	spl = spl.slice(2);
 
-			start = [+curveStr[2*mode + 1], +curveStr[2*mode + 2]];
-			curveStr = curveStr.slice(2*mode + 3);
-			curves.push(current);
-			current = [start];
+
+	var current = [start];
+	var modeMap = {
+		"L": 0,
+		"Q": 1,
+		"C": 2
+	};
+
+	var mode;
+	while (spl.length > 0) {
+		mode = modeMap[spl[0]];
+
+		for (var b=0; b<=mode; b++) {
+			current.push([+spl[2*b + 1], +spl[2*b + 2]]);
+		}
+
+		start = [+spl[2*mode + 1], +spl[2*mode + 2]];
+		spl = spl.slice(2*mode + 3);
+		curves.push(current);
+		current = [start];
+	}
+	return curves;
+}
+
+function redrawPath(pathArr) {
+	var path = `M ${pathArr[0][0][0]} ${pathArr[0][0][1]}`;
+	pathArr.forEach(j => {
+		switch (j.length) {
+			case 2:
+				path += ` L ${j[1][0]} ${j[1][1]}`;
+				break;
+			case 3:
+				path += ` Q ${j[1][0]} ${j[1][1]} ${j[2][0]} ${j[2][1]}`;
+				break;
+			case 4:
+				path += ` C ${j[1][0]} ${j[1][1]} ${j[2][0]} ${j[2][1]} ${j[3][0]} ${j[3][1]}`;
+				break;
+			default:
+				console.log(`don't know what to do with length: ${j.length}`);
+		}
+	});
+	return path;
+}
+
+function redrawLoops(loopsArr) {
+	//points -> curves -> splines -> loops -> loopsArr
+	var path = ``;
+	//need to pass in each individual spline
+	loopsArr.forEach(l => {
+		l.forEach(s => {
+			path += ` ${redrawPath(s)}`;
+		});
+	});
+	return path.slice(1);
+}
+
+function Fill(pathObj, loops) {
+	//loops are an array of an array of curves
+	if (loops == undefined) {
+		return;
+		//if there are multiple Ms in it, then it's a multi-curve process
+		if (curveStr.match(/M/g).length > 1) {
+			//find each M and use it to create a new curve
+			var mInd = curveStr.indexOf("M", 1);
+			curves.push(curveStrToArr(curveStr.slice(0, mInd - 1)));
+			// curveStr = 
+
+			return curves;
 		}
 	}
 
+	pathObj.calculateBoundingBox = () => {
+		//first redraw, then use that because fills have no edges
+		pathObj.redraw();
+		var bounds = pathObj.getBBox();
+		pathObj.bounding = [bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height];
+		return pathObj.bounding;
+	}
 
+	pathObj.redraw = () => {
+		φSet(pathObj, {'d': redrawLoops(pathObj.loops)});
+	}
+
+	pathObj.loops = loops;
+	pathObj.calculateBoundingBox();
+	return pathObj;
+}
+
+function Spline(pathObj, curves) {
+	//if curves aren't defined then figure them out from the path object itself
+	if (curves == undefined) {
+		curves = curveStrToArr(φGet(pathObj, "d"));
+	}
 
 	//element functions
 	//unfortunately can't use "this" because javascript, I suppose I'll live with it
@@ -294,58 +368,30 @@ function Spline(pathObj, curves) {
 		return initialBounds;
 	}
 
+	pathObj.copy = () => {
+		var newPathObj = pathObj.cloneNode();
+		return Spline(newPathObj, curves.copyWithin());
+	}
+
 	pathObj.intersectsPoint = (x, y) => {
 		if (x < pathObj.bounding[0] || y < pathObj.bounding[1] || x > pathObj.bounding[2] || y > pathObj.bounding[3]) {
 			return false;
 		}
 
-		//use canvas rasterization?
-		var spl = new Path2D();
-		spl.moveTo(curves[0][0][0], curves[0][0][1]);
-		curves.forEach(c => {
-			switch (c.length) {
-				case 2:
-					spl.lineTo(c[1][0], c[1][1]);
-					break;
-				case 3:
-					spl.quadraticCurveTo(c[1][0], c[1][1], c[2][0], c[2][1]);
-					break;
-				case 4:
-					spl.bezierCurveTo(c[1][0], c[1][1], c[2][0], c[2][1], c[3][0], c[3][1]);
-					break;
-			}
-		});
-
+		//use canvas
+		var spl = splineToPath2D(pathObj.curves);
 		ctx.lineWidth = φGet(pathObj, "stroke-width");
 		ctx.lineCap = "round";
-		// ctx.strokeStyle = "#000";
-		// ctx.stroke(spl);
-		// ctx.fillStyle = "#F00";
-		// ctx.fillRect(x - 2, y - 2, 4, 4);
 		return ctx.isPointInStroke(spl, x, y);
 	}
 
 	//uses curves array to recalculate the path
 	pathObj.redraw = () => {
-		var path = `M ${curves[0][0][0]} ${curves[0][0][1]}`;
-		curves.forEach(j => {
-			switch (j.length) {
-				case 2:
-					path += ` L ${j[1][0]} ${j[1][1]}`;
-					break;
-				case 3:
-					path += ` Q ${j[1][0]} ${j[1][1]} ${j[2][0]} ${j[2][1]}`;
-					break;
-				case 4:
-					path += ` C ${j[1][0]} ${j[1][1]} ${j[2][0]} ${j[2][1]} ${j[3][0]} ${j[3][1]}`;
-					break;
-				default:
-					console.log(`don't know what to do with length: ${j.length}`);
-			}
-		});
-		φSet(pathObj, {'d': path});
+		φSet(pathObj, {'d': redrawPath(pathObj.curves)});
 	}
 	pathObj.splitAt = (t) => {
+		var width = +φGet(pathObj, "stroke-width");
+		var color = φGet(pathObj, "stroke");
 		//if t is an integer this is extremely easy
 		if (t % 1 == 0) {
 			//trivial cases
@@ -356,7 +402,7 @@ function Spline(pathObj, curves) {
 				return [pathObj, undefined];
 			}
 
-			return [createSpline(pathObj.curves.slice(0, t), pathObj.color, pathObj.pathWidth), createSpline(pathObj.curves.slice(t), pathObj.color, pathObj.pathWidth)];
+			return [createSpline(pathObj.curves.slice(0, t), color, width), createSpline(pathObj.curves.slice(t), color, width)];
 		}
 
 		//if t isn't an integer have to cut the curve that it goes through
@@ -375,11 +421,11 @@ function Spline(pathObj, curves) {
 		//beginning
 		var start = pathObj.curves.slice(0, Math.floor(t));
 		start.push(cut[0]);
-		start = createSpline(start, pathObj.color, pathObj.pathWidth);
+		start = createSpline(start, color, width);
 		//end
 		var end = pathObj.curves.slice(Math.ceil(t));
 		end.splice(0, 0, cut[1]);
-		end = createSpline(end, pathObj.color, pathObj.pathWidth);
+		end = createSpline(end, color, width);
 
 		return [start, end];
 	}
@@ -387,14 +433,9 @@ function Spline(pathObj, curves) {
 
 	//give the element its properties
 	pathObj.curves = curves;
-	pathObj.pathWidth = +φGet(pathObj, "stroke-width");
-	pathObj.color = φGet(pathObj, "stroke");
 	pathObj.start = curves[0][0];
 	pathObj.end = curves[curves.length-1][curves[curves.length-1].length-1];
 	pathObj.calculateBoundingBox();
-	if (pathObj.bounding == undefined) {
-		console.log(`why???`);
-	}
 
 	return pathObj;
 }
@@ -418,20 +459,6 @@ function Frame(svgObj) {
 				}
 			}
 		}
-	}
-
-	//methods
-	svgObj.fill = (x, y) => {
-		//try to fill that space
-
-		//cast a ray to the right
-		// var rayCast =
-
-		//if there's no objects it won't work
-
-		//if there is, trace it around until the path gets back to the start
-
-		//that loop is the region to fill
 	}
 
 	//safely gives the bin in bin coordinates
@@ -485,7 +512,22 @@ function Frame(svgObj) {
 		return objs;
 	}
 
+	svgObj.getBounds = () => {
+		var b1 = svgObj.getBBox();
+		//adjust a bit to account for potential line thickness
+		return [b1.x - 10, b1.y - 10, b1.x + b1.width + 10, b1.x + b1.height + 10];
+	}
+
+	svgObj.binModifyLine = (spline, line, removing) => {
+
+	}
+
 	svgObj.binModify = (spline, removing) => {
+		assignRID(spline);
+		// console.log(`${removing ? "un" : ""}binning ${spline.id}`);
+		if (spline.loops != undefined) {
+			return;
+		}
 		var curves = spline.curves;
 		//the width is the diameter, not the radius
 		var width = φGet(spline, "stroke-width") / 2;
@@ -493,6 +535,7 @@ function Frame(svgObj) {
 			var bbox;
 			switch(c.length) {
 				case 2:
+					//		<!--//lines are special, they can be super large so they get their own collision -->
 					bbox = [c[0][0], c[0][1], c[1][0], c[1][1]];
 					if (c[0][0] > c[1][0]) {
 						[bbox[0], bbox[2]] = [bbox[2], bbox[0]];
@@ -500,6 +543,7 @@ function Frame(svgObj) {
 					if (c[0][1] > c[1][1]) {
 						[bbox[1], bbox[3]] = [bbox[3], bbox[1]];
 					}
+					// if (debug_active) {console.log(bbox);}
 					break;
 				case 3:
 					bbox = quadraticBounds(c[0], c[1], c[2]);
@@ -514,13 +558,18 @@ function Frame(svgObj) {
 			bbox[1] -= width;
 			bbox[2] += width;
 			bbox[3] += width;
+			// if (debug_active) {console.log(bbox);}
 
 
 			var bboxBins = bbox.map(n => Math.floor(n / cubicBinSize));
+			var bin;
 			for (var x=bboxBins[0]; x<=bboxBins[2]; x++) {
 				for (var y=bboxBins[1]; y<=bboxBins[3]; y++) {
-					var bin = svgObj.bin(x, y);
+					bin = svgObj.bin(x, y);
 
+					// if (x == 40 && y == 8) {
+					// 	console.log(`${removing ? "un" : ""}binning ${spline.id}`);
+					// }
 					/*
 					//test for intersections within the bin
 					var curveNums = bezIntersections(c, layerNode.cubicBins[x][y]);
@@ -533,8 +582,12 @@ function Frame(svgObj) {
 					//actual placing - make sure self isn't already in the bin
 					//TODO: this is slow, some hashing should be used to skip the checking
 					if (removing) {
-						bin.splice(bin.indexOf(spline), 1);
+						var ind = bin.indexOf(spline);
+						if (ind != -1) {
+							bin.splice(ind, 1);
+						}
 					} else {
+						// console.log(`pushing to ${x}, ${y}`, bin.includes(spline));
 						if (!bin.includes(spline)) {
 							bin.push(spline);
 						}
@@ -543,11 +596,6 @@ function Frame(svgObj) {
 			}
 		});
 	}
-
-	svgObj.binRemove = (spline) => {
-
-	}
-
 
 	//cubic bins
 	var wh = φGet(workspace_background, ['width', 'height']);
