@@ -53,7 +53,6 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 		c = 1;
 		spline1 = spline1.copy();
 		spline2 = spline2.copy();
-		console.log(spline1 == orig[0], spline2 == orig[1]);
 		φSet(spline1, {'stroke-width': tolerance / 2});
 		spline1.calculateBoundingBox();
 		φSet(spline2, {'stroke-width': tolerance / 2});
@@ -63,25 +62,28 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 	var bounds1 = spline1.bounding.copyWithin();
 	var bounds2 = spline2.bounding.copyWithin();
 
-	var nowColor = `hsl(${c*4}, 80%, ${50 - 0.04 * c}%)`;
-	workspace_toolTemp.appendChild(φCreate("rect", {
-		'x': bounds1[0],
-		'y': bounds1[1],
-		'width': bounds1[2] - bounds1[0],
-		'height': bounds1[3] - bounds1[1],
-		'stroke': nowColor,
-		'stroke-width': 0.1,
-		'fill': "none"
-	}));
-	workspace_toolTemp.appendChild(φCreate("rect", {
-		'x': bounds2[0],
-		'y': bounds2[1],
-		'width': bounds2[2] - bounds2[0],
-		'height': bounds2[3] - bounds2[1],
-		'stroke': nowColor,
-		'stroke-width': 0.1,
-		'fill': "none"
-	}));
+	if (c > 5) {
+		var nowColor = `hsl(${c*4}, 80%, ${50 - 0.04 * c}%)`;
+		workspace_toolTemp.appendChild(φCreate("rect", {
+			'x': bounds1[0],
+			'y': bounds1[1],
+			'width': bounds1[2] - bounds1[0],
+			'height': bounds1[3] - bounds1[1],
+			'stroke': nowColor,
+			'stroke-width': 0.1,
+			'fill': "none"
+		}));
+		workspace_toolTemp.appendChild(φCreate("rect", {
+			'x': bounds2[0],
+			'y': bounds2[1],
+			'width': bounds2[2] - bounds2[0],
+			'height': bounds2[3] - bounds2[1],
+			'stroke': nowColor,
+			'stroke-width': 0.1,
+			'fill': "none"
+		}));
+	}
+	
 
 	if (bounds1[0] > bounds2[2] || bounds1[1] > bounds2[3] || bounds1[2] < bounds2[0] || bounds1[3] < bounds2[1]) {
 		return [];
@@ -92,12 +94,12 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 	var small2 = (bounds2[2] - bounds2[0] < tolerance && bounds2[3] - bounds2[1] < tolerance);
 	// console.log(`smalls: ${small1} ${small2}, tolerance: ${tolerance}`);
 	if (small1 && small2) {
-		bounds1[0] = Math.min(bounds1[0], bounds2[0]);
-		bounds1[1] = Math.min(bounds1[1], bounds2[1]);
-		bounds1[2] = Math.max(bounds1[2], bounds2[2]);
-		bounds1[3] = Math.max(bounds1[3], bounds2[3]);
-		//return the center of the boxes
-		return [[(bounds1[0] + bounds1[2]) / 2, (bounds1[1] + bounds1[3]) / 2]];
+		//linearize this
+		var t = lineLineIntersect(spline1.start, spline1.end, spline2.start, spline2.end);
+		if (t.length == 0) {
+			return [[]];
+		}
+		return [linterpMulti(spline1.start, spline1.end, t[0])];
 	}
 
 	var children1;
@@ -141,4 +143,15 @@ function splineToPath2D(splineCurves) {
 	});
 
 	return spl;
+}
+
+function quantize(curves) {
+	var plancLen = 1 / (10 ** quantizeTo);
+	curves.forEach(c => {
+		c.forEach(p => {
+			//quantize the point
+			p[0] = Math.round(p[0] / plancLen) * plancLen;
+			p[1] = Math.round(p[1] / plancLen) * plancLen;
+		});
+	});
 }
