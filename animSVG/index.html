@@ -164,6 +164,7 @@ August-23-2021 -->
         <script src="../common/collision-2d.js"></script>
         
         <!--my app-specific code-->
+        <script src="functions-spline.js"></script>
         <script src="functions-api.js"></script>
         <script src="functions-helper.js"></script>
         <script src="functions-interact.js"></script>
@@ -350,38 +351,43 @@ August-23-2021 -->
                     <rect id="toolbar_background" fill="var(--colorUIMid)" width="50" height="600"/>
                     <!--tool icons-->
                     <svg class="toolIcon" id="tool_pencil" x="5" y="5"  overflow="visible" onclick="changeToolTo('Pencil');">
-                        <title>Pencil Tool</title>
+                        <title>Pencil Tool (Y)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 10 25 30 30 30 30 25 10 5 5 10"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_rect" x="5" y="45" overflow="visible" onclick="changeToolTo('Rectangle');">
-                        <title>Rectangle Tool</title>
+                    <svg class="toolIcon" id="tool_line" x="5" y="45"  overflow="visible" onclick="changeToolTo('Line');">
+                        <title>Line Tool (N)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 5 5 30 30"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_rect" x="5" y="85" overflow="visible" onclick="changeToolTo('Rectangle');">
+                        <title>Rectangle Tool (R)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 10 5 25 30 25 30 10 5 10"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_circle" x="5" y="85" overflow="visible" onclick="changeToolTo('Circle');">
-                        <title>Circle/Ellipse Tool</title>
+                    <svg class="toolIcon" id="tool_circle" x="5" y="125" overflow="visible" onclick="changeToolTo('Circle');">
+                        <title>Circle/Ellipse Tool (C)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <circle class="toolLine" cx="17.5" cy="17.5" r="13"/> 
                     </svg>
-                    <svg class="toolIcon" id="tool_shape" x="5" y="125" overflow="visible" title="Polygon">
+                    <svg class="toolIcon" id="tool_shape" x="5" y="165" overflow="visible" title="Polygon">
                         <title>Polygon Tool</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 7.5 12.5 7.5 22.5 17.5 30 27.5 22.5 27.5 12.5 17.5 5 7.5 12.5"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_move" x="5" y="165" overflow="visible" onclick="changeToolTo('Move');">
-                        <title>Move Tool</title>
+                    <svg class="toolIcon" id="tool_move" x="5" y="205" overflow="visible" onclick="changeToolTo('Move');">
+                        <title>Move Tool (M)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_fill" x="5" y="205" overflow="visible" onclick="changeToolTo('Fill');">
-                        <title>Fill Tool</title>
+                    <svg class="toolIcon" id="tool_fill" x="5" y="245" overflow="visible" onclick="changeToolTo('Fill');">
+                        <title>Fill Tool (K)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <circle class="toolLine" cx="17.5" cy="9" r="4"/> 
                         <path class="toolLine" d="M 5 20 C 5 17.5 30 17.5 30 20 C 30 23 20 23 20 25 C 20 26 22 27 22 28 C 22 30 4 30 4 27.5 C 4 25 7.5 25 7.5 22.5 C 7.5 21 5 21 5 20"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_eyedrop" x="5" y="245" overflow="visible" onclick="changeToolTo('Eyedrop');">
-                        <title>Eyedropper Tool</title>
+                    <svg class="toolIcon" id="tool_eyedrop" x="5" y="285" overflow="visible" onclick="changeToolTo('Eyedrop');">
+                        <title>Eyedropper Tool (I)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 20 10 10 20 M 17.5 12.5 30 30 12.5 17.5 
                         M 18 12 A 6 6 0 1 0 12 18"/>
