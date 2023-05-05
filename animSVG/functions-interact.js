@@ -155,6 +155,11 @@ function user_keyframe(n) {
 	m.changeFrameTo(m.t);
 }
 
+/**
+ * Changes the current tool to a new one
+ * @param {String} toolName the name of the tool: 
+ * (Pencil, Rectangle, Circle, Move, Fill, Eyedrop)
+ */
 function changeToolTo(toolName) {
 	var pressColor = "#777777";
 	//first make sure all icons are unpressed
@@ -165,9 +170,11 @@ function changeToolTo(toolName) {
 
 	var table = {
 		"Pencil": [ToolPencil, tool_pencil],
+		"Line": [ToolLine, tool_line],
 		"Rectangle": [ToolRectangle, tool_rect],
 		"Circle": [ToolCircle, tool_circle],
 		"Move": [ToolMove, tool_move],
+		"Fill": [ToolFill, tool_fill],
 		"Eyedrop": [ToolEyedrop, tool_eyedrop]
 	}
 
