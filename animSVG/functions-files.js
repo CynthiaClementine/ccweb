@@ -213,7 +213,6 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 			});
 		});
 		φSet(largeContainer, {'fill': "#FFF", 'stroke': "none"});
-		console.log(`applying`);
 	}
 
 	var [w, h, scaling] = φGet(workspace_container, ["width", "height", "scaling"]);
