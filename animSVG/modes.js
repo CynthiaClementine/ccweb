@@ -7,7 +7,6 @@ class ToolDragShape {
 	constructor() {
 		this.shape = undefined;
 		this.downPos = [];
-		this.r = 8;
 		this.type = "undefined";
 	}
 
@@ -90,7 +89,66 @@ class ToolDragShape {
 		//since the workspace expects to work with paths, convert the rectangle into a set of paths
 		var [x, y, w, h] = this.calculateBoundingBox();
 		var layerObj = timeline.l[timeline.layerIDs[timeline.s]][timeline.t];
-		var spline = createSpline(this.givePathsFor(x, y, w, h), color_stroke, this.r / 2);
+		var spline = createSpline(this.givePathsFor(x, y, w, h), color_stroke, data_persistent.brushSize / 2);
+		takeAction(() => {frame_addPath(layerObj, spline);}, () => {frame_removePath(layerObj, spline);});
+
+		workspace_toolTemp.innerHTML = "";
+		this.downPos = [];
+		this.shape = undefined;
+	}
+}
+
+class ToolLine {
+	constructor() {
+		this.shape = undefined;
+		this.downPos = [];
+		this.currentPos = [];
+	}
+
+	escape() {
+		this.shape = undefined;
+		workspace_toolTemp.innerHTML = "";
+	}
+
+	mouseDown(a) {
+		//create a shape if there isn't one already
+		if (this.shape == undefined) {
+			this.downPos = cursorWorkspaceCoordinates();
+			//actual creation
+			this.shape = φCreate("line", {
+				'x1': this.downPos[0],
+				'y1': this.downPos[1],
+				'x2': this.downPos[0],
+				'y2': this.downPos[1],
+				'stroke': color_stroke,
+				'stroke-width': data_persistent.brushSize
+			});
+			workspace_toolTemp.appendChild(this.shape);
+		}
+	}
+
+	mouseMove(a) {
+		if (this.shape == undefined) {
+			return;
+		}
+
+		var coords = cursorWorkspaceCoordinates();
+		φSet(this.shape, {
+			'x2': coords[0],
+			'y2': coords[1]
+		});
+	}
+
+	mouseUp(a) {
+		if (this.shape == undefined) {
+			return;
+		}
+	
+		//move line to workspace
+		var coords = cursorWorkspaceCoordinates();
+		var layerObj = timeline.l[timeline.layerIDs[timeline.s]][timeline.t];
+		console.log(`line is ${JSON.stringify([[this.downPos, coords]])}`);
+		var spline = createSpline([[this.downPos, coords]], color_stroke, data_persistent.brushSize);
 		takeAction(() => {frame_addPath(layerObj, spline);}, () => {frame_removePath(layerObj, spline);});
 
 		workspace_toolTemp.innerHTML = "";
@@ -200,8 +258,6 @@ class ToolPencil {
 		this.bufferPoints = [];
 		this.selfIntersects = [];
 		this.intersectNap = false;
-		
-		this.r = 8;
 
 		this.cDataLast = undefined;
 		this.cData = undefined;
@@ -237,12 +293,13 @@ class ToolPencil {
 		workspace_toolTemp.appendChild(φCreate('circle', {
 			'cx': coords[0],
 			'cy': coords[1],
-			'r': this.r / 2,
+			'r': data_persistent.brushSize / 2,
 			'fill': color_stroke,
 		}));
 	}
 
 	mouseDown(a) {
+		workspace_toolTemp.innerHTML = "";
 		//gets the apparent height
 		var box = workspace_background.getBoundingClientRect();
 		//gets the true height
@@ -264,7 +321,7 @@ class ToolPencil {
 			workspace_toolTemp.appendChild(φCreate('circle', {
 				'cx': p[0],
 				'cy': p[1],
-				'r': this.r / 2,
+				'r': data_persistent.brushSize / 2,
 				'fill': "#FFFFFF22"
 			}));
 			this.checkRecentIntersect();
@@ -280,10 +337,10 @@ class ToolPencil {
 		//find a spot where a cross is happening
 		for (var a=0; a<bp.length-3; a++) {
 			trueT = lineLineIntersect(bp[a], bp[a+1], lin1, lin2);
-			if (trueT != undefined) {
+			if (trueT.length > 0) {
 				//don't log multiple points per intersection
 				if (!this.intersectNap) {
-					console.log(`intersect detected between ${JSON.stringify(bp[a])}, ${JSON.stringify(bp[a+1])} and ${JSON.stringify(lin1)}, ${JSON.stringify(lin2)}`);
+					// console.log(`self-intersect detected between ${JSON.stringify(bp[a])}, ${JSON.stringify(bp[a+1])} and ${JSON.stringify(lin1)}, ${JSON.stringify(lin2)}`);
 					//log both buffer points where the cross happens
 					this.selfIntersects.push(trueT[0] + a);
 					this.selfIntersects.push(trueT[1] + bp.length - 2);
@@ -319,7 +376,7 @@ class ToolPencil {
 		//put bounds of buffer in so one loop can handle everything
 		timings.splice(0, 0, 0);
 		timings.push(buffer.length);
-		console.log(timings);
+		// console.log(timings); commenting this instead of deleting it because sometimes self-intersections fail for some reason
 		var lastT;
 		var nextT;
 		var mainWiggle;
@@ -360,6 +417,14 @@ class ToolPencil {
 		
 		//turn the points into a set of cubics on the canvas
 		if (this.bufferPoints.length > 1) {
+			console.log(JSON.stringify(this.bufferPoints.map(a => [+(a[0].toFixed(2)), +(a[1].toFixed(2))])));
+			//figure out bounds
+			// var minX = Math.min(this.bufferPoints.map(a => a[0]));
+			// var minY = Math.min(this.bufferPoints.map(a => a[1]));
+			// var maxX = Math.max(this.bufferPoints.map(a => a[0]));
+			// var maxY = Math.max(this.bufferPoints.map(a => a[1]));
+
+			// var tolerance = clamp(Math.min((maxX - minX) / 40, (maxY - minY) / 40), 0.1, this.fitTolerance);
 			this.pushToWorkspace();
 		}
 		this.reset();
@@ -393,7 +458,7 @@ class ToolPencil {
 			});
 
 			//put into workspace
-			var spline = createSpline(curves, color_stroke, this.r);
+			var spline = createSpline(curves, color_stroke, data_persistent.brushSize);
 			finalSplines.push(spline);
 			frame_addPath(layerObj, spline);
 		});
@@ -425,27 +490,22 @@ class ToolShape {
 	mouseUp(a) {}
 }
 
-class ToolFill {
-	constructor() {
-		this.color = "#88FF88";
-		this.canvas = document.createElement("canvas");
-		this.ctx = this.canvas.getContext("2d");
-		[this.canvas.width, this.canvas.height] = φGet(workspace_background, ["width", "height"])
-	}
 
-	escape() {}
 
-	mouseDown(a) {
-		//detect if inside a shape, and if so give that shape self's fill
-	}
+/* 
+What should move tool do?
+On any given keyframe, look top to bottom for nodes nearby the cursor. 
+When the user clicks, all the nodes at the cursor's specific location should be selected.
+The user can press shift + click to select more. Then, when pressing and holding, all the selected nodes are translated.
 
-	mouseMove(a) {}
-
-	mouseUp(a) {}
-}
-
+probably have a progressive colors system?
+Pink -> available to select
+Blue -> selected
+*/
 class ToolMove {
 	constructor() {
+		this.selectedPts = [];
+		this.selectedCtrls = [];
 		this.selected;
 		this.selectedLayer;
 		this.tol = 5;
@@ -552,6 +612,34 @@ class ToolMove {
 
 		
 		//look top to bottom
+		var obj, bin;
+		for (var l=0; l<timeline.layerIDs.length; l++) {
+			obj = timeline.frameAt(timeline.t, l);
+			//figure out the bin to look for
+			bin = obj.binAt(pos[0], pos[1]);
+
+			//if there are no splines in the bin, move on
+			if (bin.length > 0) {
+				//test for intersection
+				for (var j=0; j<bin.length; j++) {
+					if (bin[j].intersectsPoint(pos[0], pos[1])) {
+						this.selected = bin[j];
+						this.selectedLayer = obj;
+						this.lastPos = pos;
+						
+						//pick up selected object and remove it from its bins
+						obj.binModify(this.selected, true);
+						this.cdCoords = undefined;
+						this.createOverlay();
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	//finds the top-most spline that the cursor is over
+	findCursorSpline() {
 		var obj, bin;
 		for (var l=0; l<timeline.layerIDs.length; l++) {
 			obj = timeline.frameAt(timeline.t, l);
@@ -709,6 +797,8 @@ class ToolEyedrop {
 		this.canvas;
 		this.ctx;
 
+		this.detail = 2;
+
 		this.pickHandler;
 	}
 
@@ -718,7 +808,7 @@ class ToolEyedrop {
 		//make sure scaling isn't too great
 		whs[2] = clamp(whs[2], this.scaleBounds[0], this.scaleBounds[1]);
 		this.canvasFrame = timeline.t;
-		this.canvas = createCanvasFromFrame(timeline.t, whs[0] * whs[2], whs[1] * whs[2]);
+		this.canvas = createCanvasFromFrame(timeline.t, whs[0] * whs[2], whs[1] * whs[2], this.detail);
 		this.canvas.scaling = +whs[2];
 		this.ctx = this.canvas.getContext("2d");
 	}
@@ -784,4 +874,104 @@ class ToolEyedrop {
 		//force the picking to STOP
 		window.clearInterval(this.pickHandler);
 	}
+}
+
+
+
+class ToolFill extends ToolEyedrop {
+	constructor() {
+		super();
+		this.detail = 0;
+		this.scaleBounds = [1, 1];
+		this.sizeLimit = 3200;
+		this.forceFillCoordinates = undefined;
+	}
+
+	redDot(canX, canY) {
+		this.ctx.fillStyle = "#F00";
+		this.ctx.fillRect(canX, canY, 0.8, 0.8);
+	}
+
+	greenDot(canX, canY) {
+		this.ctx.fillStyle = "#0F0";
+		this.ctx.fillRect(canX, canY, 0.8, 0.8);
+	}
+
+	//floodfills the canvas starting at certain canvas coordinates
+	floodFill(canX, canY, maxEdge, banDir) {
+		var q = [[canX, canY]];
+		var edge = [];
+		var nowDat;
+
+		while (q.length > 0) {
+			if (q.length > maxEdge) {
+				return [];
+			}
+			nowDat = this.ctx.getImageData(q[0][0], q[0][1], 1, 1).data;
+
+			//if it's a center bit, push to edges and color green
+			if (nowDat[2] == 255) {
+				this.greenDot(q[0][0], q[0][1]);
+				q.push([q[0][0] - 1, q[0][1]]);
+				q.push([q[0][0], q[0][1] - 1]);
+				q.push([q[0][0] + 1, q[0][1]]);
+				q.push([q[0][0], q[0][1] + 1]);
+			} else if (nowDat[1] < 255) {
+				//if it's an edge (not white or green) color it red
+				this.redDot(q[0][0], q[0][1]);
+				edge.push([q[0][0], q[0][1]]);
+			}
+			q.shift();
+		}
+
+		//after running the floodfill request a fresh canvas
+		// this.createCanvas();
+		return edge;
+	}
+
+	//this says whether all 4 cardinal directions have filled cubic bins in them
+	confirmCardinals(frame, canX, canY) {
+		var dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+		var frameBounds = frame.getBounds();
+	}
+
+	//actual fill algorithm
+	pickColor_final() {
+		if (this.forceFillCoordinates != undefined) {
+			this.fill(...this.forceFillCoordinates);
+			this.forceFillCoordinates = undefined;
+			return;
+		}
+		var xy = cursorWorkspaceCoordinates();
+		this.fill(xy[0], xy[1]);
+	}
+
+	fill(workX, workY) {
+		this.canvas.willReadFrequently = true;
+		console.log(this.canvas.scaling);
+		var target = timeline.frameAt(timeline.t, timeline.s);
+		var pxDat = this.ctx.getImageData(floor(workX * this.canvas.scaling), floor(workY * this.canvas.scaling), 1, 1).data;
+
+		var edges = this.floodFill(floor(workX * this.canvas.scaling), floor(workY * this.canvas.scaling), 3200);
+
+		if (edges.length == 0) {
+			return;
+		}
+		//transform edges into world coordinates
+		edges = edges.map(p => [p[0] / this.canvas.scaling, p[1] / this.canvas.scaling]);
+		var loops = curvesFromEdgePath(target, edges);
+		loops = createFill(loops, color_fill);
+		frame_addFill(target, loops);
+
+		if (debug_active) {
+			// this.createCanvas();
+			
+
+			//append curves to fills
+			// curves = createFill(curves, color_fill);
+			// frame_addFill(target, curves);
+		}
+	}
+
+	mouseMove(a) {}
 }
