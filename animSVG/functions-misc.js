@@ -4,6 +4,12 @@ for weird functions that aren't any of the other things but that I can't be just
 
 */
 
+function assignRID(node) {
+	if (φGet(node, 'id') == undefined) {
+		φSet(node, {'id': `_${uidChars[floor(randomBounded(0, uidChars.length))]}${uidChars[floor(randomBounded(0, uidChars.length))]}`});
+	}
+}
+
 
 //takes a frame object and randomizes the colors of all the paths on it
 function randomizeColorsFor(frame) {
@@ -12,6 +18,42 @@ function randomizeColorsFor(frame) {
 		φSet(frame.lines.children[d], {"stroke": `rgba(${r()}, ${r()}, ${r()}, 1)`});
 	}
 }
+
+function bezTest(lamb) {
+	var bez = [[-1, 0], [-1 + lamb, lamb], [1 - lamb, lamb], [1, 0]];
+
+	var pts = [[1, 0]];
+
+	for (var a=0; a<20; a++) {
+		pts.push(bezierPointFromT(...bez, a / 20));
+	}
+	return polyArea(pts);
+}
+
+function drawCubicBins() {
+	var wh = φGet(workspace_background, ["width", "height"])
+	for (var x=0; x<+wh[0]; x+=cubicBinSize) {
+		workspace_toolTemp.appendChild(φCreate("line", {
+			'x1': x,
+			'x2': x,
+			'y1': 0,
+			'y2': wh[1],
+			'stroke': 'var(--colorSelect)',
+			'stroke-width': 0.5
+		}));
+	}
+	for (var y=0; y<+wh[1]; y+=cubicBinSize) {
+		workspace_toolTemp.appendChild(φCreate("line", {
+			'x1': 0,
+			'x2': wh[0],
+			'y1': y,
+			'y2': y,
+			'stroke': 'var(--colorSelect)',
+			'stroke-width': 0.5
+		}));
+	}
+}
+
 
 /**
  * Runs and records a reversable action that could be undone with undo()
