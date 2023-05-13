@@ -169,12 +169,27 @@ function redrawPath(pathArr) {
 }
 
 function redrawLoops(loopsArr) {
+	console.log(JSON.stringify(loopsArr).replaceAll("]],", "]],\n"));
 	//points -> curves -> splines -> loops -> loopsArr
 	var path = ``;
+	var lastPoint = [];
 	//need to pass in each individual spline
 	loopsArr.forEach(l => {
 		l.forEach(s => {
-			path += ` ${redrawPath(s)}`;
+			var pathPart = redrawPath(s);
+			/*this is a little trick - for some reason, the fill path stops working if you lineTo a point and then moveTo that same point.
+			this detects when the points are the same, and replaces the `M x y` portion with a single comma. Since commas aren't used anywhere else in my path drawing, 
+			they can be used as an alternate way to detect when splines start */
+
+			if (arrsAreSame(s[0][0], lastPoint)) {
+				for (var y=0; y<3; y++) {
+					pathPart = pathPart.slice(pathPart.indexOf(" ") + 1);
+				}
+				pathPart = `, ${pathPart}`;
+			}
+			path += ` ${pathPart}`;
+			lastPoint = s[s.length-1];
+			lastPoint = lastPoint[lastPoint.length-1];
 		});
 	});
 	return path.slice(1);
@@ -236,7 +251,8 @@ function Spline(pathObj, curves) {
 	}
 
 	//this function will return a t, but it's not guaranteed that the t will be correct if the xy point isn't on the cubic's path
-	pathObj.getTFromPoint = (x, y) => {
+	pathObj.getTFromPoint = (x, y, verbose) => {
+		if (verbose) {console.log(`finding t for ${x},${y}`);}
 		var curveSplits = [4, 3];
 		//say acceptable distance is a little over path distance, to forgive timing mistakes
 		var acceptableDist = φGet(pathObj, "stroke-width") * 0.75;
@@ -263,13 +279,16 @@ function Spline(pathObj, curves) {
 		for (c=0; c<pathObj.curves.length; c++) {
 			cRef = pathObj.curves[c];
 			lastSign = undefined;
+			if (verbose) {console.log(`curve ${c} is of length ${cRef.length}`);}
 			switch (cRef.length) {
 				case 2:
 					//it's just a line!
 					tGuess = lineT(cRef[0], cRef[1], xyp);
+					if (verbose) {console.log(`tGuess is ${tGuess}`);}
 
 					//if it's on the line
 					if (tGuess > 0 && tGuess < 1) {
+						if (verbose) {console.log(`valid`);}
 						pGuess = linterpMulti(cRef[0], cRef[1], tGuess);
 						if (distSquared(pGuess[0] - x, pGuess[1] - y) < acceptableDist) {
 							return c + tGuess;
