@@ -10,14 +10,13 @@ toggleOnionSkin()
 toggleTimelinePlayback()
 fill(workspaceX, workspaceY)
 makeKeyframe(layerIndex, frame, frameNode)
-makeUnkeyframe(layer, frame)
+makeUnKeyframe(layer, frame)
+moveCursorTo(workspaceX, workspaceY)
 removeLayer(id)
 select(layer, frame)
 setColorRGBA(r, g, b, a)
 setColorHSVA(h, s, v, a)
 */
-
-
 
 function changeBrushSize(newSize) {
 	data_persistent.brushSize = clamp(newSize, 1, 100);
@@ -139,7 +138,7 @@ function fill(workspaceX, workspaceY) {
 /**
  * Turns a specified keyframe into a regular frame
  * @param {Number} layer The index of the layer (in the timeline array) to reference
- * @param {Number} frame The frame which is being converted to a non-keyframe
+ * @param {Number} frame The 0-indexed frame which is being converted to a non-keyframe
  */
 function makeUnKeyframe(layer, frame) {
 	layer = timeline.layerIDs[layer];
@@ -172,6 +171,22 @@ function makeUnKeyframe(layer, frame) {
 	//delete the removed frame from the workspace
 	var layerObj = workspace_permanent.children[`layer_${layer}`];
 	layerObj.removeChild(readObj);
+}
+
+/**
+ * although I cannot actually move the cursor due to privacy issues, I can update the application's store of where the cursor is. This function does that.
+ * @param {Number} workspaceX the workspace X-coordinate to move the cursor to
+ * @param {Number} workspaceY the workspace Y-coordinate to move the cursor to 
+ */
+function moveCursorTo(workspaceX, workspaceY) {
+	var box = workspace_background.getBoundingClientRect();
+	var wh = φGet(workspace_background, ['width', 'height']);
+	
+	//workX = (cursor.x - box.x) / box.width * wh[0]
+	//workX / wh[0] * box.width = cursor.x - box.x
+	//(workX / wh[0] * box.width) + box.x = cursor.x
+	cursor.x = box.x + (workspaceX / wh[0] * box.width);
+	cursor.y = box.y + (workspaceY / wh[1] * box.height);
 }
 
 /**
@@ -278,36 +293,48 @@ function setColorRGBA(r, g, b, a) {
 	}
 
 	//set the color picker
+	setColorPickerRGBA(r, g, b, a);
+}
+
+function setColorPickerRGBA(r, g, b, a) {
 	var wh = φGet(MASTER_picker, ['width', 'height']);
-	if (rChange || gChange) {
-		φSet(picker_selectorAB, {
-			'cx': g / 255 * wh[0],
-			'cy': r / 255 * wh[1] * (10 / 11),
-		});
-	}
+	//red + green circle pos
+	φSet(picker_selectorAB, {
+		'cx': g / 255 * wh[0],
+		'cy': r / 255 * wh[1] * (10 / 11),
+	});
 
-	if (bChange || aChange) {
-		if (bChange) {
-			φSet(picker_selectorC, {
-				'x': (b / 255 * wh[0]) - 2
-			});
-		}
+	//blue indicator pos
+	φSet(picker_selectorC, {
+		'x': (b / 255 * wh[0]) - 2
+	});
 
-		if (aChange) {
-			φSet(picker_selectorD, {
-				'x': clamp((a * wh[0]) - 2, -2, wh[0] - 2),
-			});
-		}
+	//alpha indicator pos
+	φSet(picker_selectorD, {
+		'x': clamp((a * wh[0]) - 2, -2, wh[0] - 2),
+	});
 
-		φSet(gradientLR.children[0], {'stop-color': `rgba(0, 0, ${b}, ${a})`});
-		φSet(gradientLR.children[1], {'stop-color': `rgba(0, 255, ${b}, ${a})`});
-		φSet(gradientUD.children[0], {'stop-color': `rgba(0, 0, ${b}, ${a})`});
-		φSet(gradientUD.children[1], {'stop-color': `rgba(255, 0, ${b}, ${a})`});
-		φSet(gradientC.children[0], {'stop-color': `rgba(0, 0, 0, ${a})`});
-		φSet(gradientC.children[1], {'stop-color': `rgba(0, 0, 255, ${a})`});
-	}
+	//gradients
+	//mix-blend-mode must be screen
+	φSet(gradientLR.children[0], {'stop-color': `rgba(0, 0, ${b}, ${a})`});
+	φSet(gradientLR.children[1], {'stop-color': `rgba(0, 255, ${b}, ${a})`});
+	φSet(gradientUD.children[0], {'stop-color': `rgba(0, 0, ${b}, ${a})`});
+	φSet(gradientUD.children[1], {'stop-color': `rgba(255, 0, ${b}, ${a})`});
+	φSet(gradientC.children[0], {'stop-color': `rgba(0, 0, 0, ${a})`});
+	φSet(gradientC.children[1], {'stop-color': `rgba(0, 0, 255, ${a})`});
 }
 
 function setColorHSVA(h, s, v, a) {
 	
+}
+
+function setColorPickerHSVA(h, s, v, a) {
+
+
+	//alpha
+	φSet(picker_selectorD, {
+		'x': clamp((a * wh[0]) - 2, -2, wh[0] - 2),
+	});
+
+	//mix-blend-mode must be multiply
 }
