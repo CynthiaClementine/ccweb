@@ -61,13 +61,18 @@ function importFile() {
 		var textDat = evt.target.result;
 
 		//separate out text into timeline + non-timeline data
-		var timelineText = textDat.slice(textDat.indexOf(`<timeline`) + 10, textDat.indexOf(`</timeline>`));
-		var dataText = textDat.slice(0, textDat.indexOf(`<timeline>`)) + textDat.slice(textDat.indexOf(`</timeline>`) + 11);
+		var timelineTexts = [];
+		//there could be multiple timeline blocks so we do it this way
+		while (textDat.indexOf(`<timeline`) != -1) {
+			timelineTexts.push(textDat.slice(textDat.indexOf(`<timeline`) + 10, textDat.indexOf(`</timeline>`)));
+			textDat = textDat.slice(0, textDat.indexOf(`<timeline`)) + textDat.slice(textDat.indexOf(`</timeline>`) + 11);
+		}
+		var dataText = textDat;
 
 		import_parseWorkspaceData(dataText);
 
 		//parse timeline data:
-		import_parseTimelineData(timelineText);
+		import_parseTimelineData(timelineTexts[0]);
 
 		//update visibility by changing to the current frame
 		timeline.changeFrameTo(timeline.t);
@@ -166,16 +171,18 @@ function applyFunction(node, func) {
 
 /**
  * Creates a canvas with the data of a specified frame
- * @param {Number} frame The 0-indexed number of the timeline's frame to turn into canvas data
- * @param {Number} width the resulting canvas width in pixels
- * @param {Number} height the resulting canvas height in pixels
- * @param {0|1|2|3} detailLevel the level of detail from 0 to 3. CURRENTLY NOT WORKING, WILL ALWAYS BE 2
+ * @param {Integer} frame The 0-indexed number of the timeline's frame to turn into canvas data
+ * @param {Integer} width the resulting canvas width in pixels
+ * @param {Integer} height the resulting canvas height in pixels
+ * @param {0|1|2|3} detailLevel the level of detail from 0 to 3. CURRENTLY NOT WORKING FULLY, WILL ONLY BE 2 OR 0
  * 0 removes all styling, just returning raw paths and fills. 
  * 1 includes colors and line width, but removes transparency.
  * 2 is the normal level, keeping the look of the frame on-export.
  * 3 also includes onion skins, tool overlays, and UI elements.
+ * @param {Integer|undefined} layer The index of the specific layer to export
  */
-function createCanvasFromFrame(frame, width, height, detailLevel) {
+function createCanvasFromFrame(frame, width, height, detailLevel, layer) {
+	// console.log(width, height);
 	var largeContainer = φCreate("svg");
 	var canvas = document.createElement("canvas");
 	var atx = canvas.getContext("2d");
@@ -190,9 +197,9 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 	}
 	
 	//put elements into the container
-
 	largeContainer.appendChild(workspace_background.cloneNode());
-	for (var f=timeline.layerIDs.length-1; f>-1; f--) {
+	var layerRange = (layer == undefined) ? [0, timeline.layerIDs.length-1] : [layer, layer];
+	for (var f=layerRange[1]; f>=layerRange[0]; f--) {
 		largeContainer.appendChild(timeline.l[timeline.layerIDs[f]][frame].cloneNode(true));
 	}
 	var props = φGet(workspace_container, ['x', 'y', 'width', 'height']);
@@ -205,7 +212,6 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 
 	//remove styling if it's necessary
 	if (detailLevel == 0) {
-		
 		applyFunction(largeContainer, (n) => {
 			φSet(n, {
 				'stroke': "#000",
@@ -228,9 +234,10 @@ function createCanvasFromFrame(frame, width, height, detailLevel) {
 	var url = URL.createObjectURL(svgBlob);
 	
 	//draw image to canvas then download
+	console.log(scaling);
 	img.src = url;
 	img.onload = () => {
-		atx.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas.width / scaling, canvas.height / scaling);
+		atx.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas.width, canvas.height);
 		URL.revokeObjectURL(url);
 		canvas.isValid = true;
 	};
