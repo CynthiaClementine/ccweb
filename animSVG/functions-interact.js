@@ -173,6 +173,7 @@ function changeToolTo(toolName) {
 		"Line": [ToolLine, tool_line],
 		"Rectangle": [ToolRectangle, tool_rect],
 		"Circle": [ToolCircle, tool_circle],
+		"Polygon": [ToolPolygon, tool_shape],
 		"Move": [ToolMove, tool_move],
 		"Fill": [ToolFill, tool_fill],
 		"Eyedrop": [ToolEyedrop, tool_eyedrop]
