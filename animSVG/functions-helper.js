@@ -293,8 +293,12 @@ function curvesFromEdgePath(frameObj, edges, tolerance) {
 		pt = edges[0];
 		if (debugCurves) {console.log(pt);}
 		bin = frameObj.binAt(pt[0], pt[1]);
-		if (debugCurves) {console.log(bin.length, bin.filter(s => s.intersectsPoint(pt[0], pt[1])).length);}
-		if (debugCurves) {console.log(bin[0]);}
+		if (debugCurves) {
+			bin.forEach(b => {
+				assignRID(b);
+			});
+			console.log(bin.map(a => a.id), bin.filter(s => s.intersectsPoint(pt[0], pt[1])).map(a => a.id));
+		}
 		bin = bin.filter(s => s.intersectsPoint(pt[0], pt[1]));
 
 		//if there are no splines in the bin, how?
@@ -324,9 +328,11 @@ function curvesFromEdgePath(frameObj, edges, tolerance) {
 		//repeat this process until all the points have been consumed
 	}
 
-	paths.forEach(p => {
-		φSet(p, {'stroke': "#FFF"});
-	});
+	if (debug_active) {
+		paths.forEach(p => {
+			φSet(p, {'stroke': "#FFF"});
+		});
+	}
 	return loopifyPaths(paths);
 }
 
@@ -341,7 +347,7 @@ function loopifyPaths(paths) {
 
 	//if the start and end are the same the curve is a finished loop by itself, and therefore should be removed
 	for (var q=0; q<paths.length; q++) {
-		if (arrsAreSame(paths[q].start, paths[q].end)) {
+		if (d2_distance(paths[q].start, paths[q].end) < φGet(paths[q], "stroke-width")) {
 			loopsList.push([paths[q].curves]);
 			paths.splice(q, 1);
 			q -= 1;
@@ -354,12 +360,12 @@ function loopifyPaths(paths) {
 
 	//now that we're past that initial step, longer loops can be checked
 	var protoPath;
-	var oldEnd, newStart;
+	var oldEnd, newStart, newEnd;
 
 	//after getting a loop, splice it out - repeat until no loops left
 	while (paths.length > 0) {
 		protoPath = loopifyOnce(paths);
-		console.log(`found loop with ${protoPath.length} splines`);
+		console.log(`found loop with ${protoPath.length} splines: ${JSON.stringify(protoPath.map(a => a.id))}`);
 
 		//remove all the paths that constitute that loop, and convert the loop into coordinates
 		for (var s=0; s<protoPath.length; s++) {
@@ -371,10 +377,15 @@ function loopifyPaths(paths) {
 				oldEnd = protoPath[s-1][protoPath[s-1].length-1];
 				oldEnd = oldEnd[oldEnd.length-1];
 				newStart = protoPath[s][0][0];
-				if (!arrsAreSame(oldEnd, newStart)) {
+				newEnd = protoPath[s][protoPath[s].length-1];
+				newEnd = newEnd[newEnd.length-1];
+				//can't just test for same-ness since there may be tiny differences 
+				console.log(`testing difference between ${oldEnd} -> ${newStart} and ${oldEnd} -> ${newEnd}`);
+				if (d2_distSquared(oldEnd, newStart) > d2_distSquared(oldEnd, newEnd)) {
 					//reverse the order of the curves, as well as the order of the points in said curve
-					protoPath[s].reverse();
-					protoPath[s].forEach(c => c.reverse());
+					console.log(`reversing ${JSON.stringify(protoPath[s])}`);
+					// protoPath[s].reverse();
+					// protoPath[s].forEach(c => c.reverse());
 				}
 			}
 		}
@@ -389,7 +400,7 @@ function loopifyPaths(paths) {
 //a loop is just a direct connection from the start of one node to the end of that same node - so DFS works
 //this does DFS basically
 function loopifyOnce(paths) {
-	var debugLoop = false;
+	var debugLoop = true;
 	//just for my sanity
 	paths.forEach(j => {
 		assignRID(j);
@@ -419,7 +430,7 @@ function loopifyOnce(paths) {
 			//look for the first path that connects
 			tol = (+φGet(lastNode, 'stroke-width') + +φGet(paths[g], 'stroke-width')) / 2;
 			tol = tol * tol;
-			if (paths[g] != lastNode && d2_distSquared(targetPoint, paths[g].start) <= tol || d2_distSquared(targetPoint, paths[g].end) <= tol) {
+			if (paths[g] != lastNode && (d2_distSquared(targetPoint, paths[g].start) <= tol || d2_distSquared(targetPoint, paths[g].end) <= tol)) {
 				if (debugLoop) {console.log(`found connection with ${paths[g].id}`);}
 				//if the path that connects is the original path (and we're not at the very start) then end the process and start a new protoPath
 				if (paths[g] == protoPath[0]) {
@@ -432,13 +443,14 @@ function loopifyOnce(paths) {
 					if (debugLoop) {console.log(`new`);}
 					//update the candidate + target variable
 					candidate = paths[g];
-					endTarget = arrsAreSame(targetPoint, paths[g].start);
+					endTarget = d2_distSquared(targetPoint, paths[g].start) <= tol;
 				}
 			}
 		}
 	
 		//if we have a valid candidate push it onto the protopath and repeat
 		if (candidate != undefined) {
+			console.log(`accepted candidate ${candidate.id}`, candidate != lastNode);
 			protoPath.push(candidate);
 			protoEnds.push(endTarget);
 		} else {
@@ -558,6 +570,7 @@ function frame_addPath(layerNode, spline) {
 			//merge identical times
 			//this whole "not less than" is done to account for undefineds. Checking for "greater than" returns false when comparing against undefineds, even though it should be allowed
 			pTimes = pTimes.filter((num, ind) => !(Math.abs(pTimes[ind] - pTimes[ind+1]) < 0.001));
+			if (debugIntersects) {console.log(pTimes);}
 			var pBits = multiSlice(p, pTimes);
 			if (debugIntersects) {console.log(`pbits`, pBits);}
 			var nTimes = pointsToOrderedT(inserting[n], intersections);
@@ -591,6 +604,7 @@ function pointsToOrderedT(spline, points) {
 }
 
 function multiSlice(spline, sliceTimes) {
+	var debugMulti = false;
 	// console.log(JSON.stringify(sliceTimes));
 	//don't clip ends because.. that's not a clip
 	while (sliceTimes[0] <= 0) {
@@ -602,6 +616,7 @@ function multiSlice(spline, sliceTimes) {
 
 	//only continue if there are still intersections
 	if (sliceTimes.length == 0) {
+		if (debugMulti) {console.log(`no intersections left`);}
 		return [spline];
 	}
 
@@ -611,6 +626,7 @@ function multiSlice(spline, sliceTimes) {
 	var buffer1;
 	for (var s=0; s<sliceTimes.length; s++) {
 		if (sliceTimes[s] % 1 != 0) {
+			if (debugMulti) {console.log(`non-integer`);}
 			//slicing at a non-integer will cause the other Ts of that curve to shift around (because velocities, etc).
 			//To fix this, convert the Ts into Points, then after splitting, convert back
 			//t -> points
@@ -624,21 +640,24 @@ function multiSlice(spline, sliceTimes) {
 			[buffer1, remainder] = remainder.splitAt(sliceTimes[s]);
 			cut.push(buffer1);
 
+			var reduction = floor(sliceTimes[s]);
+
 			//points -> t
 			for (t=0; t<importantPs.length; t++) {
-				sliceTimes[t+s+1] = remainder.getTFromPoint(importantPs[t]);
+				if (debugMulti) {console.log(`replacing time with ${reduction + remainder.getTFromPoint(importantPs[t][0], importantPs[t][1], true)}`);}
+				sliceTimes[t+s+1] = reduction + remainder.getTFromPoint(importantPs[t][0], importantPs[t][1]);
 			}
 
 			//make sure all the other slice times are in remainder coordinates
-			var reduction = floor(sliceTimes[s]);
 			for (t=s+1; t<sliceTimes.length; t++) {
 				sliceTimes[t] -= reduction;
 			}
+			if (debugMulti) {console.log(`after reduction of ${reduction}, times are ${JSON.stringify(sliceTimes)}`);}
 		} else {
 			//simple integer case
-			console.log(sliceTimes[s]);
+			if (debugMulti) {console.log(sliceTimes[s]);}
 			[buffer1, remainder] = remainder.splitAt(sliceTimes[s]);
-			console.log(buffer1, remainder);
+			if (debugMulti) {console.log(buffer1, remainder);}
 			cut.push(buffer1);
 			//make sure all the other slice times are now in remainder coordinates
 			for (var t=s+1; t<sliceTimes.length; t++) {
@@ -813,6 +832,7 @@ function frame_create(frameID, layerID) {
 		</defs>
 		<g id="fills"></g>
 		<g id="lines"></g>
+		<g id="objs"></g>
 	</g>`;
 	temp = temp.children[0];
 
