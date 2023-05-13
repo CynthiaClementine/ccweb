@@ -62,7 +62,7 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 	var bounds1 = spline1.bounding.copyWithin();
 	var bounds2 = spline2.bounding.copyWithin();
 
-	if (c > 5) {
+	/*if (c > 5) {
 		var nowColor = `hsl(${c*4}, 80%, ${50 - 0.04 * c}%)`;
 		workspace_toolTemp.appendChild(φCreate("rect", {
 			'x': bounds1[0],
@@ -82,7 +82,7 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 			'stroke-width': 0.1,
 			'fill': "none"
 		}));
-	}
+	} */
 	
 
 	if (bounds1[0] > bounds2[2] || bounds1[1] > bounds2[3] || bounds1[2] < bounds2[0] || bounds1[3] < bounds2[1]) {
@@ -145,13 +145,18 @@ function splineToPath2D(splineCurves) {
 	return spl;
 }
 
-function quantize(curves) {
+function quantizeCurves(curves) {
 	var plancLen = 1 / (10 ** quantizeTo);
 	curves.forEach(c => {
 		c.forEach(p => {
 			//quantize the point
-			p[0] = Math.round(p[0] / plancLen) * plancLen;
-			p[1] = Math.round(p[1] / plancLen) * plancLen;
+			quantize(p, plancLen);
 		});
 	});
+}
+
+//modifies and returns the inputted array
+function quantize(point, quanta) {
+	point[0] = Math.round(point[0] / quanta) * quanta;
+	point[1] = Math.round(point[1] / quanta) * quanta;
 }
