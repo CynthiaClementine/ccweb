@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+
+    <head>
+        <title>im gonna take your candy</title>
+        <meta charset="UTF-8">
+        <style>
+            body {
+                background-color: slateblue;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            #top-text {
+                color: white;
+                font-size: 30px;
+                text-align: center;
+            }
+
+            a:link {
+                color: #a52a2a;
+            }
+
+            a:visited {
+                color: #560b0b;
+            }
+        </style>
+        <script>
+            var counter = 0;
+            window.setInterval(() => {
+                counter += 1;
+                if (counter % 2 == 0) {
+                    sock1.style.display = "none";
+                    sock2.style.display = "inline-block";
+                } else {
+                    sock1.style.display = "inline-block";
+                    sock2.style.display = "none";
+                }
+            }, 200);
+        </script>
+    </head>
+    <body>
+        <div id="top-text">
+            <img id="sock1" src="arts_crafters.png"></img>
+            <img id="sock2" src="arts_crafters_2.png" style="display: none"></img>
+        </div>
+    </body>
+</html>
