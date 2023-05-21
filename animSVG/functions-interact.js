@@ -11,6 +11,7 @@ selectColor(colorNode)
 user_changeAnimLength()
 user_changeFPS()
 user_keyframe(n)
+user_removeLayer();
 changeToolTo(toolName)
 */
 
@@ -63,6 +64,11 @@ function selectColor(colorNode) {
 	color_selectedNode = colorNode;
 	var newColor = φGet(colorNode, "fill").split(" ");
 	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
+}
+
+function startReordering(layerID) {
+	layer_reordering = layerID;
+	cursor.downType = "layerReorder";
 }
 
 //sets the length of the animation (in frames) to a specified value
@@ -155,12 +161,29 @@ function user_keyframe(n) {
 	m.changeFrameTo(m.t);
 }
 
+function user_removeLayer() {
+	//get the id of the currently selected layer
+	var id = timeline.layerIDs[timeline.s];
+	removeLayer(id);
+}
+
 /**
  * Changes the current tool to a new one
  * @param {String} toolName the name of the tool: 
  * (Pencil, Rectangle, Circle, Move, Fill, Eyedrop)
  */
 function changeToolTo(toolName) {
+	//escape from the previous tool
+	try {
+		toolCurrent.escape();
+	} catch (e) {
+		if (toolCurrent == undefined) {
+			console.log(`old tool is undefined!`);
+		} else {
+			console.log(`could not escape from ${toolCurrent.constructor.name}!`, e);
+		}
+	}
+
 	var pressColor = "#777777";
 	//first make sure all icons are unpressed
 	var icons = document.getElementsByClassName("toolIcon");
@@ -175,10 +198,12 @@ function changeToolTo(toolName) {
 		"Circle": [ToolCircle, tool_circle],
 		"Polygon": [ToolPolygon, tool_shape],
 		"Move": [ToolMove, tool_move],
+		"Transform": [ToolTransform, tool_transform],
 		"Fill": [ToolFill, tool_fill],
 		"Eyedrop": [ToolEyedrop, tool_eyedrop]
 	}
 
+	workspace_toolTemp.innerHTML = "";
 	toolCurrent = new table[toolName][0]();
 	φSet(table[toolName][1].children[1], {"fill": pressColor});
 }
