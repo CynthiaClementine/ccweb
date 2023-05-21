@@ -43,6 +43,10 @@ class Timeline {
 		this.t = frame;
 
 		this.makeVisible();
+		//alert the tool
+		if (toolCurrent.timeChange) {
+			toolCurrent.timeChange();
+		}
 	}
 
 	frameAt(time, layer) {
@@ -223,6 +227,7 @@ function Fill(pathObj, loops) {
 	}
 
 	pathObj.loops = loops;
+	pathObj.curves = [].concat(...loops);
 	pathObj.calculateBoundingBox();
 	return pathObj;
 }
@@ -407,6 +412,7 @@ function Spline(pathObj, curves) {
 	//uses curves array to recalculate the path
 	pathObj.redraw = () => {
 		φSet(pathObj, {'d': redrawPath(pathObj.curves)});
+		pathObj.calculateBoundingBox();
 	}
 	pathObj.splitAt = (t) => {
 		var width = +φGet(pathObj, "stroke-width");
@@ -463,6 +469,15 @@ function Frame(svgObj) {
 	//reflecting properties
 	svgObj.lines = svgObj.children["lines"];
 	svgObj.fills = svgObj.children["fills"];
+
+	//exports an object with a copy of all the lines, fills, and cubic bins
+	svgObj.exportCopyObj = () => {
+
+	}
+
+	svgObj.loadFromCopy = (copyObj) => {
+		
+	}
 
 	svgObj.highlightFilledBins = () => {
 		for (var y=0; y<svgObj.cubicBins.length; y++) {
