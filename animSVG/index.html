@@ -130,6 +130,11 @@ August-23-2021 -->
                 stroke: var(--uilines);
                 stroke-width: 2;
             }
+            .select {
+                stroke: var(--colorSelect);
+                stroke-width: var(--pxUnits2);
+                fill: none;
+            }
 
 
             #help_container {
@@ -179,7 +184,7 @@ August-23-2021 -->
             <button class="dropButton">Import (-fin)</button>
             <div class="dropdownContent" id="top_import_contents">
                 <a onclick="upload.click()">Import Project</a>
-                <a href="#">Import image (-fin)</a>
+                <a onclick="upload_img.click()">Import image </a>
                 <a href="#">Import video (-fin)</a>
                 <a href="#">Import audio (-fin)</a>
             </div>
@@ -217,7 +222,7 @@ August-23-2021 -->
                 <a onclick="user_changeAnimLength()">Change length</a>
                 <a onclick="user_changeFPS()">Change framerate</a>
                 <a onclick="addLayer()">Add layer</a>
-                <a onclick="removeLayer()">Remove selected layer</a>
+                <a onclick="user_removeLayer()">Remove selected layer</a>
                 <a onclick="user_keyframe(1)">Add blank keyframe</a>
                 <a onclick="user_keyframe(2)">Add copied keyframe</a>
                 <a onclick="user_keyframe(3)">Remove selected keyframe</a>
@@ -227,11 +232,13 @@ August-23-2021 -->
             <button class="dropButton">Help (-fin)</button>
             <div class="dropdownContent" id="top_help_contents">
                 <a onclick="user_changeAnimLength()">Explanation (-fin)</a>
+                <a href="https://forms.gle/whhjWmd8fmTS9VzB9">Feedback form</a>
             </div>
         </div>
 
         <br>
-        <div id="putPot"></div>
+        <div id="putPot">
+        </div>
         <!--canvas so ctx is accessible, in case-->
         <canvas id="convos" width="1000" height=600></canvas>
 
@@ -321,7 +328,7 @@ August-23-2021 -->
 
 
             <!--The main workspace (where the lines go)-->
-            <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1">
+            <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1" viewBox="0 0 1000 600">
                 <rect id="workspace_background" width="1000" height="600" stroke="var(--uilines)" stroke-width="var(--pxUnits2)"/>
 
                 <!--where the permanent drawings go-->
@@ -329,6 +336,7 @@ August-23-2021 -->
                 <!--where temporary overlays created by tools go-->
                 <g id="workspace_toolTemp"></g>
             </svg>
+            <text id="workspace_zoomText" class="textTimelineLength" paint-order="stroke" stroke-width="2" stroke="#000000" text-anchor="end" x="1000" y="15">100% scale</text>
 
 
 
@@ -380,13 +388,26 @@ August-23-2021 -->
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_fill" x="5" y="245" overflow="visible" onclick="changeToolTo('Fill');">
+                    <svg class="toolIcon" id="tool_transform" x="5" y="245" overflow="visible" onclick="changeToolTo('Transform');">
+                        <title>Transform Tool (J)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <rect class="toolLine" x="4" y="6.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="16.5" y="6.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="29" y="6.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="4" y="16.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="29" y="16.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="4" y="26.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="16.5" y="26.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="29" y="26.5" width="2" height="2"/>
+                        <path class="toolLine" d="M 5 7.5 L 30 7.5 L 30 27.5 L 5 27.5 L 5 7.5"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_fill" x="5" y="285" overflow="visible" onclick="changeToolTo('Fill');">
                         <title>Fill Tool (K)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <circle class="toolLine" cx="17.5" cy="9" r="4"/> 
                         <path class="toolLine" d="M 5 20 C 5 17.5 30 17.5 30 20 C 30 23 20 23 20 25 C 20 26 22 27 22 28 C 22 30 4 30 4 27.5 C 4 25 7.5 25 7.5 22.5 C 7.5 21 5 21 5 20"/>
                     </svg>
-                    <svg class="toolIcon" id="tool_eyedrop" x="5" y="285" overflow="visible" onclick="changeToolTo('Eyedrop');">
+                    <svg class="toolIcon" id="tool_eyedrop" x="5" y="325" overflow="visible" onclick="changeToolTo('Eyedrop');">
                         <title>Eyedropper Tool (I)</title>
                         <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
                         <path class="toolLine" d="M 20 10 10 20 M 17.5 12.5 30 30 12.5 17.5 
@@ -415,7 +436,7 @@ August-23-2021 -->
                 </svg>
                 <svg id="timeline_button_remove" x="10" y="60" >
                     <line class="timelineButton" x1="5" y1="10" x2="15" y2="10"/>
-                    <rect class="timelineButton" width="20" height="20" onclick="removeLayer();"/>
+                    <rect class="timelineButton" width="20" height="20" onclick="user_removeLayer();"/>
                 </svg>
 
                 <!-- the main timeline rectangle bit -->
