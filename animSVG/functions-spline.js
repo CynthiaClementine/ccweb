@@ -146,11 +146,10 @@ function splineToPath2D(splineCurves) {
 }
 
 function quantizeCurves(curves) {
-	var plancLen = 1 / (10 ** quantizeTo);
 	curves.forEach(c => {
 		c.forEach(p => {
 			//quantize the point
-			quantize(p, plancLen);
+			quantize(p, quantizeAmount);
 		});
 	});
 }
