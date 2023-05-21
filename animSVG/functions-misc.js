@@ -10,6 +10,18 @@ function assignRID(node) {
 	}
 }
 
+function addImageTo(layer, image) {
+	console.log(image.width, image.height);
+	var imgNode = φCreate("image", {
+		'href': image.url,
+		'x': 0,
+		'y': 0,
+		'width': 200,
+		'height': 200
+	});
+	layer.children["lines"].appendChild(imgNode);
+}
+
 
 //takes a frame object and randomizes the colors of all the paths on it
 function randomizeColorsFor(frame) {
