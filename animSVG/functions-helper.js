@@ -13,15 +13,14 @@ changeFramerate()
 clampWorkspace()
 createUID()
 cursorIsInBounds()
-cursorWorkspaceCoordinates()
+cursorTimelinePos()
+cursorWorkspacePos()
 createSpline(curves, color, pathWidth)
 frame_addPath(layerNode, curves, width, color)
 frame_removePath(layerNode, spline)
 makeUnKeyframe(layerIndex, frame)
 
 moveWorkspace(x, y)
-
-removeLayer(id)
 
 updateCursorPos(a)
 updateSelectedColor()
@@ -83,15 +82,25 @@ function createTimelineBlocks(layerID, startFrame, endFrame) {
 
 	//if the layer's text doesn't exist, create it
 	if (document.getElementById(`layer_${layerID}_text`) == undefined) {
+		var textHeight = (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight;
 		timeline_text_container.appendChild(φCreate("text", {
-			'x': -5,
-			'y': (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight,
+			'x': -10,
+			'y': textHeight,
 			'id': `layer_${layerID}_text`, 
 			'class': 'textTimeline',
 			'text-anchor': 'end',
 			'innerHTML': timeline.names[layerID],
-			'noselect': 'on',
 			'onclick': `renameLayer("${layerID}")`
+		}));
+		timeline_text_container.appendChild(φCreate("text", {
+			'x': -9.5,
+			'y': textHeight,
+			'id': `layer_${layerID}_udpull`, 
+			'class': 'textTimelineLength',
+			'innerHTML': layer_reorderChar,
+			'cursor': 'ns-resize',
+			'onmousedown': `startReordering("${layerID}")`,
+			'ignoredown': true
 		}));
 	}
 
@@ -230,7 +239,12 @@ function cursorIsInBounds() {
 	return (cursor.x > 0 && cursor.y > 0 && cursor.x < w && cursor.y < h);
 }
 
-function cursorWorkspaceCoordinates() {
+function cursorTimelinePos() {
+	var timeB = timeline_blocks.getBoundingClientRect();
+	return [(cursor.x + 1 - timeB.x) / (timeline_blockW+1), (cursor.y - timeB.y) / (timeline_blockH+1)];
+}
+
+function cursorWorkspacePos() {
 	var box = workspace_background.getBoundingClientRect();
 	var wh = φGet(workspace_background, ['width', 'height']);
 	
@@ -531,7 +545,7 @@ function frame_addPath(layerNode, spline) {
 	}
 
 	//if there are lines already:
-	var plancLen = 0.5 / (10 ** quantizeTo);
+	var plancLen = 0.5 * quantizeAmount;
 	var inserting = [spline];
 	var insertingBounds = [spline.bounding.map(a => Math.floor(a / cubicBinSize))];
 	for (var n=0; n<inserting.length; n++) {
@@ -698,7 +712,7 @@ function frame_removePath(layerNode, spline) {
  */
 function splitPathsAt(layer, x, y) {
 	var p = [x, y];
-	var plancLen = 0.5 / (10 ** quantizeTo);
+	var plancLen = 0.5 * quantizeAmount;
 	//first locate the bin with the xy coordinates
 	var binX = Math.floor(x / cubicBinSize);
 	var binY = Math.floor(y / cubicBinSize);
@@ -779,7 +793,7 @@ function splitPathsAt(layer, x, y) {
 function bezIntersections(curve, testCurves) {
 	var nums = [];
 	var totLen;
-	var plancLen = 0.5 / (10 ** quantizeTo);
+	var plancLen = 0.5 * quantizeAmount;
 
 	for (var g=0; g<testCurves.length; g++) {
 		totLen = testCurves[g].length + curve.length;
@@ -1098,6 +1112,7 @@ function zoom(x, y, newZoom) {
 		'scaling': newZoom,
 		'viewBox': `0 0 ${w / newZoom} ${h / newZoom}`
 	});
+	workspace_zoomText.innerHTML = `${Math.round(newZoom * 100)}% scale`;
 
 	//set new px -> units transfer
 	document.documentElement.style.setProperty("--pxUnits", (1 / newZoom) + "px");
