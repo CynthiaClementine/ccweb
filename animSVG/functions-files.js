@@ -16,6 +16,7 @@ function copyStyles(destinationNode, sourceNode) {
 }
 
 function exportFile() {
+	φSet(workspace_permanent, {"bg": φGet(workspace_background, "fill")});
 	var data = new XMLSerializer().serializeToString(workspace_permanent);
 
 	var timeData = `<timeline len=${timeline.len} fps=${timeline.fps}>\n`;
@@ -53,10 +54,21 @@ function exportFile() {
 	link.click();
 }
 
+function importImage() {
+	var imgObj = upload_img.files[0];
+	//put the image into the images array
+	images.push(imgObj);
+
+	//display the image
+	var imgURL = URL.createObjectURL(imgObj);
+	imgObj.url = imgURL;
+	addImageTo(frame_xb, imgObj);
+}
+
 function importFile() {
-	var fileObj = document.getElementById('upload').files[0];
+	var fileObj = upload.files[0];
 	var fileReader = new FileReader();
-	fileReader.onload = function(evt) {
+	fileReader.onload = (evt) => {
 		//function for when the text actually loads
 		var textDat = evt.target.result;
 
@@ -87,6 +99,10 @@ function import_parseWorkspaceData(dataText) {
 	container.innerHTML = dataText;
 	workspace_permanent.innerHTML = container.children[0].innerHTML;
 
+	//background color
+	console.log(φGet(container.children[0], "bg"));
+	φSet(workspace_background, {"fill": φGet(container.children[0], "bg")});
+
 	
 
 	//at this point every layer will be visible - need to make them all invisible before beginning
@@ -106,11 +122,10 @@ function import_parseTimelineData(timeData) {
 	var firstLine = timeSplit.shift();
 	firstLine = firstLine.slice(0, -1);
 	var tags = firstLine.split(" ").map(a => a.split("="));
-	console.log(tags);
 	tags.forEach(t => {
 		switch (t[0]) {
 			case "len":
-				timeline.len = +t[1];
+				changeAnimationLength(+t[1]);
 				break;
 			case "fps":
 				timeline.fps = +t[1];
@@ -152,6 +167,7 @@ function import_parseTimelineData(timeData) {
 		//update the timeline blocks for that layer
 		createTimelineBlocks(lID, 0, timeline.len-1);
 	});
+	updateTimelineExtender();
 }
 
 /**
@@ -170,18 +186,35 @@ function applyFunction(node, func) {
 }
 
 /**
+ * Creates a canvas from a specific frame at 100% scaling
+ * @param {*} frame 
+ * @returns {Object} 
+ /
+function createCanvasFromFrame_standard(frame) {
+	var output = {
+		canvas: undefined,
+		startsAt: [0, 0]
+	};
+} */
+
+/**
  * Creates a canvas with the data of a specified frame
  * @param {Integer} frame The 0-indexed number of the timeline's frame to turn into canvas data
  * @param {Integer} width the resulting canvas width in pixels
  * @param {Integer} height the resulting canvas height in pixels
+ * @param {Number} scaling the ratio of workspace units to pixels - scaling=2 results in zoom to 200%.
  * @param {0|1|2|3} detailLevel the level of detail from 0 to 3. CURRENTLY NOT WORKING FULLY, WILL ONLY BE 2 OR 0
  * 0 removes all styling, just returning raw paths and fills. 
  * 1 includes colors and line width, but removes transparency.
  * 2 is the normal level, keeping the look of the frame on-export.
  * 3 also includes onion skins, tool overlays, and UI elements.
- * @param {Integer|undefined} layer The index of the specific layer to export
+ * @param {Number} offsetX The workspace X coordinate to translate to x=0 in pixel coordinates
+ * @param {Number} offsetY The workspace Y coordinate to translate to y=0 in pixel coordinates
+ * @param {Integer|undefined} layer If only rendering a specific layer, The index of the layer to render
  */
-function createCanvasFromFrame(frame, width, height, detailLevel, layer) {
+function createCanvasFromFrame(frame, width, height, scaling, detailLevel, offsetX, offsetY, layer) {
+	offsetX = offsetX ?? 0;
+	offsetY = offsetY ?? 0;
 	// console.log(width, height);
 	var largeContainer = φCreate("svg");
 	var canvas = document.createElement("canvas");
@@ -189,6 +222,11 @@ function createCanvasFromFrame(frame, width, height, detailLevel, layer) {
 	
 	//canvas will be all white to start, make sure to specify that isn't a true color
 	canvas.isValid = false;
+	canvas.startX = offsetX;
+	canvas.startY = offsetY;
+	canvas.width = width;
+	canvas.height = height;
+	//this tag doesn't appear to actually do anything but I've been told by the browser to have it, so maybe it'll work in a future update
 	canvas.willReadFrequently = true;
 
 	if (debug_active) {
@@ -202,13 +240,18 @@ function createCanvasFromFrame(frame, width, height, detailLevel, layer) {
 	for (var f=layerRange[1]; f>=layerRange[0]; f--) {
 		largeContainer.appendChild(timeline.l[timeline.layerIDs[f]][frame].cloneNode(true));
 	}
-	var props = φGet(workspace_container, ['x', 'y', 'width', 'height']);
+	var props = φGet(workspace_container, ['x', 'y', 'width', 'height', 'viewBox']);
+	var propVB = props[4].split(" ").map(a => +a);
 	φSet(largeContainer, {
 		'x': props[0],
 		'y': props[1],
-		'width': props[2],
-		'height': props[3],
+		'width': width / scaling,
+		'height': height / scaling,
+		//workspace X start, workspace Y start, workspace Width, workspace Height
+		'viewBox': `${propVB[0] + offsetX} ${propVB[1] + offsetY} ${width / scaling} ${height / scaling}`
 	});
+
+	console.log(`viewBox is ${propVB[0] + offsetX} ${propVB[1] + offsetY} ${width / scaling} ${height / scaling}`);
 
 	//remove styling if it's necessary
 	if (detailLevel == 0) {
@@ -218,18 +261,23 @@ function createCanvasFromFrame(frame, width, height, detailLevel, layer) {
 				'stroke-width': "var('pxUnits4')"
 			});
 		});
+		//changing the width and height of largeContainer has no effect on image dimensions, so I'm not going to do it
 		φSet(largeContainer, {'fill': "#FFF", 'stroke': "none"});
+		//remove the edge
+		largeContainer.removeChild(largeContainer.children[0]);
 	}
 
-	var [w, h, scaling] = φGet(workspace_container, ["width", "height", "scaling"]);
-	var scaleFactor = height / h;
-	canvas.width = w * scaleFactor;
-	canvas.height = height;
 	atx.clearRect(0, 0, canvas.width, canvas.height);
+	//fill with white
+	atx.fillStyle = "#FFF";
+	atx.fillRect(0, 0, canvas.width, canvas.height);
+	atx.fillStyle = "#F00";
+	atx.fillRect(0, 0, 10, 10);
 
 	//turn the svg into image data
 	var data = new XMLSerializer().serializeToString(largeContainer);
 	var img = new Image();
+	//this image will crop everything? Why?
 	var svgBlob = new Blob([data], {type: "image/svg+xml;charset=utf-8"});
 	var url = URL.createObjectURL(svgBlob);
 	
@@ -237,6 +285,8 @@ function createCanvasFromFrame(frame, width, height, detailLevel, layer) {
 	console.log(scaling);
 	img.src = url;
 	img.onload = () => {
+		// putPot.innerHTML = `<img src="${url}"></img>`;
+		console.log(`img dims / canvas dims`, img.width, img.height, canvas.width, canvas.height);
 		atx.drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas.width, canvas.height);
 		URL.revokeObjectURL(url);
 		canvas.isValid = true;
@@ -339,6 +389,7 @@ function downloadTimelineAsVideo(videoHeight, fileName) {
 		//append each frame to the video
 		recorder.start();
 		for (var b=0; b<timeline.len; b++) {
+			//TODO: this drawing could be done async? or drawing could start while images are still loading
 			vtx.drawImage(frames[b], 0, 0, frames[b].width, frames[b].height, 0, 0, vidCanvas.width / scaling, vidCanvas.height / scaling);
 			recorder.capture(vidCanvas);
 		}
