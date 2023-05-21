@@ -18,99 +18,13 @@ bezierSplit(p0, c0, c1, p1, percentage)
 
 */
 
-//returns the coordinates of all intersections between the two splines
-function splineSplineIntersect(spline1, spline2, tolerance) {
-	var bounds1 = spline1.bounding.copyWithin();
-	var bounds2 = spline2.bounding.copyWithin();
-
-	workspace_toolTemp.appendChild(φCreate("rect", {
-		'x': bounds1[0],
-		'y': bounds1[1],
-		'width': bounds1[2] - bounds1[0],
-		'height': bounds1[3] - bounds1[1],
-		'stroke': "#FFF",
-		'stroke-width': 0.1,
-		'fill': "none"
-	}));
-	workspace_toolTemp.appendChild(φCreate("rect", {
-		'x': bounds2[0],
-		'y': bounds2[1],
-		'width': bounds2[2] - bounds2[0],
-		'height': bounds2[3] - bounds2[1],
-		'stroke': "#FFF",
-		'stroke-width': 0.1,
-		'fill': "none"
-	}));
-
-	if (bounds1[0] > bounds2[2] || bounds1[1] > bounds2[3] || bounds1[2] < bounds2[0] || bounds1[3] < bounds2[1]) {
-		console.log(`bounds don't overlap`);
-		return [];
-	}
-
-	//approx. separation between the centers of the two boxes
-	var centerSep = Math.min(Math.abs(0.5*(bounds1[2] + bounds1[0]) - 0.5*(bounds2[2] + bounds2[0])), Math.abs(0.5*(bounds1[3] + bounds1[1]) - 0.5*(bounds2[3] + bounds2[1])));
-	//minimum separation between the edges of the two boxes
-	var edgeSep = Math.min(Math.abs(bounds1[0] - bounds2[0]), Math.abs(bounds1[1] - bounds2[1]), Math.abs(bounds1[2] - bounds2[2]), Math.abs(bounds1[3] - bounds2[3]));
-	var minWidth = Math.min(spline1.pathWidth, spline2.pathWidth);
-
-	//if one of them is small, in order to intersect one of the edges has to be close together
-	if ((small1 || small2) && edgeSep > tolerance) {
-		return [];
-	}
-
-	//if the boxes are too small, test intersect
-	var small1 = (bounds1[2] - bounds1[0] < tolerance + spline1.pathWidth && bounds1[3] - bounds1[1] < tolerance + spline1.pathWidth);
-	var small2 = (bounds2[2] - bounds2[0] < tolerance + spline2.pathWidth && bounds2[3] - bounds2[1] < tolerance + spline2.pathWidth);
-	// console.log(`1 dims: ${bounds1[2] - bounds1[0]}x${bounds1[3] - bounds1[1]}, 2 dims: ${bounds2[2] - bounds2[0]}x${bounds2[3] - bounds2[1]}`, small1, small2, tolerance);
-	if (small1 && small2) {
-		if (centerSep > tolerance) {
-			return [];
-		}
-		console.log(`found intersection`);
-		bounds1[0] = Math.min(bounds1[0], bounds2[0]);
-		bounds1[1] = Math.min(bounds1[1], bounds2[1]);
-		bounds1[2] = Math.max(bounds1[2], bounds2[2]);
-		bounds1[3] = Math.max(bounds1[3], bounds2[3]);
-		//return the center of the boxes
-		return [[(bounds1[0] + bounds1[2]) / 2, (bounds1[1] + bounds1[3]) / 2]];
-	}
-
-	var children1;
-	var children2;
-	if (!small1 && !small2) {
-		console.log(`dual branch`);
-		children1 = spline1.splitAt(spline1.curves.length / 2);
-		children2 = spline2.splitAt(spline2.curves.length / 2);
-
-		console.log([spline1], spline1.curves.length / 2, children1);
-
-		return (splineSplineIntersect(children1[0], children2[0], tolerance).concat(
-			splineSplineIntersect(children1[0], children2[1], tolerance),
-			splineSplineIntersect(children1[1], children2[0], tolerance),
-			splineSplineIntersect(children1[1], children2[1], tolerance)
-		));
-	}
-
-	if (small1) {
-		console.log(`1 small`);
-		children2 = spline2.splitAt(spline2.curves.length / 2);
-		return splineSplineIntersect(spline1, children2[0], tolerance).concat(splineSplineIntersect(spline1, children2[1], tolerance));
-	}
-
-
-	console.log(`2 small`);
-	children1 = spline1.splitAt(spline1.curves.length / 2);
-	return splineSplineIntersect(children1[0], spline2, tolerance).concat(splineSplineIntersect(children1[1], spline2, tolerance));
-}
-
-
 function bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, b2p0, b2c0, b2c1, b2p1, tolerance) {
 	var bounds1 = bezierBounds(b1p0, b1c0, b1c1, b1p1);
 	var bounds2 = bezierBounds(b2p0, b2c0, b2c1, b2p1);
 
 	//if the bounds don't intersect, the curves can't intersect
 	if (bounds1[0] > bounds2[2] + tolerance || bounds1[1] > bounds2[3] + tolerance || bounds1[2] < bounds2[0] - tolerance || bounds1[3] < bounds2[1] - tolerance) {
-		return false;
+		return [];
 	}
 	
 	//if the boxes are too small, count the curves as intersecting
@@ -119,7 +33,9 @@ function bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, b2p0, b2c0, b2c1, b2p1, t
 	
 	//both of them are small enough to count as touching
 	if (small1 && small2) {
-		return true;
+		//get the overlapping area and take the midpoint
+		bounds1 = [Math.max(bounds1[0], bounds2[0]), Math.max(bounds1[1], bounds2[1]), Math.min(bounds1[2], bounds2[2]), Math.min(bounds1[3], bounds2[3])];
+		return [[(bounds1[0] + bounds1[2]) / 2, (bounds1[1] + bounds1[3]) / 2]];
 	}
 	
 
@@ -131,28 +47,29 @@ function bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, b2p0, b2c0, b2c1, b2p1, t
 		children2 = bezierSplit(b2p0, b2c0, b2c1, b2p1, 0.5);
 
 		//check all combinations of intersecting children
-		return (bezierBezierIntersect(...children1[0], ...children2[0], tolerance) 
-			|| bezierBezierIntersect(...children1[0], ...children2[1], tolerance) 
-			|| bezierBezierIntersect(...children1[1], ...children2[0], tolerance) 
-			|| bezierBezierIntersect(...children1[1], ...children2[1], tolerance));
+		return (bezierBezierIntersect(...children1[0], ...children2[0], tolerance).concat(
+			bezierBezierIntersect(...children1[0], ...children2[1], tolerance),
+			bezierBezierIntersect(...children1[1], ...children2[0], tolerance),
+			bezierBezierIntersect(...children1[1], ...children2[1], tolerance)
+		));
 	}
 
 	//don't split a curve that's already small enough
 	if (small1) {
 		children2 = bezierSplit(b2p0, b2c0, b2c1, b2p1, 0.5);
-		return (bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, ...children2[0], tolerance) || bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, ...children2[1], tolerance));
+		return (bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, ...children2[0], tolerance).concat(bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, ...children2[1], tolerance)));
 	}
 
 	//only 2 is small
 	children1 = bezierSplit(b1p0, b1c0, b1c1, b1p1, 0.5);
-	return (bezierBezierIntersect(...children1[0], b2p0, b2c0, b2c1, b2p1, tolerance) || bezierBezierIntersect(...children1[1], b2p0, b2c0, b2c1, b2p1, tolerance));
+	return (bezierBezierIntersect(...children1[0], b2p0, b2c0, b2c1, b2p1, tolerance).concat(bezierBezierIntersect(...children1[1], b2p0, b2c0, b2c1, b2p1, tolerance)));
 }
 
 
 
 //Says whether a line segment and a bezier curve intersect
-function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1) {
-	var tolerance = 0.04;
+function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1, tolerance) {
+	tolerance = tolerance ?? 0.04;
 	//rotate the line and curve together so the line is always directly on the +x axis
 	var lineAngle = Math.atan2(linp2[1] - linp1[1], linp2[0] - linp1[0]);
 	bezp0 = rotate(bezp0[0] - linp1[0], bezp0[1] - linp1[1], -lineAngle);
@@ -162,12 +79,9 @@ function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1) {
 	linp2 = rotate(linp2[0] - linp1[0], linp2[1] - linp1[1], -lineAngle);
 	linp2[0] += tolerance;
 
-	console.log(bezp0, bezc0, bezc1, bezp1, linp2);
-
 	//the bezier curve can only intersect the line if the rotated curve intersects the x-axis
 	var polyCoefs = coefficientsForBezier(bezp0[1], bezc0[1], bezc1[1], bezp1[1]);
 	var intercepts = rootsCubic(polyCoefs[0], polyCoefs[1], polyCoefs[2], polyCoefs[3], tolerance, 0, 1);
-	console.log(intercepts);
 	if (intercepts.length == 0) {
 		return false;
 	}
@@ -180,6 +94,23 @@ function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1) {
 		}
 	}
 	return false;
+}
+
+//t0 and t1 are only for the recursive parts
+function lineBezierIntersect_coords(linp1, linp2, bezp0, bezc0, bezc1, bezp1, tolerance) {
+	//if the gap is small enough, count it
+	if (Math.max(Math.abs(linp1[0] - linp2[0]), Math.abs(linp1[1] - linp2[1])) < tolerance) {
+		return [[(linp1[0] + linp2[0]) / 2, (linp1[1] + linp2[1]) / 2]];
+	}
+
+	//no intersection? no return 
+	if (!lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1, tolerance)) {
+		return [];
+	}
+
+	//there is a connection! Use the line, because it's simpler to cut
+	var half = linterpMulti(linp1, linp2, 0.5);
+	return lineBezierIntersect_coords(linp1, half, bezp0, bezc0, bezc1, bezp1, tolerance).concat(lineBezierIntersect_coords(half, linp2, bezp0, bezc0, bezc1, bezp1, tolerance));
 }
 
 //says whether a point intersects the bezier, with some tolerance
@@ -239,6 +170,7 @@ function bezierPointFromT(p0, c0, c1, p1, t) {
 
 
 function bezierTFromPoint(p0, c0, c1, p1, p, tMin, tMax, tError, n) {
+	console.error(`this function is not finished!`);
 	if (n == undefined) {
 		//figure out the extra parameters if they're not specified
 		n = 10;

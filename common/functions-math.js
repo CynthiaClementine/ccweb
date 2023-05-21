@@ -199,9 +199,10 @@ function rootsQuadratic(a, b, c) {
 	}
 
 	if (disc > 0) {
+		var sqrtDisc = Math.sqrt(disc);
 		return [
-			(-b + Math.sqrt(disc)) / (2 * a),
-			(-b - Math.sqrt(disc)) / (2 * a)
+			(-b + sqrtDisc) / (2 * a),
+			(-b - sqrtDisc) / (2 * a)
 		];
 	}
 }
