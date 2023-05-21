@@ -19,7 +19,7 @@ setColorHSVA(h, s, v, a)
 */
 
 function changeBrushSize(newSize) {
-	data_persistent.brushSize = clamp(newSize, 1, 100);
+	data_persistent.brushSize = clamp(newSize, brush_limits[0], brush_limits[1]);
 }
 
 /**
@@ -49,8 +49,9 @@ function toggleOnionSkin() {
 
 /**
  * Toggles whether the timeline is playing
+ * @param {Boolean} loop determines whether the animation should loop once the end is reached. If false, playback stops once the end is reached instead.
  */
-function toggleTimelinePlayback() {
+function toggleTimelinePlayback(loop) {
 	if (autoplay == undefined) {
 		//if at the end, go to the start
 		if (timeline.t == timeline.len - 1) {
@@ -77,8 +78,12 @@ function toggleTimelinePlayback() {
 
 		//start playing
 		autoplay = window.setInterval(() => {
+			if (loop && timeline.t == timeline.len - 1) {
+				timeline.changeFrameTo(0);
+				return;
+			}
 			timeline.changeFrameTo(timeline.t + 1);
-			if (timeline.t == timeline.len-1) {
+			if (!loop && timeline.t == timeline.len - 1) {
 				autoplayStop();
 			}
 		}, 1000 / timeline.fps);
@@ -141,6 +146,11 @@ function fill(workspaceX, workspaceY) {
  * @param {Number} frame The 0-indexed frame which is being converted to a non-keyframe
  */
 function makeUnKeyframe(layer, frame) {
+	//first make sure it is truly a keyframe - if it's not, break out
+	if (frame != 0 && timeline.frameAt(frame, layer) == timeline.frameAt(frame-1, layer)) {
+		return;
+	}
+
 	layer = timeline.layerIDs[layer];
 	var isFirst = (frame == 0);
 	var arrRef = timeline.l[layer];
@@ -190,11 +200,11 @@ function moveCursorTo(workspaceX, workspaceY) {
 }
 
 /**
- * 
+ * Removes a layer from the document. 
  * @param {String} id The ID of the layer to remove. IDs are always an x followed by one or more letters.
  */
  function removeLayer(id) {
-	console.log(`removing ${id}`)
+	console.log(`removing ${id}`);
 	timeline.makeInvisible();
 	//move timeline objects afterwards to fill the gap
 	var moveH = -(timeline_blockH + 1);
@@ -202,6 +212,7 @@ function moveCursorTo(workspaceX, workspaceY) {
 	for (var v=startIndex; v<timeline.layerIDs.length; v++) {
 		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_group`), {'y': moveH});
 		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_text`), {'y': moveH});
+		φAdd(document.getElementById(`layer_${timeline.layerIDs[v]}_udpull`), {'y': moveH});
 	}
 
 	//remove all the frame objects
@@ -210,11 +221,63 @@ function moveCursorTo(workspaceX, workspaceY) {
 	//remove the timeline objects
 	timeline_blocks.removeChild(document.getElementById(`layer_${id}_group`));
 	timeline_text_container.removeChild(document.getElementById(`layer_${id}_text`));
+	timeline_text_container.removeChild(document.getElementById(`layer_${id}_udpull`));
 
 	//remove from the timeline object
 	delete timeline.l[id];
 	timeline.layerIDs.splice(startIndex, 1);
 	timeline.makeVisible();
+
+	//make sure extender length is accurate
+	updateTimelineExtender();
+}
+
+/**
+ * Moves a layer with a certain index to another index. Leaves every other layer in order.
+ * @param {Integer} oldIndex the original index of the layer to move
+ * @param {Integer} newIndex the new index to put the layer at
+ */
+function reorderLayer(oldIndex, newIndex) {
+	if (oldIndex == newIndex || Math.min(oldIndex, newIndex) < 0 || Math.max(oldIndex, newIndex) >= timeline.layerIDs.length) {
+		return;
+	}
+	var indexDelta = newIndex - oldIndex;
+	var pxDelta = (timeline_blockH + 1) * indexDelta;
+	var pxDeltaCollateral = (timeline_blockH + 1) * -Math.sign(indexDelta);
+	var lID = timeline.layerIDs.splice(oldIndex, 1)[0];
+
+	//move: 
+
+	//the ordering in the workspace - this is super wacky because the highest layer must go last in the DOM
+	var layer = document.getElementById(`layer_${lID}`);
+	workspace_permanent.removeChild(layer);
+	if (newIndex == 0) {
+		workspace_permanent.appendChild(layer);
+	} else {
+		workspace_permanent.insertBefore(layer, document.getElementById(`layer_${timeline.layerIDs[newIndex-1]}`));
+	}
+
+	//the actual layer (text + timeline blocks)
+	φAdd(document.getElementById(`layer_${lID}_text`), {'y': pxDelta});
+	φAdd(document.getElementById(`layer_${lID}_udpull`), {'y': pxDelta});
+	φAdd(document.getElementById(`layer_${lID}_group`), {'y': pxDelta});
+
+	//other affected layers (text + timeline blocks)
+	for (var b=Math.min(oldIndex, newIndex); b<Math.max(oldIndex, newIndex); b++) {
+		φAdd(document.getElementById(`layer_${timeline.layerIDs[b]}_text`), {'y': pxDeltaCollateral});
+		φAdd(document.getElementById(`layer_${timeline.layerIDs[b]}_udpull`), {'y': pxDeltaCollateral});
+		φAdd(document.getElementById(`layer_${timeline.layerIDs[b]}_group`), {'y': pxDeltaCollateral});
+	}
+
+	//the position in layerIDs
+	timeline.layerIDs.splice(newIndex, 0, lID);
+
+
+
+	//selected - maybe
+	if (timeline.s == oldIndex) {
+		timeline.s = newIndex;
+	}
 }
 
 /**
@@ -238,6 +301,34 @@ function select(layer, frame) {
 		'x': frame * (timeline_blockW + 1)
 	});
 	setOnionWingLengths();
+}
+
+/**
+ * Given a position, returns the highest object on the highest layer that occupies that position
+ * @param {*} workX workspace X coordinate to query
+ * @param {*} workY workspace Y coordinate to query
+ * @returns [object, layer]
+ */
+function selectAt(workX, workY) {
+	var layer;
+	//look top to bottom
+	var bin;
+	for (var l=0; l<timeline.layerIDs.length; l++) {
+		layer = timeline.frameAt(timeline.t, l);
+		//figure out the bin to look for
+		bin = layer.binAt(workX, workY);
+
+		//only bother if there are splines in the bin
+		if (bin.length > 0) {
+			//test for intersection
+			for (var j=0; j<bin.length; j++) {
+				if (bin[j].intersectsPoint(workX, workY)) {
+					return [bin[j], layer];
+				}
+			}
+		}
+	}
+	return [];
 }
 
 /**
