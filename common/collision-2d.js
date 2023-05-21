@@ -42,7 +42,7 @@ function lineLineIntersect(l1p1, l1p2, l2p1, l2p2) {
 	det = (l1p2[0] - l1p1[0]) * (l2p2[1] - l2p1[1]) - (l2p2[0] - l2p1[0]) * (l1p2[1] - l1p1[1]);
 	//if the determinant is 0, the lines must be parallel and therefore don't intersect at a single point
 	if (det == 0) {
-		return undefined;
+		return [];
 	}
 
 	t1 = ((l2p2[1] - l2p1[1]) * (l2p2[0] - l1p1[0]) + (l2p1[0] - l2p2[0]) * (l2p2[1] - l1p1[1])) / det;
@@ -50,6 +50,7 @@ function lineLineIntersect(l1p1, l1p2, l2p1, l2p2) {
 	if (t1 > 0 && t1 < 1 && t2 > 0 && t2 < 1) {
 		return [t1, 1 - t2];
 	}
+	return [];
 };
 
 
