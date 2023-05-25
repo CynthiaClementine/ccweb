@@ -8,6 +8,9 @@ moveWorkspace(deltaX, deltaY)
 moveTimeline(deltaX, deltaY)
 
 selectColor(colorNode)
+setDownType(type)
+startReordering(layerID)
+toggleOnionSkin()
 user_changeAnimLength()
 user_changeFPS()
 user_keyframe(n)
@@ -16,6 +19,18 @@ changeToolTo(toolName)
 */
 
 
+
+function changeOnionWingLength(wingIndex) {
+	var tPos = cursorTimelinePos()[0];
+	var dist = tPos - timeline.t - 0.5;
+	if (wingIndex == 0) {
+		dist *= -1;
+	}
+	dist = Math.max(Math.floor(dist), 0);
+	timeline.onionBounds[wingIndex] = dist;
+	setOnionWingLengths();
+	timeline.changeFrameTo(timeline.t);
+}
 
 
 function moveWorkspace(deltaX, deltaY) {
@@ -66,9 +81,32 @@ function selectColor(colorNode) {
 	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
 }
 
+function setDownType(type) {
+	cursor.downType = type;
+}
+
 function startReordering(layerID) {
 	layer_reordering = layerID;
 	cursor.downType = "layerReorder";
+}
+
+/**
+ * Toggles the onion skin on or off, and then returns whether the onion skin is newly active
+ * @returns the new onion skin state
+ */
+function toggleOnionSkin() {
+	timeline.makeInvisible();
+	var state = !timeline.onionActive;
+	timeline.onionActive = state;
+
+	if (state) {
+		φSet(timeline_onionhead, {"display": "inline-block"});
+	} else {
+		φSet(timeline_onionhead, {"display": "none"});
+	}
+
+	timeline.makeVisible();
+	return timeline.onionActive;
 }
 
 //sets the length of the animation (in frames) to a specified value
