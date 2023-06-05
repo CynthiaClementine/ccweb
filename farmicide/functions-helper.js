@@ -6,8 +6,8 @@ function beginGame(quickStart) {
 	timer = quickStart ? game_introTime : 0;
 
 	//spawn both players
-	player1 = new Player(12, 0);
-	player2 = new Player(-12, 0);
+	player1 = new Player(-12, 0);
+	player2 = new Player(12, 0);
 
 	//clear entities to leave only constants
 	entities = [...entity_vendors, player1, player2];
@@ -38,6 +38,8 @@ function circleRepel(entity, circleX, circleY, circleR) {
 
 
 function createBoardTexture() {
+	var counts = [0, 0, 0];
+	var countI = 0;
 	//first set up the canvas
 	board_canvas.width = (board_spacing + 1) * board_dims[0];
 	board_canvas.height = (board_spacing + 1) * board_dims[1];
@@ -48,14 +50,49 @@ function createBoardTexture() {
 			if (board[y][x] != board[y][x-1]) {
 				if (board[y][x] == undefined) {
 					btx.fillStyle = color_unclaimed;
+					countI = 0;
+				} else if (board[y][x] == player1) {
+					countI = 1;
+					btx.fillStyle = color_claim1;
 				} else {
-					btx.fillStyle = (board[y][x] == player1) ? color_claim1 : color_claim2;
+					countI = 2;
+					btx.fillStyle = color_claim2;
 				}
 			}
 
+			counts[countI] += 1;
 			btx.fillRect((board_spacing + 1) * x, (board_spacing + 1) * y, board_spacing, board_spacing);
 		}
 	}
+	var totalCount = counts[0] + counts[1] + counts[2];
+	territory_percentages = [counts[0] / totalCount, counts[1] / totalCount, counts[2] / totalCount];
+}
+
+//if both players have less than 10 monies, and there are no crops or turrets on the board, there is no way for either player to win. This function detects that
+function isSoftlock() {
+	if (Math.max(player1.money, player2.money) > 9) {
+		return false;
+	}
+	//I'm lazy and don't feel like checking the player's bag for possible permutations of win conditions, so if they have a bagged item just say false
+	//an example of the nonsense that could be the bag win condition - if the player has a beacon, that might put them over the territory limit, 
+	// except maybe too much of the board is already covered for the beacon to win. Who knows? 
+	if (player1.bag[0] != undefined || player2.bag[0] != undefined) {
+		return false;
+	}
+
+	for (var e=0; e<entities.length; e++) {
+		if (["Bullet", "Crop", "Turret"].includes(entities[e].constructor.name)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+function endGame() {
+	game_state = "gameover";
+	timer = 0;
 }
 
 
@@ -67,7 +104,7 @@ function updateBoardWith(entity, removing) {
 	}
 
 	//make sure the entity can claim land
-	var entityList = entities.filter(e => e.claimR != undefined && e.owner > 0);
+	var entityList = entities.filter(e => e.claimR != undefined && e.owner != undefined);
 	//make sure the new entity is at the start of the list, so it's first to be processed (for speed)
 	if (entityList.indexOf(entity) != -1) {
 		entityList.splice(entityList.indexOf(entity), 1);
@@ -80,30 +117,31 @@ function updateBoardWith(entity, removing) {
 						entity.x + game_dims[0] * 0.5 + entity.claimR, entity.y + game_dims[1] * 0.5 + entity.claimR];
 	var scaleFactor = board_dims[0] / game_dims[0];
 	boardBounds = boardBounds.map(n => Math.floor(n * scaleFactor));
+	boardBounds[0] = Math.max(boardBounds[0], 0);
+	boardBounds[1] = Math.max(boardBounds[1], 0);
+	boardBounds[2] = Math.min(boardBounds[2], board_dims[0]-1);
+	boardBounds[3] = Math.min(boardBounds[3], board_dims[1]-1);
 
 	//loop through all squares in the bounds
 	var closestEntity;
 	var dist, buffer1;
-	var dimScaleFactor = 2 * board_dims[0] / game_dims[0];
 	var closestDistSq = 1e1001;
 	for (var y=boardBounds[1]; y<=boardBounds[3]; y++) {
 		for (var x=boardBounds[0]; x<=boardBounds[2]; x++) {
 			//determine the closest entity
 			closestEntity = undefined;
 			closestDistSq = 1e1001;
+			buffer1 = boardToSpace(x, y);
 			for (var e=0; e<entityList.length; e++) {
-				buffer1 = boardToSpace(x, y);
 				dist = (entityList[e].x - buffer1[0]) ** 2 + (entityList[e].y - buffer1[1]) ** 2;
-				if (dist < entity.claimR * entity.claimR && dist < closestDistSq) {
+				if (dist < entityList[e].claimR * entityList[e].claimR && dist < closestDistSq) {
 					closestDistSq = dist;
 					closestEntity = entityList[e];
 				}
 			}
 
 			//assign ownership over the tile
-			if (closestEntity != undefined) {
-				board[y][x] = closestEntity.owner;
-			}
+			board[y][x] = (closestEntity ?? {owner: undefined}).owner;
 
 
 			//TODO: if the entity is 2A tiles closer than any other entity, we can safely move A tiles forward and fill in the same entity without having to check any distances
@@ -117,32 +155,7 @@ function spaceToBoard(x, y) {
 }
 
 function boardToSpace(boardX, boardY) {
-	return [(boardX + 0.5) * (game_dims[0] / board_dims[0]) - game_dims[0] * 0.5, (boardY + 0.5) * (game_dims[0] / board_dims[0]) - game_dims[1] * 0.5];
-}
-
-function drawBoard() {
-	ctx.globalAlpha = 0.2;
-	ctx.drawImage(board_canvas, ...spaceToScreen(-game_dims[0] / 2, -game_dims[1] / 2), game_tileSize * game_dims[0], game_tileSize * game_dims[1]);
-	ctx.globalAlpha = 1;
-}
-
-function drawMainMenu() {
-	//title text
-	ctx.fillStyle = color_textShadow;
-	ctx.textAlign = "center";
-	ctx.font = `${canvas.height / 12}px Lato`;
-	ctx.fillText(`Farmicide`, 2.5, canvas.height * -0.15 + 2.5);
-	ctx.fillStyle = color_textMenu;
-	ctx.fillText(`Farmicide`, 0, canvas.height * -0.15);
-
-	//main menu
-	ctx.font = `${canvas.height / 24}px Lato`;
-	for (var b=0; b<menu_buttons.length; b++) {
-		ctx.fillStyle = color_textShadow;
-		ctx.fillText(menu_buttons[b][0], 1.5, canvas.height * menu_bMargin * b + 1.5);
-		ctx.fillStyle = color_textMenu;
-		ctx.fillText(menu_buttons[b][0], 0, canvas.height * menu_bMargin * b);
-	}
+	return [(boardX + 0.5) * (game_dims[0] / board_dims[0]) - game_dims[0] * 0.5, (boardY + 1) * (game_dims[0] / board_dims[0]) - game_dims[1] * 0.5];
 }
 
 
