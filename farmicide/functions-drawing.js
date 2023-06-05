@@ -9,31 +9,59 @@ function drawBoard() {
 	ctx.globalAlpha = 1;
 }
 
+function drawCircularMeter(x, y, rx, ry, color, percentage) {
+	ctx.beginPath();
+	ctx.strokeStyle = color;
+	ctx.lineWidth = canvas.height / 100;
+	percentage = linterp(percentage, percentage ** 2.5, percentage);
+	ctx.ellipse(x, y, ry, rx, Math.PI / 2, -Math.PI * percentage, Math.PI * percentage);
+	ctx.stroke();
+}
+
+function drawTextPrecise(text, x, y, font, alignment, color, dropShadowOffset) {
+	if (font) {
+		ctx.font = font;
+	}
+	if (alignment) {
+		ctx.textAlign = alignment;
+	}
+	if (dropShadowOffset) {
+		ctx.fillStyle = color_textShadow;
+		ctx.fillText(text, x + dropShadowOffset[0], y + dropShadowOffset[1]);
+	}
+	if (color) {
+		ctx.fillStyle = color;
+	}
+	ctx.fillText(text, x, y);
+}
+
 function drawCredits() {
 	drawBackText();
 	timer = game_introTime + 1;
-	ctx.fillStyle = color_textMenu;
-	ctx.font = `${canvas.height / 24}px Lato`;
+	drawTextPrecise('Credits', 0, canvas.height * -0.21, `${canvas.height / 24}px Lato`, undefined, color_textMenu, [canvas.height * 0.002, canvas.height * 0.002]);
+
+	ctx.font = `${canvas.height / 26}px Lato`;
 	for (var g=0; g<credits.length; g++) {
-		ctx.fillText(credits[g], 0, (canvas.height / 20) * g);
+		drawTextPrecise(credits[g], 0, (canvas.height / 32) * g, undefined, undefined, color_textMenu, [canvas.height * 0.001, canvas.height * 0.001]);
 	}
 }
 
 function drawBackText() {
-	
+	drawTextPrecise(`Back`, canvas.width * -0.22, canvas.height * -0.22, `${canvas.height / 32}px Lato`, undefined, color_textMenu);
 }
 
 function drawGameOver() {
-	if (timer == 0) {
+	if (timer == 1) {
 		ctx.globalAlpha = 0.5;
+		ctx.fillStyle = color_unclaimed;
 		ctx.fillRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
 		ctx.globalAlpha = 1;
 	}
 
-	//text
-	ctx.font = `${canvas.height / 10}px Lato`;
-	ctx.fillStyle = color_textMenu;
-	ctx.fillText(game_result, 0, -canvas.height / 3);
+	drawTextPrecise(game_result, 0, -canvas.height / 3, `${canvas.height / 10}px Lato`, undefined, (player1.health > 0) ? color_claim1 : color_claim2, [canvas.height * 0.002, canvas.height * 0.002]);
+	for (var p=0; p<gameover_buttons.length; p++) {
+		drawTextPrecise(gameover_buttons[p][0], 0, canvas.height * gameover_bMargin * p, `${canvas.height / 18}px Lato`, undefined, color_textMenu, [0, canvas.height * 0.002]);
+	}
 }
 
 function drawGameWorld() {
@@ -57,19 +85,11 @@ function drawGameWorld() {
 
 function drawMainMenu() {
 	//title text
-	ctx.fillStyle = color_textShadow;
-	ctx.textAlign = "center";
-	ctx.font = `${canvas.height / 12}px Lato`;
-	ctx.fillText(`Farmicide`, 2.5, canvas.height * -0.15 + 2.5);
-	ctx.fillStyle = color_textMenu;
-	ctx.fillText(`Farmicide`, 0, canvas.height * -0.15);
+	drawTextPrecise(`Farmicide`, 9, canvas.height * -0.15, `${canvas.height / 12}px Lato`, "center", color_textMenu, [canvas.height * 0.003, canvas.height * 0.003]);
 
 	//main menu
 	ctx.font = `${canvas.height / 24}px Lato`;
 	for (var b=0; b<menu_buttons.length; b++) {
-		ctx.fillStyle = color_textShadow;
-		ctx.fillText(menu_buttons[b][0], 1.5, canvas.height * menu_bMargin * b + 1.5);
-		ctx.fillStyle = color_textMenu;
-		ctx.fillText(menu_buttons[b][0], 0, canvas.height * menu_bMargin * b);
+		drawTextPrecise(menu_buttons[b][0], 0, canvas.height * menu_bMargin * b, undefined, undefined, color_textMenu, [0, canvas.height * 0.002]);
 	}
 }
