@@ -47,7 +47,7 @@ function createBoardTexture() {
 	for (var y=0; y<board_dims[1]; y++) {
 		for (var x=0; x<board_dims[0]; x++) {
 			//only update the color when it needs updating (when it's changed)
-			if (board[y][x] != board[y][x-1]) {
+			if (x == 0 || board[y][x] != board[y][x-1]) {
 				if (board[y][x] == undefined) {
 					btx.fillStyle = color_unclaimed;
 					countI = 0;
