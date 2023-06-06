@@ -1,4 +1,8 @@
 
+window.onmousedown = handleMouseDown;
+window.onmousemove = handleMouseMove;
+window.onmouseup = handleMouseUp;
+
 /*
 Simple functions for handling mouse movement. 
 I put these here because I realized I had the same code in basically every project,
