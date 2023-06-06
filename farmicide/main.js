@@ -76,22 +76,22 @@ var entity_data = {
 var entity_vendors = [
 	new Vendor(-14, -5, "beacon"),
 	new Vendor(-14, -2, "corn"),
-	new Vendor(-14, 1, "chicken"),
+	// new Vendor(-14, 1, "chicken"), 
 	new Vendor(-14, 4, "turret"),
 	new Vendor(-14, 7, "wall"),
 
 	new Vendor(14, -5, "beacon"),
 	new Vendor(14, -2, "corn"),
-	new Vendor(14, 1, "chicken"),
+	// new Vendor(14, 1, "chicken"),
 	new Vendor(14, 4, "turret"),
 	new Vendor(14, 7, "wall"),
 ];
 
 var credits = [
-	`Art - Leah, Jessica`,
+	`Art - Leah, Jessica, Mandy`,
 	`Design - Caleb`,
 	`Code - Cynthia`,
-	`SFX - Michael`
+	// `SFX - Michael`
 ]
 
 
@@ -257,18 +257,23 @@ function handleKeyPress(a) {
 
 	switch (a.code) {
 		case "ArrowLeft":
+		case "KeyK":
 			player2.dirsDown[0] = Math.max(player2.dirsDown[0], 1);
 			break;
 		case "ArrowUp":
+		case "KeyO":
 			player2.dirsDown[1] = Math.max(player2.dirsDown[1], 1);
 			break;
 		case "ArrowRight":
+		case "Semicolon":
 			player2.dirsDown[2] = Math.max(player2.dirsDown[2], 1);
 			break;
 		case "ArrowDown":
+		case "KeyL":
 			player2.dirsDown[3] = Math.max(player2.dirsDown[3], 1);
 			break;
 		case "Slash":
+		case "KeyI":
 			if (!data_persistent.interactLock) {
 				player2.interact();
 			}
@@ -318,15 +323,19 @@ function handleKeyRelease(a) {
 
 	switch (a.code) {
 		case "ArrowLeft":
+		case "KeyK":
 			player2.dirsDown[0] = 0;
 			break;
 		case "ArrowUp":
+		case "KeyO":
 			player2.dirsDown[1] = 0;
 			break;
 		case "ArrowRight":
+		case "Semicolon":
 			player2.dirsDown[2] = 0;
 			break;
 		case "ArrowDown":
+		case "KeyL":
 			player2.dirsDown[3] = 0;
 			break;
 
