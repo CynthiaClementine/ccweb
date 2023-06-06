@@ -58,7 +58,7 @@ function drawGameOver() {
 		ctx.globalAlpha = 1;
 	}
 
-	drawTextPrecise(game_result, 0, -canvas.height / 3, `${canvas.height / 10}px Lato`, undefined, (player1.health > 0) ? color_claim1 : color_claim2, [canvas.height * 0.002, canvas.height * 0.002]);
+	drawTextPrecise(game_result, 0, -canvas.height / 3, `${canvas.height / 10}px Lato`, undefined, (game_result.indexOf(player_names[0] == 0)) ? color_claim1 : color_claim2, [canvas.height * 0.002, canvas.height * 0.002]);
 	for (var p=0; p<gameover_buttons.length; p++) {
 		drawTextPrecise(gameover_buttons[p][0], 0, canvas.height * gameover_bMargin * p, `${canvas.height / 18}px Lato`, undefined, color_textMenu, [0, canvas.height * 0.002]);
 	}
