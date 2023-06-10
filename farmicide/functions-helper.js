@@ -6,8 +6,8 @@ function beginGame(quickStart) {
 	timer = quickStart ? game_introTime : 0;
 
 	//spawn both players
-	player1 = new Player(-12, 0);
-	player2 = new Player(12, 0);
+	player1 = new Player(-12, 0, color_claim1);
+	player2 = new Player(12, 0, color_claim2);
 
 	//clear entities to leave only constants
 	entities = [...entity_vendors, player1, player2];
@@ -21,6 +21,10 @@ function circleRepel(entity, circleX, circleY, circleR) {
 	//helper relative variables
 	var relPX = entity.x - circleX;
 	var relPY = entity.y - circleY;
+	//avoid errors when the entity's at the direct center
+	if (relPX == 0 && relPY == 0) {
+		relPX = circleR / 2;
+	}
 	var pDist;
 
 	if (Math.abs(relPX) < circleR && Math.abs(relPY) < circleR) {
@@ -92,7 +96,9 @@ function isSoftlock() {
 
 function endGame() {
 	game_state = "gameover";
-	timer = 0;
+	window.setTimeout(() => {
+		timer = 0;
+	}, 1);
 }
 
 
