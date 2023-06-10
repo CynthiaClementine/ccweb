@@ -220,7 +220,7 @@ class Crop extends Entity {
 
 
 class Player {
-	constructor(x, y) {
+	constructor(x, y, tintColor) {
 		this.x = x;
 		this.y = y;
 		this.r = 0.5;
@@ -242,6 +242,26 @@ class Player {
 		this.health = 10;
 		this.healthMax = 10;
 		this.regenRate = 0.002;
+
+		this.createImage(tintColor);
+	}
+
+	createImage(tintColor) {
+		this.canvas = document.createElement("canvas");
+		var btx = this.canvas.getContext("2d");
+		this.canvas.width = image_player.width;
+		this.canvas.height = image_player.height;
+		btx.fillStyle = tintColor;
+		btx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		//draw with destination-in so that this.canvas has a sprite-shaped tint
+		btx.globalCompositeOperation = "destination-in";
+		btx.drawImage(image_player, 0, 0);
+		
+		//draw with multiply so that this.canvas now will have the sprite, but with the tint inherited
+		btx.globalCompositeOperation = "multiply";
+		btx.drawImage(image_player, 0, 0);
+		
 	}
 
 	tick() {
@@ -304,6 +324,16 @@ class Player {
 
 		//entity placement
 		var placeEntity = new entity_data[this.bag[0]].obj(x, y, this);
+
+		//rocks should push the player backwards
+		if (placeEntity.constructor.name == "Rock") {
+			if (this.dx != 0 || this.dy != 0) {
+				var dDir = Math.atan2(this.dy, this.dx);
+				var push = polToXY(0, 0, dDir, 1.5);
+				this.x -= push[0];
+				this.y -= push[1];
+			}
+		}
 		entities.push(placeEntity);
 		updateBoardWith(placeEntity);
 
@@ -361,7 +391,7 @@ class Player {
 		ctx.fillStyle = color_boxBG;
 		ctx.fillRect(selfCoords[0] - game_tileSize * 1.3, selfCoords[1] - game_tileSize * 3, game_tileSize * 2.6, game_tileSize);
 		var text = [
-			(this.findInteractable() ?? {interactText: ``}).interactText,
+			(this.findInteractable() ?? {interactText: (this.bag[1] > 0) ? `Place ${this.bag[0]}` : ``}).interactText,
 			(this.bag[0] == undefined) ? `Empty` : `${this.bag[0]} x${this.bag[1]}`,
 			this.money + `¢`
 		];
@@ -373,7 +403,7 @@ class Player {
 			ctx.fillText(text[t], selfCoords[0], selfCoords[1] - game_tileSize * 3 + textSize * (0.5 + t));
 		}
 
-		ctx.drawImage(image_player, 0, 0, image_player.width, image_player.height, ...startCoords, endCoords[0] - startCoords[0], endCoords[1] - startCoords[1]);
+		ctx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, ...startCoords, endCoords[0] - startCoords[0], endCoords[1] - startCoords[1]);
 	}
 }
 
