@@ -43,6 +43,7 @@ var data_persistent = {
 	regen: true, //naturally regenerate health
 	friendlyFire: true, //turrets can shoot your own buildings, as well as you
 	communism: false, //only beacons claim territory, crops don't give preferential drops
+	tutorial: true, //show the tutorial screen before starting
 }
 
 var entities = [];
@@ -89,7 +90,7 @@ var entity_vendors = [
 
 var credits = [
 	`Art - Leah, Jessica, Mandy`,
-	`Design - Caleb`,
+	`Design - Caleb, Cynthia`,
 	`Code - Cynthia`,
 	// `SFX - Michael`
 ]
@@ -108,10 +109,11 @@ var gameover_buttons = [
 var gameover_bMargin = 1 / 18;
 
 var menu_buttons = [
-	["Play", beginGame],
-	["Settings", () => {}],
-	["Credits", () => {game_state = "credits"}]
+	["Play", beginGame, 0],
+	["Settings", () => {game_state = "settings";}, 0],
+	["Credits", () => {game_state = "credits";}, 0]
 ];
+var menu_animationTime = 5;
 var menu_bMargin = 0.05;
 
 var player1;
@@ -122,11 +124,17 @@ var player_boxW = 0.05;
 var player_boxH = 0.04;
 
 var settings = [
-	`Run tutorial`, //boolean
-	`Turret range limit`, //range
-	`Automatic health regeneration`, //boolean
-	`Crop growth time` //range
+	[`Texture aliasing`, `data_persistent.alias`, `Textures will pixelate rather than blur`],
+	[],
+	[`Run tutorial`, `data_persistent.tutorial`, `The tutorial screen will be displayed upon starting a game`],
+	[`Automatic health regeneration`, `data_persistent.regen`, `Player health regenerates over time`],
+	// [`Crop growth time`]
+	[`Interaction locking`, `data_persistent.interactLock`, `Conduct interaction by holding left + right rather than the interact button`],
+	[`Friendly Fire`, `data_persistent.friendlyFire`, `Turrets can shoot buildings and entities with the same owner`],
+	[`Communism mode`, `data_persistent.communism`, `The only thing that claims land is a beacon, and turrets attack indiscriminately`]
 ];
+var settings_vMargin = 0.34;
+var settings_wMargin = 0.27;
 
 var territory_barHeight = 0.05;
 var territory_percentages = [1, 0, 0];
@@ -174,6 +182,7 @@ function main() {
 			break;
 		case "paused":
 			drawTextPrecise(`~Paused~`, 0, 0, `${canvas.height / 20}px Lato`, undefined, color_textMenu, [canvas.height * 0.002, canvas.height * 0.002]);
+			timer -= 1;
 			break;
 		case "gameover":
 			drawGameOver();
