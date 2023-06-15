@@ -47,7 +47,7 @@ function drawCredits() {
 }
 
 function drawBackText() {
-	drawTextPrecise(`Back`, canvas.width * -0.22, canvas.height * -0.22, `${canvas.height / 32}px Lato`, undefined, color_textMenu);
+	drawTextPrecise(`Back`, canvas.width * -0.22, canvas.height * -0.22, `${canvas.height / 32}px Lato`, "center", color_textMenu);
 }
 
 function drawGameOver() {
@@ -96,13 +96,24 @@ function drawScorebar() {
 }
 
 function drawSettings() {
+	drawBackText();
+
+	var cy = (cursor.y - (canvas.height / 2)) / camera_scale;
+
 	var vUnit = canvas.height * (1 - settings_vMargin * 2) / settings.length;
 	var leftAlign = canvas.width * -(0.5 - settings_wMargin);
 	var rightAlign = canvas.width * (0.5 - settings_wMargin);
+	var height;
 	for (var a=0; a<settings.length; a++) {
 		if (settings[a][0]) {
-			drawTextPrecise(settings[a][0], leftAlign, vUnit * (a - ((settings.length - 1) / 2)), `${canvas.height / 26}px Lato`, "left", color_textMenu);
-			drawTextPrecise(eval(settings[a][1]), rightAlign, vUnit * (a - ((settings.length - 1) / 2)), undefined, "right", undefined);
+			height = vUnit * (a - ((settings.length - 1) / 2));
+			drawTextPrecise(settings[a][0], leftAlign, height, `${canvas.height / 26}px Lato`, "left", color_textMenu);
+			drawTextPrecise(eval(settings[a][1]), rightAlign, height, undefined, "right", undefined);
+
+			if (Math.abs(cy - height) < vUnit * 0.45) {
+				//draw small text
+				drawTextPrecise(settings[a][2], 0, canvas.height * (0.55 - settings_vMargin), `${canvas.height / 40}px Lato`, "center", color_textMenu);
+			}
 		}
 	}
 
