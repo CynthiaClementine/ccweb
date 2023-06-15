@@ -89,10 +89,10 @@ var entity_vendors = [
 ];
 
 var credits = [
-	`Art - Leah, Jessica, Mandy`,
-	`Design - Caleb, Cynthia`,
+	`Art - Leah, Jessica, Mandy, Cynthia`,
+	`Design - Caleb`,
 	`Code - Cynthia`,
-	// `SFX - Michael`
+	`Music - Cynthia`
 ]
 
 
@@ -120,8 +120,10 @@ var player1;
 var player2;
 var player_names = [`Player 1`, `Player 2`];
 var player_moneyStart = 15;
-var player_boxW = 0.05;
-var player_boxH = 0.04;
+var player_boxW = 2.75;
+var player_boxH = 1;
+var player_boxOff = 3;
+var player_lockTime = 30;
 
 var settings = [
 	[`Texture aliasing`, `data_persistent.alias`, `Textures will pixelate rather than blur`],
@@ -150,6 +152,11 @@ function setup() {
 	handleResize();
 
 	game_mainLoop = main;
+
+	//doing it this way is weird but accounts for different refresh rates
+	// animation = window.setInterval(() => {
+		
+	// }, 1000 / 60);
 	animation = window.requestAnimationFrame(main);
 }
 
@@ -236,12 +243,25 @@ function handleMouseDown_custom() {
 				menu_buttons[index][1]();
 			}
 		}
+		return;
 	}
 
 	if (game_state == "credits" || game_state == "settings") {
-		if (cCds[0] < canvas.width * -0.15 && cCds[1] < canvas.height * -0.15) {
+		if (cCds[0] < canvas.width * -0.15 && cCds[1] < canvas.height * -0.3) {
 			game_state = "menu";
 			return;
+		}
+
+		//settings interactions
+		if (game_state == "settings") {
+			var centerH;
+			var vUnit = canvas.height * (1 - settings_vMargin * 2) / settings.length;
+			for (var a=0; a<settings.length; a++) {
+				centerH = vUnit * (a - ((settings.length - 1) / 2));
+				if (settings[a][0] && Math.abs(cCds[1] / camera_scale - centerH) < vUnit * 0.45) {
+					eval(`${settings[a][1]} = !${settings[a][1]}`);
+				}
+			}
 		}
 	}
 
