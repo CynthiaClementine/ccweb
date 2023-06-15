@@ -92,7 +92,7 @@ var credits = [
 	`Art - Leah, Jessica, Mandy, Cynthia`,
 	`Design - Caleb`,
 	`Code - Cynthia`,
-	`Music - Cynthia`
+	// `Music - Cynthia`
 ]
 
 
