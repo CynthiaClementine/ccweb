@@ -236,6 +236,7 @@ class Player {
 
 		this.sprintTime = 30;
 		this.timeDown = 0;
+		this.interactTime = 0;
 
 		this.bag = [undefined, 0];
 		this.money = player_moneyStart;
@@ -276,6 +277,23 @@ class Player {
 		var lock = (this.dirsDown[2] > 0 && this.dirsDown[0] > 0) || (this.dirsDown[3] > 0 && this.dirsDown[1] > 0);
 		var hasX = this.dirsDown[0] > 0 || this.dirsDown[2] > 0;
 		var hasY = this.dirsDown[1] > 0 || this.dirsDown[3] > 0;
+
+		//locking
+		if (lock) {
+			this.interactTime += 1;
+			if (this.interactTime >= player_lockTime) {
+				this.interactTime = 0;
+				this.interact();
+			}
+		} else {
+			//give a reasonable margin, it feels weird if 99% done just cuts off instead of completing
+			if (this.interactTime > player_lockTime * 0.95) {
+				this.interact();
+			}
+
+			this.interactTime = 0;
+ 
+		}
 
 		this.timeDown = (hasX || hasY) ? this.timeDown + 1 : 0;
 
@@ -323,7 +341,7 @@ class Player {
 		}
 
 		//entity placement
-		var placeEntity = new entity_data[this.bag[0]].obj(x, y, this);
+		var placeEntity = new entity_data[this.bag[0]].obj(x, y, (!data_persistent.communism || this.bag[0] == "beacon") ? this : undefined);
 
 		//rocks should push the player backwards
 		if (placeEntity.constructor.name == "Rock") {
@@ -358,11 +376,12 @@ class Player {
 				}
 			}
 		}
+		
 		return bestEntity;
 	}
 
 	couldInteract(entity) {
-		return (entity.constructor.name != "Player" && entity.owner != ((player1 == this) ? player2 : player1) && entity.interact);
+		return (entity.constructor.name != "Player" && (entity.owner != ((player1 == this) ? player2 : player1)) && entity.interact);
 	}
 
 	interact() {
@@ -385,11 +404,15 @@ class Player {
 		drawCircularMeter(selfCoords[0], selfCoords[1], game_tileSize * 0.5, game_tileSize * 0.375, color_health, this.health / this.healthMax);
 
 		//draw box
-		var textSize = game_tileSize / 3;
+		var unit = game_tileSize;
+		var marg = 0.07;
+		var lockPercent = (this.interactTime / player_lockTime) ** 2;
+		var textSize = unit / 3;
 		ctx.fillStyle = color_boxBG2;
-		ctx.fillRect(selfCoords[0] - game_tileSize * 1.35, selfCoords[1] - game_tileSize * 3.05, game_tileSize * 2.7, game_tileSize * 1.1);
+		ctx.fillRect(selfCoords[0] - unit * (player_boxW * 0.5 + marg), selfCoords[1] - unit * (player_boxOff + marg), unit * (player_boxW + 2 * marg), unit * (player_boxH + 2 * marg));
 		ctx.fillStyle = color_boxBG;
-		ctx.fillRect(selfCoords[0] - game_tileSize * 1.3, selfCoords[1] - game_tileSize * 3, game_tileSize * 2.6, game_tileSize);
+		ctx.fillRect(selfCoords[0] - unit * (player_boxW * 0.5 + marg), selfCoords[1] - unit * (player_boxOff + marg), linterp(0, unit * (player_boxW + 2 * marg), lockPercent), unit * (player_boxH + 2 * marg));
+		ctx.fillRect(selfCoords[0] - unit * player_boxW * 0.5, selfCoords[1] - unit * player_boxOff, unit * player_boxW, unit * player_boxH);
 		var text = [
 			(this.findInteractable() ?? {interactText: (this.bag[1] > 0) ? `Place ${this.bag[0]}` : ``}).interactText,
 			(this.bag[0] == undefined) ? `Empty` : `${this.bag[0]} x${this.bag[1]}`,
@@ -400,7 +423,7 @@ class Player {
 		ctx.textAlign = "center";
 
 		for (var t=0; t<text.length; t++) {
-			ctx.fillText(text[t], selfCoords[0], selfCoords[1] - game_tileSize * 3 + textSize * (0.5 + t));
+			ctx.fillText(text[t], selfCoords[0], selfCoords[1] - unit * 3 + textSize * (0.5 + t));
 		}
 
 		ctx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, ...startCoords, endCoords[0] - startCoords[0], endCoords[1] - startCoords[1]);
