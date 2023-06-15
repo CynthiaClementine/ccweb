@@ -239,6 +239,7 @@ class Player {
 		this.interactTime = 0;
 
 		this.bag = [undefined, 0];
+		this.bagOpacity = 0;
 		this.money = player_moneyStart;
 		this.health = 10;
 		this.healthMax = 10;
@@ -279,7 +280,7 @@ class Player {
 		var hasY = this.dirsDown[1] > 0 || this.dirsDown[3] > 0;
 
 		//locking
-		if (lock) {
+		if (lock && data_persistent.interactLock) {
 			this.interactTime += 1;
 			if (this.interactTime >= player_lockTime) {
 				this.interactTime = 0;
@@ -332,6 +333,10 @@ class Player {
 		if (data_persistent.regen && this.health > 0 && this.health < this.healthMax) {
 			this.health += Math.abs(Math.sin(timer / 100) * this.regenRate);
 		}
+
+		//bag opacity
+		var shouldShow = ((this.findInteractable() ?? this.bag[0]) != undefined);
+		this.bagOpacity = clamp(this.bagOpacity + boolToSigned(shouldShow) * player_bagStep, 0, 1);
 	}
 
 	//places a bagged entity at a certain xy coordinate
@@ -404,26 +409,30 @@ class Player {
 		drawCircularMeter(selfCoords[0], selfCoords[1], game_tileSize * 0.5, game_tileSize * 0.375, color_health, this.health / this.healthMax);
 
 		//draw box
-		var unit = game_tileSize;
-		var marg = 0.07;
-		var lockPercent = (this.interactTime / player_lockTime) ** 2;
-		var textSize = unit / 3;
-		ctx.fillStyle = color_boxBG2;
-		ctx.fillRect(selfCoords[0] - unit * (player_boxW * 0.5 + marg), selfCoords[1] - unit * (player_boxOff + marg), unit * (player_boxW + 2 * marg), unit * (player_boxH + 2 * marg));
-		ctx.fillStyle = color_boxBG;
-		ctx.fillRect(selfCoords[0] - unit * (player_boxW * 0.5 + marg), selfCoords[1] - unit * (player_boxOff + marg), linterp(0, unit * (player_boxW + 2 * marg), lockPercent), unit * (player_boxH + 2 * marg));
-		ctx.fillRect(selfCoords[0] - unit * player_boxW * 0.5, selfCoords[1] - unit * player_boxOff, unit * player_boxW, unit * player_boxH);
-		var text = [
-			(this.findInteractable() ?? {interactText: (this.bag[1] > 0) ? `Place ${this.bag[0]}` : ``}).interactText,
-			(this.bag[0] == undefined) ? `Empty` : `${this.bag[0]} x${this.bag[1]}`,
-			this.money + `¢`
-		];
-		ctx.fillStyle = color_textPlayer;
-		ctx.font = `${textSize}px Lato`;
-		ctx.textAlign = "center";
-
-		for (var t=0; t<text.length; t++) {
-			ctx.fillText(text[t], selfCoords[0], selfCoords[1] - unit * 3 + textSize * (0.5 + t));
+		if (this.bagOpacity > 0) {
+			ctx.globalAlpha = this.bagOpacity;
+			var unit = game_tileSize;
+			var marg = 0.07;
+			var lockPercent = ((this.interactTime + 1) / player_lockTime) ** 2;
+			var textSize = unit / 3;
+			ctx.fillStyle = color_boxBG2;
+			ctx.fillRect(selfCoords[0] - unit * (player_boxW * 0.5 + marg), selfCoords[1] - unit * (player_boxOff + marg), unit * (player_boxW + 2 * marg), unit * (player_boxH + 2 * marg));
+			ctx.fillStyle = color_boxBG;
+			ctx.fillRect(selfCoords[0] - unit * (player_boxW * 0.5 + marg), selfCoords[1] - unit * (player_boxOff + marg), linterp(0, unit * (player_boxW + 2 * marg), lockPercent), unit * (player_boxH + 2 * marg));
+			ctx.fillRect(selfCoords[0] - unit * player_boxW * 0.5, selfCoords[1] - unit * player_boxOff, unit * player_boxW, unit * player_boxH);
+			var text = [
+				(this.findInteractable() ?? {interactText: (this.bag[1] > 0) ? `Place ${this.bag[0]}` : ``}).interactText,
+				(this.bag[0] == undefined) ? `Empty` : `${this.bag[0]} x${this.bag[1]}`,
+				this.money + `¢`
+			];
+			ctx.fillStyle = color_textPlayer;
+			ctx.font = `${textSize}px Lato`;
+			ctx.textAlign = "center";
+	
+			for (var t=0; t<text.length; t++) {
+				ctx.fillText(text[t], selfCoords[0], selfCoords[1] - unit * 3 + textSize * (0.5 + t));
+			}
+			ctx.globalAlpha = 1;
 		}
 
 		ctx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, ...startCoords, endCoords[0] - startCoords[0], endCoords[1] - startCoords[1]);

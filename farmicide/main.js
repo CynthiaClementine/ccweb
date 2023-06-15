@@ -124,6 +124,7 @@ var player_boxW = 2.75;
 var player_boxH = 1;
 var player_boxOff = 3;
 var player_lockTime = 30;
+var player_bagStep = 0.1;
 
 var settings = [
 	[`Texture aliasing`, `data_persistent.alias`, `Textures will pixelate rather than blur`],
