@@ -1,15 +1,22 @@
-window.addEventListener("keydown", keyPress, false);
-window.addEventListener("keyup", keyNegate, false);
+window.onkeydown = keyPress;
+window.onkeyup = keyNegate;
+
+window.onload = setup;
+document.onmousemove = mouseMoveHandle;
+document.onmousedown = mouseClickHandle;
 //setting up variables for later
 var canvas;
 var ctx;
+
+var base64 = `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=`;
+var base64_inv = invertList(base64);
 
 var zPressed = false;
 var xPressed = false;
 var cPressed = false;
 var bPressed = false;
 
-var clicked = false;
+var mouseDown = false;
 var mouseX;
 var mouseY;
 var numToSet = 0;
@@ -17,13 +24,8 @@ var numToSet = 0;
 var arrayValue;
 var centerX;
 var centerY;
-var squareSize = 40;
-var startingCoords = [squareSize * 4, squareSize * 5];
-var mouseX;
-var mouseY;
-var clicked = 0;
 var canvasArea;
-var gravity = squareSize / 100;
+var gravity = 0.01;
 
 var timer;
 var dayLength = 12500;
@@ -78,36 +80,28 @@ var entitySpeed = 1;
 //this array says all the surfaces that are solid and cannot be walked through.
 var solidSurfaces = [1, 2, 4, 6, 8];
 
-window.onload = setup;
-document.onmousemove = mouseMoveHandle;
-document.onmousedown = mouseClickHandle;
-
 let camera;
-let character;
+let player;
 let loadingMode = new Menu();
 
 let entities;
 // the initializing function.
+
+function setCanvasPreferences() {
+	ctx.textBaseline = "middle";
+}
+
 function setup() {
 	canvas = document.getElementById("canvas");
 	ctx = canvas.getContext("2d");
-	
-	//initializing map, I have to do 1 value at a time or else it will be a pointer instead of a literal
-	for (var x=0;x<map.length;x++) {
-		loadingMap.push([]);
-	}
-	
-	for (var c=0;c<map.length; c++) {
-		for (var v=0;v<map[0].length;v++) {
-			loadingMap[c][v] = map[c][v];
-		}
-	}
+
+	loadingMap = importMap(map);
 	
 	centerX = canvas.width / 2;
 	centerY = canvas.height / 2;
 
 	camera = new Camera(0, 0);
-	character = new Player(startingCoords[0], startingCoords[1]);
+	player = new Player(4, 5);
 
 	//generating entities
 
@@ -118,33 +112,33 @@ function setup() {
 
 	entities = [
 				//above-ground buttons
-				new Button(37 * squareSize, 81 * squareSize, new Gelatin(36 * squareSize, 80 * squareSize), (38 * squareSize) - centerX, (74.5 * squareSize) - centerY, [[37, 74, 1, 0], [38, 74, 1, 0]]),
-				new Button(28.5 * squareSize, 68 * squareSize, new Gelatin(35.5 * squareSize, 61.5 * squareSize), (43.5 * squareSize) - centerX, (57 * squareSize) - centerY, [[42, 55, 4, 3], [44, 55, 4, 3], [43, 56, 4, 3], [42, 57, 4, 3], [44, 57, 4, 3], [43, 58, 4, 3]]),
-				new Button(41.5 * squareSize, 66 * squareSize, new Gelatin(38.5 * squareSize, 65.5 * squareSize), (43.5 * squareSize) - centerX, (57 * squareSize) - centerY, [[42, 56, 4, 3], [44, 56, 4, 3], [43, 57, 4, 3], [42, 58, 4, 3], [44, 58, 4, 3]]),
-				new Button(55 * squareSize, 35 * squareSize, new Gelatin(59 * squareSize, 36.5 * squareSize), (17.5 * squareSize) - centerX, (19.5 * squareSize) - centerY, [[17, 19, 9, 6]]),
-				new Button(10.5 * squareSize, 12 * squareSize, new Gelatin(12.5 * squareSize, 14.5 * squareSize), (0.5 * squareSize) - centerX, (10.5 * squareSize) - centerY, [[1, 11, 5, 6]]),
-				new Button(13.5 * squareSize, 15 * squareSize, new Gelatin(12.5 * squareSize, 11.5 * squareSize), (-15.5 * squareSize) - centerX, (12.5 * squareSize) - centerY, [[46, 12, 2, 0], [47, 12, 2, 0], [48, 12, 2, 0]]),
-				new Orb(43.5 * squareSize, 17.5 * squareSize),
+				new Button(37, 81, new Gelatin(36, 80), 38, 74.5, [[37, 74, 1, 0], [38, 74, 1, 0]]),
+				new Button(28.5 , 68 , new Gelatin(35.5, 61.5), 43.5, 57, [[42, 55, 4, 3], [44, 55, 4, 3], [43, 56, 4, 3], [42, 57, 4, 3], [44, 57, 4, 3], [43, 58, 4, 3]]),
+				new Button(41.5 , 66, new Gelatin(38.5, 65.5), 43.5, 57, [[42, 56, 4, 3], [44, 56, 4, 3], [43, 57, 4, 3], [42, 58, 4, 3], [44, 58, 4, 3]]),
+				new Button(55, 35, new Gelatin(59, 36.5), 17.5, 19.5, [[17, 19, 9, 6]]),
+				new Button(10.5, 12, new Gelatin(12.5, 14.5), 0.5, 10.5, [[1, 11, 5, 6]]),
+				new Button(13.5, 15, new Gelatin(12.5, 11.5), -15.5, 12.5, [[46, 12, 2, 0], [47, 12, 2, 0], [48, 12, 2, 0]]),
+				new Orb(43.5, 17.5),
 				//secret buttons
-				new Button(62.5 * squareSize, 101 * squareSize, new Gelatin(55.5 * squareSize, 105.5 * squareSize), (23.5 * squareSize) - centerX, (102.5 * squareSize) - centerY, [[22, 98, 1, 0], [23, 98, 1, 0], [24, 98, 1, 0], [22, 99, 1, 0], [24, 99, 1, 0], [22, 100, 1, 0], [24, 100, 1, 0], [22, 101, 1, 0], [24, 101, 1, 0], [25, 101, 1, 0], [21, 101, 1, 0], [22, 102, 1, 0], [22, 103, 1, 0], [22, 104, 1, 0], [22, 105, 1, 0], [22, 106, 1, 0]]),
-				new Button(10.5 * squareSize, 107 * squareSize, new Gelatin(10.5 * squareSize, 109.5 * squareSize), (4 * squareSize) - centerX, (91 * squareSize) - centerY, yellowBackgrounds),
-				new Button(12.5 * squareSize, 107 * squareSize, new Gelatin(11.5 * squareSize, 109.5 * squareSize), (4 * squareSize) - centerX, (85 * squareSize) - centerY, yellowForeGrounds),
-				new Button(8.5 * squareSize, 101 * squareSize, new Gelatin(14.5 * squareSize, 99.5 * squareSize), (10.5 * squareSize) - centerX, (107.5 * squareSize) - centerY, [[10, 107, 3, 4]]),
+				new Button(62.5, 101, new Gelatin(55.5, 105.5), 23.5, 102.5, [[22, 98, 1, 0], [23, 98, 1, 0], [24, 98, 1, 0], [22, 99, 1, 0], [24, 99, 1, 0], [22, 100, 1, 0], [24, 100, 1, 0], [22, 101, 1, 0], [24, 101, 1, 0], [25, 101, 1, 0], [21, 101, 1, 0], [22, 102, 1, 0], [22, 103, 1, 0], [22, 104, 1, 0], [22, 105, 1, 0], [22, 106, 1, 0]]),
+				new Button(10.5, 107, new Gelatin(10.5, 109.5), 4, 91, yellowBackgrounds),
+				new Button(12.5, 107, new Gelatin(11.5, 109.5), 4, 85, yellowForeGrounds),
+				new Button(8.5, 101, new Gelatin(14.5, 99.5), 10.5, 107.5, [[10, 107, 3, 4]]),
 				//below-ground normal buttons
-				new Button(52.5 * squareSize, 115 * squareSize, new Gelatin(53.5 * squareSize, 113.5 * squareSize), (72.5 * squareSize) - centerX, (120.5 * squareSize) - centerY, [[9, 120, 4, 3]])
-				];
+				new Button(52.5, 115, new Gelatin(53.5, 113.5), 72.5, 120.5, [[9, 120, 4, 3]])
+			];
 	
 	/*generating clouds:
 	clouds y: 32-34 squares
 	clouds x: 0-63 squares, x is deterministic but y is random */
 	for (var a=0;a<=loadingMap[0].length / cloudSpacing;a++) {
 		var randHeight = (Math.random() * 2) + 32;
-		entities.push(new Cloud(a * cloudSpacing * squareSize, randHeight * squareSize));
+		entities.push(new Cloud(a * cloudSpacing, randHeight));
 	}
 
 	//generating cracked blocks
 	for (var b=0;b<crackerPositions.length;b++) {
-		entities.push(new Cracker((crackerPositions[b][0] * squareSize) + (0.5 * squareSize), (crackerPositions[b][1] * squareSize) + (0.5 * squareSize)));
+		entities.push(new Cracker((crackerPositions[b][0]) + 0.5, (crackerPositions[b][1]) + 0.5));
 	}
 
 	setInterval(draw, frameTime);
@@ -157,24 +151,26 @@ function keyPress(h) {
 	switch (h.keyCode) {
 		case 65:
 		case 37:
-			character.ax = character.accRate * -1;
+			player.ax = -player.accRate;
 			break;
 		case 87:
 		case 38:
-			if (character.onGround) {
-				character.dy = character.jumpStrength * -1;
-				character.onGround = false;
+			if (player.onGround) {
+				player.dy = -player.jumpStrength;
+				player.onGround = false;
+			} else {
+				player.glide = true;
 			}
-			character.ay = character.accRate * -1;
+			player.ay = -player.accRate;
 			break;
 		case 68:
 		case 39:
-			character.ax = character.accRate * 1;
+			player.ax = player.accRate;
 			break;
 		case 83:
 		case 40:
-			character.dy += character.jumpStrength;
-			character.ay = character.accRate * 1;
+			player.dy += player.jumpStrength;
+			player.ay = player.accRate;
 			break;
 		
 		//z, x, c, and b, in that order
@@ -210,33 +206,36 @@ function keyNegate(h) {
 	switch (h.keyCode) {
 		case 65:
 		case 37:
-			if (character.ax < 0) {
-				character.ax = 0;
+			if (player.ax < 0) {
+				player.ax = 0;
 			}
 			break;
 		case 87:
 		case 38:
-			if (character.ay < 0) {
-				character.ay = 0;
+			if (player.ay < 0) {
+				player.ay = 0;
+			}
+			if (player.glide) {
+				player.glide = false;
 			}
 			break;
 		case 68:
 		case 39:
-			if (character.ax > 0) {
-				character.ax = 0;
+			if (player.ax > 0) {
+				player.ax = 0;
 			}
 			break;
 		case 83:
 		case 40:
-			if (character.ay > 0) {
-				character.ay = 0;
+			if (player.ay > 0) {
+				player.ay = 0;
 			}
 			break;
 	}
 }
 
 function draw() {
-	loadingMode.beRun();			
+	loadingMode.beRun();
 }
 
 function mouseMoveHandle(h) {
@@ -246,16 +245,15 @@ function mouseMoveHandle(h) {
 }
 
 function mouseClickHandle() {
-	//I hope the names here explain what happens
 	if (loadingMode.constructor.name == "Debug") {
-		clicked = true;
+		mouseDown = true;
 	}
 }
 
 /* mapSquare is the function that draws all the different tiles. */
 function mapSquare(value, ex, why, offset) {
 	//drawing based off the floor of the value
-	switch (Math.ceil(value)) {
+	/*switch (Math.ceil(value)) {
 		case 0:
 			ctx.fillStyle = landColor;
 			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
@@ -307,6 +305,16 @@ function mapSquare(value, ex, why, offset) {
 		case 9:
 		default:
 			break;
+	} */
+	switch (Math.ceil(value)) {
+		case 1:
+		case 2:
+		case 4:
+		case 6:
+		case 8:
+			ctx.fillStyle = stoneColor;
+			ctx.fillRect(ex, why, camera.scale - offset, camera.scale - offset);
+		break;
 	}
 
 	//drawing cracks
@@ -316,7 +324,7 @@ function mapSquare(value, ex, why, offset) {
 }
 
 function drawMapCracks(value, ex, why) {
-	var squareX = ex / squareSize
+	var squareX = ex / camera.scale
 	//different phases based on how broken block is
 	var percentage = value - Math.floor(value);
 
@@ -325,112 +333,82 @@ function drawMapCracks(value, ex, why) {
 	ctx.strokeStyle = blockCrackColor;
 	ctx.lineWidth = 2;
 	ctx.moveTo(ex, why);
-	ctx.lineTo(ex + (squareSize * 0.7), why + (squareSize * 0.7));
+	ctx.lineTo(ex + (camera.scale * 0.7), why + (camera.scale * 0.7));
 
 
 	if (percentage < 0.666) {
 		//more cracked
-		ctx.moveTo(ex + (squareSize * 0.2), why + (squareSize * 0.6));
-		ctx.lineTo(ex + (squareSize * 0.6), why + (squareSize * 0.4));
+		ctx.moveTo(ex + (camera.scale * 0.2), why + (camera.scale * 0.6));
+		ctx.lineTo(ex + (camera.scale * 0.6), why + (camera.scale * 0.4));
 	} 
 	if (percentage < 0.333) {
 		//the most cracked
-		ctx.moveTo(ex + (squareSize * 0.3), why + (squareSize * 0.3));
-		ctx.lineTo(ex + (squareSize * 0.8), why + (squareSize * 0.2));
+		ctx.moveTo(ex + (camera.scale * 0.3), why + (camera.scale * 0.3));
+		ctx.lineTo(ex + (camera.scale * 0.8), why + (camera.scale * 0.2));
 	}
 	ctx.stroke();
 }
-		
+
 // drawing the map
 function drawMap() {
-	//uses two for loops, one for x and one for y
-	for (var p=0; p<camera.ySquaresPerScreen; p++) {
-		for (var o=0;o<camera.xSquaresPerScreen;o++) {
-			//figuring out where to read from
-			//1 square is added to y if the camera is in the negative vertical space to fix strange camera glitches
-			var additive = camera.y < 0;
-			var value;
-			var xSquare = Math.floor((camera.cornerX + (o * squareSize)) / squareSize);
-			var ySquare = Math.floor((camera.cornerY + (p * squareSize)) / squareSize) + additive;
+	var lowerCorner = screenToSpace(0, 0);
+	lowerCorner = [floor(lowerCorner[0]-1), floor(lowerCorner[1])];
+	var upperCorner = screenToSpace(canvas.width, canvas.height);
+	upperCorner = [Math.ceil(upperCorner[0]), Math.ceil(upperCorner[1])];
+	var lowerXY = spaceToScreen(lowerCorner[0], lowerCorner[1]);
 
-			//wrapping horizontally
-			if (xSquare >= loadingMap[0].length) {
-				xSquare -= loadingMap[0].length;
-			} else if (xSquare < 0) {
-				xSquare += loadingMap[0].length;
-			}
+	//uses two for loops, one for x and one for y
+	var lenX = upperCorner[0] - lowerCorner[0];
+	var lenY = upperCorner[1] - lowerCorner[1];
+	for (var p=0; p<lenY; p++) {
+		for (var o=0; o<lenX; o++) {
+			//figuring out where to read from
+			var value;
+			var xSquare = modulate(lowerCorner[0] + o, loadingMap[0].length);
+			var ySquare = lowerCorner[1] + p;
 
 			//where to write to
 			//[square numbers] - [square offset]
-			var xPos = (o * squareSize) - (camera.cornerX % squareSize);
-			var yPos = (p * squareSize) - (camera.cornerY % squareSize);
+			var xPos = lowerXY[0] + (o * camera.scale);
+			var yPos = lowerXY[1] + (p * camera.scale);
 
-			//modulo returns a negative number when x is negative, so I have to correct it
-			if (camera.cornerX < 0) {
-				xPos -= squareSize;
-			}
-
-			try {
+			if (loadingMap[ySquare] == undefined || loadingMap[ySquare][xSquare] == undefined) {
+				value = 9;
+			} else {
 				value = loadingMap[ySquare][xSquare];
 			}
-			catch (error) {
-				value = 9;
-			}
 			//the actual drawing, xPos and yPos are floored so that subpixels don't create ugly lines
-			mapSquare(value, Math.floor(xPos), Math.floor(yPos), loadingMode.tileOffset);
+			mapSquare(value, floor(xPos), floor(yPos), loadingMode.tileOffset);
 		}
 	}
 }
 
-function drawMenu() {
-	//filters count as part of the menu
-	ctx.textAlign = "left";
-	//prep filter, it's probably not the best to handle the prepping logic inside of a draw function but whatever
-	if (prep[0] > 0 && prep[0] < 5) {
-		ctx.globalAlpha = 0.2;
-		ctx.fillStyle = endingColor;
-		ctx.fillRect(0, 0, canvas.width * (prep[0] / 4.5), canvas.height);
-		ctx.globalAlpha = 1.0;
-		prep[1] = prep[1] - 1;
-		if (prep[1] < 1) {
-			prep[0] = prep[0] - 0.05;
-		}
-	}
-	//prep for return filter
-	if (prep[2] > 0 && prep[2] < 5) {
-		ctx.globalAlpha = 0.2;
-		ctx.fillStyle = startingColor;
-		ctx.fillRect(0, 0, canvas.width * (prep[2] / 4.5), canvas.height);
-		ctx.globalAlpha = 1.0;
-		prep[3] = prep[3] - 1;
-		if (prep[3] < 1) {
-			prep[2] = prep[2] - 0.05;
-		}
-	}
-	
-		
+function drawTimer() {
 	//draws main menu things
-	ctx.fillStyle = menuColor;
-	ctx.fillRect(0, canvas.height * 0.8, canvas.width, canvas.height * 0.2)
 	ctx.fillStyle = textColor;
-	ctx.font = "20px Century Gothic";
-	ctx.fillText("Time elapsed: " + (time / 66.6666666).toFixed(2), 15, canvas.height * 0.95); 
-	ctx.fillText("Points: " + points, 15, canvas.height * 0.87);
+	ctx.font = `${canvas.height / 20}px Raleway`;
+	var realTime = (time / 66.6666666);
+	var strTime = (realTime % 60).toFixed(2);
+	if (realTime >= 60) {
+		strTime = Math.floor((realTime / 60) % 60) + ":" + strTime;
+	}
+	if (realTime >= 3600) {
+		strTime = Math.floor((realTime / 3600)) + ":" + strTime;
+	}
+	ctx.fillText(strTime, canvas.width / 2, canvas.height * 0.05);
 }
 
 function mapEdit() {
+	console.log(`editing`);
 	//converts the mouses position into a spot on the map, allows for click edits.
 	var max = 9;
-	var arrayPosX = mouseX + cornerCoords[0];
-	var arrayPosY = mouseY + cornerCoords[1];
-	time = Math.round(dayLength * 0.80);
+	var arrayPos = screenToSpace(mouseX, mouseY);
 	
-	if (clicked == 1) {
-		clicked = 0;
-	loadingMap[Math.floor(arrayPosY / squareSize)][Math.floor(arrayPosX / squareSize)] = numToSet;
-	if (loadingMap[Math.floor(arrayPosY / squareSize)][Math.floor(arrayPosX / squareSize)] > max) {
-		loadingMap[Math.floor(arrayPosY / squareSize)][Math.floor(arrayPosX / squareSize)] = 0;
-	}
+	if (mouseDown && mouseX > 0 && mouseY > 0 && mouseX < canvas.width && mouseY < canvas.height) {
+		loadingMap[floor(arrayPos[1])][floor(arrayPos[0])] = numToSet;
+		if (loadingMap[floor(arrayPos[1])][floor(arrayPos[0])] > max) {
+			loadingMap[floor(arrayPos[1])][floor(arrayPos[0])] = 0;
+		}
 	}
 
 	//makes sure that text displays the coordinates
