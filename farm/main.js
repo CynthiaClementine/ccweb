@@ -119,7 +119,7 @@ var menu_bMargin = 0.05;
 var player1;
 var player2;
 var player_names = [`Player 1`, `Player 2`];
-var player_moneyStart = 15;
+var player_moneyStart = 25;
 var player_boxW = 2.75;
 var player_boxH = 1;
 var player_boxOff = 3;
@@ -145,6 +145,7 @@ var territory_required = 0.75;
 
 var timer = game_introTime + 1;
 
+var tutorial_state = 0;
 
 function setup() {
 	canvas = document.getElementById("convos");
@@ -154,11 +155,8 @@ function setup() {
 
 	game_mainLoop = main;
 
-	//doing it this way is weird but accounts for different refresh rates
-	// animation = window.setInterval(() => {
-		
-	// }, 1000 / 60);
-	animation = window.requestAnimationFrame(main);
+	//I'm back to using setInterval - it's slightly jittery but accounts for different refresh rates until I have a better system.
+	animation = window.setInterval(main, 1000 / 60);
 }
 
 function main() {
@@ -198,10 +196,13 @@ function main() {
 	}
 
 	timer += 1;
-	animation = window.requestAnimationFrame(main);
 }
 
 function tickGameWorld() {
+	if (data_persistent.tutorial && tutorial_state < 2) {
+		//do not do anything while tutorial is running
+		return;
+	}
 	for (var e=0; e<entities.length; e++) {
 		entities[e].tick();
 		//delete it if necessary
@@ -275,7 +276,16 @@ function handleMouseDown_custom() {
 				gameover_buttons[index][1]();
 			}
 		}
+	}
 
+	if (game_state == "game") {
+		if (data_persistent.tutorial && tutorial_state < 2) {
+			tutorial_state += 1;
+			if (tutorial_state >= 2) {
+				data_persistent.tutorial = false;
+			}
+		}
+		return;
 	}
 	
 }
