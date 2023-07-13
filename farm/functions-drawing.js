@@ -74,6 +74,17 @@ function drawGameWorld() {
 	});
 
 	drawScorebar();
+
+	//draw tutorial if needed
+	if (data_persistent.tutorial && tutorial_state < 2) {
+		var img;
+		if (tutorial_state == 1) {
+			img = image_tut2;
+		} else {
+			img = data_persistent.interactLock ? image_tut1L : image_tut1;
+		}
+		ctx.drawImage(img, -0.5 * canvas.width, -0.5 * canvas.height, canvas.width, canvas.height);
+	}
 }
 
 function drawScorebar() {
@@ -123,7 +134,7 @@ function drawSettings() {
 
 function drawMainMenu() {
 	//title text
-	drawTextPrecise(`Farmicide`, 9, canvas.height * -0.15, `${canvas.height / 12}px Lato`, "center", color_textMenu, [canvas.height * 0.003, canvas.height * 0.003]);
+	drawTextPrecise(`Pending Farm Project`, 9, canvas.height * -0.15, `${canvas.height / 12}px Lato`, "center", color_textMenu, [canvas.height * 0.003, canvas.height * 0.003]);
 
 	//main menu
 	ctx.font = `${canvas.height / 24}px Lato`;

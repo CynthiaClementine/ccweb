@@ -12,6 +12,7 @@ function beginGame(quickStart) {
 	//clear entities to leave only constants
 	entities = [...entity_vendors, player1, player2];
 	territory_percentages = [1, 0, 0];
+	tutorial_state = 0;
 
 	game_state = "game";
 }
@@ -23,7 +24,7 @@ function circleRepel(entity, circleX, circleY, circleR) {
 	var relPY = entity.y - circleY;
 	//avoid errors when the entity's at the direct center
 	if (relPX == 0 && relPY == 0) {
-		relPX = circleR / 2;
+		relPX = 0.01;
 	}
 	var pDist;
 
