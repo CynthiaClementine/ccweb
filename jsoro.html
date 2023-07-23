@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+	<!--
+		Copyright Cynthia Clementine
+		July-20-2023
+	-->
+	<head>
+		<title>you get it because its like pyoro but in javascript so it</title>
+		<meta charset="utf-8">
+		<!-- <link rel='icon' href='img/icon.png' type='image/png'/> -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Lato&display=swap" rel="stylesheet">
+		<style>
+			body {
+				background-color: slateblue;
+			}
+
+			html, body {
+				width: 100%;
+				height: 100%;
+				margin: 0px;
+				border: 0;
+				overflow: hidden;
+				display: block;
+			}
+
+			#convos {
+				margin: auto;
+				border: black 3px solid;
+			}
+
+			#centerModule {
+				position: relative;
+				text-align: center;
+			}
+		</style>
+		<script src="common/functions-math.js"></script>
+		<script src="/common/functions-mouse.js"></script>
+
+		<script type="text/javascript">
+			var appleCoords = [];
+			var bridge = [];
+			var appleVel = 1;
+			var dtMult = 1;
+
+			//it's just easier to have a player class. Apples I can get away with, they don't interact much, but players have enough data that it's worth encapsulating
+			class Player {
+				constructor(x) {
+					this.x = x;
+					this.dx = 0;
+					this.dMax = 1;
+					this.ax = 0;
+					this.speed = 0.05;
+					this.friction = 0.1;
+				}
+
+				draw() {
+
+				}
+
+				tick(dt) {
+					var trueAX = this.ax * this.speed * dt;
+
+					//if we're not accelerating, experience friction
+
+					//friction is linear because I really don't want to have to deal with lns and other shenanigans
+					if (trueAX * this.dx <= 0) {
+						this.dx
+					}
+					this.x += this.dx * this.dt;
+				}
+
+
+			}
+
+			function setup() {
+
+			}
+
+			function tick(dt) {
+
+			}
+
+			function draw() {
+
+			}
+			function main(dt) {
+
+			}
+		</script>
+	</head>
+	<body>
+		<div id="centerModule">
+			<canvas id="corvid" width="640" height="480"></canvas><br>
+		</div>
+	</body>
+</html>
