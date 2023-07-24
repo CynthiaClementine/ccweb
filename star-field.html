@@ -53,12 +53,12 @@
 
 			var colors = ["#FFF", "#FCC", "#CCF"];
 
-			var starDensity = 0.2;
-			var starMinSize = 0.001;
-			var starMaxSize = 0.005;
-			var starWeights = [0.85, 0.1, 0.04, 0.008, 0, 0, 0, 0.001, 0.001];
+			var starDensity = 0.25;
+			var starMinSize = 0.0005;
+			var starMaxSize = 0.007;
+			var starWeights = [0.85, 0.0409, 0.1, 0, 0.0081, 0, 0, 0, 0.0008, 0.0002];
 
-			var staticBase = [32, 32, 40];
+			var staticBase = [32, 32, 32];
 			var staticOffset = 10;
 
 			function setup() {
@@ -148,7 +148,7 @@
 					console.log(numStars * accumPercent);
 					
 					while (drawn < numStars * accumPercent) {
-						drawStar(randomBounded(0, canvas.width), randomBounded(0, canvas.height), drawSize);
+						drawStar(randomBounded(0, canvas.width), randomBounded(0, canvas.height), drawSize, s > starWeights.length - 3, s > starWeights.length - 2);
 						drawn += 1;
 					}
 				}
@@ -163,33 +163,62 @@
 			}
 
 			function starColor(x, y) {
-				// return colors[Math.floor(randomBounded(0, colors.length))];
+				return colors[Math.floor(randomBounded(0, colors.length))];
 
 
 				var xPercent = Math.abs((x / canvas.width) - 0.5);
 				xPercent += boolToSigned(Math.random() < 0.5) * (randomBounded(0, 0.16) ** 2);
-				if (xPercent > 0.3) {
+				if (xPercent > 0.42) {
 					return colors[2];
 				}
-				if (xPercent > 0.1) {
+				if (xPercent > 0.14) {
 					return colors[1];
 				}
 				return colors[0];
 			}
 
-			function drawStar(x, y, size) {
+			function drawStar(x, y, size, glow, diffract) {
 				//color based on coordinate
 				ctx.fillStyle = starColor(x, y);
 				ctx.beginPath();
 				ctx.arc(x, y, size, 0, Math.PI * 2);
 				ctx.fill();
 
-				//if it's large enough, do diffraction spikes
+				//glow
+				if (glow) {
+					ctx.filter = `blur(${size / 2}px)`;
+					ctx.beginPath();
+					ctx.arc(x, y, size, 0, Math.PI * 2);
+					ctx.fill();
+					ctx.filter = `none`;
+				}
+
+				//diffraction spikes
+				if (diffract) {
+					ctx.beginPath();
+					ctx.strokeStyle = ctx.fillStyle;
+					ctx.moveTo(x - size * 2, y);
+					ctx.lineTo(x + size * 2, y);
+					ctx.moveTo(x, y - size * 2);
+					ctx.lineTo(x, y + size * 2);
+					ctx.stroke();
+				}
 			}
 
 
 			function parseInputs() {
+				//no safety WOOOOOO
+				canvas.width = +resX.value;
+				canvas.height = +resY.value;
 
+				staticBase = JSON.parse(`[${colBase.value}]`);
+				staticOffset = +fogOff.value;
+				
+				perlinAlpha = +fogOpa.value;
+				perlinFloor = +fogFloor.value;
+
+				colors = [col1.value, col2.value, col3.value];
+				base();
 			}
 		</script>
 	</head>
@@ -198,12 +227,14 @@
 			<canvas id="corvid" width="640" height="480"></canvas><br>
 			<p id="statusText">Done!</p>
 			<p>
-				Resolution:<input type="number" value="640"/>x<input type="number" value="480"/><br>
-				Base color:<input type="text" value="64,64,64"/><br>
-				Fog opacity:<input type="number" value="0.4" step="0.1" min="0" max="1"/><br>
-				Fog floor:<input type="number" value="0.3" step="0.1" min="0" max="1"/><br>
+				Resolution:<input id="resX" type="number" value="640"/>x<input id="resY" type="number" value="480"/><br>
+				Base color:<input id="colBase" type="text" value="32,32,32"/><br>
+				Base offset:<input id="fogOff" type="number" value="10"/><br>
+				Fog opacity:<input id="fogOpa" type="number" value="0.4" step="0.1" min="0" max="1"/><br>
+				Fog floor:<input id="fogFloor" type="number" value="0.3" step="0.1" min="0" max="1"/><br>
+				Star colors:<input id="col1" type="text" value="#FFFFFF"/><input id="col2" type="text" value="#FFCCCC"/><input id="col3" type="text" value="#CCCCFF"/><br>
 
-				<button onclick="base()">Generate New Star Field</button>
+				<button onclick="parseInputs()">Generate New Star Field</button>
 				
 			</p>
 		</div>
