@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+	<!--
+		Copyright Cynthia Clementine
+		July-23-2023
+	-->
+	<head>
+		<title>Star Field</title>
+		<meta charset="utf-8">
+		<!-- <link rel='icon' href='img/icon.png' type='image/png'/> -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+		<style>
+			body {
+				background-color: slateblue;
+			}
+
+			html, body {
+				width: 100%;
+				height: 100%;
+				margin: 0px;
+				border: 0;
+				display: block;
+			}
+
+			#convos {
+				margin: auto;
+				border: black 3px solid;
+			}
+
+			#centerModule {
+				position: relative;
+				text-align: center;
+			}
+		</style>
+		<!-- using someone else's perlin noise because I'm lazy and don't feel like packaging up my own perlin noise funcs -->
+		<script src='http://git.io/perlin.js'></script>
+
+		<script src="common/functions-math.js"></script>
+
+		<script type="text/javascript">
+			window.onload = setup;
+
+			var canvas;
+			var ctx;
+
+			var perlinAlpha = 0.3;
+			var perlinFloor = 0.4;
+			var perlinGrids = [35, 200, 640, 3000];
+			//weights must add to 1
+			var perlinWeights = [0.45, 0.3, 0.15, 0.1]; 
+
+			var colors = ["#FFF", "#FCC", "#CCF"];
+
+			var starDensity = 0.2;
+			var starMinSize = 0.001;
+			var starMaxSize = 0.005;
+			var starWeights = [0.85, 0.1, 0.04, 0.008, 0, 0, 0, 0.001, 0.001];
+
+			var staticBase = [32, 32, 40];
+			var staticOffset = 10;
+
+			function setup() {
+				canvas = document.getElementById("corvid");
+				ctx = canvas.getContext("2d");
+
+				animation = window.requestAnimationFrame(base);
+			}
+
+			function base() {
+				statusText.innerHTML = `Generating static...`;
+				animation = window.requestAnimationFrame(randNoise);
+			}
+
+			function randNoise() {
+				//loop through all pixels in the screen and set them a slightly different color
+				for (var y=0; y<canvas.height; y++) {
+					for (var x=0; x<canvas.width; x++) {
+						var randOff = randomBounded(-staticOffset, staticOffset);
+						ctx.fillStyle = `rgb(${staticBase[0] + randOff}, ${staticBase[1] + randOff}, ${staticBase[2] + randOff})`;
+						ctx.fillRect(x, y, 1, 1);
+					}
+				}
+
+				statusText.innerHTML = `Generating fog...`;
+				animation = window.requestAnimationFrame(perlinNoise);
+			}
+
+			function perlinNoise() {
+				//create an array the size of the canvas to store noise values
+				var screenBuffer = new Array(canvas.height);
+				for (var a=0; a<screenBuffer.length; a++) {
+					screenBuffer[a] = new Array(canvas.width).fill(-perlinFloor);
+				}
+
+				//each octave influences the total noise value less
+				var gridSize;
+				for (var oct=0; oct<perlinGrids.length; oct++) {
+					perlin.seed();
+
+					//perlinGrids says how many squares of perlin noise there should be in the canvas. 
+					//Since a square is.. square, and made of pixels, there will be n^2 pixels per square, and the equation is w*h / n^2 = numSquares.
+					//rearranging this, we can determine n from the total number of pixels in the screen.
+					gridSize = Math.ceil(Math.sqrt(canvas.width * canvas.height / perlinGrids[oct]));
+					for (var y=0; y<canvas.height; y++) {
+						for (var x=0; x<canvas.width; x++) {
+							screenBuffer[y][x] += (perlin.get(x / gridSize, y / gridSize) + 0.5) * perlinWeights[oct];
+						}
+					}
+				}
+
+				//now draw the noise
+				ctx.fillStyle = `#FFF`;
+				for (var y=0; y<canvas.height; y++) {
+					for (var x=0; x<canvas.width; x++) {
+						if (screenBuffer[y][x] > 0) {
+							ctx.globalAlpha = Math.min(screenBuffer[y][x], 1) * perlinAlpha;
+							ctx.fillRect(x, y, 1, 1);
+						}
+					}
+				}
+				
+				ctx.globalAlpha = 1;
+				statusText.innerHTML = `Generating stars...`;
+				animation = window.requestAnimationFrame(stars);
+			}
+
+			function stars() {
+				//scale to pixel measurements, rather than percent measurements
+				var sMin = Math.sqrt((canvas.width * canvas.height) * (starMinSize ** 2));
+				var sMax = Math.sqrt((canvas.width * canvas.height) * (starMaxSize ** 2));
+				//do passes of progressively larger stars. The larger the set, the fewer the number
+				
+				
+				//the idea is that r=1 means the star will take up X pixels. So to maintain a density of 0.X, there should be a number of stars equal to (0.X * total pixel area) / pixel area taken by one star
+				var starea = 3.14 * (linterp(sMin, sMax, 0.25)) ** 2;
+				var numStars = starDensity * canvas.width * canvas.height / starea;
+				var drawn = 0;
+
+
+				var accumPercent = 0;
+				var drawSize;
+				
+				for (s=0; s<starWeights.length; s++) {
+					accumPercent += starWeights[s];
+					drawSize = linterp(sMin, sMax, s / (starWeights.length-1));
+					console.log(numStars * accumPercent);
+					
+					while (drawn < numStars * accumPercent) {
+						drawStar(randomBounded(0, canvas.width), randomBounded(0, canvas.height), drawSize);
+						drawn += 1;
+					}
+				}
+
+				console.log(`target was ${numStars}, actually drawn ${drawn}`);
+
+
+
+
+
+				statusText.innerHTML = `Done!`;
+			}
+
+			function starColor(x, y) {
+				// return colors[Math.floor(randomBounded(0, colors.length))];
+
+
+				var xPercent = Math.abs((x / canvas.width) - 0.5);
+				xPercent += boolToSigned(Math.random() < 0.5) * (randomBounded(0, 0.16) ** 2);
+				if (xPercent > 0.3) {
+					return colors[2];
+				}
+				if (xPercent > 0.1) {
+					return colors[1];
+				}
+				return colors[0];
+			}
+
+			function drawStar(x, y, size) {
+				//color based on coordinate
+				ctx.fillStyle = starColor(x, y);
+				ctx.beginPath();
+				ctx.arc(x, y, size, 0, Math.PI * 2);
+				ctx.fill();
+
+				//if it's large enough, do diffraction spikes
+			}
+
+
+			function parseInputs() {
+
+			}
+		</script>
+	</head>
+	<body>
+		<div id="centerModule">
+			<canvas id="corvid" width="640" height="480"></canvas><br>
+			<p id="statusText">Done!</p>
+			<p>
+				Resolution:<input type="number" value="640"/>x<input type="number" value="480"/><br>
+				Base color:<input type="text" value="64,64,64"/><br>
+				Fog opacity:<input type="number" value="0.4" step="0.1" min="0" max="1"/><br>
+				Fog floor:<input type="number" value="0.3" step="0.1" min="0" max="1"/><br>
+
+				<button onclick="base()">Generate New Star Field</button>
+				
+			</p>
+		</div>
+	</body>
+</html>
