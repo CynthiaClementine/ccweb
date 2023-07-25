@@ -16,14 +16,6 @@
 				background-color: slateblue;
 			}
 
-			html, body {
-				width: 100%;
-				height: 100%;
-				margin: 0px;
-				border: 0;
-				display: block;
-			}
-
 			#convos {
 				margin: auto;
 				border: black 3px solid;
@@ -57,6 +49,7 @@
 			var starMinSize = 0.0005;
 			var starMaxSize = 0.007;
 			var starWeights = [0.85, 0.0409, 0.1, 0, 0.0081, 0, 0, 0, 0.0008, 0.0002];
+			var starMode = 'random';
 
 			var staticBase = [32, 32, 32];
 			var staticOffset = 10;
@@ -88,6 +81,14 @@
 			}
 
 			function perlinNoise() {
+				//just skip this step if it's invisible
+				if (perlinAlpha == 0 || perlinFloor >= 1) {
+					ctx.globalAlpha = 1;
+					statusText.innerHTML = `Generating stars...`;
+					animation = window.requestAnimationFrame(stars);
+					return;
+				}
+
 				//create an array the size of the canvas to store noise values
 				var screenBuffer = new Array(canvas.height);
 				for (var a=0; a<screenBuffer.length; a++) {
@@ -163,18 +164,33 @@
 			}
 
 			function starColor(x, y) {
-				return colors[Math.floor(randomBounded(0, colors.length))];
-
-
-				var xPercent = Math.abs((x / canvas.width) - 0.5);
-				xPercent += boolToSigned(Math.random() < 0.5) * (randomBounded(0, 0.16) ** 2);
-				if (xPercent > 0.42) {
-					return colors[2];
+				var xPercent;
+				switch (starMode) {
+					case 'random':
+						return colors[Math.floor(randomBounded(0, colors.length))];
+					case 'linear':
+						xPercent = Math.abs((x / canvas.width) - 0.5);
+						xPercent += boolToSigned(Math.random() < 0.5) * (randomBounded(0, 0.16) ** 2);
+						if (xPercent > 0.3) {
+							return colors[2];
+						}
+						if (xPercent > 0.1) {
+							return colors[1];
+						}
+						return colors[0];
+					case 'radial':
+						x = (x - canvas.width / 2) / canvas.width;
+						y = (y - canvas.height / 2) / canvas.height;
+						xPercent = Math.sqrt(x*x + y*y);
+						xPercent += boolToSigned(Math.random() < 0.5) * (randomBounded(0, 0.2) ** 2);
+						if (xPercent > 0.48) {
+							return colors[2];
+						}
+						if (xPercent > 0.24) {
+							return colors[1];
+						}
+						return colors[0];
 				}
-				if (xPercent > 0.14) {
-					return colors[1];
-				}
-				return colors[0];
 			}
 
 			function drawStar(x, y, size, glow, diffract) {
@@ -196,11 +212,12 @@
 				//diffraction spikes
 				if (diffract) {
 					ctx.beginPath();
+					ctx.lineWidth = size / 8;
 					ctx.strokeStyle = ctx.fillStyle;
-					ctx.moveTo(x - size * 2, y);
-					ctx.lineTo(x + size * 2, y);
-					ctx.moveTo(x, y - size * 2);
-					ctx.lineTo(x, y + size * 2);
+					ctx.moveTo(x - size * 2.5, y);
+					ctx.lineTo(x + size * 2.5, y);
+					ctx.moveTo(x, y - size * 2.5);
+					ctx.lineTo(x, y + size * 2.5);
 					ctx.stroke();
 				}
 			}
@@ -216,9 +233,36 @@
 				
 				perlinAlpha = +fogOpa.value;
 				perlinFloor = +fogFloor.value;
+				perlinGrids = JSON.parse(`[${fogChunks.value}]`);
+				perlinWeights = JSON.parse(`[${fogWeights.value}]`);
+				normalizeWeights(perlinWeights);
+				
+				starDensity = +starinDens.value;
+				starMode = starinCol.value;
+				starMinSize = +starinMin.value;
+				starMaxSize = +starinMax.value;
+				starWeights = JSON.parse(`[${starinWeights.value}]`);
+				normalizeWeights(starWeights);
 
 				colors = [col1.value, col2.value, col3.value];
+				statusText.innerHTML = `Generating static...`;
 				base();
+			}
+
+			function toggleAdvanced() {
+				advanced.style.display = (advanced.style.display == `inline-block`) ? `none` : `inline-block`;
+			}
+
+			function normalizeWeights(weightsArr) {
+				//add up all the values
+				var sum = weightsArr.reduce((a, b) => a + b, 0);
+
+				//divide each number by the total to renormalize
+				if (sum != 1 && sum != 0) {
+					for (var v=0; v<weightsArr.length; v++) {
+						weightsArr[v] /= sum;
+					}
+				}
 			}
 		</script>
 	</head>
@@ -228,12 +272,29 @@
 			<p id="statusText">Done!</p>
 			<p>
 				Resolution:<input id="resX" type="number" value="640"/>x<input id="resY" type="number" value="480"/><br>
-				Base color:<input id="colBase" type="text" value="32,32,32"/><br>
-				Base offset:<input id="fogOff" type="number" value="10"/><br>
 				Fog opacity:<input id="fogOpa" type="number" value="0.4" step="0.1" min="0" max="1"/><br>
-				Fog floor:<input id="fogFloor" type="number" value="0.3" step="0.1" min="0" max="1"/><br>
-				Star colors:<input id="col1" type="text" value="#FFFFFF"/><input id="col2" type="text" value="#FFCCCC"/><input id="col3" type="text" value="#CCCCFF"/><br>
+				Star density:<input id="starinDens" type="number" value="0.25" step="0.01" min="0" max="1"/><br>
+				Star colors:<input id="col1" type="text" value="#FFFFFF" size="6"/><input id="col2" type="text" value="#FFCCCC" size="6"/><input id="col3" type="text" value="#CCCCFF" size="6"/><br>
+				Star coloring mode:
+				<select id="starinCol" value="random">
+					<option value="random">Random</option>
+					<option value="linear">Linear</option>
+					<option value="radial">Radial</option>
+				</select><br>
 
+				
+				<button onclick="toggleAdvanced()">Toggle advanced settings</button><br>
+
+				<span id="advanced" style="display: none;">
+					Base color:<input id="colBase" type="text" value="32,32,32"/><br>
+					Static offset:<input id="fogOff" type="number" value="10"/><br>
+					Fog floor:<input id="fogFloor" type="number" value="0.3" step="0.1" min="0" max="1"/><br>
+					Fog chunks:<input id="fogChunks" type="text" value="35, 200, 640, 3000"/><br>
+					Fog weights:<input id="fogWeights" type="text" value="0.45, 0.3, 0.15, 0.1"/><br>
+					Star size range:<input id="starinMin" type="number" value="0.0005" step="0" size="7"/>-><input id="starinMax" type="number" value="0.007" step="0" size="7"/><br>
+					Star weights:<input id="starinWeights" type="text" value="0.85, 0.0409, 0.1, 0, 0.0081, 0, 0, 0, 0.0008, 0.0002" size="40"/><br>
+				</span>
+				<br>
 				<button onclick="parseInputs()">Generate New Star Field</button>
 				
 			</p>
