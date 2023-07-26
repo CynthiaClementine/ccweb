@@ -1,0 +1,230 @@
+<!doctype html>
+<!-- Copyright Cynthia Clementine
+June-28-2023
+-->
+<html>
+	<head>
+		<title>Go Kifu digitizer.. I guess</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
+		<style>
+			#canvas {
+				margin: auto;
+				display: block;
+			}
+			body {
+				background-color: slateblue;
+			}
+		</style>
+		<script type="text/javascript">
+			window.onkeydown = handleKeyDown;
+			window.onmousedown = handleMouseDown;
+			window.onload = setup;
+			var ctx;
+
+			var moves = [];
+			var board = [];
+			var boardSize = 19;
+			var moveSelected = -1;
+
+			var colorBG = "#fff4d6";
+			var colorBlack = "#022";
+			var colorWhite = "#FFF";
+			var colorFuture = "#778";
+			var colorSelect = "#0FF";
+
+			function setup() {
+				ctx = canvas.getContext("2d");
+
+				//setup the array
+				for (var v=0; v<boardSize; v++) {
+					board.push([]);
+				}
+				//resize the canvas to fill most of the screen
+				var maxSize = Math.floor(Math.min(window.innerWidth * 0.95, window.innerHeight * 0.95 - (textBox.getBoundingClientRect().height * 1.1)));
+				canvas.width = maxSize;
+				canvas.height = maxSize;
+				ctx.textBaseline = "middle";
+				ctx.textAlign = "center";
+				ctx.lineCap = "round";
+				draw();
+			}
+
+			function handleKeyDown(a) {
+				switch (a.code) {
+					case "ArrowLeft":
+						//highlight the previous move
+						for (var m=moveSelected-1; m>-1; m--) {
+							if (moves[m] != undefined) {
+								moveSelected = m;
+								draw();
+								return;
+							}
+						}
+						break;
+					case "ArrowRight":
+						//see above but inverse
+						for (var m=moveSelected+1; m<moves.length; m++) {
+							if (moves[m] != undefined) {
+								moveSelected = m;
+								draw();
+								return;
+							}
+						}
+						break;
+					case "Backspace":
+						if (moveSelected != -1) {
+							set(...moves[moveSelected], -1);
+						}
+						draw();
+						break;
+					case "Backquote":
+						//add move at another move
+						var raw = prompt(`Enter ____ at ____`, `1 at 4`).split(` at `);
+						raw[0] = raw[0] - 1;
+						raw[1] = raw[1] - 1;
+						moves[raw[0]] = JSON.parse(JSON.stringify(moves[raw[1]]));
+						draw();
+						break;
+				}
+			}
+
+			function handleMouseDown(a) {
+				var canvasArea = canvas.getBoundingClientRect();
+				var mouseX = Math.round(a.clientX - canvasArea.left);
+				var mouseY = Math.round(a.clientY - canvasArea.top);
+				var targetNum;
+
+				if (Math.min(mouseX, mouseY) < 0 || Math.max(mouseX, mouseY) >= canvas.width) {
+					return;
+				}
+
+				//convert to board coordinates
+				mouseX = Math.floor(mouseX * boardSize / canvas.width);
+				mouseY = Math.floor(mouseY * boardSize / canvas.width);
+
+				//if there's already a stone there just select it
+				if (board[mouseY][mouseX] != undefined) {
+					if (board[mouseY][mouseX] == moveSelected) {
+						//if it's already selected, choose a new num
+						targetNum = prompt(`Enter new move number?`);
+						if (+targetNum > 0) {
+							set(mouseX, mouseY, targetNum - 1);
+						}
+						return;
+					} else {
+						moveSelected = board[mouseY][mouseX];
+						draw();
+						return;
+					}
+				}
+
+				targetNum = prompt(`Enter move number?`);
+				if (!(+targetNum > 0)) {
+					return;
+				}
+				set(mouseX, mouseY, targetNum - 1);
+			}
+
+			function draw() {
+				var squareSize = canvas.width / boardSize;
+				//bg
+				ctx.fillStyle = colorBG;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				//lines
+				ctx.strokeStyle = "#000";
+				ctx.lineWidth = canvas.width / 200;
+				ctx.beginPath();
+				for (var x=0.5; x<boardSize; x++) {
+					ctx.moveTo(squareSize * x, squareSize * 0.5);
+					ctx.lineTo(squareSize * x, squareSize * (boardSize - 0.5));
+				}
+				for (var y=0.5; y<boardSize; y++) {
+					ctx.moveTo(squareSize * 0.5, squareSize * y);
+					ctx.lineTo(squareSize * (boardSize - 0.5), squareSize * y);
+				}
+				ctx.stroke();
+
+				//stones
+				ctx.font = `${squareSize / 2}px Century Gothic`;
+				var trueMoveSelected = (moveSelected == -1) ? 1e1001 : moveSelected;
+				for (var a=0; a<moves.length; a++) {
+					if (moves[a] != undefined) {
+						//stone
+						if (a > trueMoveSelected) {
+							ctx.globalAlpha = 0.3;
+						}
+						ctx.fillStyle = ((a % 2 == 0) ? colorBlack : colorWhite);
+						ctx.beginPath();
+						ctx.ellipse(squareSize * (moves[a][0] + 0.5), squareSize * (moves[a][1] + 0.5), squareSize / 2, squareSize / 2, 0, 0, Math.PI * 2);
+						ctx.fill();
+
+						ctx.globalAlpha = 1;
+
+						//text
+						ctx.fillStyle = ((a % 2 == 0) ? colorWhite : colorBlack);
+						//ughhh text
+						if (a > 98) {
+							ctx.font = `${squareSize * 0.25}px Century Gothic`;
+						} else if (a > 8) {
+							ctx.font = `${squareSize * 0.33}px Century Gothic`;
+						} else {
+							ctx.font = `${squareSize * 0.5}px Century Gothic`;
+						}
+						
+						ctx.fillText(a + 1, squareSize * (moves[a][0] + 0.5), squareSize * (moves[a][1] + 0.5));
+					}
+				}
+
+				//move highlighter
+				if (moveSelected != -1) {
+					ctx.beginPath();
+					ctx.strokeStyle = colorSelect;
+					ctx.ellipse(squareSize * (moves[moveSelected][0] + 0.5), squareSize * (moves[moveSelected][1] + 0.5), squareSize / 2, squareSize / 2, 0, 0, Math.PI * 2);
+					ctx.stroke();
+				}
+
+			}
+
+			function set(boardX, boardY, moveNum) {
+				if (moveNum == -1) {
+					//clear that space
+					moves[board[boardY][boardX]] = undefined;
+					board[boardY][boardX] = undefined;
+					return;
+				}
+
+				//if the board spot had an old number, discard that
+				if (board[boardY][boardX] != undefined) {
+					moves[board[boardY][boardX]] = undefined;
+					board[boardY][boardX] = undefined;
+				}
+
+				//set number into board array, and coordinates into move array
+				board[boardY][boardX] = moveNum;
+				moves[moveNum] = [boardX, boardY];
+
+				draw();
+			}
+
+
+		</script>
+
+	</head>
+	<body>
+		<div id="center">
+			<canvas id="canvas" width="646" height="646">
+			</canvas>
+			<p id="textBox">
+				Are you, like me, terrible at reading go kifus?<br>
+				Do you, like me, have paper records of suspicious origin but don't have a way to easily digitize them?<br>
+				Then this tool is for you! Simply click on a spot, input a number, and repeat a few hundred times to scan in your record of the game. Afterwards, the left/right arrow keys allow you to go through the game, highlighting each numbered move.<br>
+				If you're a dan-level player, you might actually get more value out of the game by not doing this process, but I don't know. I'm not a dan level player, and looking through paper records is a lot of work I don't want to do.<br>
+				Warning, this program is super hacky and basically requires a real board in front of you as well. It was made in a day and so does not have actual game logic. 
+				<br>
+			</p>
+		</div>
+	</body>
+</html>
