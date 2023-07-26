@@ -19,14 +19,16 @@
 		</style>
 
 		<script type="text/javascript">
-			
+			function changeTitle() {
+				document.title = tyi.value;
+			}
 		</script>
 	</head>
 	<body>
 		<div id="centerModule">
 			<h1>Set the page title with the textbox below!</h1>
-            <p>that's it. It's just a super simple title changer for when I want a tab I can hover over.</p>
-			<input id="tyi" type="text" value="[insert title here]"/><br>
+			<p>that's it. It's just a super simple title changer for when I want a tab I can hover over.</p>
+			<input id="tyi" type="text" value="[insert title here]" oninput="changeTitle()"/><br>
 		</div>
 	</body>
 </html>
