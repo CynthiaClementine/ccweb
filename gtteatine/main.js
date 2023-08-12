@@ -1,6 +1,9 @@
 window.onload = setup;
 window.onkeydown = handleKeyPress;
 window.onkeyup = handleKeyRelease;
+window.onresize = handleResize;
+
+var aspect = 4 / 3;
 
 var canvas;
 var ctx;
@@ -9,19 +12,44 @@ var tileWidth = 0.7;
 var sliceTiles = 5;
 var sliceOptions = [5, 13];
 
+var boat_barHeight = 0.03;
+var boat_barWidth = 0.1;
+
+var clouds = [];
+var cloudXSpread = 20;
+var cloudARange = [0.3, 0.6];
+var cloudDistRange = [0.4, 2];
+var cloudDistStep = 0.32;
+var cloudHeight = 5;
+var cloudMoveRate = 0.1;
+
+var color_bar = ["#F00", "#F00", "#F80", "#0F0", "#0FF"];
 var color_bg = "#9ec3ff";
+var color_boat = "#53320C";
+var color_boatLight = "#513515";
 var color_bridge = "#888888";
 var color_bridgeDark = "#222244";
+var color_clouds = "#d6fbff";
+var color_night = "#20003b"
+var color_player = "#F8F";
+var color_star = "#FFEE99";
+var color_sunDay = "#FFFFFF";
+var color_sunSet = "#ffdf74";
 var color_text = "#222222";
+var color_textLight = "#DDDDDD";
 var color_water = "#4d4f96";
 
 var bridge = [];
 var bridgeDistMax = 0;
 var bridgeDistChal = 700;
 var bridgeDistGrace = 100;
-var bridgeFreqMin = 0.05;
+var bridgeFreqMin = 0.06;
 var bridgeFreqMax = 0.95;
 
+
+function dayCycleQuery() {
+	return (timeAlive % dayCycleLength) / dayCycleLength;
+}
 
 
 var boat_verts = [
@@ -36,37 +64,24 @@ var boat_verts = [
 	[-0.5, 1, -0.5],
 
 	[0, 1, 0.75],
+	[0, 0, 0.5],
+
 	[0, 1, -0.75],
+	[0, 0, -0.5],
 ];
 var boat_faces = [
 	[0, 1, 2, 3],
+
 	[0, 4, 7, 3],
+	[1, 5, 6, 2],
+
+	[0, 4, 8, 9],
+	[1, 5, 8, 9],
+
+	[3, 7, 10, 11],
+	[2, 6, 10, 11],
 ];
-var boat_scaling = 0.7;
-
-var player;
-var playerTrueZ = 0.8;
-
-/*
-2 - hot feet
-3 - clear bridge
-4 - low gravity
-5 - boat
- */
-var powerup_colors = {
-	2: "#FF0000",
-	3: "#00FF00",
-	4: "#FFFFFF",
-	5: "#7E4A0E",
-
-	10: "#25212b"
-}
-var powerup_frequencies = {
-	2: 0.002,
-	3: 0.0016,
-	4: 0.003,
-	5: 0.004,
-}
+var boat_scaling = 0.6;
 
 var camera = {
 	x: 0,
@@ -74,9 +89,20 @@ var camera = {
 	z: -3,
 	scale: 0.65,
 }
+var camera_small = {
+	x: 0,
+	y: 2.5,
+	z: -3,
+	scale: 0.65
+}
+var camera_large = {
+	x: 0,
+	y: 4,
+	z: -5,
+	scale: 0.65
+}
 
-var create;
-
+var dayCycleLength = 1800;
 
 var drawDistBridge = 20;
 var drawDistCloud = 40;
@@ -86,16 +112,81 @@ var goFast = false;
 var gravTimeMax = 10;
 var gravTime = 0;
 
-var clouds = [];
-var cloudXSpread = 20;
-var cloudARange = [0.3, 0.6];
-var cloudDistRange = [0.4, 2];
-var cloudDistStep = 0.32;
-var cloudHeight = 5;
+var player;
+var playerTrueZ = 0.8;
+var player_colorOpts = ["#F8F", "#F00", "#F80", "#FF0", "#8F0", "#0F0", "#0F8", "#0FF", "#08F", "#00F", "#80F", "#F0F", "#F08", "#630", "#888", "#000"];
+
+/*
+2 - hot feet
+3 - clear bridge
+4 - low gravity
+5 - boat
+ */
+var powerup_colors = {
+	2: "#ff3c3c",
+	3: "#00FF00",
+	4: "#FFFFFF",
+	5: "#53320c",
+
+	10: "#25212b"
+}
+var powerup_frequencies = {
+	2: () => {return 0.002},
+	3: (d) => {d /= 100; d += 1; return 0.0017 * (2 - (d * (2 * d - 1) / (d ** 3)))},
+	4: () => {return 0.003},
+	5: (d) => {return 0.004 - sigmoid((5 * d / bridgeDistChal) - 6, 0, 0.00275)},
+}
 
 var killPlane = -0.5;
 
 var lastTime = 0;
+var state = "menu";
+var stars = [];
+var starDist = 5;
+var starNum = 800;
+var starPRand = 1.245;
+var sunR = 0.075;
+var sunA = 0.05;
+var timeAlive = 0;
+
+function setup() {
+	canvas = document.getElementById("corvid");
+	ctx = canvas.getContext("2d");
+
+	handleResize();
+	localStorage_read();
+	generateStars();
+	animation = window.requestAnimationFrame(main);
+}
+
+function main() {
+	switch (state) {
+		case "menu":
+			drawMenu();
+			break;
+		case "pause":
+			ctx.fillStyle = color_text;
+			ctx.strokeStyle = color_textLight;
+			ctx.lineWidth = canvas.height / 300;
+			ctx.font = `${canvas.height / 15}px Ubuntu`;
+			ctx.textAlign = "center";
+			ctx.strokeText(`~paused~`, canvas.width / 2, canvas.height / 2);
+			ctx.fillText(`~paused~`, canvas.width / 2, canvas.height / 2);
+			break;
+		case "game":
+			tick();
+			draw();
+			break;
+	}
+
+	animation = window.requestAnimationFrame(main);
+}
+
+
+
+function cloudToSpace(x, z) {
+	return [x, cloudHeight * (1 - (z ** 2) / ((0.9 * drawDistCloud) ** 2)), z];
+}
 
 //generates cloud points based on a cloud center
 function generateCloud(cloudX, cloudZ) {
@@ -117,9 +208,6 @@ function generateCloud(cloudX, cloudZ) {
 			i -= 1;
 		}
 		dList.push(dList[dList.length-1] + boolToSigned(Math.random() < 0.5) * aDist * cloudDistStep);
-		if (i < 0) {
-			console.log(`no. bad.`);
-		}
 	}
 
 	//adjust the last point so there's less discontinuity
@@ -137,57 +225,60 @@ function generateCloud(cloudX, cloudZ) {
 		z: cloudZ,
 		pts: cloud
 	});
-
 }
 
-//
-function cloudToSpace(x, z) {
-	return [x, cloudHeight * (1 - (z ** 2) / ((0.9 * drawDistCloud) ** 2)), z];
+function localStorage_write() {
+	window.localStorage["gtte_data"] = `${bridgeDistMax.toFixed(1)},${sliceTiles},${color_player}`;
+}
+
+function localStorage_read() {
+	if (window.localStorage["gtte_data"] != undefined) {
+		var spl = window.localStorage["gtte_data"].split(`,`);
+		bridgeDistMax = +spl[0];
+		sliceTiles = +spl[1];
+		camera = (sliceTiles > 7) ? camera_large : camera_small;
+		color_player = spl[2];
+	}
+}
+
+function prand(min, max) {
+	starPRand = starPRand ** 4;
+	if (starPRand > 20) {
+		starPRand -= Math.ceil(starPRand - 20);
+	}
+	return (min + (starPRand % 1) * (max - min));
 }
 
 function tickClouds() {
 	//remove clouds too close to the camera
-	while (clouds.length > 0 && clouds[0].z < player.z + cloudDistRange[1]) {
+	while (clouds.length > 0 && clouds[0].z < (player.z * cloudMoveRate)) {
 		clouds.splice(0, 1);
 	}
 	
 	//add clouds far away from the camera
-	while (clouds.length < 1 || clouds[clouds.length-1].z - drawDistCloud < player.z) {
+	while (clouds.length < 1 || clouds[clouds.length-1].z - drawDistCloud < player.z * cloudMoveRate) {
 		generateCloud(randomBounded(-cloudXSpread, cloudXSpread), (clouds[clouds.length-1] ?? {z: 2}).z + 1);
 	}
 }
 
-function drawClouds() {
-	ctx.fillStyle = color_clouds;
-	var c2d;
-	clouds.forEach(c => {
-		c2d = c.pts.map(a => cloudToSpace(a[0], a[1])).map(b => spaceToScreen(b[0], b[1], b[2]));
-		ctx.beginPath();
-		ctx.moveTo(c2d[0][0], c2d[0][1]);
-		for (var d=1; d<c2d.length; d++) {
-			ctx.lineTo(c2d[d][0], c2d[d][1]);
-		}
-		ctx.fill();
-	});
-}
-
 function generateBridgeSlice() {
 	var sliceIndex = bridge.length;
-	var sliceFreq = calcTileFreq(sliceIndex * tileWidth);
+	var z = sliceIndex * tileWidth;
+	var sliceFreq = calcTileFreq(z);
 
 	var slice = [];
 	for (var t=sliceTiles-1; t>-1; t--) {
 		switch (true) {
-			case (Math.random() < powerup_frequencies[2]):
+			case (Math.random() < powerup_frequencies[2](z)):
 				slice[t] = 2;
 				break;
-			case (Math.random() < powerup_frequencies[3]):
+			case (Math.random() < powerup_frequencies[3](z)):
 				slice[t] = 3;
 				break;
-			case (Math.random() < powerup_frequencies[4]):
+			case (Math.random() < powerup_frequencies[4](z)):
 				slice[t] = 4;
 				break;
-			case (Math.random() < powerup_frequencies[5]):
+			case (Math.random() < powerup_frequencies[5](z)):
 				slice[t] = 5;
 				break;
 			case (Math.random() < sliceFreq):
@@ -238,28 +329,6 @@ function bridgeToScreen(bridgeX, bridgeZ) {
 	return spaceToScreen(tileWidth * (bridge[0].length * -0.5 + bridgeX), calcHeight(bridgeZ - player.z), bridgeZ - player.z);
 }
 
-function setup() {
-	canvas = document.getElementById("corvid");
-	ctx = canvas.getContext("2d");
-
-	ctx.lineJoin = "round";
-
-	player = new Player();
-
-	for (var l=0; l<5; l++) {
-		generateBridgeSlice();
-	}
-
-	animation = window.requestAnimationFrame(main);
-}
-
-function main() {
-	tick();
-	draw();
-
-	animation = window.requestAnimationFrame(main);
-}
-
 function tick(deltaT, recursiveTimer) {
 	var newTime = performance.now();
 	if (deltaT == undefined) {
@@ -270,8 +339,23 @@ function tick(deltaT, recursiveTimer) {
 	tickClouds();
 	player.tick(deltaT);
 
+	if (player.z > bridgeDistMax) {
+		bridgeDistMax = player.z;
+	}
+
+	if (player.dead) {
+		return;
+	}
+	timeAlive += deltaT;
+	if (gravTime > 0) {
+		gravTime -= deltaT;
+		if (gravTime < 0) {
+			gravTime = 0;
+		}
+	}
+
 	//generate more bridge
-	if (player.z + 20 > bridge.length) {
+	if (player.z + drawDistBridge > bridge.length) {
 		generateBridgeSlice();
 	}
 
@@ -289,123 +373,80 @@ function tileAt(x, z) {
 	return bridge[bc[1]][bc[0]];
 }
 
-function draw() {
-	//background
-	ctx.fillStyle = color_bg;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-	drawClouds();
-	ctx.fillStyle = color_water;
-	ctx.fillRect(0, bridgeToScreen(0, player.z + drawDistBridge)[1], canvas.width, canvas.height / 2);
-
-	var centerOff = tileWidth / 2;
-
-	//bridge
-	ctx.strokeStyle = color_bridge;
-	ctx.lineWidth = canvas.height / 200;
-	ctx.fillStyle = color_bridge;
-	var ps = [];
-	for (var f=Math.floor(player.z); f<bridge.length; f++) {
-		for (var t=0; t<bridge[f].length; t++) {
-			if (bridge[f][t]) {
-				if (bridge[f][t] > 1) {
-					ctx.fillStyle = powerup_colors[bridge[f][t]];
-					ctx.strokeStyle = powerup_colors[bridge[f][t]];
-				}
-
-				ps = [
-					bridgeToScreen(t, f),
-					bridgeToScreen(t+1, f),
-					bridgeToScreen(t+1, f+1),
-					bridgeToScreen(t, f+1)
-				];
-				ctx.beginPath();
-				ctx.moveTo(ps[0][0], ps[0][1]);
-				ctx.lineTo(ps[1][0], ps[1][1]);
-				ctx.lineTo(ps[2][0], ps[2][1]);
-				ctx.lineTo(ps[3][0], ps[3][1]);
-				ctx.lineTo(ps[0][0], ps[0][1]);
-				ctx.fill();
-				ctx.stroke();
-				if (bridge[f][t] > 1) {
-					ctx.fillStyle = color_bridge;
-					ctx.strokeStyle = color_bridge;
-				}
-			}
-		}
+function doubleSigmoid(x, minY, maxY, midX1, midX2, travelTime) {
+	var halfTravel = travelTime / 2;
+	if (x < midX1 - halfTravel || x > midX2 + halfTravel) {
+		return minY;
+	}
+	if (x > midX1 + halfTravel && x < midX2 - halfTravel) {
+		return maxY;
 	}
 
+	//reflect X into first sigmoid distribution, then use that
 
-	//player shadow
-	var shadowPercent = (player.y > 0) ? (1 / (1 + player.y)) : Math.max((1 - 3 * player.y ** 2), 0);
-	var coords = spaceToScreen(player.x, calcHeight(playerTrueZ), playerTrueZ);
-	ctx.globalAlpha = 0.4;
-	drawEllipse(coords[0], coords[1], (canvas.height / 12) * shadowPercent, (canvas.height / 24) * shadowPercent, "#666");
-	ctx.globalAlpha = 1;
-
-	drawScaffolding();
-
-	//player
-	player.draw();
-
-	//draw ui
-	drawUI();
-}
-
-function drawUI() {
-	//distance text
-	var meterText = (player.z < 1000) ? (player.z.toFixed(1) + "m") : ((player.z / 1000).toFixed(3) + "km");
-	var meterTextTop = (bridgeDistMax < 1000) ? (bridgeDistMax.toFixed(1) + "m") : ((bridgeDistMax / 1000).toFixed(3) + "km");
-	ctx.font = `${canvas.height / 20}px Ubuntu`;
-	ctx.fillStyle = color_text;
-	ctx.fillText(`now: ${meterText}`, canvas.width * 0.03, canvas.height * 0.05);
-	ctx.fillText(`top: ${meterTextTop}`, canvas.width * 0.03, canvas.height * 0.09);
-
-}
-
-function drawScaffolding() {
-	var scaffoldingBits = drawDistBridge * 2;
-	var offX = tileWidth * bridge[0].length * 0.5;
-	var offY = 0.1;
-	var bitflip = 1;
-
-	var coords = spaceToScreen(offX, calcHeight(0) + offY, 0);
-	ctx.beginPath();
-	ctx.strokeStyle = color_bridgeDark;
-	ctx.moveTo(coords[0], coords[1]);
-	ctx.lineWidth = canvas.height / 100;
-	while (bitflip > -1) {
-		for (var h=0; h<scaffoldingBits; h++) {
-			coords = spaceToScreen(offX, calcHeight((h / scaffoldingBits) * drawDistBridge) + offY, (h / scaffoldingBits) * drawDistBridge);
-			ctx.lineTo(coords[0], coords[1]);
-		}
-		bitflip -= 1;
-		offX *= -1;
-
-		coords = spaceToScreen(offX, calcHeight(0) + offY, 0);
-		ctx.moveTo(coords[0], coords[1]);
+	if (x > midX1 + halfTravel) {
+		x -= midX2;
+		x /= halfTravel;
+		//second sigmoid
+		
+		return sigmoid(6.1 * x, maxY, minY);
 	}
-	ctx.stroke();
+
+	//first sigmoid
+	x -= midX1;
+	x /= halfTravel;
+	return sigmoid(6.1 * x, minY, maxY);
+
 }
 
-function drawEllipse(x, y, rx, ry, color) {
-	ctx.fillStyle = color;
-	ctx.beginPath();
-	ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-	ctx.fill();
+function resetGame() {
+	localStorage_write();
+	player = new Player(0, 0, false);
+	clouds = [];
+	bridge = [];
+	goFast = false;
+	gravTime = 0;
+	timeAlive = 0;
+
+	for (var l=0; l<drawDistBridge; l++) {
+		generateBridgeSlice();
+	}
+
+	//debug bits
+	dayCycleLength = 80;
+	player.y = 0.1;
+	player.ay = 0;
+}
+
+function generateStars() {
+	var starCandidate;
+	while (stars.length < starNum) {
+		// Θ = 0 is at +Y, and extends towards the +Z dir
+		// φ = 0 is at +X
+		starCandidate = [prand(Math.PI * -0.2, Math.PI * 1.15), Math.acos(prand(-1, 1)) - Math.PI / 2];
+		
+		//any stars that end up too close to the sun get rejected
+		if (Math.hypot(starCandidate[0], starCandidate[1] * 1.5) > 0.65) {
+			stars.push(starCandidate);
+		}
+	}
 }
 
 function handleKeyPress(a) {
 	switch(a.code) {
 		case "ArrowLeft":
+		case "KeyA":
 			player.dir = -1;
 			break;
 		case "ArrowUp":
+		case "KeyW":
+		case "Space":
 			if (player.y <= 0 && player.y > killPlane) {
 				player.dy = player.jump;
 			}
 			break;
 		case "ArrowRight":
+		case "KeyD":
 			player.dir = 1;
 			break;
 
@@ -413,17 +454,34 @@ function handleKeyPress(a) {
 		case "ShiftRight":
 			goFast = true;
 			break;
+		case "KeyR":
+			resetGame();
+			break;
+		case "Escape":
+			if (state == "game") {
+				state = "pause";
+			} else if (state == "pause") {
+				state = "menu";
+			}
+			break;
+		case "Enter":
+			if (state == "pause") {
+				state = "game";
+			}
+			break;
 	}
 }
 
 function handleKeyRelease(a) {
 	switch(a.code) {
 		case "ArrowLeft":
+		case "KeyA":
 			if (player.dir < 0) {
 				player.dir = 0;
 			}
 			break;
 		case "ArrowRight":
+		case "KeyD":
 			if (player.dir > 0) {
 				player.dir = 0;
 			}
@@ -434,4 +492,58 @@ function handleKeyRelease(a) {
 			goFast = false;
 			break;
 	}
+}
+
+function handleMouseDown_custom() {
+	if (state == "pause") {
+		return;
+	}
+
+	//reset button
+	if (state == "game") {
+		if (player.dead && cursor.y > canvas.height * 0.85) {
+			resetGame();
+		}
+		return;
+	}
+
+	if (state == "menu") {
+		if (cursor.x < canvas.width * 0.23 || cursor.x > canvas.width * 0.77) {
+			return;
+		}
+		if (cursor.y > canvas.height * 0.95 || cursor.y < canvas.height * 0.43) {
+			return;
+		}
+		var button = (cursor.y - (canvas.height * 0.43)) / (canvas.height * 0.1);
+		var dir = boolToSigned(cursor.x > canvas.width * 0.5);
+		switch (Math.floor(button)) {
+			case 0:
+				resetGame();
+				state = "game";
+				break;
+			case 1:
+				sliceTiles = clamp(sliceTiles + dir, ...sliceOptions);
+				camera = (sliceTiles > 7) ? camera_large : camera_small;
+				break;
+			case 2:
+				var ind = player_colorOpts.indexOf(color_player);
+				color_player = player_colorOpts[(ind + player_colorOpts.length + dir) % player_colorOpts.length];
+				break;
+		}
+		localStorage_write();
+	}
+}
+
+function handleResize() {
+	//compute
+	var w = window.innerWidth - 6;
+	var h = window.innerHeight * 0.9 - 6;
+	var scaleFactor = 1 / aspect;
+
+	//resize canvas
+	canvas.height = Math.min(h, w * scaleFactor);
+	canvas.width = canvas.height / scaleFactor;
+
+	//set canvas preferences
+	ctx.lineJoin = "round";
 }
