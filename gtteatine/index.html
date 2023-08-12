@@ -12,6 +12,14 @@
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
 		<style>
+			html, body {
+				width: 100%;
+				height: 100%;
+				margin: 0px;
+				border: 0;
+				overflow: hidden;
+				display: block;
+			}
 			body {
 				background-color: slateblue;
 			}
@@ -27,13 +35,17 @@
 			}
 		</style>
 		<script src="../common/functions-math.js"></script>
+		<script src="../common/functions-color.js"></script>
 		<script src="../common/functions-coordinate.js"></script>
+		<script src="../common/functions-mouse.js"></script>
+
+		<script src="functions-drawing.js"></script>
 		<script src="objects.js"></script>
 		<script src="main.js"></script>
 	</head>
 	<body>
 		<div id="centerModule">
-			<canvas id="corvid" width="640" height="480"></canvas><br>
+			<canvas id="corvid" width="640" height="480"></canvas>
 			<p id="statusText">Welcome to Get To The End Although There Is No End!<br>what? to the top? never heard of it. </p>
 		</div>
 	</body>
