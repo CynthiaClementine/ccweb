@@ -23,6 +23,7 @@ var bridgeFreqMiniChal = 0.1;
 var bridgeDistGrace = 100;
 var bridgeFreqMin = 0.06;
 var bridgeFreqMax = 0.95;
+var bridgeMiniPeriod = 5000;
 
 var clouds = [];
 var cloudXSpread = 20;
@@ -464,6 +465,14 @@ function generateStars() {
 	}
 }
 
+function trueReset() {
+	if (confirm(`Are you sure you want to reset? This will erase all data.`)) {
+		//expunge all data
+		window.localStorage["gtte_data"] = undefined;
+		window.location.reload();
+	}
+}
+
 function handleKeyPress(a) {
 	switch(a.code) {
 		case "ArrowLeft":
@@ -561,6 +570,9 @@ function handleMouseDown_custom() {
 				var ind = player_colorOpts.indexOf(color_player);
 				color_player = player_colorOpts[(ind + player_colorOpts.length + dir) % player_colorOpts.length];
 				break;
+			case 3:
+				trueReset();
+				return;
 		}
 		localStorage_write();
 	}

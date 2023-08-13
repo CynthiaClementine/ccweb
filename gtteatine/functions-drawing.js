@@ -6,7 +6,6 @@ function draw() {
 	drawWater();
 
 	drawSnellWindow();
-	// drawWaves();
 
 	//bridge
 	ctx.globalAlpha = 1;
@@ -123,7 +122,7 @@ function drawMenu() {
 		[`Start!`, () => {}, () => {}],
 		[`Bridge Width: ${sliceTiles}`, () => {return (sliceTiles > sliceOptions[0]);}, () => {return (sliceTiles < sliceOptions[1]);}],
 		[`Player color`, () => {return true;}, () => {return true;}],
-		[`Reset?`, () => {}, () => {}],
+		[`Reset`, () => {}, () => {}],
 	];
 
 
@@ -278,22 +277,6 @@ function drawWater() {
 	ctx.fillRect(0, baseHeight + (canvas.height * 0.05), canvas.width, canvas.height / 2);
 	ctx.globalAlpha = alpha * alpha;
 	drawEllipse(canvas.width / 2, canvas.height, canvas.width, canvas.height - baseHeight * 1.3, color_water3);
-}
-
-function drawWaves() {
-	var offZ = Math.floor(player.z);
-	ctx.strokeStyle = cLinterp(color_waves, color_sunSet, clamp(1 + (dayCycleQuery() - sunA - 0.25) * 12, 0, 1.2));
-	for (var z=0; z<drawDistWaves; z++) {
-		var width = 4;
-		var trueCoordsL = spaceToScreen(-10 + 5 * Math.sin(14.236 * (z + offZ)), killPlane, z - (player.z % 1));
-		var trueCoordsR = spaceToScreen(10 + 5 * Math.sin(14.236 * (z + offZ)), killPlane, z - (player.z % 1));
-
-		ctx.beginPath();
-		ctx.lineWidth = canvas.height * 0.02 / (z + 5 + player.z % 1);
-		ctx.moveTo(trueCoordsL[0], trueCoordsL[1]);
-		ctx.lineTo(trueCoordsR[0], trueCoordsR[1]);
-		ctx.stroke();
-	}
 }
 
 function drawStars() {
