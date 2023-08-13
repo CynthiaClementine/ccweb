@@ -9,6 +9,9 @@ getPercentage(val1, val2, checkVal);
 linterp(a, b, percentage);
 linterpMulti(a, b, percentage);
 modulate(n, modulus);
+modularDifference(a, b, modulo)
+normalize(vector)
+normal(x);
 polyArea(polyPoints);
 randomBounded(min, max);
 rootsCubic(a, b, c, d);
@@ -26,6 +29,11 @@ do not rename these functions. Just don't. It may seem like a good idea. It's no
 There are projects that rely on these names that you have forgotten about. 
 Save yourself the time!!
 */
+
+//returns the value of a normal distribution at some distance from mean=0
+function normal(x) {
+	return (1 / Math.sqrt(2 * Math.PI)) * Math.E ** (-0.5 * x * x);
+}
 
 //returns a boolean stating whether the two arrays have the same values
 //does not work for 2d arrays
@@ -239,6 +247,7 @@ function easerp(a, b, percentage) {
 	return a + (b - a) * (1 - 2 * (percentage - 1) * (percentage - 1));
 }
 
+//factorial, named a greek letter so it's compact without taking up one of the english letters
 function Ξ(x) {
 	var max = 1;
 	while (x > 1) {
