@@ -1,7 +1,7 @@
 //im sorry
 
 class Player {
-	constructor(x, z, hasHotFeet) {
+	constructor(x, z, hotFeet) {
 		this.x = x ?? 0;
 		this.y = 0;
 		this.z = z ?? 0;
@@ -9,7 +9,7 @@ class Player {
 		this.dx = 0;
 		this.dy = 0;
 
-		this.ax = 30;
+		this.ax = 20;
 		this.ay = 0.7;
 
 		this.rx = 0.25;
@@ -26,7 +26,9 @@ class Player {
 		this.speedMax = 15;
 
 		this.dead = false;
-		this.hotFeet = hasHotFeet ?? false;
+		this.hotFeet = hotFeet ?? 0;
+		this.hotFeetMax = 3;
+		this.lastDT = 0;
 	}
 
 	onGround() {
@@ -35,6 +37,7 @@ class Player {
 	}
 
 	tick(dt) {
+		this.lastDT = dt;
 		this.pickPowerups();
 		var activeAY = this.ay * (gravTime ? 0.7 : 1);
 
@@ -66,6 +69,7 @@ class Player {
 					}
 					if (this.y < killPlane) {
 						this.dead = true;
+						localStorage_write();
 					}
 				}
 			}
@@ -75,7 +79,7 @@ class Player {
 	heatWater() {
 		var bc = spaceToBridge(this.x, this.z);
 		bridge[bc[1]][bc[0]] = 10;
-		this.hotFeet = false;
+		this.hotFeet -= 1;
 	}
 
 	pickPowerups() {
@@ -92,7 +96,10 @@ class Player {
 
 		//hot feet
 		if (t == 2) {
-			this.hotFeet = true;
+			this.hotFeet += 1;
+			if (this.hotFeet > this.hotFeetMax) {
+				this.hotFeet = this.hotFeetMax;
+			}
 		}
 
 		//clear bridge
@@ -137,7 +144,9 @@ class Player {
 
 		var ry = coordsLow[1] - coords[1];
 		var rx = coordsX[0] - coords[0];
+		var rm = rx * 0.3;
 		var rs = canvas.height / 200;
+		var a = randomBounded;
 
 		//clipping is slow but also consider that I'm lazy
 		if (this.dead) {
@@ -148,9 +157,23 @@ class Player {
 		}
 		drawEllipse(coords[0], coords[1], rx, ry, color_player);
 
-		if (this.hotFeet) {
-			for (var k=0; k<10; k++) {
-				drawEllipse(...polToXY(coords[0], coords[1] + ry, randomBounded(0, Math.PI * 2), randomBounded(0, rx / 3)), rs, rs, powerup_colors[2]);
+		if (this.hotFeet > 0) {
+			var off = [];
+			
+			for (var k=0; k<Math.ceil(this.lastDT * 1.25); k++) {
+				off = polToXY(0, 0, a(0, Math.PI * 2), a(0, rm));
+				drawEllipse(coords[0] + off[0], coords[1] + ry + off[1] * 0.8, rs, rs, powerup_colors[2]);
+				//1p orbital
+				if (this.hotFeet > 1 && k % 2 == 0) {
+					var the = a(rm * -2, rm * 2);
+					drawEllipse(coords[0] + the, coords[1] + ry, rs, rs, powerup_colors[2]);
+				}
+
+				//2s orbital
+				if (this.hotFeet > 2) {
+					off = polToXY(0, 0, a(0, Math.PI * 2), a(1.25 * rm, 1.75 * rm));
+					drawEllipse(coords[0] + off[0], coords[1] + ry + off[1] * 0.8, rs, rs, powerup_colors[2]);
+				}
 			}
 		}
 
@@ -161,8 +184,11 @@ class Player {
 }
 
 class Player_Boat extends Player {
-	constructor(x, z, hasHotFeet) {
-		super(x, z, hasHotFeet);
+	constructor(x, z, hotFeet) {
+		super(x, z, hotFeet);
+
+		this.ax = 30;
+		this.strafe = 6.5;
 
 		this.speedStoreL = this.speedMax;
 		this.speedStoreS = this.speedMin;
