@@ -15,6 +15,15 @@ var sliceOptions = [5, 13];
 var boat_barHeight = 0.03;
 var boat_barWidth = 0.1;
 
+var bridge = [];
+var bridgeDistMax = 0;
+var bridgeDistChal = 700;
+var bridgeDistMiniChal = 200;
+var bridgeFreqMiniChal = 0.1;
+var bridgeDistGrace = 100;
+var bridgeFreqMin = 0.06;
+var bridgeFreqMax = 0.95;
+
 var clouds = [];
 var cloudXSpread = 20;
 var cloudARange = [0.3, 0.6];
@@ -38,13 +47,9 @@ var color_sunSet = "#ffdf74";
 var color_text = "#222222";
 var color_textLight = "#DDDDDD";
 var color_water = "#4d4f96";
-
-var bridge = [];
-var bridgeDistMax = 0;
-var bridgeDistChal = 700;
-var bridgeDistGrace = 100;
-var bridgeFreqMin = 0.06;
-var bridgeFreqMax = 0.95;
+var color_water2 = "#5a5ca4";
+var color_water3 = "#716bb4";
+var color_waves = "#5d5e89";
 
 
 function dayCycleQuery() {
@@ -106,6 +111,7 @@ var dayCycleLength = 1800;
 
 var drawDistBridge = 20;
 var drawDistCloud = 40;
+var drawDistWaves = 30;
 
 var goFast = false;
 
@@ -141,13 +147,23 @@ var killPlane = -0.5;
 
 var lastTime = 0;
 var state = "menu";
+
+var snellPts = 12;
+var snellPeriod = 3;
+
 var stars = [];
 var starDist = 5;
 var starNum = 800;
 var starPRand = 1.245;
+
 var sunR = 0.075;
 var sunA = 0.05;
 var timeAlive = 0;
+
+var waves = [];
+var waveCount = 200;
+var waveWidthRange = [1, 3];
+var waveSpread = 5;
 
 function setup() {
 	canvas = document.getElementById("corvid");
@@ -183,6 +199,14 @@ function main() {
 }
 
 
+function calcSunPos() {
+	var dpro = dayCycleQuery();
+	return [0, starDist * Math.cos(Math.PI * 2 * (dpro - sunA)), starDist * Math.sin(Math.PI * 2 * (dpro - sunA))];
+}
+
+function calcSunColor() {
+
+}
 
 function cloudToSpace(x, z) {
 	return [x, cloudHeight * (1 - (z ** 2) / ((0.9 * drawDistCloud) ** 2)), z];
@@ -295,7 +319,15 @@ function generateBridgeSlice() {
 
 function calcTileFreq(distance) {
 	// return sigmoid((distance ** 1.5 / bridgeDistChal) - 6, 1, bridgeFreqMin);
-	return Math.E ** -(4 * distance / bridgeDistChal) * (1 - bridgeFreqMin) + bridgeFreqMin;
+	var baseF = Math.E ** -(4 * distance / bridgeDistChal) * (1 - bridgeFreqMin) + bridgeFreqMin;
+	if (distance > bridgeDistChal * 2) {
+		var t = 6;
+		distance = t * distance / bridgeMiniPeriod;
+		//magic number to normalize the normal distribution
+		baseF += bridgeFreqMiniChal * normal(((distance + (0.5 * t)) % t) - 0.5 * t) * 2.506628;
+	}
+
+	return baseF;
 }
 
 function calcZSpeed(distance) {
@@ -413,9 +445,9 @@ function resetGame() {
 	}
 
 	//debug bits
-	dayCycleLength = 80;
-	player.y = 0.1;
-	player.ay = 0;
+	// dayCycleLength = 80;
+	// player.y = 0.1;
+	// player.ay = 0;
 }
 
 function generateStars() {
@@ -546,4 +578,5 @@ function handleResize() {
 
 	//set canvas preferences
 	ctx.lineJoin = "round";
+	ctx.lineCap = "round";
 }
