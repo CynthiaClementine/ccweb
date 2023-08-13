@@ -3,12 +3,15 @@
 function draw() {
 	drawSky();
 	drawClouds();
-	ctx.fillStyle = color_water;
-	ctx.fillRect(0, bridgeToScreen(0, player.z + drawDistBridge)[1], canvas.width, canvas.height / 2);
+	drawWater();
+
+	drawSnellWindow();
+	// drawWaves();
 
 	//bridge
+	ctx.globalAlpha = 1;
 	ctx.strokeStyle = color_bridge;
-	ctx.lineWidth = canvas.height / 200;
+	ctx.lineWidth = canvas.height / 300;
 	ctx.fillStyle = color_bridge;
 	var ps = [];
 	for (var f=bridge.length-1; f>=Math.floor(player.z); f--) {
@@ -43,7 +46,7 @@ function draw() {
 
 
 	//player shadow
-	drawPlayerShadow();
+	// drawPlayerShadow();
 
 	drawScaffolding();
 
@@ -58,7 +61,20 @@ function drawPlayerShadow() {
 	if (player.constructor.name == "Player_Boat") {
 		return;
 	}
-	var dpro = dayCycleQuery();
+	var numPts = 12;
+	var shadowPts = [];
+
+	var sunOffset = calcSunPos();
+	sunOffset[1] /= starDist;
+	sunOffset[2] /= starDist;
+	//sun can't cast a shadow if it's below the horizon
+	if (sunOffset[1] <= 0) {
+		return;
+	}
+	ctx.globalAlpha = 0.4 * (1 - Math.acos(sunOffset[1]));
+	var center = [player.x, playerTrueZ];
+
+	// var dpro = dayCycleQuery();
 	var shadowPercent = (player.y > 0) ? (1 / (1 + player.y)) : Math.max((1 - 3 * player.y ** 2), 0);
 	var coords = spaceToScreen(player.x, calcHeight(playerTrueZ), playerTrueZ);
 	ctx.globalAlpha = 0.4;
@@ -72,26 +88,16 @@ function drawPlayerShadow() {
 
 
 function drawClouds() {
-	ctx.fillStyle = color_clouds;
-	var c2d;
-	var cdist;
+	var c2d, cdist;
 	var hBoost = (gravTime > 0) ? 1 - ((2 * gravTime / gravTimeMax) - 1) ** 6 : 0;
 
 	ctx.globalAlpha = 0.5;
 	clouds.forEach(c => {
 		//lower opacity if close to the clip plane, just in case
 		cdist = c.z - (player.z * cloudMoveRate);
-		if (cdist < 5) {
-			ctx.globalAlpha = 0.5 * Math.max(1 - (1 / (cdist + 1.1) ** 2), 0);
-		}
+		ctx.globalAlpha = (cdist < 5) ? 0.5 * Math.max(1 - (1 / (cdist + 1.1) ** 2), 0) : 0.5;
 		c2d = c.pts.map(a => cloudToSpace(a[0], a[1] - player.z * cloudMoveRate + camera.z + 3)).map(b => spaceToScreen(b[0], b[1] + hBoost, b[2]));
-		ctx.beginPath();
-		ctx.moveTo(c2d[0][0], c2d[0][1]);
-		for (var d=1; d<c2d.length; d++) {
-			ctx.lineTo(c2d[d][0], c2d[d][1]);
-		}
-		ctx.fill();
-		ctx.globalAlpha = 0.5;
+		drawPolygon(c2d, color_clouds);
 	});
 	ctx.globalAlpha = 1;
 }
@@ -137,11 +143,13 @@ function drawMenu() {
 function drawScaffolding() {
 	var offX = tileWidth * bridge[0].length * 0.5;
 	var offY = 0.5;
-
+	
+	ctx.lineCap = "butt";
 	drawScaffold(-offX, 0);
 	drawScaffold(-offX, offY);
 	drawScaffold(offX, 0);
 	drawScaffold(offX, offY);
+	ctx.lineCap = "round";
 }
 
 function drawScaffold(x, y) {
@@ -172,24 +180,119 @@ function drawSky() {
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	drawStars();
 
+	var sunPos = calcSunPos();
+	if (sunPos[2] <= 0) {
+		return;
+	}
+	sunPos = spaceToScreen(camera.x + sunPos[0], camera.y + sunPos[1], camera.z + sunPos[2]);
+	
 	//red-light refraction
-	var peakTime = 0.302;
-	var spreadTime = 0.04;
-	if (Math.abs(dpro - peakTime) < spreadTime * 3) {
-		ctx.globalAlpha = normal((dpro - peakTime) / spreadTime);
+	var timePeaks = [0.30, 0.29, 0.34];
+	var timeSpreads = [0.02, 0.03, 0.02];
+	var dims = [[0.6, 0.05], [0.5, 0.03], [0.4, 0.01]];
+	var colors = ["#F00", "#F80", "#FF0"];
+	if (dpro > timePeaks[0] - timeSpreads[0] * 3 && dpro < timePeaks[2] + timeSpreads[2] * 3) {
+		var horizonH = bridgeToScreen(0, player.z + drawDistBridge)[1];
+
+		for (var c=0; c<colors.length; c++) {
+			ctx.globalAlpha = normal((dpro - timePeaks[c]) / timeSpreads[c]);
+			drawEllipse(canvas.width / 2, horizonH, canvas.width * dims[c][0], canvas.height * dims[c][1], colors[c]);
+		}
 	}
 
 	//sun
 	ctx.globalAlpha = 1;
-	var sunPos = [0, starDist * Math.cos(Math.PI * 2 * (dpro - sunA)), starDist * Math.sin(Math.PI * 2 * (dpro - sunA))];
-	if (sunPos[2] > 0 && dpro < 0.5) {
-		sunPos = spaceToScreen(camera.x + sunPos[0], camera.y + sunPos[1], camera.z + sunPos[2]);
-		var color = cLinterp(color_sunDay, color_sunSet, clamp((dpro - sunA) * 4.5, 0, 1.2));
+	if (dpro < 0.5) {
+		var linter = clamp(1 + (dpro - sunA - 0.25) * 12, 0, 1.2);
+		var color = cLinterp(color_sunDay, color_sunSet, linter);
+		// console.log(color, linter);
 		drawEllipse(sunPos[0], sunPos[1], canvas.height * sunR, canvas.height * sunR, color);
-		ctx.filter = `blur(${Math.floor(canvas.height / 100)}px)`;
+
+		ctx.globalAlpha = clamp(1 - (linter - 0.6), 0, 1);
+		ctx.filter = `blur(${Math.floor(canvas.height / 50)}px)`;
 		drawEllipse(sunPos[0], sunPos[1], canvas.height * sunR, canvas.height * sunR, color);
 		ctx.filter = `none`;
-		console.log(color, (dpro - sunA) * 4.5);
+	}
+}
+
+function drawSnellWindow() {
+	var angle = Math.PI * 2 * (dayCycleQuery() - sunA);
+
+	//don't have one if circle is entirely behind the camera or sun is below screen
+	if (angle < 0 || angle > Math.PI / 2) {
+		return;
+	}
+	var alpha = clamp(Math.cos(angle), 0, 1);
+	if (alpha == 0) {
+		return;
+	}
+	
+
+	var camTPt = [camera.x, 2 * killPlane - camera.y, camera.z];
+
+	//first: figure out the oval on the water where the window is
+	// var ovalCenter = [0, linterp(camTPt[2], sunPt[2], centerLint)];
+	var ovalNear =	[0, camTPt[2] + (camera.y - killPlane) * Math.tan(angle - sunR)];
+	var ovalFar =	[0, camTPt[2] + (camera.y - killPlane) * Math.tan(Math.min(angle + sunR, Math.PI * 0.49))];
+	var ovalCenter = [0, linterp(ovalNear[1], ovalFar[1], 0.5)];
+	
+	//next: turn the oval into a set of points
+	var camSunCoef = (sunR / camera.scale) * (ovalCenter[1] - camera.z);
+	var ovalR = ovalCenter[1] - ovalNear[1];
+	var ovalPts = [];
+	var buffer1;
+	for (var w=0; w<snellPts; w++) {
+		buffer1 = polToXY(ovalCenter[0], ovalCenter[1], Math.PI * 2 * (w / snellPts), ovalR);
+		buffer1[0] = buffer1[0] * camSunCoef / ovalR;
+		ovalPts.push([buffer1[0], killPlane, buffer1[1]]);
+	}
+	
+	//apply some distortion to the points
+	
+	//remove all points that won't be drawn correctly
+	ovalPts = ovalPts.filter(p => p[2] > camera.z + 1);
+	ovalPts = ovalPts.map(p => spaceToScreen(p[0], p[1], p[2]));
+
+	//draw to the screen
+	if (ovalPts.length > 2) {
+		ctx.globalAlpha = alpha;
+		var col = cLinterp(color_sunDay, color_sunSet, clamp(1 + (dayCycleQuery() - sunA - 0.25) * 12, 0, 1.2));
+		drawPolygon(ovalPts, col);
+		ctx.globalAlpha = 1;
+	}
+}
+
+function drawWater() {
+	var angle = Math.PI * 2 * (dayCycleQuery() - sunA);
+	var alpha = clamp(Math.cos(angle), 0, 1);
+
+	ctx.fillStyle = color_water;
+	var baseHeight = bridgeToScreen(0, player.z + drawDistBridge)[1];
+	ctx.fillRect(0, baseHeight, canvas.width, canvas.height / 2);
+
+	if (alpha == 0) {
+		return;
+	}
+	ctx.globalAlpha = alpha;
+	ctx.fillStyle = color_water2;
+	ctx.fillRect(0, baseHeight + (canvas.height * 0.05), canvas.width, canvas.height / 2);
+	ctx.globalAlpha = alpha * alpha;
+	drawEllipse(canvas.width / 2, canvas.height, canvas.width, canvas.height - baseHeight * 1.3, color_water3);
+}
+
+function drawWaves() {
+	var offZ = Math.floor(player.z);
+	ctx.strokeStyle = cLinterp(color_waves, color_sunSet, clamp(1 + (dayCycleQuery() - sunA - 0.25) * 12, 0, 1.2));
+	for (var z=0; z<drawDistWaves; z++) {
+		var width = 4;
+		var trueCoordsL = spaceToScreen(-10 + 5 * Math.sin(14.236 * (z + offZ)), killPlane, z - (player.z % 1));
+		var trueCoordsR = spaceToScreen(10 + 5 * Math.sin(14.236 * (z + offZ)), killPlane, z - (player.z % 1));
+
+		ctx.beginPath();
+		ctx.lineWidth = canvas.height * 0.02 / (z + 5 + player.z % 1);
+		ctx.moveTo(trueCoordsL[0], trueCoordsL[1]);
+		ctx.lineTo(trueCoordsR[0], trueCoordsR[1]);
+		ctx.stroke();
 	}
 }
 
@@ -220,13 +323,29 @@ function drawUI() {
 	ctx.strokeStyle = color_textLight;
 	ctx.strokeText(`now: ${meterText}`, canvas.width * 0.03, canvas.height * 0.05);
 	ctx.fillText(`now: ${meterText}`, canvas.width * 0.03, canvas.height * 0.05);
-	ctx.strokeText(`top: ${meterTextTop}`, canvas.width * 0.03, canvas.height * 0.09);
-	ctx.fillText(`top: ${meterTextTop}`, canvas.width * 0.03, canvas.height * 0.09);
-	ctx.strokeText(`T: ${dayCycleQuery().toFixed(3)}`, canvas.width * 0.03, canvas.height * 0.13);
-	ctx.fillText(`T: ${dayCycleQuery().toFixed(3)}`, canvas.width * 0.03, canvas.height * 0.13);
+	ctx.strokeText(`top: ${meterTextTop}`, canvas.width * 0.03, canvas.height * 0.1);
+	ctx.fillText(`top: ${meterTextTop}`, canvas.width * 0.03, canvas.height * 0.1);
+	// ctx.strokeText(`T: ${dayCycleQuery().toFixed(3)}`, canvas.width * 0.03, canvas.height * 0.15);
+	// ctx.fillText(`T: ${dayCycleQuery().toFixed(3)}`, canvas.width * 0.03, canvas.height * 0.15);
 
 	if (player.dead) {
 		ctx.textAlign = "center";
 		ctx.fillText(`reset? (R)`, canvas.width / 2, canvas.height * 0.95);
+	}
+}
+
+function drawPolygon(polyPoints, fillColor, strokeColor) {
+	ctx.beginPath();
+	ctx.moveTo(polyPoints[0][0], polyPoints[0][1]);
+	for (var h=1; h<polyPoints.length; h++) {
+		ctx.lineTo(polyPoints[h][0], polyPoints[h][1]);
+	}
+	if (fillColor) {
+		ctx.fillStyle = fillColor;
+		ctx.fill();
+	}
+	if (strokeColor) {
+		ctx.strokeStyle = strokeColor;
+		ctx.stroke();
 	}
 }
