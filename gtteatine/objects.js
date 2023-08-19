@@ -27,7 +27,8 @@ class Player {
 
 		this.dead = false;
 		this.hotFeet = hotFeet ?? 0;
-		this.hotFeetMax = 3;
+		this.hotFeetMax = 50;
+		this.hotFeetVisal = 0.5;
 		this.lastDT = 0;
 	}
 
@@ -159,10 +160,12 @@ class Player {
 
 		if (this.hotFeet > 0) {
 			var off = [];
-			
-			for (var k=0; k<Math.ceil(this.lastDT * 1.25); k++) {
+			var numDots = Math.ceil(this.lastDT * 1.2 + (this.hotFeetVisal * this.hotFeet));
+			for (var k=0; k<numDots; k++) {
 				off = polToXY(0, 0, a(0, Math.PI * 2), a(0, rm));
+				//1s orbital
 				drawEllipse(coords[0] + off[0], coords[1] + ry + off[1] * 0.8, rs, rs, powerup_colors[2]);
+
 				//1p orbital
 				if (this.hotFeet > 1 && k % 2 == 0) {
 					var the = a(rm * -2, rm * 2);
@@ -170,7 +173,7 @@ class Player {
 				}
 
 				//2s orbital
-				if (this.hotFeet > 2) {
+				if (this.hotFeet > 2 && k % 3 == 0) {
 					off = polToXY(0, 0, a(0, Math.PI * 2), a(1.25 * rm, 1.75 * rm));
 					drawEllipse(coords[0] + off[0], coords[1] + ry + off[1] * 0.8, rs, rs, powerup_colors[2]);
 				}
@@ -200,8 +203,9 @@ class Player_Boat extends Player {
 		this.rx = 0.2;
 		this.ry = 0.5;
 
-		this.healthMax = 2.9;
-		this.health = 2.9;
+		this.healthMax = 2.8;
+		this.health = 2.8;
+		this.gravLeniency = 0.1;
 	}
 
 	tick(dt) {
@@ -218,9 +222,11 @@ class Player_Boat extends Player {
 			this.dy = 0;
 		}
 		if (this.onGround()) {
-			this.health -= dt;
+			this.health -= dt * (1 - (gravTime > 0) * this.gravLeniency);
 			if (this.health < 0) {
 				player = new Player(this.x, this.z, this.hotFeet);
+				player.y = this.y;
+				player.dy = this.dy;
 				player.dx = this.dx;
 				player.dir = this.dir;
 			}
