@@ -54,6 +54,22 @@ function draw() {
 
 	//draw ui
 	drawUI();
+
+	if (goFast && !player.dead) {
+		drawSepia();
+	}
+}
+
+function drawSepia() {
+	ctx.globalAlpha = 0.3;
+	ctx.fillStyle = color_sepia;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.globalAlpha = 1;
+	if (Math.random() < 10 * player.lastDT) {
+		ctx.fillStyle = color_sepiaDark;
+		ctx.fillRect(Math.floor(Math.random() * canvas.width), 0, canvas.width / 200, canvas.height);
+	}
+
 }
 
 function drawPlayerShadow() {
@@ -122,6 +138,7 @@ function drawMenu() {
 		[`Start!`, () => {}, () => {}],
 		[`Bridge Width: ${sliceTiles}`, () => {return (sliceTiles > sliceOptions[0]);}, () => {return (sliceTiles < sliceOptions[1]);}],
 		[`Player color`, () => {return true;}, () => {return true;}],
+		[`Tutorial`, () => {}, () => {}],
 		[`Reset`, () => {}, () => {}],
 	];
 
@@ -136,6 +153,19 @@ function drawMenu() {
 		if (buttons[b][2]()) {
 			ctx.fillText(`>`, canvas.width * 0.74, canvas.height * (0.5 + 0.1 * b));
 		}
+	}
+}
+
+function drawTutorial() {
+	ctx.fillStyle = color_bg;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	//there's text.. display it
+	ctx.font =  `${canvas.height * tutorialTextSize}px Ubuntu`;
+	ctx.textAlign = "left";
+	ctx.fillStyle = color_text;
+	for (var t=0; t<tutorialText.length; t++) {
+		ctx.fillText(tutorialText[t], canvas.width * 0.02, canvas.height * (0.05 + 1.04 * tutorialTextSize * t));
 	}
 }
 
