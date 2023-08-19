@@ -42,6 +42,8 @@ var color_bridgeDark = "#222244";
 var color_clouds = "#d6fbff";
 var color_night = "#20003b"
 var color_player = "#F8F";
+var color_sepia = "#d6ae80";
+var color_sepiaDark = "#b07748";
 var color_star = "#FFEE99";
 var color_sunDay = "#FFFFFF";
 var color_sunSet = "#ffdf74";
@@ -161,6 +163,31 @@ var sunR = 0.075;
 var sunA = 0.05;
 var timeAlive = 0;
 
+var tutorialText = [
+	`You are travelling along a poorly constructed bridge.`,
+	`Unfortunately, you can't swim.`,
+	`Can you make it to the end of the bridge?`,
+	`No. There is no end of the bridge. But you can try.`,
+	``,
+	`CONTROLS:`,
+	`Arrow keys or AWD: movement`,
+	`Shift: Fast Forward time`,
+	`Escape: pause or return to the menu`,
+	`Enter: unpause`,
+	`R: reset to the start`,
+	``,
+	`POWERUPS:`,
+	`White - decreases gravity, temporarily`,
+	`Red - allows you to solidify one tile of water.`,
+	`Green - repairs the next ${drawDistBridge} tiles of bridge`,
+	`Brown - ok so there's this boat factory nearby, right.`,
+	`But the people at the factory aren't very good at making boats. So`,
+	`they've just dropped all the boats that don't make it past `,
+	`quality control onto the bridge. Anyways. If you walk over a brown tile you can pick one of these up and`,
+	`use the boat to move yourself. Glide along the waves like a little bar of soap`
+];
+var tutorialTextSize = 0.054;
+
 var waves = [];
 var waveCount = 200;
 var waveWidthRange = [1, 3];
@@ -186,13 +213,16 @@ function main() {
 			ctx.strokeStyle = color_textLight;
 			ctx.lineWidth = canvas.height / 300;
 			ctx.font = `${canvas.height / 15}px Ubuntu`;
-			ctx.textAlign = "center";
-			ctx.strokeText(`~paused~`, canvas.width / 2, canvas.height / 2);
-			ctx.fillText(`~paused~`, canvas.width / 2, canvas.height / 2);
+			ctx.textAlign = "right";
+			ctx.strokeText(`~paused`, canvas.width * 0.97, canvas.height * 0.075);
+			ctx.fillText(`~paused`, canvas.width * 0.97, canvas.height * 0.075);
 			break;
 		case "game":
 			tick();
 			draw();
+			break;
+		case "tutorial":
+			drawTutorial();
 			break;
 	}
 
@@ -501,7 +531,7 @@ function handleKeyPress(a) {
 		case "Escape":
 			if (state == "game") {
 				state = "pause";
-			} else if (state == "pause") {
+			} else {
 				state = "menu";
 			}
 			break;
@@ -571,6 +601,9 @@ function handleMouseDown_custom() {
 				color_player = player_colorOpts[(ind + player_colorOpts.length + dir) % player_colorOpts.length];
 				break;
 			case 3:
+				state = "tutorial";
+				return;
+			case 4:
 				trueReset();
 				return;
 		}
@@ -591,4 +624,9 @@ function handleResize() {
 	//set canvas preferences
 	ctx.lineJoin = "round";
 	ctx.lineCap = "round";
+
+	if (state == "pause") {
+		draw();
+		console.log('drawing');
+	}
 }
