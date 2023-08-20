@@ -388,7 +388,7 @@ class Character {
 		this.onGround -= 1;
 		
 		//if player has a parent, change gravity based on parent power
-		if (this.onGround < physics_graceTime - 2) { 
+		if (this.onGround < physics_graceTime - 2) {
 			this.dy -= linterp(activeGravity * 0.8, activeGravity, this.parentPrev.power);
 		} else {
 			//if the player's on the ground, make sure dy is capped
@@ -971,6 +971,7 @@ class Duplicator extends Character {
 						replacement = this.duplicates[g];
 						player = replacement;
 						replacePlayer(data_characters.map["Duplicator"]);
+						player.ax = this.ax;
 						//populate player's duplicate array with every duplicate except the one that's being killed (self) and the one being swapped to
 						player.duplicates = [];
 						this.duplicates.forEach(d => {
@@ -1076,7 +1077,7 @@ class Gentleman extends Character {
 		this.texture_flyL = new Texture(data_sprites.Gentleman.sheet, data_sprites.spriteSize, 1e1001, false, false, data_sprites.Gentleman.flySideways);
 		this.texture_flyR = new Texture(data_sprites.Gentleman.sheet, data_sprites.spriteSize, 1e1001, false, true, data_sprites.Gentleman.flySideways);
 
-		this.dMaxTrue = 8.5;
+		this.dMaxTrue = 7.5;
 		this.naturalFriction = 0.9994;
 
 		this.attracting = undefined;
