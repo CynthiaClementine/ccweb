@@ -62,7 +62,7 @@ let gameFlags = {
 //functions
 
 function setup() {
-    canvas = document.getElementById("cvsPharmacy");
+	canvas = document.getElementById("cvsPharmacy");
 	ctx = canvas.getContext("2d");
 	ctx.lineWidth = 2;
 	ctx.lineJoin = "round";
