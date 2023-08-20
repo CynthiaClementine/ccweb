@@ -732,7 +732,11 @@ function decompressCutsceneLine(line) {
 				objData.push(new SceneLight(+s[1], +s[2], +s[3]));
 				break;
 			case "SPR":
-				objData.push(new SceneSprite(+s[1], +s[2], +s[3], s[4], +s[5], JSON.parse(s[6]), +s[7], +s[8], +s[9]));
+				try {
+					objData.push(new SceneSprite(+s[1], +s[2], +s[3], s[4], +s[5], JSON.parse(s[6]), +s[7], +s[8], +s[9]));
+				} catch (e) {
+					console.error(`problem with trying to parse `, s, e);
+				}
 				break;
 			case "BUB":
 				objData.push(new SceneBubble(+s[1], +s[2], +s[3], +s[4]));
