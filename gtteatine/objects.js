@@ -53,7 +53,7 @@ class Player {
 		//coordinates
 		var bridgeWidth = tileWidth * (sliceTiles - 0.25) * 0.5;
 		
-		this.y += this.dy;
+		this.y += this.dy * dt;
 		//dy is split in half so it's more precisely integrated
 		this.dy -= activeAY * dt * 0.5;
 		if (!this.dead) {
