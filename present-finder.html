@@ -290,25 +290,29 @@ Dec-28-2019 -->
         //generating a new present.
         //as long as a new present doesn't exist, loop through the entire map
         while (doGeneration == 1) {	
-          for (h=0;h<loadingMap.length;h++) {
-          	for (p=0;p<loadingMap[h].length;p++) {
+          for (var h=0;h<loadingMap.length;h++) {
+          	for (var p=0;p<loadingMap[0].length;p++) {
               //select a square at random, if it is not a solid surface, generate a present there.
             	if (Math.random() < presentGenerationChance && loadingMap[h][p] != solidSurfaces[0] && loadingMap[h][p] != solidSurfaces[1]) {
                 loadingMap[h][p] = 2;
                 p = loadingMap[h].length + 1;
                 h = loadingMap.length + 1;
-                doGeneration = 0;
+                return;
               }
             }
           }
         }
       }
 
+      function radians(angle) {
+        return (angle % 360) * Math.PI / 180;
+      }
+
       function anglePointer() {
         var xPoint = canvas.width * 0.85;
         var yPoint = canvas.height * 0.9;
         var needyLength = indicatorRadius - 5;
-        var playerAngle = a * (Math.PI / 180);
+        var playerAngle = radians(a);
 
         /*I was originally going to put a feature in where there was 
         an extra line on the compass showing where the present was. 
@@ -330,21 +334,42 @@ Dec-28-2019 -->
         ctx.strokeStyle = playerColor;
         ctx.moveTo(xPoint, yPoint);
         ctx.lineTo(xPoint + needyLength * Math.cos(playerAngle), yPoint + needyLength * Math.sin(playerAngle));
-        ctx.stroke();       
+        ctx.stroke();
       }
-            
+
+      function draw2dMap() {
+        //draw super simple representation of the world for debugging purposes
+        var ss = 20;
+        for (var my=0; my<loadingMap.length; my++) {
+          for (var mx=0; mx<loadingMap[0].length; mx++) {
+            if (loadingMap[my][mx] != 1) {
+              ctx.fillStyle = mapColor(loadingMap[my][mx]);
+              ctx.fillRect(mx * ss, my * ss, ss, ss);
+            }
+          }
+        }
+
+        //draw player
+        ctx.fillStyle = "#F00";
+        ctx.beginPath();
+        ctx.arc(x / squareSize * ss, y / squareSize * ss, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       // drawMap is the function that turns the array above an image on the screen.
       function drawMap() {
+        // draw2dMap();
+
       	/*the function is contained within a for loop. The system loops through each ray, 
         gets the distance to an object, and draws a rectangle based on that object. 
         In this way, it creates the illusion of 3d without being 3d. */
         
         //gets angle of each ray based on number of rays and FOV 
-        var startingAngle = a - (fieldOfView / 2);
-        var angleOffset = fieldOfView / numOfRays;
+        var cameraAngle = radians(a);
+        var startingAngle = radians(a - (fieldOfView / 2));
+        var angleOffset = radians(fieldOfView / numOfRays);
         var pixelOffset = canvas.width / numOfRays;
-        var currentAngle = startingAngle % 360;
-        
+
         var currentLength = 0.01;
         var intersectLength = -1;
         var intersectValue;
@@ -352,8 +377,7 @@ Dec-28-2019 -->
         for (g=0;g<numOfRays;g++) {
         //sends out ray, calculates angle
         	var theta = startingAngle + g * (angleOffset);
-          var theta = theta % 360;
-          var theta = theta * (Math.PI / 180);
+          
           currentLength = 0;
           done = 0;
         	while (currentLength < rayDist && done != 1) {
@@ -361,8 +385,8 @@ Dec-28-2019 -->
             var rayX = x + (currentLength * Math.sin(theta));
             var rayY = y + (currentLength * Math.cos(theta));
             
-            var rayXSquare = Math.round(rayX / squareSize);
-            var rayYSquare = Math.round(rayY / squareSize);
+            var rayXSquare = Math.floor(rayX / squareSize);
+            var rayYSquare = Math.floor(rayY / squareSize);
             //if the ray intersects, log the length of the ray and exit the while loop
             var value = loadingMap[rayYSquare][rayXSquare];
             if (value != inviSurfaces[0]) {
@@ -375,32 +399,26 @@ Dec-28-2019 -->
         	//if the ray has intersected with something other than the walkable surfaces, draw that object
           if (currentLength < rayDist) {
         		var hei = (rayDist - currentLength) / rayDist;
-          	hei = hei * heightLimit;
+          	hei = hei / Math.cos(cameraAngle - theta) * heightLimit;
           	if (hei >= heightLimit) {
           		hei = heightLimit;
           	}
-            switch (intersectValue) {
-              case 2:
-              	if (time % presentFlashRate < presentFlashRate / 2) {
-                	ctx.fillStyle = presentOneColor;
-                } else {
-                	ctx.fillStyle = presentTwoColor;
-                }
-              	break;
-              case 3:
-                ctx.fillStyle = woodColor;
-                break;
-              case 4:
-                ctx.fillStyle = pillarColor;
-                break;
-              case 1:
-              default:
-              	ctx.fillStyle = stoneColor;
-              	break;
-            }
+            ctx.fillStyle = mapColor(intersectValue);
             ctx.fillRect(pixelOffset * g, centerY - hei, pixelOffset, hei * 2);
           }
         }
+      }
+      function mapColor(value) {
+        if (value == 2) {
+          return (time % presentFlashRate < presentFlashRate / 2) ? presentOneColor : presentTwoColor;
+        }
+        if (value == 3) {
+          return woodColor;
+        }
+        if (value == 4) {
+          return pillarColor;
+        }
+        return stoneColor;
       }
       
       function drawMenu() {
