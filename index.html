@@ -6,17 +6,29 @@
 
         <!-- search engine optimization (: -->
         <meta charset="UTF-8">
+        <link rel='icon' href='bg-orange-tile.jpg' type='image/png'/>
         <meta name="author" content="Cynthia Clementine">
         <meta name="keywords" content="1994, Cynthia Clementine, website">
         <style>
+            html {
+                scroll-behavior: smooth;
+            }
+
             body {
-                background-color: slateblue;
+                background-color: #524c7a;
                 font-family: Arial, Helvetica, sans-serif;
+            }
+
+            .main {
+                margin-left: 1%;
+                margin-right: 1%;
+                color: white;
+                font-size: 20px;
             }
 
             #top-text {
                 color: white;
-                font-size: 30px;
+                font-size: 35px;
                 text-align: center;
             }
             #localStorage-text {
@@ -26,32 +38,47 @@
                 bottom: 0;
             }
 
-            #games-list {
-                color: white;
-                font-size: 20px;
-                text-align: center;
-                float: left;
+            #top-bar {
+                display: flex;
+                justify-content: space-between;
             }
 
-            #interact-list {
-                color: white;
-                font-size: 20px;
-                text-align: center;
-                float: right;
+            @media only screen and (min-width: 42em) {
+                .surrounded {
+                    padding: 0em 0.5em 0.2em 0.5em;
+                    box-shadow:0 0 5px;
+                    margin:1em;
+                    border-radius:0.25em;
+                }
+                .surrounded-top {
+                    padding: 0.2em 0.5em 0.2em 0.5em
+                }
             }
 
-            #display-list {
+            #top-bar {
                 color: white;
-                font-size: 20px;
-                text-align: center;
             }
 
-            a:link {
+            .main a:link {
                 color: #49fcff;
             }
 
-            a:visited {
+            .main a:visited {
                 color: #3a0000;
+            }
+
+            .top-link, .up-link {
+                font-size: 20px;
+                color: white;
+                background-color: #686291;
+                text-decoration: none;
+                border: none;
+                border-radius: 5px;
+            }
+
+            .up-link {
+                padding: -1em 0em -1em 0em;
+                margin-left: 1em;
             }
         </style>
     </head>
@@ -62,82 +89,102 @@
             </p>
         </div>
 
-        <div id="games-list">
+        <div id="top-bar" class="surrounded surrounded-top">
+            <!-- <button onclick="activateView()">View All</button> -->
+            <a class="top-link" href="#games-list">Games - original</a>
+            <a class="top-link" href="#games-list-offbrand">Games - respository</a>
+            <a class="top-link" href="#interact-list">Interactables</a>
+            <a class="top-link" href="#display-list">Displays</a>
+            <a class="top-link" href="#tools-list">Tools</a>
+        </div>
+
+        <div id="games-list" class="main surrounded">
             <p>
-                <b>Games:</b>
-                <br>
-                <a href="The-ascent.html">The ascent</a><br>
-                <a href="The-ascent-2/The-ascent-2.html">The ascent 2</a><br>
-                <a href="heaven-ascension/index.html">Heaven's price</a><br>
-                <br>
-                <a href="ball-game/index.html">Ball Game (old, made ~2017)</a><br>
-                <a href="package-parsing.html">Package Parsing</a><br>
-                <a href="present-finder.html">Present Finder</a><br>
-                <a href="simon-says/index.html">Simon Says</a><br>
-                <a href="minimal-flappy.html">Flutter poultry</a><br>
-                <a href="tetris/index.html">Tetris</a><br>
-                <a href="farm/index.html">Adversarial Farm Game</a><br>
-                <a href="gtteatine/index.html">Get To The End Although There Is No End</a><br>
-                <br>
-                <a href="sun-survivor.html">Sun survivor</a><br>
-                <a href="rotate/index.html">Rotate</a><br>
-                <a href="seasonalGrid/index.html">Tile World</a><br>
-                <a href="run-3-clone/index.html">Javascript-based Run 3 remake</a><br>
-                <a href="circles/index.html">Circle System</a><br>
-                <a href="monarchy/index.html">Monarch</a><br>
-                
+                <a href="The-ascent.html">The ascent</a> - Mountain climbing with a slight twist<h3></h3>
+                <a href="The-ascent-2/The-ascent-2.html">The ascent 2</a> - Same concept as The Ascent, but with a better map, better movement, crumbling blocks, and jelly squares!<h3></h3>
+                <a href="heaven-ascension/index.html">Heaven's price</a> - a short climbing game I made in 72 hours for ludum dare 49.<h3></h3>
+                <h3></h3>
+                <a href="ball-game/index.html">Ball Game</a> - my first javascript game, made in 2017. It's not very good. The text at the bottom appears to lie as well? But if I were to go back and fix it, I would have to commit to rewriting the entire game from scratch. Now that's an idea...<h3></h3>
+                <a href="package-parsing.html">Package Parsing</a> - My second javascript game. Not particularly balanced, but alright I guess.<h3></h3>
+                <a href="present-finder.html">Present Finder</a> - Find pulsating presents in this wacky 2.5d world<h3></h3>
+                <a href="farm/index.html">Adversarial Farm Game</a> - now you too can experience exponential growth!<h3></h3>
+                <h3></h3>
+                <a href="sun-survivor.html">Sun survivor</a> - pilot a spaceship before the sun explodes! I've been told the tutorial is confusing.<h3></h3>
+                <a href="rotate/index.html">Rotate</a> - explore a slightly mind-bending 3d world full of basic shapes<h3></h3>
+                <a href="seasonalGrid/index.html">Tile World</a> - puzzle solving in a hexagonal tile space. Maybe there's lore? Maybe you're reading too far into it.<h3></h3>
+                <a href="circles/index.html">Circle System</a> - advanced bubble popping. I highly recommend playing with sound, as audio cues help you figure out what's going on.<h3></h3>
+                <a href="monarchy/index.html">Monarch</a> - overthrow the monarchy, with the help of some cool kids.<h3></h3>
             </p>
         </div>
 
-        <div id="interact-list">
+        <a class="up-link" href="#top-bar">^</a><br>
+        <div id="games-list-offbrand" class="main surrounded">
             <p>
-                <b>Other interactables:</b>
-                <br>
-                <a href="mandelbrot-set.html">Interactive Mandelbrot set</a><br>
-                <a href="maze-generator.html">Square Maze Generator</a><br>
-                <a href="prime-spiral.html">A Plot of Primes in Polar Coordinates</a><br>
-                <a href="run-3-map-visualizer.html">Run 3 Tunnel visualizer</a><br>
-                <a href="monopoly-board.html">Monopoly probability distribution</a><br>
-                <a href="solar-eclipse.html">Solar eclipse visualizer</a><br>
-                <a href="matrix-visualizer.html">Matrix Visualization Helper</a><br>
-                <a href="pascal-triangle.html">Pascal's triangle</a><br>
-                <a href="pain-peko/index.html">Neural Network field coloring</a><br>
-                <a href="satellite.html">Simple Satellite Simulation</a><br>
-                <a href="kifu-reader.html">Go Kifu helper</a><br>
-                <a href="tab-name.html">Tab name</a><br>
-                <br>
-                <a href="raymarch/index.html">Ray marching demo</a><br>
-                <a href="plains/index.html">The Desert</a><br>
-                <a href="circle-hover.html">Circle Cursor Hover</a><br>
-                <a href="X-O-games/index.html">XO games</a><br>
-                <!-- <a href="animSVG/index.html">Animacy</a><br> -->
+                <a href="simon-says/index.html">Simon Says</a> - it's simon says. Y'know, from among us.<h3></h3>
+                <a href="minimal-flappy.html">Flutter poultry</a> - it's flappy bird<h3></h3>
+                <a href="tetris/index.html">Tetris</a> - it's tetris<h3></h3>
+                <a href="gtteatine/index.html">Get To The End Although There Is No End</a> - traverse a slowly decaying bridge in a water world<h3></h3>
+                <a href="X-O-games/index.html">XO games</a> - a set of board terminal-input games played with Xs and Os<h3></h3>
+                <h3></h3>
+                <a href="run-3-clone/index.html">Javascript-based Run 3 remake</a> - it's run 3, running in vanilla js.<h3></h3>
             </p>
         </div>
 
-        <div id="display-list">
+        <a class="up-link" href="#top-bar">^</a><br>
+        <div id="interact-list" class="main surrounded">
             <p>
-                <b>Graphics displays:</b>
-                <br>
-                <a href="lovely-linies.html">1d random walk</a><br>
-                <a href="lovely-linies-2d.html">2d random walk (snakes?)</a><br>
-                <a href="metaballs.html">Metamorph circles</a><br>
-                <a href="particles.html">Particles!</a><br>
-                <a href="cursordance.html">Cursor dance</a><br>
-                <a href="noise/axis-noise.html">2-axis noise generation</a><br>
-                <a href="noise/wave-noise.html">Sine wave noise generation</a><br>
-                <a href="noise/perlin-noise.html">Perlin noise generation</a><br>
-                <br>
-                <a href="spinning-shapes.html">spinning 3d wireframes</a><br>
-                <a href="spinning-shapes-4d.html">spinning 4d wireframes</a><br>
-                <a href="arts-crafters/index.html">Arts and Crafters</a><br>
-                <a href="star-field.html">Customizable Star Field</a><br>
+                <a href="mandelbrot-set.html">Interactive Mandelbrot set</a> - Click to zoom in, use sliders, play around! Watch out for the creeping existential dread you get if you zoom in too far.<h3></h3>
+                <a href="prime-spiral.html">A Plot of Primes in Polar Coordinates</a> - superb subtractively spaced spirals<h3></h3>
+                <a href="solar-eclipse.html">Solar eclipse visualizer</a> - kind of neat I guess<h3></h3>
+                <a href="pascal-triangle.html">Pascal's triangle</a> - (now with neat little coloring schema)<h3></h3>
+                <a href="pain-peko/index.html">Neural Network field coloring</a> - draw points on a field and watch a neural network learn the pattern!<h3></h3>
+                <a href="satellite.html">Simple Satellite Simulation</a> - satellites orbiting a wireframe earth, with some nice graphs to go with<h3></h3>
+                <a href="index-old.html">View the old clementine homepage</a> - if you like simplicity and not-quite AA compliant contrast<h3></h3>
+                <h3></h3>
+                <a href="raymarch/index.html">Ray marching demo</a> - it's ray marching. I can't really get above 5 objects or too much above a 64x48 display, so it doesn't seem like feasable program technology. It's a cool demo though, I think<h3></h3>
+                <a href="plains/index.html">The Desert</a> - 3d world + editor that I abandoned<h3></h3>
+                <a href="circle-hover.html">Circle Cursor Hover</a> - hover over the circles as fast as possible to make the numbers go up. My best SR is 14.95<h3></h3>
             </p>
         </div>
+
+        <a class="up-link" href="#top-bar">^</a><br>
+        <div id="display-list" class="main surrounded">
+            <p>
+                <a href="lovely-linies.html">1d random walk</a> - line goes up and down. Like mountains, or the stock market<h3></h3>
+                <a href="lovely-linies-2d.html">2d random walk</a> - snakes??????<h3></h3>
+                <a href="metaballs.html">Metamorph circles</a> - it's a low-res isosurface!<h3></h3>
+                <a href="particles.html">Particles!</a> - particle life<h3></h3>
+                <a href="cursordance.html">Cursor dance</a> - look at that cursor go. Watch it dance<h3></h3>
+                <a href="noise/axis-noise.html">2-axis noise generation</a><h3></h3>
+                <a href="noise/wave-noise.html">Sine wave noise generation</a><h3></h3>
+                <a href="noise/perlin-noise.html">Perlin noise generation</a><h3></h3>
+                <h3></h3>
+                <a href="spinning-shapes.html">spinning 3d wireframes</a> - this was a 2-week class assignment we were supposed to do in C that I did in one day with javascript. I didn't get credit for the assignment but I also wasn't taking the class so it was kind of expected. <h3></h3>
+                <a href="spinning-shapes-4d.html">spinning 4d wireframes</a> - the spiritual successor to 3d wireframes; now with keyboard controls.<h3></h3>
+                <a href="arts-crafters/index.html">Arts and Crafters</a> - I love this little guy<h3></h3>
+                <a href="star-field.html">Customizable Star Field</a> - I used this to make my phone background (:<h3></h3>
+            </p>
+        </div>
+
+        <a class="up-link" href="#top-bar">^</a><br>
+        <div id="tools-list" class="main surrounded">
+            <p>
+                <a href="maze-generator.html">Square Maze Generator</a> - it is just that<h3></h3>
+                <a href="monopoly-board.html">Monopoly probability distribution</a> - have you ever wondered what the most likely square to land on in monopoly is? Me too! That's why I made this page.<h3></h3>
+                <a href="run-3-map-visualizer.html">Run 3 Tunnel visualizer</a> - unwraps and visualizes run 3 tunnel data; I would advise you to just use the editor for <a href="run-3-clone/index.html">run 3</a> (Edit mode -> Properties -> load) as it allows you to visualize the the tunnel in 3d space better.<h3></h3>
+                <a href="matrix-visualizer.html">Matrix Visualization Helper</a> - a little demo I made for a quick class presentation. It's a bit counterintuitive to use if you don't know all the keybinds.<h3></h3>
+                <a href="kifu-reader.html">Go Kifu helper</a> - if you have a paper kifu and want a quick way to visualize it on a board. A supremely uncommon problem, but one that I decided to solve.<h3></h3>
+                <a href="tab-name.html">Tab name</a> - super simple, allows you to name the tab title<h3></h3>
+                <!-- <a href="animSVG/index.html">Animacy</a> - A vector-based animation program on the web you can use. Unfortunately it's currently highly unstable, and missing some features I would like to have.<h3></h3> -->
+            </p>
+        </div>
+
+        
 
         <!-- 
         <div id="extras-list">
             <p>
-                <b>Extras:</b><br>
+                <b>Extras:</b><h3></h3>
                 <a
 
             </p>
@@ -145,7 +192,6 @@
 
         <!--display storage size-->
         <footer id="localStorage-text">
-            <br><br><br><br><br>
             <p id="storageNotifier">Persistent storage used: <span id="storageCalculator">[uncalculated]</span>%</p>
             <p id="storageExtra"></p>
         </footer>
@@ -178,5 +224,16 @@
 
         document.getElementById("storageCalculator").textContent = percent.toFixed(5);
         document.getElementById("storageExtra").textContent = toWrite;
+
+
+
+        //allow view toggling of all groups
+        function toggleView(id) {
+            
+        }
+
+        function scrl(id) {
+            document.getElementById(id).scrollIntoView();
+        }
     </script>
 </html>
