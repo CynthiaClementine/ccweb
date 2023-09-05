@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+	<!--
+		Game by Cynthia Clementine, copyright December-18-2022
+		You dare peek inside the inner workings of my creation?
+		That's cool! Feel free to continue to do that (:
+	-->
+	<head>
+		<title>MONARCH v1.02</title>
+		<meta charset="utf-8">
+		<link rel='icon' href='img/icon.png' type='image/png'/>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
+		<style>
+			body {
+				background-color: slateblue;
+			}
+
+			#centerModule {
+				position: relative;
+				text-align: center;
+			}
+			#convos, #convosSecret {
+				position: absolute;
+				left: 50%;
+				margin-left: -50px;
+			}
+
+			#convosSecret {
+				margin-top: -15px;
+			}
+		</style>
+		<script src="../common/functions-math.js"></script>
+		<script src="../common/collision-2d.js"></script>
+		<script src="../common/functions-mouse.js"></script>
+		<script src="../common/functions-coordinate.js"></script>
+
+		<script src="functions-helper.js"></script>
+		<script src="conversations.js"></script>
+		<script src="textures.js"></script>
+		<script src="objects.js"></script>
+		<script src="objects-enemies.js"></script>
+		<script src="main.js"></script>
+	</head>
+	<body>
+		<div id="centerModule">
+			<p id="loadingText">fetching...</p>
+			<canvas id="convos" width="640" height="480"></canvas><br>
+			<canvas id="convosSecret" width="640" height="480" z-index="1"></canvas><br>
+		</div>
+	</body>
+</html>
