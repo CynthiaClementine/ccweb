@@ -144,7 +144,8 @@ class Camera {
 		this.x = x;
 		this.y = y;
 		this.scale = scale;
-		this.targetWidth = 16;
+		this.defaultWidth = 16;
+		this.targetWidth = this.defaultWidth;
 
 		this.nextX;
 		this.nexY;
@@ -153,9 +154,36 @@ class Camera {
 		this.cornerUL = [0, 0];
 		this.cornerDR = [0, 0];
 		// this.target = [x, y];
+		this.moveMode = "follow";
+	}
+
+	rescale(newTargetWidth) {
+		newTargetWidth = newTargetWidth ?? this.targetWidth;
+		this.targetWidth = newTargetWidth;
+		this.scale = canvas.width / this.targetWidth;
 	}
 
 	tick() {
+		switch (this.moveMode) {
+			case "follow":
+				this.x = player.x;
+				this.y = player.y;
+				break;
+			case "followX":
+				this.x = player.x;
+				break;
+			case "followY":
+				this.y = player.y;
+				break;
+
+			// case ""
+		}
+	
+		// if (//there's a fight active - case is lcoked) {
+		// 	camera.x = clamp(camera.x, fight_boundsUL[0] + (canvas.width * 0.5 / camera.scale), fight_boundsDR[0] - (canvas.width * 0.5 / camera.scale));
+		// 	camera.y = clamp(camera.y, fight_boundsUL[1] + (canvas.height * 0.5 / camera.scale), fight_boundsDR[1] - (canvas.height * 0.5 / camera.scale));
+		// }
+
 		//if the nexts are defined, adjust to them
 		if (this.nextX != undefined) {
 			this.x = this.nextX;
@@ -185,18 +213,24 @@ class Orb {
 	 * @param {Number} x starting x pos
 	 * @param {Number} y starting y pos
 	 * @param {Number} r radius, in world units
+	 * @param {String} layer the layer of the world this entity exists in. There are three layers - 'r', 'g', and 'b', with 'r' being the lowest and 'b' being the highest.
 	 * @param {Texture} texture the texture object to use for idle animation
 	 */
-	constructor(x, y, r, texture) {
+	constructor(x, y, r, layer, texture) {
+		this.homeX = x;
+		this.homeY = y;
+		
 		this.x = x;
 		this.y = y;
+		//if not specified, place on the base layer
 		this.a = 0;
 		this.dx = 0;
 		this.dy = 0;
 		this.dMax = 0.09;
 		this.da = 0;
-
+		
 		this.r = r;
+		this.layer = layer ?? 'r';
 
 		this.textureIdle = texture;
 		this.textureActive = this.textureIdle;
@@ -242,15 +276,16 @@ class MagicSphere extends Orb {
 	 * 
 	 * @param {Number} x The world x-coordinate the sphere should spawn at
 	 * @param {Number} y The world y-coordinate the sphere should spawn at
+	 * @param {String} layer The world layer the sphere will be on
 	 * @param {Radian} angle the angle the sphere will travel in
 	 * @param {Boolean} large whether the sphere is large or not
 	 */
-	constructor(x, y, angle, large) { 
+	constructor(x, y, layer, angle, large) { 
 		var d = data_textures;
 		var dL = data_textures.Magic;
 		var dLM = large ? dL.large : dL.small;
 		super(x, y, 1 + +large, new Texture(dL.sheet, d.tileSize, ...dLM, true));
-		this.speed = 0.2 - (0.1 * large);
+		this.speed = large ? 0.1 : 0.2;
 		this.isLarge = large;
 		this.dx = this.speed * Math.cos(angle);
 		this.dy = this.speed * Math.sin(angle);
@@ -301,6 +336,7 @@ class MagicSphere extends Orb {
 			return;
 		}
 
+		var collisionPos = moveInWorld(this.x, this.y, this.dx, this.dy, Math.sqrt(distSquared(this.dx, this.dy)), this.layer);
 		super.tick();
 
 		//collide with entities
@@ -318,7 +354,8 @@ class MagicSphere extends Orb {
 		});
 
 		//collide with world
-		if (terrain_surfaces[getWorldData(this.x, this.y)] == undefined) {
+		var eppy = 0.05;
+		if (Math.abs(collisionPos[0] - this.x) > eppy || Math.abs(collisionPos[1] - this.y) > eppy) {
 			this.ageOut();
 		}
 	}
@@ -375,67 +412,6 @@ class MagicSphere_Enemy extends MagicSphere {
 		var pos = spaceToScreen(this.x, this.y);
 		drawCircle(pos[0], pos[1], this.r * camera.scale, this.color1);
 		drawCircle(pos[0], pos[1], this.r * 0.8 * camera.scale, this.color2);
-	}
-}
-
-class MagicSpaceOrb {
-	constructor(x, y) {
-		this.x = x;
-		this.y = y;
-		this.r = Math.random() * 0.1 + 0.1;
-		this.id = 'spaceOrb';
-
-		this.opacityTarget = 0;
-		this.opacity = 0;
-	}
-
-	//gets the correct angular velocity to travel around the player, based on distance
-	orbitalAngularVelocity(distance) {
-		/*Fg = GmM / r^2
-		so g = GM / r^2
-
-		for uniform circular motion, a = rw^2 = v^2 / r
-		since only acceleration is gravity,
-		GM / r^2 = rw^2
-		GM / r^3 = w^2
-		sqrt(GM / r^3) = w
-
-		this isn't the real world, so G and M can basically be whatever I want and can be 
-		combined into one constant - gravityStrength
-		*/
-		return Math.sqrt(gravityStrength / (distance ** 3));
-	}
-
-	draw() {
-		if (this.opacity <= 0.01) {
-			return;
-		}
-
-		if (!isOnScreen(this.x - this.r, this.y - this.r, this.r * 2, this.r * 2)) {
-			return;
-		}
-
-		var coords = spaceToScreen(this.x, this.y);
-		ctx.globalAlpha = this.opacity;
-		drawCircle(coords[0], coords[1], this.r * camera.scale, color_magic);
-		ctx.globalAlpha = 1;
-	}
-
-	tick() {
-		if (this.opacity != this.opacityTarget) {
-			this.opacity = linterp(this.opacity, this.opacityTarget, 0.1);
-		}
-
-		//move around player
-		if (this.opacity > 0.01) {
-			var playerDist = Math.hypot(this.x - player.x, this.y - player.y);
-			var angleAdjust = this.orbitalAngularVelocity(playerDist);
-			var playerAngle = Math.atan2(this.y - player.y, this.x - player.x);
-			playerAngle += angleAdjust;
-			[this.x, this.y] = polToXY(player.x, player.y, playerAngle, playerDist);
-
-
-		}
 	}
 }
 
@@ -728,7 +704,7 @@ class NPC extends Orb {
 	ecc_focus(spl) {
 		spl[1] = spl[1] ?? player.x;
 		spl[2] = spl[2] ?? player.y;
-		spl[3] = spl[3] ?? camera_xBlocks;
+		spl[3] = spl[3] ?? camera.defaultWidth;
 		spl[4] = spl[4] ?? time_default;
 		spl[4] = +spl[4];
 
@@ -888,6 +864,7 @@ class NPC extends Orb {
 	}
 
 	//forces a conversation to start, even if that conversation isn't necessarily 
+	//TODO: what was I trying to say with the end of this sentence? And why in the world didn't I finish it?
 	forceConversation(convoID) {
 		this.convoCurrent = data_conversations[convoID];
 		player.locked = true;
@@ -1220,10 +1197,10 @@ class Horse extends NPC {
 
 
 class Player extends Orb {
-	constructor(x, y) {
-		super(x, y, 1, new Texture(data_textures.Player.sheet, data_textures.tileSize, ...data_textures.Player.idle, true));
+	constructor(x, y, layer) {
+		super(x, y, 0.2, layer, new Texture(data_textures.Player.sheet, data_textures.tileSize, ...data_textures.Player.idle, true));
 		this.walkTimer = 0;
-		this.walkTimerMax = 22;
+		this.walkTimerMax = 22 / 60;
 		this.textureAttack;
 		this.textureActive = this.textureIdle;
 
@@ -1232,22 +1209,21 @@ class Player extends Orb {
 		this.respawnPoint = [x, y];
 
 		this.iframes = 0;
-		this.iframesMax = 40;
+		this.iframesMax = 0.7;
 
 		this.ax = 0;
 		this.ay = 0;
-		this.collisionR = this.r / 5;
 		this.dMax = 0.09;
 		this.friction = 0.85;
-		this.speed = 0.02;
+		this.speed = 1.2;
 
 		this.dashTime = 0;
-		this.dashTimeMax = 10;
+		this.dashTimeMax = 1 / 6;
 		this.dashGhostsMax = 4;
 		this.dashGhosts = [];
 		this.dashSpeedMult = 2;
 		this.dashCooldown = 0;
-		this.dashCooldownMax = 30;
+		this.dashCooldownMax = 0.5;
 
 		this.chocolate = 0;
 		
@@ -1458,12 +1434,13 @@ class Player extends Orb {
 	}
 
 	draw() {
+		var drawR = 1;
 		var coords = spaceToScreen(this.x, this.y);
 		var currentTextureTime = this.textureActive.frame;
 		
 		//magic
 		if (this.magicActive) {
-			this.magicActiveAnim.draw(coords[0], coords[1], 0, this.r * 1.25 * camera.scale);
+			this.magicActiveAnim.draw(coords[0], coords[1], 0, drawR * 1.25 * camera.scale);
 			
 			//switch animations if done
 			if (this.magicActiveAnim == this.magicChargeAnimation && this.magicActiveAnim.frame >= this.magicActiveAnim.frames.length-1) {
@@ -1482,7 +1459,7 @@ class Player extends Orb {
 				
 				this.textureActive.frame = Math.max(0, this.textureActive.frame - ng * this.textureActive.amount);
 				ghostCoords = spaceToScreen(this.dashGhosts[ng][0], this.dashGhosts[ng][1]);
-				this.textureActive.draw(ghostCoords[0], ghostCoords[1], this.a, this.r * camera.scale);
+				this.textureActive.draw(ghostCoords[0], ghostCoords[1], this.a, drawR * camera.scale);
 				this.textureActive.frame = currentTextureTime;
 			}
 			
@@ -1508,7 +1485,7 @@ class Player extends Orb {
 		
 		//draw normally
 		ctx.globalAlpha = 1 - 0.4 * (this.iframes % render_iframePeriod > render_iframePeriod / 2);
-		this.textureActive.draw(coords[0], coords[1], this.a, this.r * camera.scale);
+		this.textureActive.draw(coords[0], coords[1], this.a, drawR * camera.scale);
 
 		if (this.attacking) {
 			//if switching into the damage frame do the damage
@@ -1528,7 +1505,7 @@ class Player extends Orb {
 		//if the editor's active, draw collision info
 		if (editor_active) {
 			//drawing player's collision bubble
-			drawCircle(coords[0], coords[1], this.collisionR * camera.scale, color_editorHighlight);
+			drawCircle(coords[0], coords[1], this.r * camera.scale, color_editorHighlight);
 
 			//drawing the box of the tiles around self
 		}
@@ -1543,34 +1520,55 @@ class Player extends Orb {
 		this.dy = 0;
 	}
 
-	tick() {
+	tick(dt) {
 		//invincibility frames
 		if (this.iframes > 0) {
-			this.iframes -= 1;
+			this.iframes -= dt;
 		}
 		//dash cooldown
 		if (this.dashCooldown > 0) {
-			this.dashCooldown -= 1;
+			this.dashCooldown -= dt;
+		}
+
+		//update true acceleration
+		this.ax = 0;
+		this.ay = 0;
+		switch (button_queue[button_queue.length-1]) {
+			case "Left":
+				this.ax = -1;
+				break;
+			case "Up":
+				this.ay = -1;
+				break;
+			case "Right":
+				this.ax = 1;
+				break;
+			case "Down":
+				this.ay = 1;
+				break;
+			default:
+				break;
 		}
 
 
 		//if attacking, can't accelerate forwards as well
-		var mult = 1;
-		var tol = 0.01;
+		var accMult = 1;
+		var tol = 0.01 * dt;
 		
 		//can't accelerate while dead
 		if (this.health <= 0) {
-			mult = 0;
+			accMult = 0;
 		}
 
 		//attacking reduces acceleration, dashing cancels that reduction
 		if (this.attacking && this.dashTime == 0) {
-			mult = ((this.textureAttack.frame / (this.textureAttack.frames.length-1)) * 2 - 1) ** 6;
+			accMult = ((this.textureAttack.frame / (this.textureAttack.frames.length-1)) * 2 - 1) ** 6;
 		}
+		accMult *= !this.locked;
 
 		//accelerate and reduce speed due to friction
-		var effAX = this.ax * mult * !this.locked;
-		var effAY = this.ay * mult * !this.locked;
+		var effAX = this.ax * accMult * dt;
+		var effAY = this.ay * accMult * dt;
 		this.dx += effAX * this.speed;
 		if (this.dx * effAX <= tol) {
 			this.dx *= this.friction;
@@ -1597,23 +1595,26 @@ class Player extends Orb {
 		}
 
 		//change orientation
-		this.walkTimer += 1;
+		this.walkTimer += dt;
 		if (this.walkTimer >= this.walkTimerMax) {
 			this.walkTimer = 0;
-			var effect = terrain_surfaces[getWorldData(this.x, this.y)];
-			if (effect != undefined) {
-				audio_sfxChannel.play(effect);
-			}
+			this.playFootstep();
 		}
+
 		if (this.dashTime == 0) {
 			this.updateAngle();
 		}
 
 		for (var t=Math.max(1, this.dashSpeedMult * Math.sign(this.dashTime)); t>0; t--) {
-			this.x += this.dx;
-			this.y += this.dy;
+			this.x += this.dx * dt;
+			this.y += this.dy * dt;
 			this.collide();
 		}
+	}
+
+	playFootstep() {
+		//TODO: footsteps
+		// audio_sfxChannel.play(effect);
 	}
 
 	updateAngle() {
@@ -1635,61 +1636,8 @@ class Player extends Orb {
 	}
 
 	collide() {
-		//get the adjacent eight squares to collide with (center doesn't matter because it should always be clear)
-		var tu = terrain_tileUnits;
-		var collided = false;
-		var squarePositions = [[-tu, 0], [0, tu], [tu, 0], [0, -tu], [-tu, -tu], [-tu, tu], [tu, tu], [tu, -tu]];
-
-		//the world position of the center of the square the player is on, relative to the player
-		//I have to use modulate because the % operator doesn't actually work correctly with negative numbers
-		var centerSquareRelPos = [(tu / 2) - modulate(this.x, tu), (tu / 2) - modulate(this.y, tu)];
-		var solidRelPos = [];
-		
-		//figure out where the solid squares are
-		for (var w=0; w<squarePositions.length; w++) {
-			if (!this.canWalkAt(this.x + squarePositions[w][0], this.y + squarePositions[w][1])) {
-				//push player out of the square, if they're in it
-				solidRelPos = [centerSquareRelPos[0] + squarePositions[w][0], centerSquareRelPos[1] + squarePositions[w][1]];
-
-				//first test whether they're in the bounding box of the square
-				if (Math.max(Math.abs(solidRelPos[0]), Math.abs(solidRelPos[1])) < this.collisionR + (tu / 2)) {
-					var dist;
-
-					if (Math.abs(solidRelPos[0]) > tu / 2 && Math.abs(solidRelPos[1]) > tu / 2) {
-						//corner collision
-						var cornerPos = [solidRelPos[0] - (tu / 2) * Math.sign(solidRelPos[0]), solidRelPos[1] - (tu / 2) * Math.sign(solidRelPos[1])];
-						dist = Math.hypot(cornerPos[0], cornerPos[1]);
-						if (dist < this.collisionR) {
-							//normalize cornerPos so that it can then be used as a vector to push the player
-							cornerPos[0] = cornerPos[0] / -dist;
-							cornerPos[1] = cornerPos[1] / -dist;
-							dist = this.collisionR - dist;
-							this.x += cornerPos[0] * dist;
-							this.y += cornerPos[1] * dist;
-							collided = true;
-						}
-					} else if (Math.abs(solidRelPos[0]) < Math.abs(solidRelPos[1])) {
-						//vertical collision
-						dist = ((tu / 2) + this.collisionR) * Math.sign(solidRelPos[1]);
-						this.y -= dist - solidRelPos[1];
-						collided = true;
-					} else {
-						//horizontal collision
-						dist = ((tu / 2) + this.collisionR) * Math.sign(solidRelPos[0]);
-						this.x -= dist - solidRelPos[0];
-						collided = true;
-					}
-				}
-			}
-			//if already collided with the edges, don't bother with the corners
-			if (w >= 3 && collided) {
-				w = squarePositions.length + 1;
-			}
-		}
-	}
-
-	canWalkAt(x, y) {
-		return (terrain_surfaces[getWorldData(x, y)] != undefined);
+		var newPos = moveInWorld(this.x, this.y, this.dx, this.dy, this.r, this.layer);
+		[this.x, this.y] = newPos;
 	}
 }
 
@@ -1724,7 +1672,7 @@ class Tile {
 	drawDebugBit() {
 		ctx.fillStyle = color_editorHighlight2;
 		var coords = spaceToScreen(this.x, this.y);
-		ctx.fillRect(coords[0], coords[1], this.w * camera.scale, this.h * camera.scale);
+		ctx.fillRect(coords[0], coords[1], this.w * camera.scale, this.h * camera.scale * vScale);
 	}
 
 	tick() {
@@ -1884,6 +1832,15 @@ class Gate {
 }
 
 
+
+class Portal {
+	constructor(p1, p2, p3, p4) {
+		this.line1 = [p1, p2];
+		this.line2 = [p3, p4];
+	}
+}
+
+
 class Texture {
 	/**
 	 * 
@@ -1977,7 +1934,7 @@ class Texture_Terrain {
 	setupDimensions() {
 		if (this.w == 0) {
 			this.w = this.sheet.width / this.scale;
-			this.h = this.sheet.height / this.scale;
+			this.h = this.sheet.height / vScale / this.scale;
 		}
 	}
 
@@ -1993,11 +1950,12 @@ class Texture_Terrain {
 
 		var screenPsheetP = this.scale / camera.scale;
 
-		//sx, sy, sWidth, and sHeight are all in img pixel units
+		//sx, sy, sWidth, and sHeight represent the Sheet's xywh in img pixel units
 		var sx = (camera.cornerUL[0] - this.x) * this.scale;
 		var sy = (camera.cornerUL[1] - this.y) * this.scale;
 		var sWidth = Math.min(canvas.width * screenPsheetP, Math.floor(this.sheet.width - sx));//(canvas.width / camera.scale) * this.scale;
 		var sHeight = Math.min(canvas.height * screenPsheetP, Math.floor(this.sheet.height - sy));//(canvas.height / camera.scale) * this.scale;
+
 
 		var px = 0;
 		var py = 0;
