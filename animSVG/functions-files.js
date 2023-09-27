@@ -61,8 +61,14 @@ function importImage() {
 
 	//display the image
 	var imgURL = URL.createObjectURL(imgObj);
-	imgObj.url = imgURL;
-	addImageTo(frame_xb, imgObj);
+	var imgNode = φCreate("image", {
+		'href': imgURL,
+		'x': 0,
+		'y': 0,
+		'width': 200,
+		'height': 200
+	});
+	frame_addSpecial(timeline.frameAt(timeline.t, timeline.s), imgNode);
 }
 
 function importFile() {
@@ -103,13 +109,27 @@ function import_parseWorkspaceData(dataText) {
 	console.log(φGet(container.children[0], "bg"));
 	φSet(workspace_background, {"fill": φGet(container.children[0], "bg")});
 
-	
-
-	//at this point every layer will be visible - need to make them all invisible before beginning
+	//at this point every layer will be visible - need to make them all invisible
+	var layer;
 	for (var k=0; k<workspace_permanent.children.length; k++) {
 		for (var j=0; j<workspace_permanent.children[k].children.length; j++) {
-			φSet(workspace_permanent.children[k].children[j], {"display": "none"});
-			// console.log(φGet(workspace_permanent.children[k].children[j], "id"), `invisible`);
+			layer = workspace_permanent.children[k].children[j];
+			//make all the frames invisible as well as gather all the objects
+			φSet(layer, {"display": "none"});
+			Frame(layer);
+
+			//resolve all paths
+			for (var m=0; m<layer.children["lines"].length; m++) {
+				Spline(layer.children["lines"][m]);
+
+			}
+
+			//resolve all fills
+
+			//resolve all specials
+
+
+			updateFrameBlocks(layer);
 		}
 	}
 }
@@ -317,7 +337,7 @@ function downloadData(URI, fileName) {
  */
 function downloadTimelineAsImage(imageHeight, fileName) {
 	//make sure the edge isn't visible
-	φSet(workspace_background, {"stroke": "none"});
+	φSet(workspace_border, {"stroke": "none"});
 
 	var svgFrom = workspace_container;
 
@@ -346,7 +366,7 @@ function downloadTimelineAsImage(imageHeight, fileName) {
 		// document.removeChild(canvas);
 		//let it be visible again
 	};
-	φSet(workspace_background, {"stroke": "#FFFFFF"});
+	φSet(workspace_border, {"stroke": "var(--uilines)"});
 }
 
 /**
@@ -362,7 +382,7 @@ function downloadTimelineAsVideo(videoHeight, fileName) {
 	//don't want previous timeline modifiers to be in the final video
 	timeline.onionActive = false;
 	timeline.changeFrameTo(0);
-	φSet(workspace_background, {"stroke": "none"});
+	φSet(workspace_border, {"stroke": "none"});
 	
 	//canvas
 	var svgFrom = workspace_container;
@@ -399,7 +419,7 @@ function downloadTimelineAsVideo(videoHeight, fileName) {
 		//undo workspace + timeline changes
 		timeline.changeFrameTo(saveTime);
 		timeline.onionActive = saveOnion;
-		φSet(workspace_background, {"stroke": "#FFFFFF"});
+		φSet(workspace_border, {"stroke": "var(--uilines)"});
 
 		//yoink from ffmpeg docs
 		// const {createFFmpeg, fetchFile} = FFmpeg;

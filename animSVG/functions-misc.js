@@ -1,6 +1,9 @@
 /*
 for weird functions that aren't any of the other things but that I can't be justified in creating a collection name for
 
+assignRID(node)
+markTempPoint(x, y)
+randomizeColorsFor(frame)
 
 */
 
@@ -10,16 +13,16 @@ function assignRID(node) {
 	}
 }
 
-function addImageTo(layer, image) {
-	console.log(image.width, image.height);
-	var imgNode = φCreate("image", {
-		'href': image.url,
-		'x': 0,
-		'y': 0,
-		'width': 200,
-		'height': 200
-	});
-	layer.children["lines"].appendChild(imgNode);
+
+function markTempPoint(x, y, color) {
+	workspace_toolTemp.appendChild(φCreate("circle", {
+		'cx': x,
+		'cy': y,
+		'r': 0.1,
+		'fill': "#F0F",
+		'stroke': color ?? "#0FF",
+		'stroke-width': 0.075
+	}));
 }
 
 

@@ -3,7 +3,7 @@
 August-23-2021 -->
 <html>
     <head>
-        <title>Animation Program thing</title>
+        <title>Animacy v0.2</title>
         <meta charset="utf-8">
         <link rel='icon' href='favicon.png' type='image/png'/>
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,6 +30,8 @@ August-23-2021 -->
                 --colorLayerFilled: #AAAAAA;
                 --colorLayerMask: #95A0AD;
                 --colorLayerMasked: #B8B89F;
+                --colorOnionPast: #FF6666;
+                --colorOnionFuture: #6666FF;
 
                 --colorUIDark: #363636;
                 --colorUIMid: #555559;
@@ -93,6 +95,15 @@ August-23-2021 -->
                 display: table-cell;
                 text-align: center;
                 margin: auto;
+            }
+
+            #sidebar_color {
+                width: 100px;
+            }
+
+            #sidebar_colorControls {
+                font: 15px Ubuntu;
+                color: #FFFFFF;
             }
 
             body {
@@ -295,13 +306,14 @@ August-23-2021 -->
                     <rect x="80" y="0" width="10" height="110" fill="#888888"/>
                     <rect x="90" y="0" width="10" height="110" fill="#000000"/>
 
-                    <rect id="picker_rectMain" x="0" y="0" width="100" height="100" fill="url('#gradientLR')" onmousedown="setDownType('pickerAB');"/>
-                    <rect x="0" y="0" width="100" height="100" fill="url('#gradientUD')" style="mix-blend-mode: screen" onmousedown="setDownType('pickerAB');"/>
-                    <rect id="picker_rectC" x="0" y="100" width="100" height="5" fill="url('#gradientC')" onmousedown="setDownType('pickerC');"/>
-                    <rect id="picker_rectD" x="0" y="105" width="100" height="5" fill="url('#gradientD')" onmousedown="setDownType('pickerD');"/>
-                    <circle id="picker_selectorAB" cx="100" cy="100" r="4" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerAB');"/>
-                    <rect id="picker_selectorC" x="-2" y="100" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerC');"/>
-                    <rect id="picker_selectorD" x="98" y="105" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerD');"/>
+                    <!--For some reason I can't pass an event into setDownType here. Is it because I'm using a use tag? I'm not sure.-->
+                    <rect id="picker_rectMain" x="0" y="0" width="100" height="100" fill="url('#gradientLR')" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
+                    <rect id="picker_rectMain2" x="0" y="0" width="100" height="100" fill="url('#gradientUD')" style="mix-blend-mode: screen" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
+                    <rect id="picker_rectC" x="0" y="100" width="100" height="5" fill="url('#gradientC')" onmousedown="setDownType('pickerC')" ignoredown="true"/>
+                    <rect id="picker_rectD" x="0" y="105" width="100" height="5" fill="url('#gradientD')" onmousedown="setDownType('pickerD')" ignoredown="true"/>
+                    <circle id="picker_selectorAB" cx="100" cy="100" r="4" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
+                    <rect id="picker_selectorC" x="-2" y="100" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerC')" ignoredown="true"/>
+                    <rect id="picker_selectorD" x="98" y="105" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerD')" ignoredown="true"/>
                   </svg>
 
                   <!--Onion skin filters-->
@@ -330,12 +342,13 @@ August-23-2021 -->
 
             <!--The main workspace (where the lines go)-->
             <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1" viewBox="0 0 1000 600">
-                <rect id="workspace_background" width="1000" height="600" stroke="var(--uilines)" stroke-width="var(--pxUnits2)"/>
+                <rect id="workspace_background" width="1000" height="600"/>
 
                 <!--where the permanent drawings go-->
                 <g id="workspace_permanent"></g>
                 <!--where temporary overlays created by tools go-->
                 <g id="workspace_toolTemp"></g>
+                <rect id="workspace_border" width="1000" height="600" fill="none" stroke="var(--uilines)" stroke-width="var(--pxUnits2)"/>
             </svg>
             <text id="workspace_zoomText" class="textTimelineLength" paint-order="stroke" stroke-width="2" stroke="#000000" text-anchor="end" x="1000" y="15">100% scale</text>
 
@@ -344,9 +357,31 @@ August-23-2021 -->
 
 
             <!--The sidebar - colors, symbol options, tweening, etc -->
-            <svg id="sidebar_container" width="300" overflow="visible">
+            <svg id="sidebar_container" width="300">
                 <rect id="sidebar_background" fill="var(--colorUIDark)" stroke="none" height="600" width="300"/>
                 <use id="sidebar_colorPicker" width="250" height="275" ignoredown="true" href="#MASTER_picker"/>
+
+                <!-- text color picker -->
+                <foreignObject id="sidebar_colorControls" x="250" y="10" width="100" height="600">
+                    <!-- dropdown -->
+                    <select id="sidebar_colorType" onchange="updatePickerType()">
+                        <option value="rgb">RGBA</option>
+                        <option value="hsv">HSVA</option>
+                        <option value="sw-u">swatch (uniform)</option>
+                        <option value="sw-p">swatch (paint)</option>
+                    </select>
+                    <br>
+                    <!-- numerical adjusters -->
+                    <table cellpadding="0" cellspacing="0">
+                        <tr><td><label for="pickerNumR">R:</label></td><td><input type="number" id="pickerNumR" min="0" max="255"></td></tr>
+                        <tr><td><label for="pickerNumG">G:</label></td><td><input type="number" id="pickerNumG" min="0" max="255"></td></tr>
+                        <tr><td><label for="pickerNumB">B:</label></td><td><input type="number" id="pickerNumB" min="0" max="255"></td></tr>
+                        <tr><td><label for="pickerNumA">A:</label></td><td><input type="number" step="0.01" id="pickerNumA" min="0.00" max="1.00"></td></tr>
+                        <tr><td><label for="pickerNumH">H:</label></td><td><input type="number" id="pickerNumH" min="0" max="359"></td></tr>
+                        <tr><td><label for="pickerNumS">S:</label></td><td><input type="number" id="pickerNumS" min="0" max="100"></td></tr>
+                        <tr><td><label for="pickerNumV">V:</label></td><td><input type="number" id="pickerNumV" min="0" max="100"></td></tr>
+                    </table>
+                </foreignObject>
                 
                 <!-- color UI -->
                 <svg id="sidebar_activeColors" y="100" overflow="visible">
@@ -414,9 +449,19 @@ August-23-2021 -->
                         <path class="toolLine" d="M 20 10 10 20 M 17.5 12.5 30 30 12.5 17.5 
                         M 18 12 A 6 6 0 1 0 12 18"/>
                     </svg>
+                    <svg class="toolIcon" id="tool_text" x="5" y="365" overflow="visible" onclick="changeToolTo('Text');">
+                        <title>Text Tool (T)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <line class="toolLine" x1="15" x2="15" y1="10" y2="25"/>
+                        <line class="toolLine" x1="10" x2="20" y1="10" y2="10"/>
+
+                        <line class="toolLine" x1="27.5" x2="27.5" y1="7.5" y2="27.5"/>
+                        <line class="toolLine" x1="25" x2="30" y1="7.5" y2="7.5"/>
+                        <line class="toolLine" x1="25" x2="30" y1="27.5" y2="27.5"/>
+                    </svg>
                 </svg>
 
-                <rect id="sidebar_edge_detector" stroke="transparent" fill="var(--uilines)" x="295" y="0" width="10" height="600" cursor="ew-resize"/>
+                <rect id="sidebar_edge_detector" stroke="transparent" fill="var(--uilines)" x="295" y="0" width="10" height="600" cursor="ew-resize" onmousedown="setDownType('sideEdge', event)"/>
             </svg>
 
 
@@ -424,9 +469,13 @@ August-23-2021 -->
 
 
             <!--The lower bar; The Timeline. -->
-            <svg id="timeline_container" y="400" hinv="200" overflow="visible">
+            <!--
+                In firefox, making overflow=visible on an svg element appears to make its bounding box always equal the bounding box of the parent svg element.
+                I'd like this svg to have overflow visible, but it's not worth the shenanigans it causes
+            -->
+            <svg id="timeline_container" y="400" hinv="200">
                 <rect id="timeline_background" fill="var(--colorUIDark)" y="0" width="1000" height="400"/>
-                <rect id="timeline_edge_detector" stroke="transparent" fill="var(--uilines)" x="0" y="-5" width="1000" height="10" cursor="ns-resize"/>
+                <rect id="timeline_edge_detector" stroke="transparent" fill="var(--uilines)" x="0" y="-5" width="1000" height="10" cursor="ns-resize" onmousedown="setDownType('timeEdge', event)"/>
 
                 <!--buttons and the like -->
                 <text id="timeline_fps" class="textTimeline" x="10" y="20" noselect="true" text-anchor="start" text-decoration="underline" onclick="user_changeFPS()">fps: 24</text>
@@ -455,13 +504,15 @@ August-23-2021 -->
                             <g id="timeline_labels">
                             </g>
                             <svg id="timeline_onionhead" overflow="visible" stroke-width="2" display="none">
-                                <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="#F66"/>
-                                <rect id="onionRight" width="0" height="11" y="2" x="10" fill="none" stroke="#66F"/>
+                                <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="var(--colorOnionPast)"/>
+                                <line id="onionLeftExtender" y1="2" y2="13" stroke="var(--colorOnionPast)" stroke-width="4" stroke-linecap="round" cursor="ew-resize" onmousedown="setDownType('onionPullLeft', event)"/>
+                                <rect id="onionRight" width="0" height="11" y="2" x="10" fill="none" stroke="var(--colorOnionFuture)"/>
+                                <line id="onionRightExtender" y1="2" y2="13" stroke="var(--colorOnionFuture)" stroke-width="4" stroke-linecap="round" cursor="ew-resize" onmousedown="setDownType('onionPullRight', event)"/>
                             </svg>
                             <rect id="timeline_playbody" width="10" height="15" fill="var(--colorPlayhead)" stroke="var(--colorPlayhead)"/>
                             <rect id="timeline_playhead" width="10" fill="transparent" y="15" stroke="var(--colorPlayhead)" frame="0"/>
                             <rect id="timeline_selector" y="15" width="10" height="20" stroke-width="2" stroke="var(--colorSelect)" fill="none"/>
-                            <rect id="timeline_extender" x="1" y="15" stroke="#FFFFFF" fill="transparent" x="-3" width="6" height="10" cursor="ew-resize"/>
+                            <rect id="timeline_extender" x="1" y="15" stroke="#FFFFFF" fill="transparent" x="-3" width="6" height="10" cursor="ew-resize" onmousedown="setDownType('timeExtend', event)"/>
                         </svg>
                     </svg>
                     <svg id="timeline_text_container" overflow="visible">

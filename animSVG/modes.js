@@ -211,7 +211,8 @@ class ToolPolygon extends ToolDragRadial {
 		var pts = this.points(x, y, r, theta);
 		var lines = [];
 		for (var z=0; z<pts.length; z++) {
-			lines.push([pts[z], pts[(z+1) % pts.length]]);
+			//I'm using the spread operator to dereference the original points
+			lines.push([[...pts[z]], [...pts[(z+1) % pts.length]]]);
 		}
 		return lines;
 	}
@@ -372,7 +373,7 @@ class ToolPencil {
 		var coords = cursorWorkspacePos();
 
 		//make sure the coords aren't the same as the last ones
-		if (this.bufferPoints.length > 0 && arrsAreSame(this.bufferPoints[this.bufferPoints.length-1], coords)) {
+		if (this.bufferPoints.length > 0 && d2_distSquared(this.bufferPoints[this.bufferPoints.length-1], coords) < 0.001) {
 			return;
 		}
 
@@ -404,13 +405,8 @@ class ToolPencil {
 	//takes a set of points and puts them into the buffer, without having to use the mouse
 	autoBuffer(points) {
 		points.forEach(p => {
-			this.bufferPoints.push(p);
-			workspace_toolTemp.appendChild(φCreate('circle', {
-				'cx': p[0],
-				'cy': p[1],
-				'r': data_persistent.brushSize / 2,
-				'fill': "#FFFFFF22"
-			}));
+			moveCursorTo(p[0], p[1]);
+			this.appendPoint();
 			this.checkRecentIntersect();
 		});
 	}
@@ -1299,10 +1295,16 @@ class ToolFill extends ToolEyedrop {
 	constructor() {
 		super();
 		this.detail = 0;
+		this.tinyScale = 0.1;
 		this.scaleBounds = [1, 1];
 		this.onlySeeSelected = true;
 		this.sizeLimit = 3200;
 		this.forceFillCoordinates = undefined;
+	}
+
+	createCanvas() {
+		//actually create two canvases - one small, for fast filling, and one large, for accurate filling
+		super.createCanvas();
 	}
 
 	redDot(canX, canY) {
@@ -1321,7 +1323,7 @@ class ToolFill extends ToolEyedrop {
 	}
 
 	//floodfills the canvas starting at certain canvas coordinates
-	floodFill(canX, canY, maxEdge, banDir) {
+	floodFill(canX, canY, maxEdge) {
 		var q = [[canX, canY]];
 		var edge = [];
 		var nowDat;
@@ -1404,4 +1406,52 @@ class ToolFill extends ToolEyedrop {
 	}
 
 	mouseMove(a) {}
+}
+
+class ToolText {
+	constructor() {
+		this.startHTML = `<text x="0" y="0">
+			<tspan dx="0" dy="1.2em">How doth the little crocodile</tspan>
+			<tspan dx="0" dy="1.2em">Improve his shining tail,</tspan>
+			<tspan dx="0" dy="1.2em">And pour the waters of the Nile</tspan>
+			<tspan dx="0" dy="1.2em">On every golden scale!</tspan>
+		</text>`;
+		this.typebox = document.createElement("input");
+		this.selected;
+		this.first = true;
+	}
+
+	createTextbox() {
+		var outer = φCreate("g");
+		var cPos = cursorWorkspacePos();
+		outer.innerHTML = this.startHTML;
+		var inner = outer.children[0];
+		var box = inner.getBBox();
+		var x = quantizeNum(cPos[0] - box.width / 2);
+		φSet(inner, {
+			'x': x,
+			'y': quantizeNum(cPos[1] - box.height / 2),
+			'fill': color_fill
+		});
+		frame_addSpecial(timeline.frameAt(timeline.t, timeline.s), inner);
+	}
+
+	mouseDown(a) {
+		if (this.first) {
+			this.createTextbox();
+			// this.first = false;
+		}
+
+		//if not overtop 
+	}
+
+	mouseMove(a) {
+
+	}
+
+	mouseUp(a) {
+
+	}
+
+
 }

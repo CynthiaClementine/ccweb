@@ -4,6 +4,7 @@ This exists because often the inputs themselves need to be processed (a click co
 
 
 INDEX
+changeOnionWingLength(wingIndex)
 moveWorkspace(deltaX, deltaY)
 moveTimeline(deltaX, deltaY)
 
@@ -77,6 +78,7 @@ function selectColor(colorNode) {
 	φSet(color_selectedNode, {"stroke": "var(--uilines)"});
 	φSet(colorNode, {"stroke": "var(--colorSelect)"});
 	color_selectedNode = colorNode;
+	color_objLast = undefined;
 	var newColor = φGet(colorNode, "fill").split(" ");
 	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
 }
@@ -107,6 +109,50 @@ function toggleOnionSkin() {
 
 	timeline.makeVisible();
 	return timeline.onionActive;
+}
+
+//changes the type of the color picker to match the dropdown
+function updatePickerType() {
+	var type = sidebar_colorType.value;
+	var currentColor = φGet(color_selectedNode, "fill");
+	currentColor = cBreakdownRGBA(currentColor);
+	switch (type) {
+		case "rgb":
+			φSet(picker_rectMain2, {'style': 'mix-blend-mode: screen'});
+			φSet(gradientLR.children[0], {'stop-color': `rgba(0, 0, ${currentColor.b}, ${currentColor.a})`});
+			φSet(gradientLR.children[1], {'stop-color': `rgba(0, 255, ${currentColor.b}, ${currentColor.a})`});
+			φSet(gradientUD.children[0], {'stop-color': `rgba(0, 0, ${currentColor.b}, ${currentColor.a})`});
+			φSet(gradientUD.children[1], {'stop-color': `rgba(255, 0, ${currentColor.b}, ${currentColor.a})`});
+			gradientC.innerHTML = `<stop offset="0" stop-color="rgba(0, 0, 0, ${currentColor.a})"></stop><stop offset="100%" stop-color="rgba(0, 0, 255, ${currentColor.a})"></stop>`;
+
+			setColorPickerRGBA(currentColor.r, currentColor.g, currentColor.b, currentColor.a);
+			break;
+		case "hsv":
+			var hsvColor = RGBtoHSV(currentColor);
+			hsvColor.s *= 100;
+			hsvColor.v *= 100;
+			φSet(picker_rectMain2, {'style': 'mix-blend-mode: multiply'});
+			φSet(gradientLR.children[0], {'stop-color': `rgba(255, 255, 255, ${currentColor.a})`});
+			φSet(gradientLR.children[1], {'stop-color': `hsla(${hsvColor.h}, 100%, 50%, ${currentColor.a})`});
+			φSet(gradientUD.children[0], {'stop-color': `rgba(255, 255, 255, ${currentColor.a})`});
+			φSet(gradientUD.children[1], {'stop-color': `rgba(0, 0, 0, ${currentColor.a})`});
+
+			//the C gradient has a bit of an issue - a gradient will only interpolate linearly between colors, which means the hue gradient will behave incorrectly. 
+			//To fix this, the hue circle is approximated with 10 stops (a decagon is pretty close to a circle, right?).
+			var stops = 10;
+			var stopHTML = ``;
+			for (var v=0; v<=stops; v++) {
+				stopHTML += `<stop offset="${v * 100 / stops}%" stop-color="hsla(${(v / stops) * 360}, 100%, 50%, ${currentColor.a})"></stop>`;
+			}
+			gradientC.innerHTML = stopHTML;
+
+			setColorPickerHSVA(hsvColor.h, hsvColor.s, hsvColor.v, currentColor.a);
+			break;
+		case "sw-u":
+			break;
+		case "sw-p":
+			break;
+	}
 }
 
 //sets the length of the animation (in frames) to a specified value
@@ -238,7 +284,8 @@ function changeToolTo(toolName) {
 		"Move": [ToolMove, tool_move],
 		"Transform": [ToolTransform, tool_transform],
 		"Fill": [ToolFill, tool_fill],
-		"Eyedrop": [ToolEyedrop, tool_eyedrop]
+		"Eyedrop": [ToolEyedrop, tool_eyedrop],
+		"Text": [ToolText, tool_text]
 	}
 
 	workspace_toolTemp.innerHTML = "";

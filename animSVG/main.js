@@ -26,6 +26,7 @@ var color_selectedNode = activeColor_stroke;
 var color_stroke = φGet(activeColor_stroke, "fill");
 var color_fill = φGet(activeColor_fill, "fill");
 var color_stage = φGet(activeColor_stage, "fill");
+var color_objLast = undefined;
 
 var base;
 
@@ -156,7 +157,7 @@ function setup() {
 	addLayer("Layer 1");
 	resizeTimeline(undefined, 100);
 
-	// testTimeline();
+	testTimeline();
 	handleResize();
 	// debug_active = true;
 }
@@ -164,7 +165,7 @@ function setup() {
 function testTimeline() {
 	var testSuite = {
 		layerAdd: true,
-		wat: true,
+		wat: false,
 		intersects: false,
 		fills: false,
 		keyframes: true,
@@ -331,10 +332,10 @@ function testTimeline() {
 		makeUnKeyframe(2, 5);
 		makeKeyframe(2, 5);
 		setColorRGBA(255, 0, 0, 1);
-		create([[159.64,140.41],[133.3,147.72],
-			[118.57,157.85],
-			[112.94,200],[210.28,200],
-			[156.27,146.03],[133.2,147.72],[121.94,152.22]]);
+		// create([[159.64,140.41],[133.3,147.72],
+		// 	[118.57,157.85],
+		// 	[112.94,200],[210.28,200],
+		// 	[156.27,146.03],[133.2,147.72],[121.94,152.22]]);
 		// fill(148, 172);
 		
 
@@ -345,8 +346,11 @@ function testTimeline() {
 		create([[550,195.5],[490,195.5],
 			[340,250.5],[576,267.5],
 			[513,195.5],[450,180]]);
+
+		// create([[490,195.5],[340,250.5],[576,267.5]]);
+			create([[373.11,195.04],[374.3,195.04],[375.49,195.04],[381.46,199.81],[391,209.36],[406.51,223.67],[422.02,234.41],[436.33,246.34],[456.61,260.65],[468.54,266.62],[479.27,270.19],[488.82,272.58],[495.98,274.97],[501.94,277.35]]);
 		randomizeColorsFor(frame_xh);
-		// fill(107.40709045516041, 337.87215492598284);
+		// fill(485, 240);
 	}
 }
 
@@ -421,8 +425,9 @@ function handleMouseDown(a) {
 	cursor.x = a.clientX;
 	cursor.y = a.clientY;
 	
-	//if the ignoreDown tag is set, pretend the event didn't occur
+	//if the ignoreDown tag is set, ignore it
 	if (φGet(a.target, 'ignoredown')) {
+		console.log(`ignoring`);
 		return;
 	}
 
@@ -430,21 +435,12 @@ function handleMouseDown(a) {
 	//use element to decide the type of being down
 	cursor.downType = undefined;
 	if (!φOver(base)) {
+		console.log(`not over base`);
 		console.log('returning');
 		return;
 	}
 
-	//I don't use an 'over' detection for this because it causes issues with some areas having the cursor change but the mouse technically being "over" the workspace instead
-	//this method makes sure that the user can resize the timeline when they think they can
-	if (a.target.id == "timeline_edge_detector") {
-		cursor.downType = "timeEdge";
-		return;
-	}
-
-	if (a.target.id == "timeline_extender") {
-		cursor.downType = "timeExtend";
-		return;
-	}
+	console.log(`c`);
 
 	if (φOver(timeline_blocks_container)) {
 		var cPos = cursorTimelinePos();
@@ -474,14 +470,9 @@ function handleMouseDown(a) {
 		cursor.downType = "timeBlockzone";
 		return;
 	}
+
 	if (φOver(timeline_container)) {
 		cursor.downType = "time";
-		return;
-	}
-
-	//sidebar detection
-	if (a.target.id == "sidebar_edge_detector") {
-		cursor.downType = "sideEdge";
 		return;
 	}
 
@@ -489,9 +480,8 @@ function handleMouseDown(a) {
 		return;
 	}
 
-	
-
 	cursor.downType = "work";
+	console.log(`tooling`);
 	toolCurrent.mouseDown(a);
 }
 
@@ -538,6 +528,12 @@ function handleMouseMove(a) {
 					changeAnimationLength(clamp(timeline.len + extraFrames, 1, 1e1001));
 				}
 				break;
+			case "onionPullLeft":
+				changeOnionWingLength(0);
+				break;
+			case "onionPullRight":
+				changeOnionWingLength(1);
+				break;
 			case "timePlayhead":
 				updatePlayheadPosition();
 				break;
@@ -561,20 +557,34 @@ function handleMouseMove(a) {
 				cx = clamp(cx, 0, 1);
 				cy = clamp(cy * (11 / 10), 0, 1);
 				
-				setColorRGBA(Math.floor(cy * 255), Math.floor(cx * 255), "", "");
+				if (sidebar_colorType.value == "hsv") {
+					setColorHSVA("", Math.floor(cx * 100), Math.floor((1 - cy) * 100), "");
+				} else {
+					setColorRGBA(Math.floor(cy * 255), Math.floor(cx * 255), "", "");
+				}
 				break;
 			case "pickerC":
 				var box = sidebar_colorPicker.getBoundingClientRect();
 				var cx = (cursor.x - box.x) / box.width;
 				cx = clamp(cx, 0, 1);
-				setColorRGBA("", "", cx * 255, "");
+				
+				if (sidebar_colorType.value == "hsv") {
+					//doing 359.999 to avoid modulus issues
+					setColorHSVA(cx * 359.999, "", "", "");
+				} else {
+					setColorRGBA("", "", cx * 255, "");
+				}
 				break;
 			case "pickerD":
 				var box = sidebar_colorPicker.getBoundingClientRect();
 				var cx = (cursor.x - box.x) / box.width;
 				cx = clamp(cx, 0, 1);
 
-				setColorRGBA("", "", "", cx);
+				if (sidebar_colorType.value == "hsv") {
+					setColorHSVA("", "", "", cx);
+				} else {
+					setColorRGBA("", "", "", cx);
+				}
 				break;
 			default:
 				console.log(`unknown down type: ${cursor.downType}`);
@@ -583,9 +593,18 @@ function handleMouseMove(a) {
 }
 
 //for calling from the document, where variables can't be accessed
-function setDownType(val) {
-	console.log(val);
+function setDownType(val, a) {
+	cursor.down = true;
 	cursor.downType = val;
+	if (a == undefined) {
+		return;
+	}
+	a.preventDefault();
+	//more browser nonsense
+	a.cancelBubble = true;
+	if (a.stopPropagation) {
+		a.stopPropagation();
+	}
 }
 
 function handleMouseUp(a) {
@@ -646,6 +665,7 @@ function handleResize(a) {
 	var timeDims = timeline_background.getBoundingClientRect();
 	var sideDims = sidebar_background.getBoundingClientRect();
 	
+	console.log(spaceW, sideDims.width);
 	resizeWorkspace(spaceW, spaceH);
 	resizeTimeline(spaceW, Math.min(spaceH, timeDims.height));
 	resizeSidebar(Math.min(sideDims.width, spaceW), spaceH - Math.min(spaceH, timeDims.height));
@@ -679,7 +699,7 @@ function handleWheel(a) {
 
 function resizeSidebar(w, h) {
 	var minPickerWidth = 250;
-	var maxPickerWidth = 340;
+	var maxPickerWidth = 350;
 	var toolWidth = 50;
 
 	if (w == undefined || h == undefined) {
@@ -687,15 +707,16 @@ function resizeSidebar(w, h) {
 		w = w ?? oldDims[0];
 		h = h ?? oldDims[1];
 	}
-	w = +w;
-	h = +h;
+	w = Math.round(+w);
+	h = Math.round(+h);
 	
 	w = Math.max(w, toolWidth + minPickerWidth);
 
 	//if the panel is wide enough, put color properties to the side. If it's too small, they'll go below instead
 	var sideProps = false;
 	var pickerWidth = w - toolWidth;
-	if (pickerWidth > maxPickerWidth) {
+	if (pickerWidth >= maxPickerWidth) {
+		w = maxPickerWidth + toolWidth;
 		pickerWidth = minPickerWidth;
 		sideProps = true;
 	}
@@ -706,6 +727,7 @@ function resizeSidebar(w, h) {
 		'width': w,
 		'height': h
 	});
+	φSet(sidebar_container, {'width': w});
 	φSet(toolbar_container, {
 		'x': w - toolWidth,
 		'height': h
@@ -727,6 +749,22 @@ function resizeSidebar(w, h) {
 		'width': pickerWidth,
 		'y': sideProps ? (pickerHeight + 20) : Math.max((h - squareSize - 20), (pickerHeight + 20))
 	});
+
+	if (sideProps) {
+		φSet(sidebar_colorControls, {
+			'x': 250,
+			'y': 10,
+			'width': 100,
+			'height': 300
+		});
+	} else {
+		φSet(sidebar_colorControls, {
+			'x': 10,
+			'y': pickerHeight + 5,
+			'width': 100,
+			'height': 400
+		});
+	}
 }
 
 //resizes timeline to the specified width and height

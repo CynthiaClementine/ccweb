@@ -6,7 +6,6 @@ functions that can accomplish the same tasks as user input, but with the benefit
 INDEX
 changeBrushSize(newSize)
 getSelectedFrame();
-toggleOnionSkin()
 toggleTimelinePlayback()
 fill(workspaceX, workspaceY)
 makeKeyframe(layerIndex, frame, frameNode)
@@ -29,22 +28,6 @@ function getSelectedFrame() {
 	var id = timeline.layerIDs[timeline.s];
 	var layer = timeline.l[id][timeline.t];
 	return layer;
-}
-/**
- * Toggles the onion skin on or off, and then returns whether the onion skin is newly active
- * @returns the new onion skin state
- */
-function toggleOnionSkin() {
-	var state = !timeline.onionActive;
-	timeline.onionActive = state;
-
-	if (state) {
-		φSet(timeline_onionhead, {"display": "inline-block"});
-	} else {
-		φSet(timeline_onionhead, {"display": "none"});
-	}
-	
-	return timeline.onionActive;
 }
 
 /**
@@ -345,21 +328,33 @@ function setColorRGBA(r, g, b, a) {
 	var gChange = g.constructor.name == "Number";
 	var bChange = b.constructor.name == "Number";
 	var aChange = a.constructor.name == "Number";
-	var prevSplit = cRef.split(" ");
+	if (color_objLast == undefined || color_objLast.r == undefined) {
+		color_objLast = cBreakdownRGBA(cRef);
+	}
 
-	if (rChange || gChange || bChange || aChange) {
-		if (!rChange) {
-			r = +prevSplit[0].slice(5, -1);
-		}
-		if (!gChange) {
-			g = +prevSplit[1].slice(0, -1);
-		}
-		if (!bChange) {
-			b = +prevSplit[2].slice(0, -1);
-		}
-		if (!aChange) {
-			a = +prevSplit[3].slice(0, -1);
-		}
+	//don't bother if none of them are changing
+	if (!(rChange || gChange || bChange || aChange)) {
+		return;
+	}
+	if (rChange) {
+		color_objLast.r = r;
+	} else {
+		r = color_objLast.r;
+	}
+	if (gChange) {
+		color_objLast.g = g;
+	} else {
+		g = color_objLast.g;
+	}
+	if (bChange) {
+		color_objLast.b = b;
+	} else {
+		b = color_objLast.b;
+	}
+	if (aChange) {
+		color_objLast.a = a;
+	} else {
+		a = color_objLast.a;
 	}
 
 	//set the color
@@ -379,12 +374,66 @@ function setColorRGBA(r, g, b, a) {
 			break;
 		
 	}
-	if (color_selectedNode == activeColor_stage) {
-		
-	}
 
 	//set the color picker
 	setColorPickerRGBA(r, g, b, a);
+}
+
+function setColorHSVA(h, s, v, a) {
+	if (color_objLast == undefined || color_objLast.h == undefined) {
+		color_objLast = RGBtoHSV(cBreakdownRGBA(φGet(color_selectedNode, "fill")));
+		//adjust for range issues
+		color_objLast.s *= 100;
+		color_objLast.v *= 100;
+	}
+	
+	var hChange = h.constructor.name == "Number";
+	var sChange = s.constructor.name == "Number";
+	var vChange = v.constructor.name == "Number";
+	var aChange = a.constructor.name == "Number";
+	if (!(hChange || sChange || vChange || aChange)) {
+		return;
+	}
+	if (hChange) {
+		color_objLast.h = h;
+	} else {
+		h = color_objLast.h;
+	}
+	if (sChange) {
+		color_objLast.s = s;
+	} else {
+		s = color_objLast.s;
+	}
+	if (vChange) {
+		color_objLast.v = v;
+	} else {
+		v = color_objLast.v;
+	}
+	if (aChange) {
+		color_objLast.a = a;
+	} else {
+		a = color_objLast.a;
+	}
+
+	console.log(h, s, v, a);
+
+	var newRGB = HSVtoRGB({h: h, s: s, v: v / 100, a: a});
+	var newColorStr = `rgba(${newRGB.r}, ${newRGB.g}, ${newRGB.b}, ${newRGB.a})`;
+	φSet(color_selectedNode, {"fill": newColorStr});
+	switch (color_selectedNode) {
+		case activeColor_stroke:
+			color_stroke = newColorStr;
+			break;
+		case activeColor_fill:
+			color_fill = newColorStr;
+			break;
+		case activeColor_stage:
+			color_stage = newColorStr;
+			φSet(workspace_background, {"fill": newColorStr});
+			break;
+	}
+
+	setColorPickerHSVA(h, s, v, a);
 }
 
 function setColorPickerRGBA(r, g, b, a) {
@@ -406,7 +455,6 @@ function setColorPickerRGBA(r, g, b, a) {
 	});
 
 	//gradients
-	//mix-blend-mode must be screen
 	φSet(gradientLR.children[0], {'stop-color': `rgba(0, 0, ${b}, ${a})`});
 	φSet(gradientLR.children[1], {'stop-color': `rgba(0, 255, ${b}, ${a})`});
 	φSet(gradientUD.children[0], {'stop-color': `rgba(0, 0, ${b}, ${a})`});
@@ -415,17 +463,25 @@ function setColorPickerRGBA(r, g, b, a) {
 	φSet(gradientC.children[1], {'stop-color': `rgba(0, 0, 255, ${a})`});
 }
 
-function setColorHSVA(h, s, v, a) {
-	
-}
-
 function setColorPickerHSVA(h, s, v, a) {
+	var wh = φGet(MASTER_picker, ['width', 'height']);
 
+	//saturation and value control circle pos
+	φSet(picker_selectorAB, {
+		'cx': s / 100 * wh[0],
+		'cy': (100 - v) / 100 * wh[1] * (10 / 11),
+	});
+
+	//hue
+	φSet(picker_selectorC, {
+		'x': (h / 360 * wh[0]) - 2
+	});
 
 	//alpha
 	φSet(picker_selectorD, {
 		'x': clamp((a * wh[0]) - 2, -2, wh[0] - 2),
 	});
 
-	//mix-blend-mode must be multiply
+	//gradients
+	φSet(gradientLR.children[1], {'stop-color': `hsla(${h}, 100%, 50%, ${a})`});
 }

@@ -43,6 +43,11 @@ see if you can draw, move points around
 
 
 
+use indexedDB? Has lower limit of 250mb
+
+
+
+
 
 
 

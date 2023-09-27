@@ -33,6 +33,9 @@ class Timeline {
 			return false;
 		}
 
+		//changing to the same frame doesn't stop the change from running, but it isn't a frame change 
+		var refreshing = (frame == this.t);
+
 		//move the playhead
 		φSet(timeline_playhead, {'x': frame * (timeline_blockW + 1)});
 		φSet(timeline_playbody, {'x': frame * (timeline_blockW + 1)});
@@ -44,7 +47,7 @@ class Timeline {
 
 		this.makeVisible();
 		//alert the tool
-		if (toolCurrent.timeChange) {
+		if (!refreshing && toolCurrent.timeChange) {
 			toolCurrent.timeChange();
 		}
 	}
@@ -177,19 +180,27 @@ function redrawLoops(loopsArr) {
 	//points -> curves -> splines -> loops -> loopsArr
 	var path = ``;
 	var lastPoint = [];
+	var first = true;
 	//need to pass in each individual spline
 	loopsArr.forEach(l => {
+		first = true;
 		l.forEach(s => {
 			var pathPart = redrawPath(s);
-			/*this is a little trick - for some reason, the fill path stops working if you lineTo a point and then moveTo that same point.
-			this detects when the points are the same, and replaces the `M x y` portion with a single comma. Since commas aren't used anywhere else in my path drawing, 
-			they can be used as an alternate way to detect when splines start */
+			/*There are a few issues with simply tracing out all the cubics and expecting the fill rule to sort things out.
+			1. the fill path stops working if you lineTo a point and then moveTo that same point. 
+			2. the fill path contains a hole that results in missing polygons if you moveTo a disconnected location, even if it's part of the same cubic
+			3. doing constant lineTos will result in weird lines appearing where there shouldn't be, at the start of disconnected shapes
+			4. there must be a consistent indicator for the start of splines, so the splines can be reconstructed on export/import
 
-			if (arrsAreSame(s[0][0], lastPoint)) {
-				for (var y=0; y<3; y++) {
-					pathPart = pathPart.slice(pathPart.indexOf(" ") + 1);
-				}
-				pathPart = `, ${pathPart}`;
+			To solve this, a single comma is placed at the start of each spline (except for the first one). 
+			Since commas aren't used anywhere else in my path drawing, they can be used as an alternate way to detect when splines start.
+			Any new spline that's close enough to the old one uses a lineTo, but far splines use moveTo.
+			 */
+			
+			if (first) {
+				first = false;
+			} else {
+				pathPart = `, L${pathPart.slice(1)}`;
 			}
 			path += ` ${pathPart}`;
 			lastPoint = s[s.length-1];
@@ -236,12 +247,21 @@ function Spline(pathObj, curves) {
 	//if curves aren't defined then figure them out from the path object itself
 	if (curves == undefined) {
 		curves = curveStrToArr(φGet(pathObj, "d"));
+		console.log(curves);
 	}
 
 	//element functions
 	//unfortunately can't use "this" because javascript, I suppose I'll live with it
-	var self = pathObj;
 	pathObj.getPointFromT = (t) => {
+		if (t == undefined) {
+			return [];
+		}
+		if (t <= 0) {
+			return pathObj.start;
+		}
+		if (t >= pathObj.curves.length) {
+			return pathObj.end;
+		}
 		var bRef = pathObj.curves[Math.floor(t)];
 		switch (bRef.length) {
 			case 2:
@@ -260,21 +280,19 @@ function Spline(pathObj, curves) {
 		if (verbose) {console.log(`finding t for ${x},${y}`);}
 		var curveSplits = [4, 3];
 		//say acceptable distance is a little over path distance, to forgive timing mistakes
-		var acceptableDist = φGet(pathObj, "stroke-width") * 0.75;
-		acceptableDist = acceptableDist * acceptableDist;
+		var acceptDist = φGet(pathObj, "stroke-width") * 0.55;
+		acceptDist = acceptDist * acceptDist;
 		
 		var tGuess, pGuess, lines, cRef, lastSign;
 
-		//start by checking all start points (the integer t case is easier)
-		for (var c=0; c<pathObj.curves.length; c++) {
-			if (distSquared(pathObj.curves[c][0][0] - x, pathObj.curves[c][0][1] - y) < acceptableDist) {
-				return c;
-			}
+		//check start and end points
+
+		if (distSquared(pathObj.curves[0][0][0] - x, pathObj.curves[0][0][1] - y) < acceptDist) {
+			return 0;
 		}
 
-		//check end point
 		cRef = pathObj.curves[pathObj.curves.length-1];
-		if (distSquared(cRef[cRef.length-1][0] - x, cRef[cRef.length-1][1] - y) < acceptableDist) {
+		if (distSquared(cRef[cRef.length-1][0] - x, cRef[cRef.length-1][1] - y) < acceptDist) {
 			return pathObj.curves.length;
 		}
 
@@ -295,7 +313,7 @@ function Spline(pathObj, curves) {
 					if (tGuess > 0 && tGuess < 1) {
 						if (verbose) {console.log(`valid`);}
 						pGuess = linterpMulti(cRef[0], cRef[1], tGuess);
-						if (distSquared(pGuess[0] - x, pGuess[1] - y) < acceptableDist) {
+						if (distSquared(pGuess[0] - x, pGuess[1] - y) < acceptDist) {
 							return c + tGuess;
 						}
 					}
@@ -331,13 +349,13 @@ function Spline(pathObj, curves) {
 						if (tGuess < 0) {
 							if (lastSign == 1) {
 								//if between the start of this line and the end of last line check the corner
-								if (distSquared(pts[b][0] - x, pts[b][1] - y) < acceptableDist) {
+								if (distSquared(pts[b][0] - x, pts[b][1] - y) < acceptDist) {
 									return (c + ((b + tGuess) / curveSplits[1]));
 								}
 							}
 						} else if (tGuess < 1) {
 							//in the middle, check for connection
-							if (pathObj.TXYMatches(c + ((b + tGuess) / curveSplits[1]), x, y, acceptableDist)) {
+							if (pathObj.TXYMatches(c + ((b + tGuess) / curveSplits[1]), x, y, acceptDist)) {
 								return (c + ((b + tGuess) / curveSplits[1]));
 							}
 						}
@@ -348,6 +366,12 @@ function Spline(pathObj, curves) {
 			}
 		}
 
+		//check all integer points (the integer t case is easier)
+		for (var c=0; c<pathObj.curves.length; c++) {
+			if (distSquared(pathObj.curves[c][0][0] - x, pathObj.curves[c][0][1] - y) < acceptDist) {
+				return c;
+			}
+		}
 
 		return -1;
 	}
@@ -431,6 +455,7 @@ function Spline(pathObj, curves) {
 		}
 
 		//if t isn't an integer have to cut the curve that it goes through
+		// console.log(t);
 		var cut = pathObj.curves[Math.floor(t)];
 		switch (cut.length) {
 			case 2:
@@ -476,7 +501,7 @@ function Frame(svgObj) {
 	}
 
 	svgObj.loadFromCopy = (copyObj) => {
-		
+
 	}
 
 	svgObj.highlightFilledBins = () => {
@@ -553,7 +578,7 @@ function Frame(svgObj) {
 	}
 
 	svgObj.binModifyLine = (spline, line, removing) => {
-
+		//bresenham's
 	}
 
 	svgObj.binModify = (spline, removing) => {
@@ -566,6 +591,11 @@ function Frame(svgObj) {
 		//the width is the diameter, not the radius
 		var width = φGet(spline, "stroke-width") / 2;
 		curves.forEach(c => {
+			//lines are likely to be large, but they're also easy to deal with, so they get their own collision
+			if (c.length == 2) {
+				svgObj.binModifyLine(spline, c, removing);
+				// return;
+			}
 			var bbox;
 			switch(c.length) {
 				case 2:
@@ -631,15 +661,23 @@ function Frame(svgObj) {
 		});
 	}
 
+	svgObj.binModifyAll = (removing) => {
+		//if we're removing everything then the cubic bins can just be replaced
+		if (removing) {
+			svgObj.cubicBins = [[[]]];
+			return;
+		}
+
+		//start with splines
+		// for (var a=0; a<svgObj.lines.children.length; a++) {
+
+		// }
+		//then do fills
+	}
+
 	//cubic bins
 	var wh = φGet(workspace_background, ['width', 'height']);
-	svgObj.cubicBins = [];
-	for (var y=0; y<Math.ceil(wh[1]/cubicBinSize); y++) {
-		svgObj.cubicBins.push([]);
-		for (var x=0; x<Math.ceil(wh[0]/cubicBinSize); x++) {
-			svgObj.cubicBins[y].push([]);
-		}
-	}
+	svgObj.cubicBins = [[[]]];
 	//place all splines into the cubic bins
 
 

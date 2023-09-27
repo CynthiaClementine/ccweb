@@ -159,3 +159,7 @@ function quantize(point, quanta) {
 	point[0] = Math.round(point[0] / quanta) * quanta;
 	point[1] = Math.round(point[1] / quanta) * quanta;
 }
+
+function quantizeNum(number) {
+	return Math.round(number / quantizeAmount) * quantizeAmount;
+}

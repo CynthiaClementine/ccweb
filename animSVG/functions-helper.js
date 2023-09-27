@@ -565,14 +565,7 @@ function frame_addPath(layerNode, spline) {
 			if (debugIntersects) {console.log(`intersections are ${JSON.stringify(intersections)}`);}
 			if (true) {
 				intersections.forEach(g => {
-					workspace_toolTemp.appendChild(φCreate("circle", {
-						'cx': g[0],
-						'cy': g[1],
-						'r': 0.1,
-						'fill': "#F0F",
-						'stroke': "#0FF",
-						'stroke-width': 0.075
-					}));
+					markTempPoint(g[0], g[1]);
 				});
 			}
 
@@ -580,13 +573,20 @@ function frame_addPath(layerNode, spline) {
 			layerNode.binModify(p, true);
 			layerNode.lines.removeChild(p);
 			var pTimes = pointsToOrderedT(p, intersections);
-			if (debugIntersects) {console.log(p.start, p.end, intersections, pTimes);}
+			if (debugIntersects) {
+				console.log(p.start, p.end, intersections, pTimes);
+				intersections.forEach(g => {
+					markTempPoint(g[0], g[1]);
+				});
+			}
+
 			//merge identical times
 			//this whole "not less than" is done to account for undefineds. Checking for "greater than" returns false when comparing against undefineds, even though it should be allowed
 			pTimes = pTimes.filter((num, ind) => !(Math.abs(pTimes[ind] - pTimes[ind+1]) < 0.001));
 			if (debugIntersects) {console.log(pTimes);}
 			var pBits = multiSlice(p, pTimes);
 			if (debugIntersects) {console.log(`pbits`, pBits);}
+			if (debugIntersects) {console.log(`pintos`, inserting[n], intersections);}
 			var nTimes = pointsToOrderedT(inserting[n], intersections);
 			// console.log(JSON.stringify(nTimes));
 			var nBits = multiSlice(inserting[n], nTimes);
@@ -612,6 +612,15 @@ function frame_addPath(layerNode, spline) {
 	return spline;
 }
 
+/**
+ * Adds a special object to a frame
+ * @param {Frame} layerNode the frame to add to
+ * @param {*} specialObj the object to add
+ */
+function frame_addSpecial(layerNode, specialObj) {
+	layerNode.children["objs"].appendChild(specialObj);
+}
+
 function pointsToOrderedT(spline, points) {
 	var tVals = points.map(p => spline.getTFromPoint(p[0], p[1]));
 	return tVals.sort((a, b) => a - b);
@@ -632,6 +641,16 @@ function multiSlice(spline, sliceTimes) {
 	if (sliceTimes.length == 0) {
 		if (debugMulti) {console.log(`no intersections left`);}
 		return [spline];
+	}
+
+	if (debugMulti) {
+		spline.curves.forEach(c => {
+			markTempPoint(c[0][0], c[0][1], "#0F0");
+		});
+		sliceTimes.forEach(t => {
+			var p = spline.getPointFromT(t);
+			markTempPoint(p[0], p[1], "#FFF");
+		});
 	}
 
 	var cut = [];
@@ -836,7 +855,6 @@ function bezIntersections(curve, testCurves) {
  * @returns the new frame
  */
 function frame_create(frameID, layerID) {
-	console.log(`creating ${frameID}`);
 	var temp = φCreate('svg');
 	temp.innerHTML =
 	`<g id="frame_${frameID}" uid="${frameID}" display="none">
@@ -990,9 +1008,17 @@ function setOnionWingLengths() {
 		'width': wPast,
 		'x': -wPast + 0.1,
 	});
+	φSet(onionLeftExtender, {
+		'x1': -wPast + 0.1,
+		'x2': -wPast + 0.1
+	});
 	φSet(onionRight, {
 		'width': wFuture,
 		'x': timeline_blockW,
+	});
+	φSet(onionRightExtender, {
+		'x1': timeline_blockW + wFuture,
+		'x2': timeline_blockW + wFuture
 	});
 }
 
@@ -1115,9 +1141,9 @@ function zoom(x, y, newZoom) {
 	workspace_zoomText.innerHTML = `${Math.round(newZoom * 100)}% scale`;
 
 	//set new px -> units transfer
-	document.documentElement.style.setProperty("--pxUnits", (1 / newZoom) + "px");
-	document.documentElement.style.setProperty("--pxUnits2", (2 / newZoom) + "px");
-	document.documentElement.style.setProperty("--pxUnits4", (4 / newZoom) + "px");
+	λSet("--pxUnits", (1 / newZoom));
+	λSet("--pxUnits2", (2 / newZoom));
+	λSet("--pxUnits4", (4 / newZoom));
 
 	workB = workspace_container.getBoundingClientRect();
 	var [contX, contY] = φGet(workspace_container, ['x', 'y']);
@@ -1145,4 +1171,12 @@ function renameLayer(layerID) {
 	if (newName2 != newName) {
 		alert(`Your layer name contained one or more illegal characters. These have been removed from the new name.`);
 	}
+}
+
+function λGet(varName) {
+	return getComputedStyle(document.documentElement).getPropertyValue(varName);
+}
+
+function λSet(variable, value) {
+	document.documentElement.style.setProperty(variable, value);
 }
