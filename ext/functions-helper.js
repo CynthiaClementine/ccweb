@@ -20,13 +20,11 @@ function localStorage_read() {
 	//turn the things in the messages section of local storage into a string that can be read into gameFlags
 	var toRead;
 	try {
-		toRead = window.localStorage["monarch_data"];
+		toRead = window.localStorage["ext_data"];
 	} catch(error) {
 		console.log(`ERROR: could not access local storage. Something has gone very seriously wrong.`);
 		if (error.name == "NS_ERROR_FILE_CORRUPTED") {
-			alert(`Hi! Something has gone terribly wrong. But don't panic. 
-Most likely the local browser storage has been corrupted. 
-You can fix it by clearing your browser history, including cookies, cache, and local website data.`);
+			alert("Hi! Something has gone terribly wrong. But don't panic.\nMost likely the local browser storage has been corrupted.\nYou can fix it by clearing your browser history, including cookies, cache, and local website data.");
 		}
 	}
 
@@ -34,6 +32,7 @@ You can fix it by clearing your browser history, including cookies, cache, and l
 		toRead = JSON.parse(toRead);
 	} catch (error) {
 		console.log(`ERROR: could not parse ${toRead}, using default`);
+		prepareWorld();
 		return;
 	}
 
@@ -42,6 +41,7 @@ You can fix it by clearing your browser history, including cookies, cache, and l
 		data_persistent = toRead;
 	} else {
 		console.log("ERROR: invalid type specified in save data, using default");
+		prepareWorld();
 		return;
 	}
 
@@ -58,81 +58,15 @@ function prepareWorld() {
 	player.x = depe.x;
 	player.y = depe.y;
 	player.respawnPoint = [player.x, player.y];
-	player.magicLearned = depe.magic;
-	player.changeWeaponTo(depe.weapon);
-	var chocoCount = depe.chocos[0] + depe.chocos[1] + depe.chocos[2]
-	player.chocolate = chocoCount;
-	setMusic(depe.m);
+	setMusic(depe.music);
 
 	//volumes
 	audio_bgChannel.volume = depe.vols[0];
 	audio_sfxChannel.volume = depe.vols[1];
-
-	//chocolates
-	chocolateConvos[Math.min(depe.chocos[0] + depe.chocos[1], 1)][0] = true;
-	if (depe.chocos[0]) {
-		getEntityFromID('choco1').DELETE = true;
-	}
-	if (depe.chocos[1]) {
-		getEntityFromID('choco2').DELETE = true;
-	}
-	if (depe.chocos[2] > 0) {
-		getEntityFromID('chocolateBin').conversations[depe.chocos[2]][0] = true;
-	}
-
-	//lord and witch shenanigans
-	//lord
-	if (depe.weapon > 0) {
-		lockWitchDoor(1);
-		getEntityFromID('lordStickTop').textureActive.frame = 1;
-		getEntityFromID('lordStickMiddle').textureActive.frame = 1;
-		getEntityFromID('lord').conversations[1][0] = true;
-		if (depe.pastLord) {
-			getEntityFromID('lord').conversations[3][0] = true;
-		}
-	}
-
-	//remove the sword
-	if (depe.weapon > 1) {
-		getEntityFromID("sword").DELETE = true;
-	}
-
-	//witch starting
-	if (depe.magic) {
-		getEntityFromID('spellGiver').conversations[1][0] = true;
-		lockWitchDoor(1);
-		lockLordDoor(1);
-	}
-
-	//boss progression
-	//delete the guards and lower the gate
-	if (depe.boss > 0) {
-		if (depe.magic == 1) {
-			getEntityFromID('guard1').onKill();
-		}
-		getEntityFromID('guard1').DELETE = true;
-		getEntityFromID('guard2').DELETE = true;
-		unlockCastleGate('bridgeLever', 'bridgeGate');
-	}
-	//setup queen for knights fight
-	if (depe.boss == 1.5) {
-		getEntityFromID('knight2').conversations[1][0] = true;
-		getEntityFromID('queen').conversations[1][0] = true;
-		getEntityFromID('queen').x = 1e101;
-	}
-	//delete boss room entities
-	if (depe.boss >= 2) {
-		getEntityFromID('knight1').DELETE = true;
-		getEntityFromID('knight2').DELETE = true;
-		getEntityFromID('knight3').DELETE = true;
-		getEntityFromID('queen').DELETE = true;
-		lockCastleBoss(0);
-	}
 }
 
 
 function localStorage_write() {
-	console.log('writing');
 	var depe = data_persistent;
 	//some variables need to be updated before pushing
 	depe.x = player.x;
@@ -157,51 +91,18 @@ function localStorage_writeEnding(endValue) {
 
 function setMusic(musicStr) {
 	audio_bgChannel.target = data_audio[musicStr];
+	console.log(`set music to ${musicStr}`);
 }
 
-function lockWitchDoor(lock) {
-	setWorldData(44, 102, lock); 
-	setWorldData(44.5, 102, lock);
-}
-
-function lockLordDoor(lock) {
-	setWorldData(30, 18.5, lock);
-	setWorldData(30.5, 18.5, lock);
-	setWorldData(31, 18.5, lock);
-	setWorldData(31.5, 18.5, lock);
-}
-
-function unlockCastleGate(leverID, gateID) {
-	getEntityFromID(leverID).textureActive.frame = 1;
-	getEntityFromID(gateID).changeStateTo(0);
-}
-
-function lockCastleGate(leverID, gateID) {
-	getEntityFromID(leverID).textureActive.frame = 0;
-	getEntityFromID(gateID).changeStateTo(1);
-}
-
-function putWitchOutside() {
-	getEntityFromID("spellGiver").x = 43.5;
-	getEntityFromID("spellGiver").y = 101.5;
-	getEntityFromID("spellGiver").a = -1.57;
-}
-
-function lockCastleBoss(lock) {
-	var arr = [[130.5, 8], [130.5, 8.5], [130.5, 9], [130.5, 9.5],
-				[130.5, 22], [130.5, 22.5], [130.5, 23], [130.5, 23.5]];
-
-	arr.forEach(g => {
-		setWorldData(g[0], g[1], lock);
-	});
-}
-
-
-function drawCircle(x, y, r, color) {
-	ctx.beginPath();
-	ctx.fillStyle = color;
-	ctx.arc(x, y, r, 0, Math.PI * 2);
-	ctx.fill();
+/**
+ * Either sets a gate to be locked or unlocked.
+ * @param {String} leverID The ID of the lever entity corresponding to the gate
+ * @param {String} gateID The ID of the gate entity
+ * @param {Boolean} locked whether the gate should be locked or unlocked
+ */
+function setGateState(leverID, gateID, locked) {
+	getEntityFromID(leverID).textureActive.frame = +(!locked);
+	getEntityFromID(gateID).changeStateTo(+locked);
 }
 
 
@@ -221,14 +122,17 @@ function disableSpaceOrbs() {
 	}
 }
 
+//for collision lines, uses the two points in the line to calculate how entities should be pushed
+function calculatePushVec(p1, p2) {
+	return normalize([p2[1] - p1[1], p1[0] - p2[0]]);
+}
 
-
-function getImage(url, useOffscreenCanvas) {
+function getImage(url, useStoredCanvas) {
 	var image = new Image();
 	image.src = url;
 
 	//if using an offscreen canvas return that instead
-	if (useOffscreenCanvas) {
+	if (useStoredCanvas) {
 		var nowCanvas = document.createElement('canvas');
 		var nowCtx = nowCanvas.getContext('2d');
 		nowCanvas.width = 0;
@@ -268,7 +172,7 @@ function getTextAtTime(text, time) {
 				break;
 			case "\t":
 				//tabs cost many characters and don't appear in the final text (they're just for temporal spacing)
-				time -= tInc * text_tabsCountFor;
+				time -= tInc * text_tabsCount;
 				break;
 			default:
 				finalStr += text[tracker];
@@ -318,19 +222,138 @@ function circleRepel(entity, circleX, circleY, circleR) {
 }
 
 /**
+ * Takes in movement information for a circular entity and returns a new position that the entity should be in. 
+ * In the process, this collides with walls and movement-altering surfaces.
+ * @param {Number} x The x-coordinate of the entity
+ * @param {Number} y The y-coordinate of the entity
+ * @param {Number} dx The entity's x speed
+ * @param {Number} dy The entity's y speed
+ * @param {Number} r The radius of the entity
+ * @param {String} layer The color layer the entity is currently on
+ */
+function moveInWorld(x, y, dx, dy, r, layer) {
+	//give up if dx and dy are too small
+	if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+		return [x, y];
+	}
+
+
+	var colP1 = [x, y];
+	var colP2 = [x + dx, y + dy];
+	var dMagni = Math.sqrt(distSquared(dx, dy));
+	var r2 = r * r;
+	//get all the lines that could interact with the player
+	var ls = 0;
+	var l, rot, movePercent;
+	var pastLines = [];
+	//repeat until movement isn't necessary (or out of iterations)
+	while (distSquared(colP1[0] - colP2[0], colP1[1] - colP2[1]) > 0.0001 && ls < 10) {
+		l = moveInWorld_getLine(colP1, colP2, r, layer);
+
+		//if there are no lines to collide with, just move (:
+		if (l == undefined) {
+			return colP2;
+		}
+
+		//if the line has already been collided with, this is probably in a situation where collision simply is not resolvable
+		if (pastLines.includes(l)) {
+			console.log(`unresolvable!`);
+			return colP1;
+		}
+
+		//if there is a unique line though..
+		//transform to line's POV
+		colP1[0] -= l[0][0];
+		colP1[1] -= l[0][1];
+		colP2[0] -= l[0][0];
+		colP2[1] -= l[0][1];
+
+		rot = -Math.atan2(l[1][1] - l[0][1], l[1][0] - l[0][0]);
+		colP1 = rotate(colP1[0], colP1[1], rot);
+		colP2 = rotate(colP2[0], colP2[1], rot);
+
+		// console.log(`relative movement coords: ${colP1[0].toFixed(5)},${colP1[1].toFixed(5)} -> ${colP2[0].toFixed(5)},${colP2[1].toFixed(5)}`);
+
+		//if off the near edge, try to avoid causing problems by shunting the player away in the x
+		if (colP1[0] < -0.1 && Math.abs(colP2[0] - colP1[0]) < 0.01) {
+			colP2[0] = colP1[0] - 0.01;
+		}
+
+		//if it's close enough to the collision edge, just snap upwards and be fine with it
+		if (colP2[1] < -r * 0.9) {
+			colP2[1] = -r;
+			colP1[0] = colP2[0];
+			colP1[1] = colP2[1];
+		} else {
+			//move until a collision happens
+			movePercent = getPercentage(colP1[1], colP2[1], -r);
+			if (!Number.isFinite(movePercent)) {
+				//if a non-finite movement amount is happening, that must mean the player is moving directly parallel to the line and therefore is fine
+				movePercent = 1;
+				// console.error(`Collision error: non-finite movement resolution with line ${JSON.stringify(l)} for relative movement ${colP1[0].toFixed(5)},${colP1[1].toFixed(5)} -> ${colP2[0].toFixed(5)},${colP2[1].toFixed(5)}`);
+				// return colP2;
+			}
+			// if (movePercent < -0.02 || movePercent > 1) {
+			// 	console.error(`Collision error: Allowed ${movePercent}% with line ${JSON.stringify(l)} for relative movement ${colP1[0].toFixed(5)},${colP1[1].toFixed(5)} -> ${colP2[0].toFixed(5)},${colP2[1].toFixed(5)}`);
+			// 	return colP2;
+			// }
+			// console.log(`allowing ${movePercent * 100}% movement`);
+			colP1 = linterpMulti(colP1, colP2, movePercent);
+			colP2[1] = -r;
+			// console.log(`re-snapped to ${colP1[0].toFixed(5)},${colP1[1].toFixed(5)} -> ${colP2[0].toFixed(5)},${colP2[1].toFixed(5)}`);
+		}
+
+		//transform back to world coordinates
+		rot = -rot;
+		colP1 = rotate(colP1[0], colP1[1], rot);
+		colP2 = rotate(colP2[0], colP2[1], rot);
+
+		colP1[0] += l[0][0];
+		colP1[1] += l[0][1];
+		colP2[0] += l[0][0];
+		colP2[1] += l[0][1];
+
+		ls += 1;
+	}
+	if (ls >= 10) {
+		console.log(`out of movement iterations!`);
+	}
+	return colP1;
+}
+
+function clipboardCopy(str) {
+	navigator.clipboard.writeText(str);
+}
+
+function moveInWorld_getLine(colP1, colP2, r, layer) {
+	var r2 = r * r;
+	var currentLine = undefined;
+	var minDist = 1e1001;
+	var distTest;
+	for (var c of layerInteracts[layer]) {
+		for (var l of data_terrain[c]) {
+			pts = lineLineClosestPoints(colP1, colP2, l[0], l[1]);
+			//if the collision line gets too close, flag the line
+			if (distSquared(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]) < r2) {
+				distTest = distSquared(colP1[0] - pts[1][0], colP1[1] - pts[1][1]);
+				if (distTest < minDist) {
+					minDist = distTest;
+					currentLine = l;
+				}
+			}
+		}
+	}
+	return currentLine
+}
+
+/**
  * gives the ID of the surface at the specified coordinates.
  * For example, getWorldData(3.4, 9.2) could return 1.
  * Returns 0 as a default.
  * @param {Number} x x-coordinate
  * @param {Number} y y-coordinate
  */
-function getWorldData(x, y) {
-	var searchArr;
-	if (x >= 0) {
-		searchArr = (y >= 0) ? world_collision_pp : world_collision_pm;
-	} else {
-		searchArr = (y >= 0) ? world_collision_mp : world_collision_mm;
-	}
+function getLayerData(x, y, layer) {
 
 	//actually find the data
 	y = Math.floor(2 * Math.abs(y));
@@ -341,77 +364,8 @@ function getWorldData(x, y) {
 		return 0;
 	}
 	return searchArr[y][x] ?? 0;
-
 }
 
-function setWorldData(x, y, value) {
-	var searchArr;
-	if (x >= 0) {
-		searchArr = (y >= 0) ? world_collision_pp : world_collision_pm;
-	} else {
-		searchArr = (y >= 0) ? world_collision_mp : world_collision_mm;
-	}
-
-	y = Math.floor(2 * Math.abs(y));
-	x = Math.floor(2 * Math.abs(x));
-
-	if (searchArr[y] == undefined) {
-		searchArr[y] = [];
-	}
-	searchArr[y][x] = value;
-}
-
-
-function importWorld(data) {
-	//split the data by the vertical bars
-	var initialSplit = data.split("|");
-
-	//parse each tag
-	initialSplit.forEach(v => {
-		//first two items declare quadrant, second two declare size, fifth one declares data
-		var tag = v.split("~");
-		if (tag[4] == "") {
-			return;
-		}
-		var results = importQuadrant(+tag[2], +tag[3], tag[4]);
-
-		//this is terrible but I don't know how else I could do it and get around weird reference behavior
-		if (tag[0] == "+") {
-			if (tag[1] == "+") {
-				world_collision_pp = results;
-			} else {
-				world_collision_pm = results;
-			}
-		} else {
-			if (tag[1] == "+") {
-				world_collision_mp = results;
-			} else {
-				world_collision_mm = results;
-			}
-		}
-	});
-}
-
-function importQuadrant(xSize, ySize, data) {
-	//make sure it's unstarrified
-	data = unstarrify(data);
-
-	//construct the array
-	var quad = [];
-	for (var y=ySize; y>=0; y--) {
-		quad[y] = [];
-	}
-
-	//convert the data to nombers
-	var val;
-	for (var c=0; c<data.length; c++) {
-		val = base64_inv[data[c]];
-		quad[Math.floor((2*c) / xSize)][(2*c) % xSize] = Math.floor(val / 8);
-		quad[Math.floor((2*c+1) / xSize)][(2*c+1) % xSize] = val % 8;
-	}
-
-	return quad;
-}
 
 
 //takes an array (number -> value) and converts it into an object (value -> number)
@@ -436,45 +390,6 @@ function isOnScreen(x, y, w, h) {
 	return !(x + w < camera.cornerUL[0] || x > camera.cornerDR[0] || y + h < camera.cornerUL[1] || y > camera.cornerDR[1]);
 }
 
-function exportWorld() {
-	var finalStr = "";
-	finalStr += "+~+~" + exportQuadrant(world_collision_pp) + "|";
-	finalStr += "+~-~" + exportQuadrant(world_collision_pm) + "|";
-	finalStr += "-~+~" + exportQuadrant(world_collision_mp) + "|";
-	finalStr += "-~-~" + exportQuadrant(world_collision_mm);
-	//world_collision_pp
-	return finalStr;
-}
-
-function exportQuadrant(quadrantData) {
-	//calculate dimensions
-	var ySize = quadrantData.length;
-	var xSize = 0;
-	//using a for loop so that I can make sure all the rows have a potential data spot
-	//also go to one row after what's necessary to prevent the counter from going overboard (c, c+1)
-	for (var y=0; y<=ySize; y++) {
-		if (quadrantData[y] == undefined) {
-			quadrantData[y] = [];
-		}
-		xSize = Math.max(xSize, quadrantData[y].length);
-	}
-
-	var savedStr = "";
-
-	//using a counter to wrap around ends of lines
-	var value;
-	var eightsPlace;
-	var onesPlace;
-	for (var c=0; c<xSize*ySize; c+=2) {
-		eightsPlace = quadrantData[Math.floor(c / xSize)][c % xSize];
-		onesPlace = quadrantData[Math.floor((c+1) / xSize)][(c+1) % xSize];
-		value = 8 * (eightsPlace ?? 0) + (onesPlace ?? 0);
-		savedStr += base64[value];
-	}
-
-	return  `${xSize}~${ySize}~${starrify(savedStr)}`;
-}
-
 function exportEditorPolygon() {
 	return JSON.stringify(editor_polyPoints.map((a) => {
 		return [+(a[0].toFixed(1)), +(a[1].toFixed(1))];
@@ -490,8 +405,6 @@ function reset() {
 		window.localStorage["monarch_data"] = JSON.stringify(data_persistent);
 		window.location.reload();
 	}
-
-
 }
 
 function trueReset() {
@@ -507,14 +420,14 @@ function trueReset() {
 function screenToSpace(x, y) {
 	return [
 		(x - (canvas.width / 2)) / camera.scale + camera.x,
-		(y - (canvas.height / 2)) / camera.scale + camera.y,
+		(y - (canvas.height / 2)) / vScale / camera.scale + camera.y,
 	]
 }
 
 function spaceToScreen(x, y) {
 	return [
 		camera.scale * (x - camera.x) + (canvas.width / 2),
-		camera.scale * (y - camera.y) + (canvas.height / 2)
+		camera.scale * vScale * (y - camera.y) + (canvas.height / 2)
 	]
 }
 
