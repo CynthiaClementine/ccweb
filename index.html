@@ -19,6 +19,10 @@
                 font-family: Arial, Helvetica, sans-serif;
             }
 
+            a {
+                font-size: 20px;
+            }
+
             .main {
                 margin-left: 1%;
                 margin-right: 1%;
@@ -43,6 +47,7 @@
                 justify-content: space-between;
             }
 
+            /* bits of styling that happen on a wide screen */
             @media only screen and (min-width: 42em) {
                 .surrounded {
                     padding: 0em 0.5em 0.2em 0.5em;
@@ -59,12 +64,23 @@
                 color: white;
             }
 
+            #doCompact {
+                margin: auto;
+            }
+
             .main a:link {
                 color: #49fcff;
             }
-
             .main a:visited {
                 color: #3a0000;
+            }
+
+            /* why isn't this working? */
+            .fresh a:link {
+                color: #ff9a35 !important;
+            }
+            .fresh a:visited {
+                color: #ff9a35 !important;
             }
 
             .top-link, .up-link {
@@ -80,6 +96,10 @@
                 padding: -1em 0em -1em 0em;
                 margin-left: 1em;
             }
+
+            h3 {
+                /* this empty set has to be here so that h3s can be targeted for restyling */
+            }
         </style>
     </head>
     <body>
@@ -88,6 +108,7 @@
                 Welcome to Clementine!
             </p>
         </div>
+        <input id="doCompact" type="checkbox" onchange="updateCompactness()"><label class="main" for="doCompact">Compact mode</label>
 
         <div id="top-bar" class="surrounded surrounded-top">
             <!-- <button onclick="activateView()">View All</button> -->
@@ -100,47 +121,45 @@
 
         <div id="games-list" class="main surrounded">
             <p>
+                <b>Original Games</b><br>
+                <a class="fresh" href="monarchy/index.html">Monarch</a> - a very short RPG where you overthrow the monarchy with the help of some cool kids.<h3></h3>
+                <a href="circles/index.html">Circle System</a> - advanced bubble popping. I highly recommend playing with sound, as audio cues help you figure out what's going on.<h3></h3>
+                <a href="rotate/index.html">Rotate</a> - explore a slightly mind-bending 3d world full of basic shapes<h3></h3>
+                <a href="seasonalGrid/index.html">Tile World</a> - puzzle solving in a hexagonal tile space. Maybe there's lore? Maybe you're reading too far into it.<h3></h3>
                 <a href="The-ascent.html">The ascent</a> - Mountain climbing with a slight twist<h3></h3>
                 <a href="The-ascent-2/The-ascent-2.html">The ascent 2</a> - Same concept as The Ascent, but with a better map, better movement, crumbling blocks, and jelly squares!<h3></h3>
                 <a href="heaven-ascension/index.html">Heaven's price</a> - a short climbing game I made in 72 hours for ludum dare 49.<h3></h3>
-                <h3></h3>
+                <a href="farm/index.html">Adversarial Farm Game</a> - now you too can experience exponential growth! (Alongside another player.)<h3></h3>
+                <a href="present-finder.html">Present Finder</a> - Find pulsating presents in this wacky 2.5d world<h3></h3>
                 <a href="ball-game/index.html">Ball Game</a> - my first javascript game, made in 2017. It's not very good. The text at the bottom appears to lie as well? But if I were to go back and fix it, I would have to commit to rewriting the entire game from scratch. Now that's an idea...<h3></h3>
                 <a href="package-parsing.html">Package Parsing</a> - My second javascript game. Not particularly balanced, but alright I guess.<h3></h3>
-                <a href="present-finder.html">Present Finder</a> - Find pulsating presents in this wacky 2.5d world<h3></h3>
-                <a href="farm/index.html">Adversarial Farm Game</a> - now you too can experience exponential growth!<h3></h3>
-                <h3></h3>
                 <a href="sun-survivor.html">Sun survivor</a> - pilot a spaceship before the sun explodes! I've been told the tutorial is confusing.<h3></h3>
-                <a href="rotate/index.html">Rotate</a> - explore a slightly mind-bending 3d world full of basic shapes<h3></h3>
-                <a href="seasonalGrid/index.html">Tile World</a> - puzzle solving in a hexagonal tile space. Maybe there's lore? Maybe you're reading too far into it.<h3></h3>
-                <a href="circles/index.html">Circle System</a> - advanced bubble popping. I highly recommend playing with sound, as audio cues help you figure out what's going on.<h3></h3>
-                <a href="monarchy/index.html">Monarch</a> - overthrow the monarchy, with the help of some cool kids.<h3></h3>
             </p>
         </div>
 
         <a class="up-link" href="#top-bar">^</a><br>
         <div id="games-list-offbrand" class="main surrounded">
             <p>
-                <a href="simon-says/index.html">Simon Says</a> - it's simon says. Y'know, from among us.<h3></h3>
-                <a href="minimal-flappy.html">Flutter poultry</a> - it's flappy bird<h3></h3>
-                <a href="tetris/index.html">Tetris</a> - it's tetris<h3></h3>
+                <b>Repository Games</b><br>
+                <a href="run-3-clone/index.html">Javascript-based Run 3 remake</a> - it's run 3, running in vanilla js.<h3></h3>
                 <a href="gtteatine/index.html">Get To The End Although There Is No End</a> - traverse a slowly decaying bridge in a water world<h3></h3>
                 <a href="X-O-games/index.html">XO games</a> - a set of board terminal-input games played with Xs and Os<h3></h3>
-                <h3></h3>
-                <a href="run-3-clone/index.html">Javascript-based Run 3 remake</a> - it's run 3, running in vanilla js.<h3></h3>
+                <a href="simon-says/index.html">Simon Says</a> - it's simon says. Y'know, from among us.<h3></h3>
+                <a href="tetris/index.html">Tetris</a> - it's tetris<h3></h3>
+                <a href="minimal-flappy.html">Flutter poultry</a> - it's flappy bird<h3></h3>
             </p>
         </div>
 
         <a class="up-link" href="#top-bar">^</a><br>
         <div id="interact-list" class="main surrounded">
             <p>
+                <b>Interactables</b><br>
                 <a href="mandelbrot-set.html">Interactive Mandelbrot set</a> - Click to zoom in, use sliders, play around! Watch out for the creeping existential dread you get if you zoom in too far.<h3></h3>
                 <a href="prime-spiral.html">A Plot of Primes in Polar Coordinates</a> - superb subtractively spaced spirals<h3></h3>
                 <a href="solar-eclipse.html">Solar eclipse visualizer</a> - kind of neat I guess<h3></h3>
                 <a href="pascal-triangle.html">Pascal's triangle</a> - (now with neat little coloring schema)<h3></h3>
                 <a href="pain-peko/index.html">Neural Network field coloring</a> - draw points on a field and watch a neural network learn the pattern!<h3></h3>
                 <a href="satellite.html">Simple Satellite Simulation</a> - satellites orbiting a wireframe earth, with some nice graphs to go with<h3></h3>
-                <a href="index-old.html">View the old clementine homepage</a> - if you like simplicity and not-quite AA compliant contrast<h3></h3>
-                <h3></h3>
                 <a href="raymarch/index.html">Ray marching demo</a> - it's ray marching. I can't really get above 5 objects or too much above a 64x48 display, so it doesn't seem like feasable program technology. It's a cool demo though, I think<h3></h3>
                 <a href="plains/index.html">The Desert</a> - 3d world + editor that I abandoned<h3></h3>
                 <a href="circle-hover.html">Circle Cursor Hover</a> - hover over the circles as fast as possible to make the numbers go up. My best SR is 14.95<h3></h3>
@@ -150,15 +169,15 @@
         <a class="up-link" href="#top-bar">^</a><br>
         <div id="display-list" class="main surrounded">
             <p>
+                <b>Displays</b><br>
                 <a href="lovely-linies.html">1d random walk</a> - line goes up and down. Like mountains, or the stock market<h3></h3>
                 <a href="lovely-linies-2d.html">2d random walk</a> - snakes??????<h3></h3>
                 <a href="metaballs.html">Metamorph circles</a> - it's a low-res isosurface!<h3></h3>
                 <a href="particles.html">Particles!</a> - particle life<h3></h3>
                 <a href="cursordance.html">Cursor dance</a> - look at that cursor go. Watch it dance<h3></h3>
-                <a href="noise/axis-noise.html">2-axis noise generation</a><h3></h3>
+                <a href="noise/axis-noise.html">2-axis noise generation</a> - all of these noise generation demos are explained on the pages themselves<h3></h3>
                 <a href="noise/wave-noise.html">Sine wave noise generation</a><h3></h3>
                 <a href="noise/perlin-noise.html">Perlin noise generation</a><h3></h3>
-                <h3></h3>
                 <a href="spinning-shapes.html">spinning 3d wireframes</a> - this was a 2-week class assignment we were supposed to do in C that I did in one day with javascript. I didn't get credit for the assignment but I also wasn't taking the class so it was kind of expected. <h3></h3>
                 <a href="spinning-shapes-4d.html">spinning 4d wireframes</a> - the spiritual successor to 3d wireframes; now with keyboard controls.<h3></h3>
                 <a href="arts-crafters/index.html">Arts and Crafters</a> - I love this little guy<h3></h3>
@@ -169,17 +188,17 @@
         <a class="up-link" href="#top-bar">^</a><br>
         <div id="tools-list" class="main surrounded">
             <p>
+                <b>Tools</b><br>
                 <a href="maze-generator.html">Square Maze Generator</a> - it is just that<h3></h3>
                 <a href="monopoly-board.html">Monopoly probability distribution</a> - have you ever wondered what the most likely square to land on in monopoly is? Me too! That's why I made this page.<h3></h3>
-                <a href="run-3-map-visualizer.html">Run 3 Tunnel visualizer</a> - unwraps and visualizes run 3 tunnel data; I would advise you to just use the editor for <a href="run-3-clone/index.html">run 3</a> (Edit mode -> Properties -> load) as it allows you to visualize the the tunnel in 3d space better.<h3></h3>
+                <a href="run-3-map-visualizer.html">Run 3 Tunnel visualizer</a> - unwraps and visualizes run 3 tunnel data; I would advise you to just use the editor for<a class="main" href="run-3-clone/index.html">run 3 </a>(Edit mode -> Properties -> load) as it allows you to visualize the the tunnel in 3d space better.<h3></h3>
                 <a href="matrix-visualizer.html">Matrix Visualization Helper</a> - a little demo I made for a quick class presentation. It's a bit counterintuitive to use if you don't know all the keybinds.<h3></h3>
                 <a href="kifu-reader.html">Go Kifu helper</a> - if you have a paper kifu and want a quick way to visualize it on a board. A supremely uncommon problem, but one that I decided to solve.<h3></h3>
                 <a href="tab-name.html">Tab name</a> - super simple, allows you to name the tab title<h3></h3>
+                <a href="index-old.html">View the old clementine homepage</a> - if you like simplicity and not-quite AA compliant contrast<h3></h3>
                 <!-- <a href="animSVG/index.html">Animacy</a> - A vector-based animation program on the web you can use. Unfortunately it's currently highly unstable, and missing some features I would like to have.<h3></h3> -->
             </p>
         </div>
-
-        
 
         <!-- 
         <div id="extras-list">
@@ -192,12 +211,29 @@
 
         <!--display storage size-->
         <footer id="localStorage-text">
-            <p id="storageNotifier">Persistent storage used: <span id="storageCalculator">[uncalculated]</span>%</p>
-            <p id="storageExtra"></p>
+            <p id="storageNotifier">Persistent storage used: <span id="storageCalculator">[uncalculated]</span>%<h3 class="main"></h3>
+                <span id="storageExtra"></span>
+            </p>
         </footer>
     </body>
 
     <script type="text/javascript">
+        /*
+        any localstorage should be in a key titled xxxx_data where xxxx is program-specific. Since localstorage is shared site-wide though,
+        it's a good idea to keep track of which prefixes have been used. Here are all of them, I believe
+        
+        animacy
+        ext
+        flappy
+        gtte
+        monarch
+        rotate
+        run3
+        simon
+        tetris
+        tileWorld
+
+        */
         //calculate amount of localstorage remaining
         var size = 0; 
         Object.keys(window.localStorage).forEach(d => {
@@ -224,16 +260,34 @@
 
         document.getElementById("storageCalculator").textContent = percent.toFixed(5);
         document.getElementById("storageExtra").textContent = toWrite;
+        updateCompactness();
 
-
-
-        //allow view toggling of all groups
-        function toggleView(id) {
-            
+        function enableCompact() {
+            for (var r=0; r<document.styleSheets[0].cssRules.length; r++) {
+                if (document.styleSheets[0].cssRules[r].selectorText == ".main") {
+                    document.styleSheets[0].cssRules[r].style["font-size"] = "0px";
+                    document.styleSheets[0].cssRules[3].style["text-align"] = "center"; 
+                    return;
+                }
+            }
         }
 
-        function scrl(id) {
-            document.getElementById(id).scrollIntoView();
+        function disableCompact() {
+            for (var r=0; r<document.styleSheets[0].cssRules.length; r++) {
+                if (document.styleSheets[0].cssRules[r].selectorText == ".main") {
+                    document.styleSheets[0].cssRules[r].style["font-size"] = "20px";
+                    document.styleSheets[0].cssRules[3].style["text-align"] = "left"; 
+                    return;
+                }
+            }
+        }
+
+        function updateCompactness() {
+            if (doCompact.checked) {
+                enableCompact();
+            } else {
+                disableCompact();
+            }
         }
     </script>
 </html>
