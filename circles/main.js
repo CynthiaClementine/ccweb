@@ -75,6 +75,7 @@ var editor_selected = undefined;
 var editor_radius = 10;
 var editor_type = 1;
 
+var fps_half = false;
 
 var game_isFocused = true;
 var game_mode = 0;
@@ -153,11 +154,32 @@ function setup() {
 	setCanvasPreferences();
 	localStorage_read();
 	updateSettings();
+	window.setTimeout(() => {
+		slowGame(2);
+	}, 2000);
+	window.setTimeout(() => {
+		slowGame(5);
+	}, 5000);
 
 	animation = window.requestAnimationFrame(main);
 }
 
+
+function slowGame(pastSeconds) {
+	//if too many frames have passed, slow the game down
+	var eFrames = pastSeconds * 60 * 1.25;
+	if (animation > eFrames) {
+		fps_half = true;
+	}
+}
+
 function main() {
+	//skip half the frames if asked to
+	if (fps_half && animation % 2 == 0) {
+		animation = window.requestAnimationFrame(main);
+		return;
+	}
+
 	//only do the main game loop if the window is focused
 	if (game_isFocused) {
 		switch (game_mode) {
