@@ -278,9 +278,12 @@ function moveInWorld(x, y, dx, dy, r, layer) {
 		if (colP1[0] < -0.1 && Math.abs(colP2[0] - colP1[0]) < 0.01) {
 			colP2[0] = colP1[0] - 0.01;
 		}
-
-		//if it's close enough to the collision edge, just snap upwards and be fine with it
-		if (colP2[1] < -r * 0.9) {
+		
+		if (colP2[1] < -r) {
+			//if somehow all good, proceed
+			colP1[1] = -r * 1.01;
+		} else if (colP2[1] < -r * 0.9) {
+			//if it's close enough to the collision edge, just snap upwards and be fine with it
 			colP2[1] = -r;
 			colP1[0] = colP2[0];
 			colP1[1] = colP2[1];
@@ -394,6 +397,16 @@ function exportEditorPolygon() {
 	return JSON.stringify(editor_polyPoints.map((a) => {
 		return [+(a[0].toFixed(1)), +(a[1].toFixed(1))];
 	}));
+}
+
+/**
+ * 
+ * @param {Integer} min the minimum value returned
+ * @param {Integer} max one greater than the maximum value returned
+ * @returns 
+ */
+function randomInt(min, max) {
+	return Math.floor(randomBounded(min, max));
 }
 
 function reset() {
