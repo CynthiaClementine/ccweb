@@ -1,296 +1,125 @@
+
+
+/*
+Some helpful terms:
+
+animationData - refers to the data for a single animation. You can see the specifications for an animationData in the data_textures array below.
+textureData - data for a group of textures. Keep in mind that each Texture object takes in 1 animationData to run.
+
+A textureData takes the form
+
+{
+	l: {
+		[animation name 1]: Texture,
+		[animation name 2]: Texture,
+	},
+	u: {
+		[animation name 1]: Texture,
+		[animation name 2]: Texture,
+	},
+	r: {
+		[animation name 1]: Texture,
+		[animation name 2]: Texture,
+	},
+	d: {
+		[animation name 1]: Texture,
+		[animation name 2]: Texture,
+	}
+}
+
+where each animation has a left, up, right, and down component.
+*/
+
+
+
 var animSizesDefault = [
 	[1, 1],
 	[0.5, 0.5]
 ];
+var animSizesDS = [
+	[2, 2],
+	[1, 1.5]
+];
+var vScale = 0.8;
+var animGlobalMult = [1, vScale]
 var data_textures = {
 	//ticks per frame
 	tpf: 3,
 	tileSize: 120,
-	Player: {
-		sheet: getImage(`img/spritesPlayer.png`),
-		//an animation comes in the format [ticks per frame, dimensions, center (relative to corner coordinates), frame coordinates]
-		idle: [
-			10,
+	Warrior: {
+		sheet: getImage(`img/spritesWarrior.png`),
+		/**
+		 * Each animation has 4 bits of data, described here:
+		* @param {Number} time_per_frame how long to display each frame before switching to the next. Often written as a fraction of 24, since I draw and time things out in 24fps.
+		* @param {Number[]} dimensions how many units the texture is [w,h]
+		* @param {Number[]} center_coordinates what unit position should be considered the center. When the texture is drawn, these are the coordinates mapped to the draw position.
+		* @param {Integer[][]} frame_coordinates an array of frame coordinates (EX: [[1, 1], [0, 1], [0, 0]])
+		*/
+		idleSide: [
+			4 / 24,
 			...animSizesDefault,
-			[[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], 
-			 [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [1, 0]]
+			[[15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], 
+			[15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [15, 3], [14, 3]]
 		],
-		idleStick: [
-			10,
+		idleFront: [
+			4 / 24,
 			...animSizesDefault,
-			[[2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0],
-			 [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0], [3, 0]]
+			[[15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], 
+			[15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [15, 4], [14, 4]]
 		],
-		idleSword: [
-			10,
+		idleBack: [
+			4 / 24,
 			...animSizesDefault,
-			[[4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], 
-			 [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0], [4, 0],[5, 0]]
-		],
-		attackStick: [
-			3,
-			[2, 1],
-			[0.5, 0.5],
-			[[0, 1], [2, 1], [4, 1], [0, 2], [2, 2], [4, 2], [0, 3], [2, 3], [4, 3], [0, 4], [2, 4], [4, 4]]
-		],
-		attackSword: [
-			2.7,
-			[2, 1],
-			[0.5, 0.5],
-			[[0, 6], [2, 6], [4, 6], [0, 7], [2, 7], [4, 7], [0, 8], [2, 8], [4, 8], [0, 9], [2, 9], [4, 9]]
-		],
-		crown: [
-			8,
-			[2, 1],
-			[0.5, 0.5],
-			[[8,4],[10,4],[12,4],[14,4],
-			[8,5],[10,5],[12,5],[14,5],
-			[8,6],[10,6],[12,6],[12,6],[12,6],[12,6],[12,6],[14,6],
-			[8,7],[10,7],[12,7],[14,7],
-			[8,8],[10,8],[12,8],[14,8],
-			[8,9],[8,9],[8,9],[8,9],[10,9],[12,9],[14,9],
-			[8,10],[10,10]]
-		],
-		// crown: [
-		// 	8,
-		// 	[2, 1],
-		// 	[0.5, 0.5],
-		// 	[]
-		// ]
-	},
-	NPCS: {
-		//misc. NPCs use extra sprites from the player sheet
-		green: [
-			10,
-			...animSizesDefault,
-			[[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],
-			 [8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[8,0],[9,0]]
-		],
-		purple: [
-			10,
-			...animSizesDefault,
-			[[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],
-			 [10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[10,0],[11,0]]
-		],
-		pink: [
-			10,
-			...animSizesDefault,
-			[[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],
-			 [12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[12,0],[13,0]]
-		],
-		orange: [
-			10,
-			...animSizesDefault,
-			[[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],
-			 [14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[14,0],[15,0]]
-		],
-		red: [
-			10,
-			...animSizesDefault,
-			[[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],
-			 [0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[0,11],[1,11]]
-		],
-		yellow: [
-			10,
-			...animSizesDefault,
-			[[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],
-			 [2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[2,11],[3,11]]
-		],
-		witch: [
-			10,
-			...animSizesDefault,
-			[[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],
-			 [14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[14,1],[15,1]]
-		],
-		guard: [
-			30,
-			...animSizesDefault,
-			[[8, 1]]
-		],
-		knight: [
-			30,
-			...animSizesDefault,
-			[[9, 1]]
-		],
-		king: [
-			30,
-			...animSizesDefault,
-			[[10, 1]]
-		],
-		queen: [
-			4,
-			...animSizesDefault,
-			[[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],
-			[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],
-			[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],
-			[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],[11,1],
-			[12, 1], [13, 1], [12, 1]]
-		],
-	},
-	Magic: {
-		sheet: getImage(`img/spritesOrbs.png`),
-		large: [
-			3,
-			...animSizesDefault,
-			[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],
-			[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],
-			[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],
-			[0,3],[1,3],[2,3]]
-		],
-		small: [
-			3,
-			...animSizesDefault,
-			[[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],
-			[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1],
-			[8,2],[9,2],[10,2],[11,2]]
-		],
-		block: [
-			2,
-			...animSizesDefault,
-			[[0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4]]
-		],
-		charge: [
-			2.5,
-			...animSizesDefault,
-			[[0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6], [7, 6],
-			 [0, 7], [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7], [7, 7],
-			 [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [7, 8],
-			 [0, 9], [1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [6, 9], [7, 9]]
-		],
-		hold: [
-			3,
-			...animSizesDefault,
-			[[8, 6], [9, 6], [10, 6], [11, 6], [12, 6], [13, 6], [14, 6], [15, 6],
-			 [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7],
-			 [8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8], [15, 8],
-			 [8, 9], [9, 9], [10, 9], [11, 9], [12, 9], [13, 9], [14, 9], [15, 9]]
-		]
-	},
-	Guard: {
-		sheet: getImage(`img/spritesGuard.png`),
-		attack: [
-			4.5,
-			[2, 1],
-			[0.5, 0.5],
-			[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11]]
-		],
-		attackKnight: [
-			4,
-			[2, 1],
-			[0.5, 0.5],
-			[[4,0],[4,1],[4,2],[4,3],[4,4],[4,5],[4,6],[4,7],[4,8],[4,9],[4,10]]
-		]
-	},
-	Lord: {
-		sheet: getImage(`img/spritesLord.png`),
-		reach: [
-			4,
-			...animSizesDefault,
-			[[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]]
-		],
-		grab: [
-			4,
-			...animSizesDefault,
-			[[0, 1], [1, 1], [2, 1], [3, 1]]
-		],
-		give: [
-			4,
-			...animSizesDefault,
-			[[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]
-		],
-		ready: [
-			4,
-			...animSizesDefault,
-			[[0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [5, 3]]
-		],
-		attack: [
-			3,
-			[2, 1],
-			[0.5, 0.5],
-			[[0,4],[2,4],[4,4],[6,4],[8,4],[10,4],[12,4],[14,4],
-			[0,5],[2,5],[4,5],[6,5],[8,5],[10,5],[12,5],[14,5]]
-		]
-	},
-	Queen: {
-		sheet: getImage(`img/spritesQueen.png`),
-		transform: [
-			6,
-			...animSizesDefault,
-			[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0],[6,0], 
-			[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],
-			[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[9,1],[9,1],[9,1],[9,1],[9,1],[9,1],
-			[11,1],[12,1],[13,1],[14,1],[14,1],[15,1],[15,1],[15,1],[15,1],[15,1],[15,1],[15,1],[15,1],[15,1],[15,1],[15,1]]
-		],
-		idle: [
-			1e1001,
-			...animSizesDefault,
-			[15,1]
-		],
-		curl: [
-			3,
-			...animSizesDefault,
-			[[0,3],[1,3],[2,3],[3,3],[4,3]]
-		],
-		magicUse: [
-			3,
-			...animSizesDefault,
-			[[0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4]]
-		],
-		cowerStart: [
-			3,
-			...animSizesDefault,
-			[[0,5],[1,5],[2,5],[3,5],[4,5],[5,5]]
-		],
-		cowerLoop: [
-			4,
-			...animSizesDefault,
-			[[0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6]]
-		],
-		flyRight: [
-			3,
-			...animSizesDefault,
-			[[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]]
-		],
-		flyLeft: [
-			3,
-			...animSizesDefault,
-			[[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,8]]
-		],
-		fall: [
-			10,
-			...animSizesDefault,
-			[[0,10],[1,10],[2,10],[3,10],[4,10],[5,10],[6,10],[7,10]],
-		],
-		crack: [
-			10,
-			...animSizesDefault,
-			[[9,10],[10,10],[11,10],[12,10],[13,10],[14,10]]
-		]
-	},
-	King: {
-		sheet: getImage(`img/spritesKing.png`),
-		stab: [
-			10,
-			...animSizesDefault,
-			[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],
-			[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1]]
-		],
-		stabCrownless: [
-			1e1001,
-			...animSizesDefault,
-			[[10,1]]
-		],
-		vaporize: [
-			8,
-			...animSizesDefault,
-			[[0,3],[1,3],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3],[9,3],[10,3],[11,3],[12,3],[13,3],[14,3],[15,3]],
-		],
-		vaporizeCrownless: [
-			1e1001,
-			...animSizesDefault,
-			[[0,4]]
+			[[15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], 
+			[15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [15, 5], [14, 5]]
 		],
 
+		walkSide: [
+			2 / 24,
+			...animSizesDefault,
+			[[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0], [10, 0], [11, 0], [12, 0], [13, 0], [14, 0], [15, 0]]
+		],
+		walkFront: [
+			2 / 24,
+			...animSizesDefault,
+			[[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [14, 1], [15, 1]]
+		],
+		walkBack: [
+			2 / 24,
+			...animSizesDefault,
+			[[0, 2], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [12, 2], [13, 2], [14, 2], [15, 2]]
+		]
+	},
+	DreamSkaters: {
+		charge: [
+			1 / 10,
+			...animSizesDS,
+			[[0, 1], [1, 1]]
+		],
+		idle: [
+			2 / 24,
+			...animSizesDS,
+			[[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[1,0],[0,0]]
+		],
+		fly: [
+			2 / 30,
+			...animSizesDS,
+			[[3,1],[4,1],[5,1]],
+		],
+		
+		stretch: [
+			1 / 30,
+			...animSizesDS,
+			[[1,0],[2,0],[3,0],[3,0],[4,0],[5,0]]
+		],
+		sad: [
+			1,
+			...animSizesDS,
+			[[6,0]]
+		]
+
+	},
+	NPCS: {
 	},
 	Roofs: {
 		//the texture data here is different. Since none of the roofs are animated, there's no animation time or center.
@@ -371,7 +200,6 @@ var data_textures = {
 			[21, 19],
 			[10, 10]
 		],
-
 	},
 	TileEntities: {
 		sheet: getImage(`img/tileEntities.png`),
@@ -434,31 +262,183 @@ var data_textures = {
 			[[15,0]]
 		]
 	},
-	Horse: {
-		sheet:  getImage(`img/spritesHorse.png`),
-		idle: [
-			10,
-			[2, 1],
-			[1, 0.5],
-			[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],
-			 [0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],
-			 [0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],
-			 [0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,0]]
-		],
-		tailFlick: [
-			5,
-			[2, 1],
-			[1, 0.5],
-			[[0, 0], [0, 1], [2, 1], [0, 0]]
-		],
-		graze: [
-			10,
-			[2, 1],
-			[1, 0.5],
-			[[0, 2], 
-			 [2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],
-			 [2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2], 
-			 [0, 2]]
-		]
-	}
+
+	//specific entities - dream skater, moths, (clouds)?
 };
+
+
+
+
+
+
+//texture classes - I moved them here to un-clutter the objects.js file
+
+class Texture {
+	/**
+	 * A texture, used to draw animated images quickly.
+	 * @param {Image} spriteSheet the image source of the texture
+	 * @param {Integer} imageSize The number of pixels per texture unit size
+	 * @param {data} textureData Various data about the texture. See the top of textures.js.
+	 * @param {Boolean} loop whether the texture should loop or freeze after finishing.
+	 * @param {Boolean} backwards whether the texture should be drawn horizontally mirrored
+	 */
+	constructor(spriteSheet, imageSize, textureData, loop, backwards) {
+		//split textureData into its component parts
+		var [imageChangeTime, textureSize, centerCoordinates, coordinates] = textureData;
+		this.backwards = backwards ?? false;
+		this.looping = loop;
+		this.dims = textureSize;
+		this.center = centerCoordinates;
+		this.sheet = spriteSheet;
+		this.size = imageSize;
+		this.frames = coordinates;
+		this.frame = 0;
+		this.changeTime = imageChangeTime;
+	}
+
+	/**
+	 * 
+	 * @param {Number} x The x pixel to draw the center of the image at
+	 * @param {Number} y The y pixel to draw the center of the image at
+	 * @param {Number} pxUnitSize How large in pixels one image unit should display
+	 * @param {Number} dt How many milliseconds this drawing spans
+	 */
+	draw(x, y, pxUnitSize, dt) {
+		//change current frame
+		this.frame += dt / this.changeTime;
+		if (this.frame > this.frames.length - 1) {
+			this.frame = this.looping ? (this.frame % this.frames.length) : (this.frames.length - 0.01);
+		}
+
+
+		//need to offset because drawImage draws from the top left corner
+		var xOff = -this.center[0] * pxUnitSize;
+		var yOff = -this.center[1] * pxUnitSize;
+
+		var pw = pxUnitSize * this.dims[0];
+		var ph = vScale * pxUnitSize * this.dims[1];
+
+		//transforming
+		ctx.setTransform(boolToSigned(!this.backwards), 0, 0, 1, x + xOff * boolToSigned(!this.backwards), y + yOff);
+		//debug rect
+		if (editor_active) {
+			ctx.beginPath();
+			ctx.strokeStyle = "#F0F";
+			ctx.lineWidth = canvas.height / 200;
+			ctx.rect(0, 0, pw, ph);
+			ctx.stroke();
+		}
+		try {
+			ctx.drawImage(this.sheet, this.size * this.frames[Math.floor(this.frame)][0], vScale * this.size * this.frames[Math.floor(this.frame)][1], this.size * this.dims[0], vScale * this.size * this.dims[1], 
+						0, 0, pw, ph);
+		} catch (error) {
+			console.log(error, `problem trying to draw frame ${Math.floor(this.frame)}, with frames ${JSON.stringify(this.frames)}`);
+		}
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+	}
+
+	reset() {
+		this.frame = 0;
+	}
+
+	rewindBy(time) {
+		this.frame -= time / this.changeTime;
+		while (this.frame < 0) {
+			this.frame += this.frames.length;
+		}
+	}
+}
+
+class Texture_Roof {
+	/**
+	 * Creates an entity that acts as a roof for a building. Accepts all different shapes of roofs, and becomes transparent when the player walks underneath a specified area.
+	 * @param {Image} sheet the image to use for texture reference
+	 * @param {Number} tileSize pixel size of each world unit
+	 * @param {Number} sheetX the left texture x coordinate, in world units
+	 * @param {Number} sheetY the top texture y coordinate, in world units
+	 * @param {Number} x the world x coordinate to start drawing the roof
+	 * @param {Number} y the world y coordinate to start drawing the roof
+	 * @param {Number} width how wide the roof is, in world units
+	 * @param {Number} height how tall the roof is, in world units.
+	 * @param {Number[][]} collisionPoly The [x, y] points of the polygon that counts as being under the roof. 
+	 * The roof will become transparent if the player is inside this polygon.
+	 */
+	constructor(sheet, tileSize, sheetX, sheetY, x, y, width, height, collisionPoly) {
+		this.sheet = sheet;
+		this.scale = tileSize;
+		this.sx = sheetX;
+		this.sy = sheetY;
+		this.x = x;
+		this.y = y;
+		this.w = width;
+		this.h = height;
+
+		this.collider = collisionPoly;
+		this.colliderXBounds;
+		this.colliderYBounds;
+		this.calculateColliderBounds();
+
+		this.alphaTime = 0;
+		this.alphaTimeMax = 15;
+		this.minOpacity = 0.1;
+		this.maxOpacity = 1;
+	}
+
+	calculateColliderBounds() {
+		this.colliderXBounds = [1e1001, -1e1001];
+		this.colliderYBounds = [1e1001, -1e1001];
+		this.collider.forEach(p => {
+			this.colliderXBounds[0] = Math.min(this.colliderXBounds[0], p[0] - 1);
+			this.colliderXBounds[1] = Math.max(this.colliderXBounds[1], p[0] + 1);
+			this.colliderYBounds[0] = Math.min(this.colliderYBounds[0], p[1] - 1);
+			this.colliderYBounds[1] = Math.max(this.colliderYBounds[1], p[1] + 1);
+		});
+	}
+
+	tick() {
+		//only check collider if the player's nearby
+		if (this.alphaTime > 0) {
+			this.alphaTime -= 1;
+		}
+		if (player.x < this.colliderXBounds[0] || player.x > this.colliderXBounds[1] || player.y < this.colliderYBounds[0] || player.y > this.colliderYBounds[1]) {
+			return;
+		}
+		//increase alphaTime when the player is under
+		//the inPoly algorithm is slightly broken in that having the same y coordinate as a corner will count as two intersections when it should count as one.
+		//To fix this I adjust the y coordinate of the player to something it's very difficult for the player to line up with
+		if (inPoly([player.x + 0.01, player.y + 0.01], this.collider)) {
+			this.alphaTime = clamp(this.alphaTime + 2, 0, this.alphaTimeMax);
+		}
+	}
+
+	draw() {
+		//first check if self should be drawn at all
+		if (!isOnScreen(this.x, this.y, this.w, this.h)) {
+			return;
+		}
+
+
+		//draw self
+		var screenPos = spaceToScreen(this.x, this.y);
+		ctx.globalAlpha = linterp(this.maxOpacity, this.minOpacity, this.alphaTime / this.alphaTimeMax);
+		ctx.drawImage(this.sheet, this.sx * this.scale, this.sy * this.scale, this.w * this.scale, this.h * this.scale, screenPos[0], screenPos[1], this.w * camera.scale, this.h * camera.scale);
+		ctx.globalAlpha = 1;
+
+		//draw collider in editor
+		if (editor_active) {
+			drawCircle(screenPos[0], screenPos[1], 10, "#000");
+
+			if (this.collider.length > 1) {
+				ctx.lineWidth = 2;
+				ctx.strokeStyle = color_editorPolygon;
+				ctx.beginPath();
+				ctx.moveTo(...spaceToScreen(...this.collider[0]));
+				for (var h=1; h<this.collider.length; h++) {
+					ctx.lineTo(...spaceToScreen(...this.collider[h]));
+				}
+				ctx.lineTo(...spaceToScreen(...this.collider[0]));
+				ctx.stroke();
+			}
+		}
+	}
+}
