@@ -4,6 +4,18 @@
 /*
 INDEX
 
+endGame()
+localStorage_read()
+localStorage_write()
+localStorage_writeEnding(endValue)
+prepareWorld()
+enableSpaceOrbs()
+disableSpaceOrbs()
+calculatePushVec(p1, p2)
+getImage(url, useStoredCanvas)
+getTextAtTime(text, time)
+
+getEntityFromID(id)
 
 
 
@@ -52,20 +64,6 @@ function localStorage_read() {
 	console.log("loaded save");
 }
 
-function prepareWorld() {
-	var depe = data_persistent;
-	//x, y, and m are easy, just move the player and set music
-	player.x = depe.x;
-	player.y = depe.y;
-	player.respawnPoint = [player.x, player.y];
-	setMusic(depe.music);
-
-	//volumes
-	audio_bgChannel.volume = depe.vols[0];
-	audio_sfxChannel.volume = depe.vols[1];
-}
-
-
 function localStorage_write() {
 	var depe = data_persistent;
 	//some variables need to be updated before pushing
@@ -89,20 +87,17 @@ function localStorage_writeEnding(endValue) {
 	window.localStorage["monarch_data"] = JSON.stringify(data_persistent);
 }
 
-function setMusic(musicStr) {
-	audio_bgChannel.target = data_audio[musicStr];
-	console.log(`set music to ${musicStr}`);
-}
+function prepareWorld() {
+	var depe = data_persistent;
+	//x, y, and m are easy, just move the player and set music
+	player.x = depe.x;
+	player.y = depe.y;
+	player.respawnPoint = [player.x, player.y];
+	setMusic(depe.music);
 
-/**
- * Either sets a gate to be locked or unlocked.
- * @param {String} leverID The ID of the lever entity corresponding to the gate
- * @param {String} gateID The ID of the gate entity
- * @param {Boolean} locked whether the gate should be locked or unlocked
- */
-function setGateState(leverID, gateID, locked) {
-	getEntityFromID(leverID).textureActive.frame = +(!locked);
-	getEntityFromID(gateID).changeStateTo(+locked);
+	//volumes
+	audio_bgChannel.volume = depe.vols[0];
+	audio_sfxChannel.volume = depe.vols[1];
 }
 
 
@@ -125,6 +120,19 @@ function disableSpaceOrbs() {
 //for collision lines, uses the two points in the line to calculate how entities should be pushed
 function calculatePushVec(p1, p2) {
 	return normalize([p2[1] - p1[1], p1[0] - p2[0]]);
+}
+
+//given an ID, returns the entity that the ID belongs to
+function getEntityFromID(id) {
+	if (id == "player") {
+		return player;
+	}
+
+	for (var h=0; h<entities.length; h++) {
+		if (entities[h].id == id) {
+			return entities[h];
+		}
+	}
 }
 
 function getImage(url, useStoredCanvas) {
@@ -157,9 +165,13 @@ function getImage(url, useStoredCanvas) {
  */
 function getTextAtTime(text, time) {
 	//if it's a control character ignore it
+	if (text[0] == "#") {
+		
+	}
 	if (text[0] == ">") {
 		text = text.slice(1);
 	}
+	
 	//walk through text
 	var finalStr = "";
 	var tInc = 1 / text_charsPerTick;
@@ -184,22 +196,11 @@ function getTextAtTime(text, time) {
 	return finalStr;
 }
 
-//given an ID, returns the entity that the ID belongs to
-function getEntityFromID(id) {
-	if (id == "player") {
-		return player;
-	}
-
-	for (var h=0; h<entities.length; h++) {
-		if (entities[h].id == id) {
-			return entities[h];
-		}
-	}
-}
-
 //moves the player out of a circle
 function circleRepelPlayer(circleX, circleY, circleR) {
-	circleRepel(player, circleX, circleY, circleR);
+	var delta = {x: player.x, y: player.y};
+	circleRepel(delta, circleX, circleY, circleR);
+	moveInWorld(player.x, player.y, delta.x - player.x, delta.y - player.y, player.r, player.layer);
 }
 
 function circleRepel(entity, circleX, circleY, circleR) {
@@ -209,15 +210,57 @@ function circleRepel(entity, circleX, circleY, circleR) {
 	var pDist;
 
 	if (Math.abs(relPX) < circleR && Math.abs(relPY) < circleR) {
-		//try to keep player circleR units away
-		pDist = Math.hypot(relPX, relPY);
+		//try to keep player circleR units away, also avoid /0 errors
+		pDist = 0.001 + Math.hypot(relPX, relPY);
+		// console.log(`2`, pDist);
+		
 		if (pDist < circleR) {
+			// console.log(`3`, pDist);
 			relPX = relPX / pDist * circleR;
 			relPY = relPY / pDist * circleR;
 
 			entity.x = circleX + relPX;
 			entity.y = circleY + relPY;
 		}
+	}
+}
+
+
+function roofNameFromData(dimensionData) {
+	var possibles = editor_listR.str;
+	var name;
+	for (var e=0; e<possibles.length; e++) {
+		if (arrsAreSame(data_textures.Roofs[possibles[e]][0], dimensionData[0]) && 
+			arrsAreSame(data_textures.Roofs[possibles[e]][1], dimensionData[1]) && 
+			arrsAreSame(data_textures.Roofs[possibles[e]][2], dimensionData[2])) {
+			name = possibles[e];
+			e = possibles.length + 1;
+		}
+	}
+	return name;
+}
+
+function ellipticalRepelPlayer(ellipseX, ellipseY, radiusX, radiusY) {
+	//transform player's relative coordinates so that it's like an ellipse
+	var delta = {x: player.x, y: player.y};
+	// console.log(delta);
+	delta.x -= ellipseX;
+	delta.x /= radiusX;
+	delta.y -= ellipseY;
+	delta.y /= radiusY;
+	circleRepel(delta, 0, 0, 1);
+	delta.x = delta.x * radiusX + ellipseX;
+	delta.y = delta.y * radiusY + ellipseY;
+	// console.log(delta, player);
+	[player.x, player.y] = moveInWorld(player.x, player.y, delta.x - player.x, delta.y - player.y, player.r, player.layer);
+}
+
+function importEntity(entityDataLine) {
+	var spl = entityDataLine.split("~");
+
+	switch (spl[0]) {
+		case "DreamSkater":
+			return new DreamSkater(+spl[1], +spl[2], spl[3], spl[4], spl[5]);
 	}
 }
 
@@ -393,12 +436,6 @@ function isOnScreen(x, y, w, h) {
 	return !(x + w < camera.cornerUL[0] || x > camera.cornerDR[0] || y + h < camera.cornerUL[1] || y > camera.cornerDR[1]);
 }
 
-function exportEditorPolygon() {
-	return JSON.stringify(editor_polyPoints.map((a) => {
-		return [+(a[0].toFixed(1)), +(a[1].toFixed(1))];
-	}));
-}
-
 /**
  * 
  * @param {Integer} min the minimum value returned
@@ -407,6 +444,14 @@ function exportEditorPolygon() {
  */
 function randomInt(min, max) {
 	return Math.floor(randomBounded(min, max));
+}
+
+//removes all the undefineds from the end of entity string data
+function rmUndefs(str) {
+	while (str.slice(-10) == "~undefined") {
+		str = str.slice(0, -10);
+	}
+	return str;
 }
 
 function reset() {
@@ -420,12 +465,28 @@ function reset() {
 	}
 }
 
-function trueReset() {
+function resetTrue() {
 	if (confirm(`Are you sure you want to perform a True Reset? This will erase all data.`)) {
 		//expunge all data
 		window.localStorage["monarch_data"] = undefined;
 		window.location.reload();
 	}
+}
+
+function setMusic(musicStr) {
+	audio_bgChannel.target = data_audio[musicStr];
+	console.log(`set music to ${musicStr}`);
+}
+
+/**
+ * Either sets a gate to be locked or unlocked.
+ * @param {String} leverID The ID of the lever entity corresponding to the gate
+ * @param {String} gateID The ID of the gate entity
+ * @param {Boolean} locked whether the gate should be locked or unlocked
+ */
+function setGateState(leverID, gateID, locked) {
+	getEntityFromID(leverID).textureActive.frame = +(!locked);
+	getEntityFromID(gateID).changeStateTo(+locked);
 }
 
 
@@ -453,34 +514,8 @@ function spliceOut(string, charStart, charEnd) {
 	return string.slice(0, charStart) + string.slice(charEnd, string.length);
 }
 
-function unstarrify(toParse) {
-	//loop through all characters of the data
-	for (var u=0;u<toParse.length;u++) {
-		//if the character is a star, look forwards for other stars
-		if (toParse[u] == "*") {
-			var detectorChar = u+1;
-			var starNum = 1;
-
-			//determining number of stars/number of repeats
-			while (toParse[detectorChar] == "*") {
-				detectorChar += 1;
-				starNum += 1;
-			}
-			var repeatTimes = base64.indexOf([toParse[detectorChar]]);
-
-			//removing the stars and indicator number from the original data
-			toParse = spliceOut(toParse, u, detectorChar+1);
-
-			
-
-			//extending the data through the duplication process
-			var charsToRepeat = toParse.substr(u-starNum, starNum);
-			for (var g=0; g<repeatTimes-1; g++) {
-				toParse = spliceIn(toParse, u, charsToRepeat);
-			}
-		}
-	}
-	return toParse;
+function isValidStr(str) {
+	return (str != null && str != "");
 }
 
 function starrify(toParse) {
@@ -537,4 +572,48 @@ function starrify(toParse) {
 		}
 	}
 	return strFinal;
+}
+
+function unstarrify(toParse) {
+	//loop through all characters of the data
+	for (var u=0;u<toParse.length;u++) {
+		//if the character is a star, look forwards for other stars
+		if (toParse[u] == "*") {
+			var detectorChar = u+1;
+			var starNum = 1;
+
+			//determining number of stars/number of repeats
+			while (toParse[detectorChar] == "*") {
+				detectorChar += 1;
+				starNum += 1;
+			}
+			var repeatTimes = base64.indexOf([toParse[detectorChar]]);
+
+			//removing the stars and indicator number from the original data
+			toParse = spliceOut(toParse, u, detectorChar+1);
+
+			
+
+			//extending the data through the duplication process
+			var charsToRepeat = toParse.substr(u-starNum, starNum);
+			for (var g=0; g<repeatTimes-1; g++) {
+				toParse = spliceIn(toParse, u, charsToRepeat);
+			}
+		}
+	}
+	return toParse;
+}
+
+function updateWorldEntities() {
+	//all entities that are close to the camera, and on the same layer as the player. Things on different layers basically don't exist in the world.
+	var maxDistS = 2.5;
+	var maxDistX = maxDistS * camera.targetWidth;
+	var maxDistY = maxDistS * camera.targetWidth * (15 / 16);
+
+	world_entities = [];
+
+	entities.forEach(e => {
+
+	});
+
 }
