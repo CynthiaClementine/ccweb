@@ -31,7 +31,6 @@ where each animation has a left, up, right, and down component.
 */
 
 
-
 var animSizesDefault = [
 	[1, 1],
 	[0.5, 0.5]
@@ -75,22 +74,23 @@ var data_textures = {
 		],
 
 		walkSide: [
-			2 / 24,
+			1 / 30,
 			...animSizesDefault,
 			[[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0], [10, 0], [11, 0], [12, 0], [13, 0], [14, 0], [15, 0]]
 		],
 		walkFront: [
-			2 / 24,
+			1 / 30,
 			...animSizesDefault,
 			[[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [14, 1], [15, 1]]
 		],
 		walkBack: [
-			2 / 24,
+			1 / 30,
 			...animSizesDefault,
 			[[0, 2], [1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [12, 2], [13, 2], [14, 2], [15, 2]]
 		]
 	},
 	DreamSkaters: {
+		sheet: getImage(`img/spritesDS.png`, true),
 		charge: [
 			1 / 10,
 			...animSizesDS,
@@ -108,7 +108,7 @@ var data_textures = {
 		],
 		
 		stretch: [
-			1 / 30,
+			1 / 20,
 			...animSizesDS,
 			[[1,0],[2,0],[3,0],[3,0],[4,0],[5,0]]
 		],
@@ -120,28 +120,162 @@ var data_textures = {
 
 	},
 	NPCS: {
+		sheet: getImage(`img/spritesNPCs.png`),
+		dm1Idle: [
+			1 / 10,
+			...animSizesDefault,
+			[[0,0]]
+		],
+		dm1Talk: [
+			1 / 10,
+			...animSizesDefault,
+			[[0,0],[0,1]]
+		],
+		dm2Idle: [
+			1 / 10,
+			...animSizesDefault,
+			[[1,0]]
+		],
+		dm2Talk: [
+			1 / 10,
+			...animSizesDefault,
+			[[1,0],[1,1]]
+		],
+		dm3Idle: [
+			1 / 10,
+			...animSizesDefault,
+			[[2,0]]
+		],
+		dm3Talk: [
+			1 / 10,
+			...animSizesDefault,
+			[[2,0],[2,1]]
+		],
+
+		triIdleFront: [
+			1 / 24,
+			...animSizesDefault,
+			[[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[3,0],[4,0]]
+		],
+		triIdleBack: [
+			1 / 24,
+			...animSizesDefault,
+			[[3,1]]
+		],
+		triIdleSide: [
+			1 / 24,
+			...animSizesDefault,
+			[[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[3,2],[4,2]]
+		],
+
+		childIdleFront: [
+			1 / 24,
+			...animSizesDefault,
+			[[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[5,0],[6,0]]
+		],
+		childIdleBack: [
+			1 / 24,
+			...animSizesDefault,
+			[[5,1]]
+		],
+		childIdleSide: [
+			1 / 24,
+			...animSizesDefault,
+			[[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[5,2],[6,2]]
+		],
+
+		farmerIdleFront: [
+			1 / 24,
+			...animSizesDefault,
+		]
 	},
 	Roofs: {
-		//the texture data here is different. Since none of the roofs are animated, there's no animation time or center.
-		//Instead it's just [xPos, yPos], [xSize, ySize]
+		//Most of the roofs, with the exception of the waterfall, aren't animated.
+		//Due to this, they use a simplified version that's just [x, y], [width, height], [relativeXCenter, relativeYCenter]
 		sheet: getImage(`img/roofs.png`, true),
+		sheet2: getImage(`img/roofs2.png`, true),
 		tileSize: 60,
-		pHouse: [
+
+		waterfall: [
+			1 / 6,
+			[16, 34],
+			[8, 0],
+			[[0,0], [1,0], [2,0], [3,0], [4,0]],
+		],
+
+		villageHouseS: [
+			[49, 62],
+			[7, 13],
+			[3.5, 12.7]
+		],
+		villageHouseM: [
+			[38, 56],
+			[11, 19],
+			[5.5, 18.7]
+		],
+		villageHouseL: [
+			[25, 56],
+			[13, 19],
+			[9, 17.8]
+		],
+		villageHouseXL: [
+			[25, 33],
+			[21, 22],
+			[12, 17.7]
+		],
+
+		badlandHouse: [
+			[67, 42],
+			[13, 18],
+			[6.5, 18]
+		],
+		badlandShed: [
+			[56, 45],
+			[11, 15],
+			[5.5, 15]
+		],
+
+		badTree1: [
 			[0, 0],
-			[10, 8]
+			[2, 6],
+			[1, 5.5]
 		],
-		lHouse: [
-			[23, 0],
-			[15.9, 16]
+		badTree2: [
+			[2, 0],
+			[2, 6],
+			[1, 5.5],
 		],
-		wHouse: [
-			[0, 8],
-			[14, 14]
+		badTree3: [
+			[4, 0],
+			[4, 10],
+			[1.8, 9.5]
 		],
-		castle: [
-			[39, 0],
-			[]
+		badTree4: [
+			[0, 6],
+			[3, 11],
+			[1.5, 10.5]
 		],
+		badTreeL1: [
+			[8, 0],
+			[9, 14],
+			[4.5, 13.5]
+		],
+		badTreeL2: [
+			[3, 14],
+			[9, 10],
+			[5, 9.5]
+		],
+		badLump: [
+			[3, 10],
+			[5, 3],
+			[2.5, 2.6]
+		],
+
+
+
+
+
+
 
 		birchCanopy1: [
 			[0, 39],
@@ -263,7 +397,7 @@ var data_textures = {
 		]
 	},
 
-	//specific entities - dream skater, moths, (clouds)?
+	//specific entities - moths, (clouds)?
 };
 
 
@@ -304,6 +438,11 @@ class Texture {
 	 * @param {Number} dt How many milliseconds this drawing spans
 	 */
 	draw(x, y, pxUnitSize, dt) {
+		//error checking so the console isn't spammed with the longer error
+		if (dt == undefined) {
+			console.error(`dt is undefined!`);
+			return;
+		}
 		//change current frame
 		this.frame += dt / this.changeTime;
 		if (this.frame > this.frames.length - 1) {
@@ -329,7 +468,7 @@ class Texture {
 			ctx.stroke();
 		}
 		try {
-			ctx.drawImage(this.sheet, this.size * this.frames[Math.floor(this.frame)][0], vScale * this.size * this.frames[Math.floor(this.frame)][1], this.size * this.dims[0], vScale * this.size * this.dims[1], 
+			ctx.drawImage(this.sheet, this.size * this.frames[Math.floor(this.frame)][0] * this.dims[0], vScale * this.size * this.frames[Math.floor(this.frame)][1] * this.dims[1], this.size * this.dims[0], vScale * this.size * this.dims[1], 
 						0, 0, pw, ph);
 		} catch (error) {
 			console.log(error, `problem trying to draw frame ${Math.floor(this.frame)}, with frames ${JSON.stringify(this.frames)}`);
@@ -349,31 +488,32 @@ class Texture {
 	}
 }
 
-class Texture_Roof {
+class Roof {
 	/**
-	 * Creates an entity that acts as a roof for a building. Accepts all different shapes of roofs, and becomes transparent when the player walks underneath a specified area.
-	 * @param {Image} sheet the image to use for texture reference
-	 * @param {Number} tileSize pixel size of each world unit
-	 * @param {Number} sheetX the left texture x coordinate, in world units
-	 * @param {Number} sheetY the top texture y coordinate, in world units
-	 * @param {Number} x the world x coordinate to start drawing the roof
-	 * @param {Number} y the world y coordinate to start drawing the roof
-	 * @param {Number} width how wide the roof is, in world units
-	 * @param {Number} height how tall the roof is, in world units.
-	 * @param {Number[][]} collisionPoly The [x, y] points of the polygon that counts as being under the roof. 
-	 * The roof will become transparent if the player is inside this polygon.
+	 * Creates an entity that acts as a roof/wall for a building. Accepts all different shapes of roofs, and becomes transparent when the player walks underneath a specified area.
+	 * @param {Number} x The origin x coordinate of the roof, in world units
+	 * @param {Number} y The origin y coordinate of the roof, in world units
+	 * @param {Char} layer The world layer the roof should be on
+	 * @param {Integer} sheetID the ID of the sheet to use for textures. [1-2]
+	 * @param {Number[][]|String} dimensionData The texture [x,y],[width,height],[originX, originY] data 
+	 * @param {?Number[][]|undefined} collisionPoly OPTIONAL: the bounding box that will make the roof transluscent
 	 */
-	constructor(sheet, tileSize, sheetX, sheetY, x, y, width, height, collisionPoly) {
-		this.sheet = sheet;
-		this.scale = tileSize;
-		this.sx = sheetX;
-		this.sy = sheetY;
+	constructor(x, y, layer, sheetID, dimensionData, collisionPoly) {
+		this.sheet = (sheetID == 1) ? data_textures.Roofs.sheet : data_textures.Roofs.sheet2;
+		this.sheetID = sheetID;
+		this.scale = data_textures.Roofs.tileSize;
+		this.sx = dimensionData[0][0];
+		this.sy = dimensionData[0][1];
 		this.x = x;
 		this.y = y;
-		this.w = width;
-		this.h = height;
+		this.layer = layer;
+		this.w = dimensionData[1][0];
+		this.h = dimensionData[1][1];
 
-		this.collider = collisionPoly;
+		this.offsetX = -dimensionData[2][0];
+		this.offsetY = -dimensionData[2][1];
+
+		this.collider = collisionPoly ?? [];
 		this.colliderXBounds;
 		this.colliderYBounds;
 		this.calculateColliderBounds();
@@ -413,21 +553,18 @@ class Texture_Roof {
 
 	draw() {
 		//first check if self should be drawn at all
-		if (!isOnScreen(this.x, this.y, this.w, this.h)) {
+		if (!isOnScreen(this.x + this.offsetX, this.y + this.offsetY, this.w, this.h)) {
 			return;
 		}
 
-
 		//draw self
-		var screenPos = spaceToScreen(this.x, this.y);
+		var screenPos = spaceToScreen(this.x + this.offsetX, this.y + this.offsetY);
 		ctx.globalAlpha = linterp(this.maxOpacity, this.minOpacity, this.alphaTime / this.alphaTimeMax);
-		ctx.drawImage(this.sheet, this.sx * this.scale, this.sy * this.scale, this.w * this.scale, this.h * this.scale, screenPos[0], screenPos[1], this.w * camera.scale, this.h * camera.scale);
+		ctx.drawImage(this.sheet, this.sx * this.scale, this.sy * this.scale, this.w * this.scale, this.h * vScale * this.scale, screenPos[0], screenPos[1], this.w * camera.scale, this.h * vScale * camera.scale);
 		ctx.globalAlpha = 1;
 
 		//draw collider in editor
 		if (editor_active) {
-			drawCircle(screenPos[0], screenPos[1], 10, "#000");
-
 			if (this.collider.length > 1) {
 				ctx.lineWidth = 2;
 				ctx.strokeStyle = color_editorPolygon;
@@ -440,5 +577,22 @@ class Texture_Roof {
 				ctx.stroke();
 			}
 		}
+	}
+
+	giveDimensionData() {
+		return [
+			[this.sx, this.sy],
+			[this.w, this.h],
+			[-this.offsetX, -this.offsetY]
+		]
+	}
+
+	giveStringData() {
+		var dimData = this.giveDimensionData();
+
+		//try to find the bit in the textures arr that's equal
+		var name = roofNameFromData(dimData);
+		//x, y, layer, sheetID, dimensionData, collisionPoly
+		return `Roof~${this.x}~${this.y}~${this.layer}~${this.sheetID}~${(name != "") ? `data_textures.Roofs.${name}` : JSON.stringify(dimData)}~${JSON.stringify(this.collider)}`;
 	}
 }
