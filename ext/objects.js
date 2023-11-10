@@ -1,272 +1,109 @@
 
-class AudioChannel {
-	constructor(volume) {
-		this.current = undefined;
-		this.target = undefined;
-		this.playObj = undefined;
-		this.volume = volume;
-		this.time = 0;
-		this.paused = false;
-	}
-
-	pause() {
-
-	}
-
-	play() {
-
-	}
-
-	tick() {
-		this.change();
-
-		if (this.current.music == undefined) {
-			return;
-		}
-
-		var maxTime = (60 / this.current.bpm) * this.current.activeBeats;
-
-		//make sure current sound is being played
-		if (this.playObj.paused && this.current.loop != false) {
-			this.time = 0;
-			this.reset();
-		} else if (this.playObj.currentTime - 0.1 > maxTime + ((this.current.inactiveBeats ?? 0) * (60 / this.current.bpm))) {
-			//this is a separate condition for smooth looping
-			this.time = 0;
-			this.playObj.currentTime -= maxTime;
-		}
-
-		//set volume
-		this.playObj.volume = this.volume * (1 - (this.time / audio_fadeTime));
-	}
-
-	change() {
-		//if the audios are already the same decrease time
-		if (this.target == this.current) {
-			if (this.time > 0) {
-				this.time -= 1;
-			}
-			return;
-		}
-
-
-		//audios are different - run a timer to swap them
-		this.time += 1;
-
-		//if time is up, snap volume up and change audio
-		//alternatively, a change from undefined happens instantly
-		if (this.time > audio_fadeTime || this.current == undefined) {
-			this.time = 0;
-			this.current = this.target;
-			if (this.current == undefined) {
-				this.playObj = undefined;
-			} else {
-				this.playObj = this.current.music;
-				this.reset();
-			}
-			return;
-		}
-	}
-
-	//starts playing the current audio file, from the beginning
-	reset() {
-		if (this.playObj != undefined) {
-			this.playObj.currentTime = 0;
-			this.playObj.play();
-		}
-	}
-}
-
-//an audio container can play many sounds at once, as well as pausing / playing all of them
-class AudioContainer {
-	constructor(volume) {
-		this.volume = volume;
-		this.objs = {};
-	}
-
-	//adds an instance of that sound
-	play(soundStr) {
-		//don't bother if volume is already 0
-		if (this.volume == 0) {
-			return;
-		}
-		//make sure that string bin exists
-		if (this.objs[soundStr] == undefined) {
-			this.objs[soundStr] = [data_audio[soundStr]];
-		}
-
-		//loop through that string bin
-		for (var f=0; f<this.objs[soundStr].length; f++) {
-			//play the first available audio that isn't playing
-			if (this.objs[soundStr][f].paused) {
-				this.objs[soundStr][f].volume = this.volume;
-				this.objs[soundStr][f].play();
-
-				//if it's the last one create a new element
-				if (f == this.objs[soundStr].length - 1) {
-					this.objs[soundStr].push(new Audio(this.objs[soundStr][0].src));
-				}
-				return;
-			}
-		}
-	}
-
-	//gets the first sound with a sound string
-	getSound(soundStr) {
-		for (var d=0; d<this.objs.length; d++) {
-			if (this.objs[d][0] == soundStr) {
-				return this.objs[d][1];
-			}
-		}
-	}
-
-	pauseAll() {
-		// this.objs.forEach()
-	}
-
-	//removes all instances of that sound from self and stops them from playing
-	removeSound(soundStr) {
-		// for (var d=0; d<this.objs.length; d++) {
-		// 	if ()
-		// }
-	}
-
-	tick() {
-
-	}
-}
-
-
-
-
-class Camera {
-	constructor(x, y, scale) {
-		this.x = x;
-		this.y = y;
-		this.scale = scale;
-		this.defaultWidth = 16;
-		this.targetWidth = this.defaultWidth;
-
-		this.nextX;
-		this.nexY;
-		this.nextScale;
-
-		this.cornerUL = [0, 0];
-		this.cornerDR = [0, 0];
-		// this.target = [x, y];
-		this.moveMode = "follow";
-	}
-
-	rescale(newTargetWidth) {
-		newTargetWidth = newTargetWidth ?? this.targetWidth;
-		this.targetWidth = newTargetWidth;
-		this.scale = canvas.width / this.targetWidth;
-	}
-
-	tick() {
-		switch (this.moveMode) {
-			case "follow":
-				this.x = player.x;
-				this.y = player.y;
-				break;
-			case "followX":
-				this.x = player.x;
-				break;
-			case "followY":
-				this.y = player.y;
-				break;
-
-			// case ""
-		}
-	
-		// if (//there's a fight active - case is lcoked) {
-		// 	camera.x = clamp(camera.x, fight_boundsUL[0] + (canvas.width * 0.5 / camera.scale), fight_boundsDR[0] - (canvas.width * 0.5 / camera.scale));
-		// 	camera.y = clamp(camera.y, fight_boundsUL[1] + (canvas.height * 0.5 / camera.scale), fight_boundsDR[1] - (canvas.height * 0.5 / camera.scale));
-		// }
-
-		//if the nexts are defined, adjust to them
-		if (this.nextX != undefined) {
-			this.x = this.nextX;
-			this.nextX = undefined;
-		}
-		if (this.nextY != undefined) {
-			this.y = this.nextY;
-			this.nextY = undefined;
-		}
-		if (this.nextScale != undefined) {
-			this.scale = this.nextScale;
-			this.nextScale = undefined;
-		}
-
-		//calculate corner coordinates
-		this.cornerUL = screenToSpace(0, 0);
-		this.cornerDR = screenToSpace(canvas.width, canvas.height);
-	}
-}
-
-
 
 
 class Orb {
 	/**
-	 * 
+	 * Base orb entity object
 	 * @param {Number} x starting x pos
 	 * @param {Number} y starting y pos
 	 * @param {Number} r radius, in world units
 	 * @param {String} layer the layer of the world this entity exists in. There are three layers - 'r', 'g', and 'b', with 'r' being the lowest and 'b' being the highest.
-	 * @param {Texture} texture the texture object to use for idle animation
+	 * @param {TextureData} textureData the TextureData to give the object. See textures.js
 	 */
-	constructor(x, y, r, layer, texture) {
+	constructor(x, y, r, layer, textureData) {
 		this.homeX = x;
 		this.homeY = y;
-		
+
 		this.x = x;
 		this.y = y;
-		//if not specified, place on the base layer
-		this.a = 0;
+		this._dir = 'd';
 		this.dx = 0;
 		this.dy = 0;
 		this.dMax = 0.09;
 		this.da = 0;
 		
 		this.r = r;
+		//if not specified, place on the base layer
 		this.layer = layer ?? 'r';
 
-		this.textureIdle = texture;
-		this.textureActive = this.textureIdle;
-		var d = data_textures;
-		var dM = data_textures.Magic;
-		this.textureBlock = new Texture(dM.sheet, d.tileSize, ...dM.block, false);
-		this.blockA = undefined;
+		this.textures = textureData;
 
+		//try to match the texture to the first available idle one
+		if (this.textures['d']) {
+			this.textureActive = this.textures['d'].idle;
+		} else {
+			this.textureActive = this.textures['l'].idle;
+			this.dir = 'l';
+		}
+
+		this.textureActive.frame = randomBounded(0, this.textureActive.frames.length - 1);
 		//start idle texture at a random frame
-		this.textureIdle.frame = randomBounded(0, this.textureIdle.frames.length - 1);
 	}
 
-	draw() {
-		if (!isOnScreen(this.x - this.r / 2, this.y - this.r / 2, this.r, this.r)) {
+	//I don't like setters, but changing direction always changes texture so it's better to do it this way
+	/**
+	 * @param {Char} newDir */
+	set dir(newDir) {
+		//don't bother changing it if they're the same
+		if (newDir == this.dir) {
+			return;
+		}
+
+		if (this.textureActive == undefined) {
+			this._dir = newDir;
+			return;
+		}
+
+		var cTexProgress = this.textureActive.frame;
+		try {
+			var texs = Object.keys(this.textures[this.dir]);
+		} catch (e) {
+			console.log(`error with getting textures in ${this.dir}`);
+			this._dir = newDir;
+			return;
+		}
+
+		for (var t=0; t<texs.length; t++) {
+			if (this.textures[this.dir][texs[t]] == this.textureActive) {
+				this.textureActive = this.textures[newDir][texs[t]];
+				//make sure to change the texture's dir, while matching original type + timing
+				this.textureActive.frame = cTexProgress;
+				//also, of course, set the new dir
+				this._dir = newDir;
+				return;
+			}
+		}
+		//why is anyone still here?
+		console.error(`could not map dir from ${this.dir} -> ${newDir}!`);
+	}
+
+	get dir() {
+		return this._dir;
+	}
+
+	draw(dt) {
+		if (!isOnScreen(this.x - this.r, this.y - this.r, this.r * 2, this.r * 2)) {
 			return;
 		}
 		//draw the texture over self
 		var coords = spaceToScreen(this.x, this.y);
 
-		if (this.blockA != undefined && this.textureBlock != undefined) {
-			this.textureBlock.draw(coords[0], coords[1], this.blockA, this.r * camera.scale);
-			if (this.textureBlock.frame >= this.textureBlock.frames.length - 1) {
-				this.textureBlock.reset();
-				this.blockA = undefined;
-			}
-		}
+		// if (this.blockA != undefined && this.textureBlock != undefined) {
+		// 	this.textureBlock.draw(coords[0], coords[1], this.blockA, this.r * camera.scale);
+		// 	if (this.textureBlock.frame >= this.textureBlock.frames.length - 1) {
+		// 		this.textureBlock.reset();
+		// 		this.blockA = undefined;
+		// 	}
+		// }
 
-		this.textureActive.draw(coords[0], coords[1], this.a, this.r * camera.scale);
+		this.textureActive.draw(coords[0], coords[1], this.r * camera.scale, dt);
 	}
 
-	tick() {
-		this.x += this.dx;
-		this.y += this.dy;
-		this.a += this.da;
+	tick(dt) {
+		this.x += this.dx * dt;
+		this.y += this.dy * dt;
 		if (this.do != 0) {
-			this.opacity = clamp(this.opacity + this.do, 0, 1);
+			this.opacity = clamp(this.opacity + this.do * dt, 0, 1);
 		}
 	}
 }
@@ -284,14 +121,14 @@ class MagicSphere extends Orb {
 		var d = data_textures;
 		var dL = data_textures.Magic;
 		var dLM = large ? dL.large : dL.small;
-		super(x, y, 1 + +large, new Texture(dL.sheet, d.tileSize, ...dLM, true));
+		super(x, y, 1 + +large, layer, {d: {idle: new Texture(dL.sheet, d.tileSize, dLM, true)}});
 		this.speed = large ? 0.1 : 0.2;
 		this.isLarge = large;
 		this.dx = this.speed * Math.cos(angle);
 		this.dy = this.speed * Math.sin(angle);
 
 		this.age = 0;
-		this.ageMax = 100;
+		this.ageMax = 10 / 6;
 
 		this.hittables = this.constructHittables();
 	}
@@ -326,8 +163,8 @@ class MagicSphere extends Orb {
 		}
 	}
 
-	tick() {
-		this.age += 1;
+	tick(dt) {
+		this.age += dt;
 		if (this.age >= this.ageMax) {
 			this.r -= Math.abs(this.age - this.ageMax) * 0.02;
 			if (this.r <= 0.01) {
@@ -420,25 +257,22 @@ class NPC extends Orb {
 	 * A non player character entity that exists in the world
 	 * @param {Number} x world x coordinate
 	 * @param {Number} y world y coordinate
-	 * @param {Radian} a initial angle
-	 * @param {Array[]} animationData idle animation data
-	 * @param {HexColor} textColor text color to display when this entity is engaged in a conversation
+	 * @param {String} layer the layer to exist on
+	 * @param {String} dir initial direction to face
+	 * @param {TextureData} textureData all texture/animation data
+	 * @param {String} textColor text color to display when this entity is engaged in a conversation
 	 * @param {Array[]} conversations the list of conversations the entity can participate in
-	 * @param {String} id Optional: the entity's ID, for reference later
+	 * @param {String|undefined} id Optional: the entity's ID, for reference later
 	 */
-	constructor(x, y, a, animationData, textColor, conversations, id, extraAnimations) {
+	constructor(x, y, layer, dir, textureData, textColor, conversations, id) {
 		//if it's just one string correct the issue
 		conversations = conversations ?? [];
 		if (conversations.constructor.name == "String") {
 			conversations = [[true, conversations]];
 		}
-		var texture;
-		if (animationData != undefined) {
-			texture = new Texture(data_textures.Player.sheet, data_textures.tileSize, ...animationData, true);
-		}
-		super(x, y, 1, texture);
-		this.animations = extraAnimations ?? {};
-		this.a = a;
+		super(x, y, 1.5, layer, textureData);
+		this.rPhysical = 1;
+		this.dir = dir;
 		this.color = textColor;
 		this.conversations = conversations;
 		this.convoCurrent = undefined;
@@ -452,79 +286,71 @@ class NPC extends Orb {
 		this.shield = true;
 	}
 
-	draw() {
+	draw(dt) {
 		//try to avoid changing the globalAlpha unless necessary
 		if (this.opacity != 1) {
 			ctx.globalAlpha = this.opacity;
-			super.draw();
+			super.draw(dt);
 			ctx.globalAlpha = 1;
 		} else {
-			super.draw();
+			super.draw(dt);
 		}
-		this.drawConversation();
+		this.drawConversation(dt);
 	}
 
-	drawConversation() {
+	drawConversation(dt) {
 		//don't draw if there's no conversation to draw
 		if (this.convoCurrent == undefined) {
 			return;
 		}
+		var cLine = this.convoCurrent[this.line];
 
 		//if off the end of the conversation, leave
-		if (this.convoCurrent[this.line] == undefined) {
+		if (cLine == undefined) {
 			this.endConversation();
 			return;
 		}
 
-		this.lineTime += 1;
+		this.lineTime += dt;
 
-		//if it's a blank line, don't bother
-		if (this.convoCurrent[this.line] == "") {
+		//don't bother with blank lines
+		if (cLine == "") {
 			return;
 		}
 		
-		//if it's a command line, handle that
-		if (this.convoCurrent[this.line][0] == "|") {
-			this.executeConversationCommand(this.convoCurrent[this.line].slice(1));
+		//handle commands
+		if (cLine[0] == "|") {
+			this.executeConversationCommand(cLine.slice(1));
 			return;
 		}
 
 		//if there's an escape character, move to the next line
-		var drawText = getTextAtTime(this.convoCurrent[this.line], this.lineTime);
+		var drawText = getTextAtTime(cLine, this.lineTime);
 		if (drawText.includes("\\")) {
 			this.finishConversationCommand();
 			return;
 		}
 
-		//draw the actual function
-		var self = this;
-		deferredFunc = function() {
-			var px = canvas.height * text_size;
-			ctx.font = `${Math.floor(px)}px Playfair Display`;
-			ctx.textAlign = "center";
+		var drawObj = this;
 
-			//put text on opposite side that the player is unless the player is far away
-			//default is to draw text below self
-			var flipDir = (player.y - self.y > 0 && (player.y - self.y) * camera.scale < canvas.height * 0.3) || (self.y - player.y) * camera.scale > canvas.height * 0.3;
-			var sn = boolToSigned(flipDir);
-			var boxes = drawText.split("\n");
-			var startCoords = spaceToScreen(self.x, self.y - 0.75 * sn);
-			
-			//draw bubble behind the text
-			var width;
-			ctx.fillStyle = color_textBackground;
-			for (var y=0; y<boxes.length; y++) {
-				width = ctx.measureText(boxes[flipDir ? (boxes.length-1-y) : y]).width + 7;
-				ctx.fillRect(startCoords[0] - width / 2, startCoords[1] - sn*(px * 1.5 * (y + sn * 0.5)), width, px * 1.5);
-			}
-			
-			//actually drawing text
-			ctx.fillStyle = self.color;
-			for (var y=0; y<boxes.length; y++) {
-				ctx.fillText(boxes[flipDir ? (boxes.length-1-y) : y], startCoords[0], startCoords[1] - sn*(px * 1.5 * y));
+
+
+		//potential drawing as different characters
+		if (cLine[0] == "#") {
+			if (cLine[1] == "$") {
+				try {
+					drawObj = getEntityFromID(cLine.slice(2, cLine.indexOf("$", 2)));
+				} catch (e) {
+					console.error(`${cLine.slice(2, cLine.indexOf("$", 2))} is not a valid entity ID!`);
+				}
+			} else {
+				drawObj = player;
 			}
 		}
-		
+
+
+		//draw the actual function
+		deferredFunc = () => {drawTextAs(drawObj, drawText);}
 	}
 
 	endConversation() {
@@ -891,19 +717,30 @@ class NPC extends Orb {
 		this.lineTime = 0;
 	}
 
-	tick() {
-		super.tick();
+	tick(dt) {
+		super.tick(dt);
 
 		//repel the player
-		circleRepelPlayer(this.x, this.y, 0.6);
-		
+		ellipticalRepelPlayer(this.x, this.y - (this.rPhysical * 0.2), this.rPhysical, this.rPhysical * vScale * vScale);
 	}
 }
 
 //an NPC that can be killed with magic
 class NPC_Killable extends NPC {
-	constructor(x, y, a, animationData, textColor, conversations, id, extraAnimations, onKill) {
-		super(x, y, a, animationData, textColor, conversations, id, extraAnimations);
+	/**
+	 * Creates an NPC that can be killed with magic.
+	 * @param {Number} x the x-coordinate of the entity
+	 * @param {Number} y the y-coordinate of the entity
+	 * @param {Char} layer whether the entity exists on the r, g, or b layer
+	 * @param {Char} dir the direction the entity initially faces. (u, d, l, or r)
+	 * @param {TextureData} textureData the texture data for the entity
+	 * @param {String} textColor what color text read by the entity should display as
+	 * @param {Array[][]} conversations conversation data
+	 * @param {String} id the entity ID
+	 * @param {Function} onKill what should happen when the entity is killed
+	 */
+	constructor(x, y, layer, dir, textureData, textColor, conversations, id, onKill) {
+		super(x, y, layer, dir, textureData, textColor, conversations, id);
 		this.shield = false;
 		this.health = 1;
 		this.deathFriction = 0.85;
@@ -938,6 +775,8 @@ class NPC_Killable extends NPC {
 		}
 	}
 }
+
+
 
 class InvisibleTexter extends NPC {
 	constructor(x, y, w, h, conversations, id) {
@@ -979,7 +818,6 @@ class Horse extends NPC {
 		this.dMax = 0.18;
 		this.r = 2;
 
-		this.home = [x, y];
 		this.range = 20;
 		this.target = [x, y];
 		this.anglesGrazed = [];
@@ -1120,9 +958,6 @@ class Horse extends NPC {
 				return;
 			}
 
-			
-
-
 
 			if (Math.random() < this.grazeChance) {
 				this.grazeTime = Math.floor(randomBounded(this.grazeTimeRange[0], this.grazeTimeRange[1]));
@@ -1134,7 +969,7 @@ class Horse extends NPC {
 					if (r > 1) {
 						r = 2 - r;
 					}
-					this.target = polToXY(this.home[0], this.home[1], theta, r * this.range);
+					this.target = polToXY(this.homeX, this.homeY, theta, r * this.range);
 				} else {
 					//rotate a bit then graze
 					var newAngle = randomBounded(0, Math.PI * 2);
@@ -1197,12 +1032,10 @@ class Horse extends NPC {
 
 
 class Player extends Orb {
-	constructor(x, y, layer) {
-		super(x, y, 0.2, layer, new Texture(data_textures.Player.sheet, data_textures.tileSize, ...data_textures.Player.idle, true));
+	constructor(x, y, layer, textures) {
+		super(x, y, 0.2, layer, textures ?? {d: {idle: new Texture(data_textures.Warrior.sheet, data_textures.tileSize, data_textures.Warrior.idleFront, true)}});
 		this.walkTimer = 0;
 		this.walkTimerMax = 22 / 60;
-		this.textureAttack;
-		this.textureActive = this.textureIdle;
 
 		this.health = 7.5;
 		this.maxHealth = 7.5;
@@ -1230,21 +1063,10 @@ class Player extends Orb {
 		this.convoPartner = undefined;
 		this.locked = false;
 
-
 		this.weapon = 0;
 		this.attacking = false;
 		this.damageFrame = 3;
 		this.damageDone = false;
-
-		this.magicLearned = false;
-		this.magicActive = false;
-		this.magicActiveAnim = undefined;
-		var dP = data_textures.Player;
-		var d = data_textures;
-		this.magicChargeAnimation = new Texture(d.Magic.sheet, d.tileSize, ...d.Magic.charge, false);
-		this.magicHoldAnimation = new Texture(d.Magic.sheet, d.tileSize, ...d.Magic.hold, true);
-		// this.textureReach = new Texture(dP.sheet, d.tileSize, ...dP.reach, false);
-		this.textureCrown = new Texture(dP.sheet, d.tileSize, ...dP.crown, false);
 	}
 
 	//starts the attack process
@@ -1356,31 +1178,6 @@ class Player extends Orb {
 		}
 	}
 
-	changeWeaponTo(n) {
-		this.weapon = n;
-		data_persistent.weapon = n;
-		var d = data_textures;
-		var dP = data_textures.Player;
-		switch(n) {
-			case 0:
-				//nothing
-				this.textureAttack = undefined;
-				this.textureIdle = new Texture(dP.sheet, d.tileSize, ...dP.idle, true);
-				break;
-			case 1:
-				//stick
-				this.textureAttack = new Texture(dP.sheet, d.tileSize, ...dP.attackStick, false);
-				this.textureIdle = new Texture(dP.sheet, d.tileSize, ...dP.idleStick, true);
-				break;
-			case 2:
-				//sword
-				this.textureAttack = new Texture(dP.sheet, d.tileSize, ...dP.attackSword, false);
-				this.textureIdle = new Texture(dP.sheet, d.tileSize, ...dP.idleSword, true);
-				break;
-		}
-		this.textureActive = this.textureIdle;
-	}
-
 	charge() {
 		//if doesn't know magic, or already charging, ignore
 		if (this.magicLearned == 0 || this.magicActive) {
@@ -1392,6 +1189,18 @@ class Player extends Orb {
 		this.magicActiveAnim = this.magicChargeAnimation;
 		this.magicChargeAnimation.reset();
 		this.magicHoldAnimation.reset();
+	}
+
+	chooseTexture() {
+		var tSubset = this.textures[this.dir];
+		var oldActive = this.textureActive;
+
+		//choose best texture for currnet situation somehow
+		if (this.ax != 0 || this.ay != 0) {
+			this.textureActive = tSubset.walk;
+		} else {
+			this.textureActive = tSubset.idle;
+		}
 	}
 
 	dash() {
@@ -1433,7 +1242,9 @@ class Player extends Orb {
 		audio_sfxChannel.play("fxOrbL");
 	}
 
-	draw() {
+	draw(dt) {
+		this.chooseTexture();
+
 		var drawR = 1;
 		var coords = spaceToScreen(this.x, this.y);
 		var currentTextureTime = this.textureActive.frame;
@@ -1457,14 +1268,18 @@ class Player extends Orb {
 				//set opacity and then draw ghost
 				ctx.globalAlpha = ng / this.dashGhosts.length;
 				
-				this.textureActive.frame = Math.max(0, this.textureActive.frame - ng * this.textureActive.amount);
+				this.textureActive.frame = Math.max(0, this.textureActive.frame - ng * dt / this.textureActive.changeTime);
 				ghostCoords = spaceToScreen(this.dashGhosts[ng][0], this.dashGhosts[ng][1]);
-				this.textureActive.draw(ghostCoords[0], ghostCoords[1], this.a, drawR * camera.scale);
+				this.textureActive.draw(ghostCoords[0], ghostCoords[1], drawR * camera.scale, dt);
 				this.textureActive.frame = currentTextureTime;
 			}
 			
 			//update dash time
-			this.dashTime = (this.dashTime + 1) % this.dashTimeMax;
+			this.dashTime += dt;
+			if (this.dashTime > this.dashTimeMax) {
+				this.dashTime = 0;
+			}
+
 			this.dashGhosts.push([this.x, this.y]);
 			if (this.dashGhosts.length > this.dashGhostsMax) {
 				this.dashGhosts.splice(0, 1);
@@ -1485,7 +1300,7 @@ class Player extends Orb {
 		
 		//draw normally
 		ctx.globalAlpha = 1 - 0.4 * (this.iframes % render_iframePeriod > render_iframePeriod / 2);
-		this.textureActive.draw(coords[0], coords[1], this.a, drawR * camera.scale);
+		this.textureActive.draw(coords[0], coords[1], drawR * camera.scale, dt);
 
 		if (this.attacking) {
 			//if switching into the damage frame do the damage
@@ -1494,11 +1309,11 @@ class Player extends Orb {
 			}
 
 			//if attacking and the attack has ended, reset to normal
-			if (this.textureAttack.frame >= this.textureAttack.frames.length - 1) {
-				this.textureAttack.reset();
-				this.textureActive = this.textureIdle;
-				this.attacking = false;
-			}
+			// if (this.textureAttack.frame >= this.textureAttack.frames.length - 1) {
+			// 	this.textureAttack.reset();
+			// 	this.textureActive = this.textureIdle;
+			// 	this.attacking = false;
+			// }
 		}
 		ctx.globalAlpha = 1;
 
@@ -1506,8 +1321,6 @@ class Player extends Orb {
 		if (editor_active) {
 			//drawing player's collision bubble
 			drawCircle(coords[0], coords[1], this.r * camera.scale, color_editorHighlight);
-
-			//drawing the box of the tiles around self
 		}
 	}
 
@@ -1536,15 +1349,19 @@ class Player extends Orb {
 		switch (button_queue[button_queue.length-1]) {
 			case "Left":
 				this.ax = -1;
+				this.dir = 'l';
 				break;
 			case "Up":
 				this.ay = -1;
+				this.dir = 'u';
 				break;
 			case "Right":
 				this.ax = 1;
+				this.dir = 'r';
 				break;
 			case "Down":
 				this.ay = 1;
+				this.dir = 'd';
 				break;
 			default:
 				break;
@@ -1606,8 +1423,6 @@ class Player extends Orb {
 		}
 
 		for (var t=Math.max(1, this.dashSpeedMult * Math.sign(this.dashTime)); t>0; t--) {
-			this.x += this.dx * dt;
-			this.y += this.dy * dt;
 			this.collide();
 		}
 	}
@@ -1636,142 +1451,93 @@ class Player extends Orb {
 	}
 
 	collide() {
+		//the moveInWorld algorithm has proven to ocassionally fling the player halfway across the map. 
+		//To prevent this, I check to make sure the player doesn't move too terribly far.
+		var oldPos = [this.x, this.y];
 		var newPos = moveInWorld(this.x, this.y, this.dx, this.dy, this.r, this.layer);
-		[this.x, this.y] = newPos;
+		if (distSquared(newPos[0] - oldPos[0], newPos[1] - oldPos[1]) < this.dMax * this.dMax * 3) {
+			[this.x, this.y] = newPos;
+		}
 	}
 }
 
 
-
-//entities that sit at locations and do things when stepped on
-class Tile {
-	constructor(x, y, w, h) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
-	}
-
-	playerIsOn() {
-		return (player.x > this.x && player.x < this.x + this.w && player.y > this.y && player.y < this.y + this.h);
-	}
-
-	draw() {
-		//draw self in the debug area
-		if (!editor_active) {
-			return;
-		}
-
-		if (!isOnScreen(this.x, this.y, this.w, this.h)) {
-			return;
-		}
-
-		this.drawDebugBit();
-	}
-
-	drawDebugBit() {
-		ctx.fillStyle = color_editorHighlight2;
-		var coords = spaceToScreen(this.x, this.y);
-		ctx.fillRect(coords[0], coords[1], this.w * camera.scale, this.h * camera.scale * vScale);
-	}
-
-	tick() {
-
-	}
-}
-
-
-
-class Tile_Conversator extends Tile {
-	constructor(x, y, w, h, characterToConverseWith, id) {
-		super(x, y, w, h);
-		this.dormant = false;
-		this.charID = characterToConverseWith;
-		this.id = id;
-	}
-	
-	tick() {
-		//if the player's stepped on, start the conversation and go dormant until the player's stepped off
-		if (this.dormant) {
-			if (!player.locked && !this.playerIsOn()) {
-				this.dormant = false;
+class Warrior extends Player {
+	constructor(x, y, layer) {
+		var dW = data_textures.Warrior;
+		var t = data_textures.tileSize;
+		super(x, y, layer, {
+			l: {
+				idle: new Texture(dW.sheet, t, dW.idleSide, true, true),
+				walk: new Texture(dW.sheet, t, dW.walkSide, true, true)
+			},
+			u: {
+				idle: new Texture(dW.sheet, t, dW.idleBack, true),
+				walk: new Texture(dW.sheet, t, dW.walkBack, true)
+			},
+			r: {
+				idle: new Texture(dW.sheet, t, dW.idleSide, true),
+				walk: new Texture(dW.sheet, t, dW.walkSide, true)
+			},
+			d: {
+				idle: new Texture(dW.sheet, t, dW.idleFront, true),
+				walk: new Texture(dW.sheet, t, dW.walkFront, true)
 			}
-			return;
-		}
-		
-		if (this.playerIsOn()) {
-			var ent = getEntityFromID(this.charID);
-			if (ent != undefined) {
-				ent.startConversation();
+		});
+	}
+
+	changeWeaponTo(n) {
+		this.weapon = n;
+		data_persistent.weapon = n;
+		var d = data_textures;
+		var dP = data_textures.Player;
+		// switch(n) {		NO LONGER WORKS WITH CURRENT TEXTURE SYSTEM
+		// 	case 0:
+		// 		//nothing
+		// 		this.textureAttack = undefined;
+		// 		this.textureIdle = new Texture(dP.sheet, d.tileSize, ...dP.idle, true);
+		// 		break;
+		// 	case 1:
+		// 		//stick
+		// 		this.textureAttack = new Texture(dP.sheet, d.tileSize, ...dP.attackStick, false);
+		// 		this.textureIdle = new Texture(dP.sheet, d.tileSize, ...dP.idleStick, true);
+		// 		break;
+		// 	case 2:
+		// 		//sword
+		// 		this.textureAttack = new Texture(dP.sheet, d.tileSize, ...dP.attackSword, false);
+		// 		this.textureIdle = new Texture(dP.sheet, d.tileSize, ...dP.idleSword, true);
+		// 		break;
+		// }
+		this.textureActive = this.textureIdle;
+	}
+}
+
+class Mage extends Player {
+	constructor(x, y, layer) {
+		var dM = data_textures.Mage;
+		var t = data_textures.tileSize;
+		super(x, y, layer, {
+			l: {
+
+			},
+			u: {
+
+			},
+			r: {
+
+			},
+			d: {
+
 			}
-			this.dormant = true;
-		}
-	}
-}
-
-
-class Tile_Music extends Tile {
-	constructor(x, y, w, h, musicToSet) {
-		super(x, y, w, h);
-		this.musicStr = musicToSet;
-	}
-
-	tick() {
-		if (this.playerIsOn()) {
-			setMusic(this.musicStr);
-		}
-	}
-}
-
-class Tile_Arbitrary extends Tile {
-	constructor(x, y, w, h, codeToExecute) {
-		super(x, y, w, h);
-		this.func = codeToExecute;
-	}
-
-	tick() {
-		if (this.playerIsOn()) {
-			this.func();
-		}
-	}
-}
-
-//sits at a location and sets the player's respawn point if they step on the tile
-class Tile_Respawn extends Tile {
-	constructor(x, y, w, h) {
-		super(x, y, w, h);
-	}
-
-	tick() {
-		if (this.playerIsOn()) {
-			player.respawnPoint = [player.x, player.y];
-		}
-	}
-
-	drawDebugBit() {
-		ctx.lineWidth = canvas.height / 100;
-		ctx.strokeStyle = "#FFFFFF";
-		var coords = spaceToScreen(this.x, this.y);
-		ctx.beginPath();
-		ctx.rect(coords[0], coords[1], this.w * camera.scale, this.h * camera.scale);
-		ctx.stroke();
-	}
-}
-
-class Tile_SemiSolid extends Tile {
-	constructor(x, y, w, h, startSolid) {
-		super(x, y, w, h);
-		this.solid = startSolid;
+		})
 	}
 }
 
 
 class TileEntity extends NPC {
-	constructor(x, y, direction, animationData, conversations, id) {
-		super(x, y, direction * Math.PI * 0.5, animationData, color_textDefault, conversations, id);
+	constructor(x, y, animationData, conversations, id) {
+		super(x, y, "d", animationData, color_textDefault, conversations, id);
 		this.forceA = this.a;
-		this.textureActive = new Texture(data_textures.TileEntities.sheet, data_textures.tileSize, ...animationData, true);
-		this.textureBlock = undefined;
 	}
 
 	tick() {
@@ -1779,6 +1545,210 @@ class TileEntity extends NPC {
 	}
 }
 
+class DreamSkater extends NPC {
+	/**
+	 * A Dream Skater is a large, friendly entity that resides in the badlands. It is repelled by magical flow
+	 * @param {*} x x position
+	 * @param {*} y y position
+	 * @param {*} layer world layer
+	 * @param {*} id id, if necessary
+	 * @param {*} stateSpecifier if you want to set this dream skater to be in a particular state, rather than cycling between them
+	 */
+	constructor(x, y, layer, id, stateSpecifier) {
+		var dS = data_textures.DreamSkaters;
+		var t = data_textures.tileSize;
+		super(x, y, layer, "l", {
+			l: {
+				charge: new Texture(dS.sheet, t, dS.charge, true, true),
+				idle: new Texture(dS.sheet, t, dS.idle, true, true),
+				fly: new Texture(dS.sheet, t, dS.fly, false, true), 
+				stretch: new Texture(dS.sheet, t, dS.stretch, false, true),
+				sad: new Texture(dS.sheet, t, dS.sad, true, true),
+			},
+			r: {
+				charge: new Texture(dS.sheet, t, dS.charge, true, false),
+				idle: new Texture(dS.sheet, t, dS.idle, true, false),
+				fly: new Texture(dS.sheet, t, dS.fly, false, false), 
+				stretch: new Texture(dS.sheet, t, dS.stretch, false, false),
+				sad: new Texture(dS.sheet, t, dS.sad, true, false)
+			}
+		}, color_dreamSkater, undefined, id)
+
+		this.r = 1.5;
+		this.rPhysical = 1.5;
+		this.state = "idle";
+		this.states = ["idle", "stretch", "charge", "fly"];
+		this.stateWeights = [1, 0.9, 0.75, 0.5];
+		this.stateTime = this.newStateTime();
+		this.stateTimeCurrent = 0;
+		this.rotateChance = 0.2;
+
+		this.dMax = 8;
+		this.flyRange = 12;
+		this.flyGoal;
+
+		//choose specified state by forcing all other weights to 0
+		if (stateSpecifier) {
+			this.forceState(stateSpecifier);
+		}
+	}
+
+	forceState(state) {
+		this.stateSpecified = state;
+		var weights = this.stateWeights;
+		this.state = "";
+		this.stateWeights = this.stateWeights.fill(0);
+		this.stateWeights[this.states.indexOf(state)] = 1;
+		this.chooseNewState();
+		//set weights back so there's no permanent loss of information
+		this.stateWeights = weights;
+		this.stateTime = 1e1001;
+	}
+
+	tick(dt) {
+		//fix in place for the editor
+		if (editor_active) {
+			return;
+		}
+
+		//some states just consist of an animation. Those don't need to show up in the block because they auto-end with the state time
+		switch(this.state) {
+			case "idle":
+			case "idleSad":
+				//switch dir every once in a while
+				if ((dt_tLast / 1000) % 1 < 0.5 && ((dt_tLast / 1000) - dt) % 1 > 0.5 && Math.random() < this.rotateChance) {
+					this.dir = (this.dir == 'l') ? 'r' : 'l';
+				}
+				break;
+			case "fly":
+				//little speed fade in / fade out
+				var dir = [this.flyGoal[0] - this.x, this.flyGoal[1] - this.y];
+				var remaining = Math.sqrt(distSquared(dir[0], dir[1])) + 0.01;
+				var dPenult = this.dMax - 0.1;
+				var speedTarget = 0.1 + Math.min(dPenult * Math.abs(this.stateTime - 100) ** 0.5, dPenult, dPenult * (remaining ** 0.5));
+
+				dir[0] /= remaining;
+				dir[0] *= speedTarget;
+				dir[1] /= remaining;
+				dir[1] *= speedTarget;
+
+				// console.log(dir, remaining, speedTarget, this.dx, this.dy);
+
+				this.dx = dir[0];
+				this.dy = dir[1];
+
+				//pause in the middle of the animation until close to the end
+				if (this.textureActive.frame > 1.5 && remaining > this.dMax / 3) {
+					this.textureActive.frame = 1;
+				}
+
+				//if close enough to the target, end
+				if (remaining < 0.1) {
+					this.dx = 0;
+					this.dy = 0;
+					this.chooseNewState();
+				}
+				break;
+		}
+		super.tick(dt);
+		this.changeStateTime(dt);
+	}
+
+	newStateTime() {
+		return randomBounded(5, 12.5);
+	}
+
+	changeStateTime(dt) {
+		this.stateTime -= dt;
+		if (this.stateTime < 0) {
+			this.chooseNewState();
+		}
+	}
+
+	chooseNewState() {
+		var otherStates = this.states.filter(s => s != this.state);
+		var rejected = true;
+		var i;
+		//some states should happen more frequently than others. This is controlled by stateWeights.
+		while (rejected) {
+			i = randomInt(0, otherStates.length);
+			rejected = (this.stateWeights[this.states.indexOf(otherStates[i])] + Math.random() < 1);
+		}
+		this.state = otherStates[i];
+
+
+		//some states require setup
+		switch(this.state) {
+			case "idle":
+				this.textureActive = this.textures[this.dir].idle;
+				this.stateTime = this.newStateTime();
+				break;
+			case "stretch":
+				this.textureActive = this.textures[this.dir].stretch;
+				this.textureActive.reset();
+				this.stateTime = this.textureActive.frames.length * this.textureActive.changeTime;
+				break;
+			case "charge":
+				this.textureActive = this.textures[this.dir].charge;
+				this.stateTime = this.newStateTime() * 0.4;
+				break;
+			case "fly":
+				this.textureActive = this.textures[this.dir].fly;
+				this.textureActive.reset();
+				//choose a target position - dream skaters tend to fly left/right, rather than up/down, so y movement is limited
+				var targetXDist = randomBounded(this.flyRange / 2, this.flyRange);
+				var targetYDist;
+				var xyRatio = 0.33;
+				//tend to fly towards the center
+				var leftChance = clamp(0.5 + 0.5 * ((this.x - this.homeX) / this.flyRange), 0, 1);
+				var left = (Math.random() < leftChance);
+
+				this.dir = left ? 'l' : 'r';
+
+				//don't go outside of the home range:
+				//keep x in range
+				if (left) {
+					targetXDist *= -1;
+					targetXDist = Math.max(targetXDist, (this.homeX - this.flyRange) - this.x);
+				} else {
+					targetXDist = Math.min(targetXDist, (this.homeX + this.flyRange) - this.x);
+				}
+				targetYDist = (Math.random() > 0.33) ? (targetXDist * xyRatio) : 0;
+				if (targetYDist != 0) {
+					targetYDist *= boolToSigned(Math.random() > 0.5);
+					//keep y in range
+					if (Math.abs((this.y + targetYDist) - this.homeY) > this.flyRange) {
+						targetYDist *= -1;
+					}
+				}
+
+				//make sure movement is valid collision-wise. If not, shorten the movement
+				var locale = moveInWorld(this.x, this.y, targetXDist, targetYDist, this.r, this.layer);
+				while (distSquared(locale[0] - (this.x + targetXDist), locale[1] - (this.y + targetYDist)) > 0.5) {
+					targetXDist += (targetXDist > 0) ? -1 : 1;
+					targetYDist += (targetYDist > 0) ? -xyRatio : xyRatio;
+					locale = moveInWorld(this.x, this.y, targetXDist, targetYDist, this.r, this.layer);
+
+					if (Math.abs(targetXDist) < 1) {
+						//just give up if movement isn't possible
+						this.chooseNewState();
+						return;
+					}
+				}
+
+				//set target
+				this.flyGoal = [this.x + targetXDist, this.y + targetYDist];
+				this.stateTime = 100;
+				break;
+		}
+	}
+
+	giveStringData() {
+		return rmUndefs(`DreamSkater~${this.homeX.toFixed(1)}~${this.homeY.toFixed(1)}~${this.layer}~${this.id}~${this.stateSpecified}`);
+	}
+}
+
+/*
 class Gate {
 	constructor(x, y, rotation, id) {
 		this.x = x;
@@ -1829,233 +1799,4 @@ class Gate {
 
 		}
 	}
-}
-
-
-
-class Portal {
-	constructor(p1, p2, p3, p4) {
-		this.line1 = [p1, p2];
-		this.line2 = [p3, p4];
-	}
-}
-
-
-class Texture {
-	/**
-	 * 
-	 * @param {Image} spriteSheet the image source of the texture
-	 * @param {Integer} imageSize The number of pixels per texture unit size
-	 * @param {Number} drawsBeforeImageChange how many times to draw each frame before switching to the next
-	 * @param {Number[]} textureSize how many units the texture is
-	 * @param {Number[]} centerCoordinates what unit position should be considered the center. These are the corrdinates that will be rotated around.
-	 * @param {Integer[][]} coordinates an array of frame coordinates (EX: [[1, 1], [0, 1], [0, 0]])
-	 * @param {Boolean} loop should the texture loop when it's finished? 
-	 */
-	constructor(spriteSheet, imageSize, drawsBeforeImageChange, textureSize, centerCoordinates, coordinates, loop) {
-		this.looping = loop;
-		this.dims = textureSize;
-		this.center = centerCoordinates;
-		this.sheet = spriteSheet;
-		this.size = imageSize;
-		this.frames = coordinates;
-		this.frame = 0;
-		this.amount = 1 / drawsBeforeImageChange;
-	}
-
-	/**
-	 * 
-	 * @param {Number} x The x pixel to draw the center of the image at
-	 * @param {Number} y The y pixel to draw the center of the image at
-	 * @param {Radian} rotation how far to rotate the image clockwise
-	 * @param {Number} pxUnitSize How large in pixels one image unit should display
-	 */
-	draw(x, y, rotation, pxUnitSize) {
-		//change current frame
-		this.frame += this.amount;
-		if (this.frame > this.frames.length - 1) {
-			this.frame = this.looping ? (this.frame % this.frames.length) : (this.frames.length - 1);
-		}
-
-
-		//need to offset because drawImage draws from the top left corner
-		var iHat = [pxUnitSize * Math.cos(rotation), pxUnitSize * Math.sin(rotation)];
-		var jHat = [iHat[1], -iHat[0]];
-		var xOff = -this.center[0] * iHat[0] + this.center[1] * jHat[0];
-		var yOff = -this.center[0] * iHat[1] + this.center[1] * jHat[1];
-		//transforming
-		ctx.translate(x + xOff, y + yOff);
-		ctx.rotate(rotation);
-		try {
-			ctx.drawImage(this.sheet, this.size * this.frames[Math.floor(this.frame)][0], this.size * this.frames[Math.floor(this.frame)][1], this.size * this.dims[0], this.size * this.dims[1], 
-						0, 0, pxUnitSize * this.dims[0], pxUnitSize * this.dims[1]);
-		} catch (error) {
-			console.log(error, `problem trying to draw frame ${Math.floor(this.frame)}, with frames ${JSON.stringify(this.frames)}`);
-		}
-		ctx.rotate(-rotation);
-		ctx.translate(-(x + xOff), -(y + yOff));
-
-		//debug info
-		// ctx.beginPath();
-		// ctx.strokeStyle = "#F00";
-		// ctx.moveTo(x, y);
-		// ctx.lineTo(x + iHat[0], y + iHat[1]);
-		// ctx.stroke();
-		// ctx.beginPath();
-		// ctx.strokeStyle = "#0F0";
-		// ctx.moveTo(x, y);
-		// ctx.lineTo(x + jHat[0], y + jHat[1]);
-		// ctx.stroke();
-	}
-
-	reset() {
-		this.frame = 0;
-	}
-}
-
-class Texture_Terrain {
-	/**
-	 * Creates a texture that will be used as background (terrain)
-	 * @param {Image} sheet The image to use as the terrain texture
-	 * @param {Number} tileSize The pixel size of each world unit
-	 * @param {Number} x The world x coordinate of the top-left corner of the image
-	 * @param {Number} y The world y coordinate of the top-left corner of the image
-	 */
-	constructor(sheet, tileSize, x, y) {
-		this.sheet = sheet;
-		this.scale = tileSize;
-		this.x = x;
-		this.y = y;
-		//width and height in tiles
-		this.w = 0;
-		this.h = 0;
-	}
-
-	setupDimensions() {
-		if (this.w == 0) {
-			this.w = this.sheet.width / this.scale;
-			this.h = this.sheet.height / vScale / this.scale;
-		}
-	}
-
-	draw() {
-		//first make sure image exists
-		this.setupDimensions();
-
-
-		//don't draw if not on the screen
-		if (!isOnScreen(this.x, this.y, this.w, this.h)) {
-			return;
-		}
-
-		var screenPsheetP = this.scale / camera.scale;
-
-		//sx, sy, sWidth, and sHeight represent the Sheet's xywh in img pixel units
-		var sx = (camera.cornerUL[0] - this.x) * this.scale;
-		var sy = (camera.cornerUL[1] - this.y) * this.scale;
-		var sWidth = Math.min(canvas.width * screenPsheetP, Math.floor(this.sheet.width - sx));//(canvas.width / camera.scale) * this.scale;
-		var sHeight = Math.min(canvas.height * screenPsheetP, Math.floor(this.sheet.height - sy));//(canvas.height / camera.scale) * this.scale;
-
-
-		var px = 0;
-		var py = 0;
-		var pWidth = sWidth / screenPsheetP;
-		var pHeight = sHeight / screenPsheetP;
-		ctx.drawImage(this.sheet, sx, sy, sWidth, sHeight, px, py, pWidth, pHeight);
-	}
-}
-
-class Texture_Roof {
-	/**
-	 * Creates an entity that acts as a roof for a building. Accepts all different shapes of roofs, and becomes transparent when the player walks underneath it.
-	 * @param {Image} sheet the image to use for texture reference
-	 * @param {Number} tileSize pixel size of each world unit
-	 * @param {Number} sheetX the left texture x coordinate, in world units
-	 * @param {Number} sheetY the top texture y coordinate, in world units
-	 * @param {Number} x the world x coordinate to start drawing the roof
-	 * @param {Number} y the world y coordinate to start drawing the roof
-	 * @param {Number} width how wide the roof is, in world units
-	 * @param {Number} height how tall the roof is, in world units.
-	 * @param {Number[][]} collisionPoly The [x, y] points of the polygon that counts as being under the roof. 
-	 * The roof will become transparent if the player is inside this polygon.
-	 */
-	constructor(sheet, tileSize, sheetX, sheetY, x, y, width, height, collisionPoly) {
-		this.sheet = sheet;
-		this.scale = tileSize;
-		this.sx = sheetX;
-		this.sy = sheetY;
-		this.x = x;
-		this.y = y;
-		this.w = width;
-		this.h = height;
-
-		this.collider = collisionPoly;
-		this.colliderXBounds;
-		this.colliderYBounds;
-		this.calculateColliderBounds();
-
-		this.alphaTime = 0;
-		this.alphaTimeMax = 15;
-		this.minOpacity = 0.1;
-		this.maxOpacity = 1;
-	}
-
-	calculateColliderBounds() {
-		this.colliderXBounds = [1e1001, -1e1001];
-		this.colliderYBounds = [1e1001, -1e1001];
-		this.collider.forEach(p => {
-			this.colliderXBounds[0] = Math.min(this.colliderXBounds[0], p[0] - 1);
-			this.colliderXBounds[1] = Math.max(this.colliderXBounds[1], p[0] + 1);
-			this.colliderYBounds[0] = Math.min(this.colliderYBounds[0], p[1] - 1);
-			this.colliderYBounds[1] = Math.max(this.colliderYBounds[1], p[1] + 1);
-		});
-	}
-
-	tick() {
-		//only check collider if the player's nearby
-		if (this.alphaTime > 0) {
-			this.alphaTime -= 1;
-		}
-		if (player.x < this.colliderXBounds[0] || player.x > this.colliderXBounds[1] || player.y < this.colliderYBounds[0] || player.y > this.colliderYBounds[1]) {
-			return;
-		}
-		//increase alphaTime when the player is under
-		//the inPoly algorithm is slightly broken in that having the same y coordinate as a corner will count as two intersections when it should count as one.
-		//To fix this I adjust the y coordinate of the player to something it's very difficult for the player to line up with
-		if (inPoly([player.x + 0.01, player.y + 0.01], this.collider)) {
-			this.alphaTime = clamp(this.alphaTime + 2, 0, this.alphaTimeMax);
-		}
-	}
-
-	draw() {
-		//first check if self should be drawn at all
-		if (!isOnScreen(this.x, this.y, this.w, this.h)) {
-			return;
-		}
-
-
-		//draw self
-		var screenPos = spaceToScreen(this.x, this.y);
-		ctx.globalAlpha = linterp(this.maxOpacity, this.minOpacity, this.alphaTime / this.alphaTimeMax);
-		ctx.drawImage(this.sheet, this.sx * this.scale, this.sy * this.scale, this.w * this.scale, this.h * this.scale, screenPos[0], screenPos[1], this.w * camera.scale, this.h * camera.scale);
-		ctx.globalAlpha = 1;
-
-		//draw collider in editor
-		if (editor_active) {
-			drawCircle(screenPos[0], screenPos[1], 10, "#000");
-
-			if (this.collider.length > 1) {
-	
-				ctx.lineWidth = 2;
-				ctx.strokeStyle = color_editorPolygon;
-				ctx.beginPath();
-				ctx.moveTo(...spaceToScreen(...this.collider[0]));
-				for (var h=1; h<this.collider.length; h++) {
-					ctx.lineTo(...spaceToScreen(...this.collider[h]));
-				}
-				ctx.lineTo(...spaceToScreen(...this.collider[0]));
-				ctx.stroke();
-			}
-		}
-	}
-}
+} */
