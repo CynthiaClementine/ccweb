@@ -3,6 +3,7 @@ INDEX
 
 drawCircle(x, y, r, color)
 drawLine(x1, y1, x2, y2, color)
+drawText(text, x, y, font, color, alignment)
 drawMenu()
 
 rasterizeBG
@@ -39,11 +40,45 @@ function drawText(text, x, y, font, color, alignment) {
 	ctx.fillText(text, x, y);
 }
 
+function drawTextAs(obj, text) {
+	var px = canvas.height * text_size;
+	ctx.font = `${Math.floor(px)}px ${font_std}`;
+	ctx.textAlign = "center";
 
+	//put text on opposite side that the player is unless the player is far away
+	//default is to draw text below self
+	var flipDir = (player.y - obj.y > 0 && (player.y - obj.y) * camera.scale < canvas.height * 0.3) || (obj.y - player.y) * camera.scale > canvas.height * 0.3;
+	var sn = boolToSigned(flipDir);
+	var boxes = text.split("\n");
+	var startCoords = spaceToScreen(obj.x, obj.y - 0.75 * sn);
+	
+	//draw bubble behind the text
+	var width;
+	ctx.fillStyle = color_textBackground;
+	for (var y=0; y<boxes.length; y++) {
+		width = ctx.measureText(boxes[flipDir ? (boxes.length-1-y) : y]).width + 7;
+		ctx.fillRect(startCoords[0] - width / 2, startCoords[1] - sn*(px * 1.5 * (y + sn * 0.5)), width, px * 1.5);
+	}
+	
+	//actually drawing text
+	ctx.fillStyle = obj.color;
+	for (var y=0; y<boxes.length; y++) {
+		ctx.fillText(boxes[flipDir ? (boxes.length-1-y) : y], startCoords[0], startCoords[1] - sn*(px * 1.5 * y));
+	}
+}
+
+
+/*
+things I want in the menu:
+	-HUD toggle (choco bars, quests, etc)
+	-volume sliders (for music + fx)
+	-reset + true reset buttons
+	-aliasing checkbox, I guess
+ */
 function drawMenu() {
 	//everything is kept within a 12 x 8 box
 	var menu_boxSize = [12, 8];
-	var cs = camera.scale;
+	var cs = canvas.width / 16;
 	var midH = easerp(canvas.height * 1.5, canvas.height * 0.5, menu_t);
 	var midW = canvas.width / 2;
 	var baseH = midH - (cs * menu_boxSize[1] / 2);
@@ -64,7 +99,7 @@ function drawMenu() {
 	var sliderStart1 = baseW + cs*2.75;
 	var sliderStart2 = baseW + cs * (menu_boxSize[0]/2 + 2.85);
 
-	drawText(`Music Volume`, baseW, baseH + cs, `${canvas.height / 30}px Playfair Display`, color_menuText, "left");
+	drawText(`Music Volume`, baseW, baseH + cs, `${canvas.height / 30}px ${font_std}`, color_menuText, "left");
 	ctx.fillText(`Effects Volume`, baseW + cs*(menu_boxSize[0]/2), baseH + cs);
 
 	//aliasing checkbox
@@ -113,7 +148,7 @@ function drawMenu() {
 	ctx.fillStyle = color_menuText;
 
 	ctx.fillText(`Code, art, story, and sounds by Cynthia Clementine`, midW, baseH + cs * (menu_boxSize[1] - 1));
-	ctx.font = `${canvas.height / 20}px Playfair Display`;
+	ctx.font = `${canvas.height / 20}px ${font_std}`;
 	ctx.fillText(`Preferences`, midW, baseH);
 	ctx.fillText(`Controls`, midW, baseH + cs * (menu_boxSize[1] * 0.5 - 0.5));
 
@@ -160,7 +195,8 @@ function drawChunkToBG(chunkX, chunkY, chunkPxW, chunkPxH) {
 	//all good? Draw the thing
 	var drawX = chunkPxW * chunkX;
 	var drawY = chunkPxH * chunkY;
-
+	
+	console.log(chunkX, chunkY, drawX, drawY);
 	btx.drawImage(bg_chunkArr[chunkY][chunkX], drawX, drawY);
 }
 
@@ -189,7 +225,7 @@ function drawWorldBG() {
 	// var sx = -((origTransCoords[0]) * bgScreenRatio)// + (origTransX * bg_tw * bgScreenRatio);
 	// var sy = -((origTransCoords[1]) * bgScreenRatio)// + (origTransY * bg_th * bgScreenRatio);
 	var sx = (edgeCoords[0] - origTransX) * bg_tw;
-	var sy = (edgeCoords[1] - origTransX) * bg_th;
+	var sy = (edgeCoords[1] - origTransY) * bg_th;
 	var sw = camera.targetWidth * bg_tw;
 	var sh = (canvas.height / (camera.scale * vScale)) * bg_th;
 
