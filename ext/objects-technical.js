@@ -205,6 +205,59 @@ class Camera {
 	}
 }
 
+class Comment_Audio {
+	constructor(x, y, audioData) {
+		this.homeX = x;
+		this.homeY = y;
+		this.data = audioData;
+	}
+	
+	updateText(newText) {
+		this.text = newText;
+		this.brokenText = newText.split("\n");
+	}
+
+	draw(dt) {
+		//draw all the text
+	}
+
+	tick(dt) {
+
+	}
+
+	giveStringData() {
+		return `CommentA~${this.homeX}~${this.homeY}~???`;
+	}
+}
+
+class Comment_Text {
+	constructor(x, y, text) {
+		this.homeX = x;
+		this.homeY = y;
+		this.text = "";
+		this.updateText(text);
+
+		this.maxWidth = 4;
+	}
+
+	updateText(newText) {
+		this.text = newText;
+		this.brokenText = newText.split("\n");
+	}
+
+	draw(dt) {
+		//draw all the text
+	}
+
+	tick(dt) {
+
+	}
+
+	giveStringData() {
+		return `CommentT~${this.homeX}~${this.homeY}~${this.text}`;
+	}
+}
+
 
 
 //entities that sit at locations and do things when stepped on
@@ -326,4 +379,36 @@ class Tile_SemiSolid extends Tile {
 		super(x, y, w, h);
 		this.solid = startSolid;
 	}
+}
+
+class Portal {
+	/**
+	 * Creates a Portal that teleports the player between the start and end.
+	 * @param {Number[]} line1 The line segment representing the start of the portal
+	 * @param {Char} layer1 The layer the start segment should be on
+	 * @param {Number[]} line2 the line segment representing the end of the portal
+	 * @param {Char} layer2 the layer the end segment should be on
+	 * @param {Integer} directionality An integer 0-3 representing which directions are acceptable. 
+	 * The ones bit corresppnds to whether the end should teleport to the start, and the twos bit corresponds to whether each start/end should be bidirectional.
+	 */
+	constructor(line1, layer1, line2, layer2, directionality) {
+		this.line1 = line1;
+		this.line2 = line2;
+
+		this.EtoS = directionality & 1;
+		this.absoluteTele = directionality & 2;
+	}
+
+	draw(dt) {
+		//only draw if in editor mode
+		if (!editor_active) {
+			return;
+		}
+	}
+
+	tick(dt) {
+
+	}
+
+	
 }
