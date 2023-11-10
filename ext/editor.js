@@ -27,10 +27,21 @@ function drawCollision() {
 			drawLine(screenP1[0], screenP1[1], screenP2[0], screenP2[1], editor_layerColors[c]);
 			drawLine(screenMid[0], screenMid[1], screenMid[0] + sideVec[0], screenMid[1] + sideVec[1], editor_layerColors[c]);
 		
-			drawCircle(screenP1[0], screenP1[1], canvas.height / 75, color_collision);
-			drawCircle(screenP2[0], screenP2[1], canvas.height / 75, color_collision);
+			drawCircle(screenP1[0], screenP1[1], editor_selectTolerance, color_collision);
+			drawCircle(screenP2[0], screenP2[1], editor_selectTolerance, color_collision);
 		});
 	});
+
+	//if a line is selected, draw that
+	if (editor_entity != undefined && editor_entity.x == undefined) {
+		var lnP1 = spaceToScreen(...editor_entity.line[0]);
+		var lnP2 = spaceToScreen(...editor_entity.line[1]);
+	
+		ctx.globalAlpha = 0.35;
+		ctx.lineWidth = canvas.height / 50;
+		drawLine(...lnP1, ...lnP2, color_editorHighlight);
+		ctx.globalAlpha = 1;
+	}
 }
 
 
@@ -39,15 +50,102 @@ function drawEditor() {
 	ctx.beginPath();
 
 	drawCollision();
+	drawEntityHighlights();
 	//polygon
 	drawEditorPoly();
 
+	drawSidebar();
+	drawTopbar();
+
+	//enum counter
+	if (editor_enum != undefined) {
+		drawEditorEnum();
+	}
+
+	//fps counter
+	drawText(Math.round(dt_buffer.length / dt_buffer.reduce((a, b) => a + b)), 
+		canvas.width * 0.99, canvas.height * 0.97, undefined, color_editorHighlight, "right");
+}
+
+function drawEditorEnum() {
+	var words = editor_enum.str;
+	//figure out bounds
+	var x = canvas.width * (editor_sidebarW + editor_enumMargin);
+	var y = canvas.height * (editor_topbarH + editor_enumMargin);
+	var w = canvas.width * (1 - editor_enumMargin) - x;
+	var h = canvas.height * (1 - editor_enumMargin) - y;
+	var centerX = (x + x + w) / 2;
+	var centerY = (y + y + h) / 2;
+
+	var textXs = [centerX];
+	if (words.length > editor_enumBreaks[1]) {
+		textXs = [linterp(x, x + w, 0.25), centerX, linterp(x, x + w, 0.75)];
+	} else if (words.length > editor_enumBreaks[0]) {
+		textXs = [linterp(x, x + w, 0.333), linterp(x, x + w, 0.667)];
+	}
+
+	var rows = textXs.length;
+	var columns = Math.ceil(words.length / rows);
+
+	var textSelectW = Math.min(canvas.width * 0.2, 0.5 * w / (textXs.length + 1));
+	var textSelectH = Math.min(canvas.height * 0.08, 0.5 * h / columns);
+
+	ctx.fillStyle = color_editorBg;
+	ctx.roundRect(x, y, w, h, canvas.height * editor_roundR);
+	ctx.fill();
+
+	//draw nothing text for setting standards real quick
+	drawText("", NaN, NaN, `${Math.floor(canvas.height / 30)}px ${font_std}`, color_editorHighlight, "center");
+
+	//draw the rest of the selectors
+	var overtop = false;
+	var drawX, drawY;
+	for (var t=0; t<words.length; t++) {
+		drawX = textXs[t % rows];
+		drawY = y + h * ((Math.floor(t / rows) + 1) / (columns + 1));
+		overtop = (Math.abs(cursor.x - drawX) < textSelectW && Math.abs(cursor.y - drawY) < textSelectH);
+		drawText(words[t], drawX, drawY, NaN, overtop ? color_editorHighlight2 : color_editorHighlight);
+
+		//button pressing, located here because I didn't want to duplicate code yet again
+		if (overtop && cursor.down) {
+			console.log(`selected ${words[t]}`);
+			editor_enum.create(t, editor_entity);
+
+			cursor.down = false;
+			editor_enum = undefined;
+			return;
+		}
+	}
+}
+
+function drawSidebar() {
+	//bg
+	ctx.fillStyle = color_editorBg;
+	ctx.fillRect(0, 0, canvas.width * editor_sidebarW, canvas.height);
+
+	//action pane
+	var esh = editor_sidebarHs;
+	drawActionPane(0, canvas.height * esh[0], canvas.width * editor_sidebarW, canvas.height * (esh[1] - esh[0]));
+
+	//selection pane
+	if (editor_entity != undefined) {
+		drawSelectionPane(0, canvas.height * esh[1], canvas.width * editor_sidebarW, canvas.height * (esh[2] - esh[1]));
+	}
+
+	//position pane
+	drawPositionPane(0, canvas.height * esh[2], canvas.width * editor_sidebarW, canvas.height * (1 - esh[2]));
+
+	//separation lines
+	ctx.lineWidth = canvas.height / 100;
+	esh.forEach(h => {
+		drawLine(0, canvas.height * h, canvas.width * editor_sidebarW, canvas.height * h, color_editorPanelLight);
+	});
+}
+
+function drawTopbar() {
 	//topbar bg
 	ctx.fillStyle = color_editorBg;
 	ctx.fillRect(0, 0, canvas.width, canvas.height * editor_topbarH)
-
-	//draw the sidebar bg
-	ctx.fillRect(0, 0, canvas.width * editor_sidebarW, canvas.height);
 
 	ctx.fillStyle = color_editorHighlight;
 	ctx.textAlign = "center";
@@ -67,27 +165,6 @@ function drawEditor() {
 	}
 	drawLine(canvas.width * editor_sidebarW, camBarY, canvas.width, camBarY, color_editorPanelLight);
 	drawCircle(canvas.width * linterp(editor_sidebarW, 1, barPercent), camBarY, camBarY * 0.8, color_editorPanelLight);
-
-	//action pane
-	var esh = editor_sidebarHs;
-	drawActionPane(0, canvas.height * esh[0], canvas.width * editor_sidebarW, canvas.height * (esh[1] - esh[0]));
-
-	//selection pane
-	if (editor_entity != undefined) {
-		drawSelectionPane(0, canvas.height * esh[1], canvas.width * editor_sidebarW, canvas.height * (esh[2] - esh[1]));
-	}
-
-	drawPositionPane(0, canvas.height * esh[2], canvas.width * editor_sidebarW, canvas.height * (1 - esh[2]));
-
-	//separation lines
-	ctx.lineWidth = canvas.height / 100;
-	esh.forEach(h => {
-		drawLine(0, canvas.height * h, canvas.width * editor_sidebarW, canvas.height * h, color_editorPanelLight);
-	});
-
-	//fps counter
-	ctx.textAlign = "right";
-	ctx.fillText(Math.round(dt_buffer.length / dt_buffer.reduce((a, b) => a + b)), canvas.width * 0.99, canvas.height * 0.97);
 }
 
 function drawEditorPoly() {
@@ -122,34 +199,23 @@ function drawEditorPoly() {
 	}
 }
 
+function drawEntityHighlights() {
+	[...world_roofs, ...entities].forEach(e => {
+		var screenPos = spaceToScreen(e.homeX ?? e.x, e.homeY ?? e.y);
+		drawCircle(screenPos[0], screenPos[1], canvas.height / 60, color_editorHighlight3);
+	});
+}
+
 function drawActionPane(x, y, w, h) {
 	var textSize = Math.floor(canvas.height / 30);
 	var yInitial = y + textSize;
 
-	ctx.font = `${textSize}px Playfair Display`;
+	ctx.font = `${textSize}px ${font_std}`;
 	ctx.textAlign = "left";
 	ctx.fillStyle = color_editorHighlight;
 
 	for (var g=0; g<editor_creatables.length; g++) {
 		ctx.fillText(editor_creatables[g][0], x + canvas.width * 0.01, yInitial + g * ((h - textSize * 2) / (editor_creatables.length - 1)));
-	}
-}
-
-function drawPositionPane(x, y, w, h) {
-	//draw positions
-	ctx.textAlign = "left";
-	ctx.font = `${Math.floor(canvas.height / 30)}px Playfair Display`;
-	ctx.fillStyle = color_editorHighlight;
-	var cPos = screenToSpace(cursor.x, cursor.y);
-	var positions = [[`cam mode: ${camera.moveMode}`], [`camera`, [camera.x, camera.y]], [`player`, [player.x, player.y]], [`cursor`, cPos]];
-	var drawH;
-	for (var i=0; i<positions.length; i++) {
-		drawH = y + canvas.height * (0.04 * i + 0.03);
-		if (positions[i][1]) {
-			ctx.fillText(positions[i][0] + `: ` + positions[i][1][0].toFixed(2) + ` ` + positions[i][1][1].toFixed(2), x + canvas.width * 0.01, drawH);
-		} else {
-			ctx.fillText(positions[i][0], x + canvas.width * 0.01, drawH);
-		}
 	}
 }
 
@@ -159,19 +225,38 @@ function drawSelectionPane(x, y, w, h) {
 		console.log(`How????`);
 		return;
 	}
-	if (editor_entity.x == undefined) {
+	if (editor_entity.x == undefined && editor_entity.homeX == undefined) {
 		drawSelectionPane_line(x, y, w, h);
+		return;
+	}
+
+	//all entities have name + id
+	editor_buttons.forEach(b => {
+		b.beDrawn();
+	});
+
+	//layers
+	ctx.globalAlpha = (editor_entity.layer == `r`) ? 1 : 0.3;
+	drawText(`r`, x + w * 0.25, y + h * 0.29, NaN, `#F88`);
+	ctx.globalAlpha = (editor_entity.layer == `g`) ? 1 : 0.3;
+	drawText(`g`, x + w * 0.5, y + h * 0.29, NaN, `#8F8`);
+	ctx.globalAlpha = (editor_entity.layer == `b`) ? 1 : 0.3;
+	drawText(`b`, x + w * 0.75, y + h * 0.29, NaN, `#88F`);
+	ctx.globalAlpha = 1;
+
+	//draw x/y
+	drawText(editor_entity.x.toFixed(2), x + (w * 0.333), y + (h * 0.37), NaN, color_editorHighlight);
+	drawText(editor_entity.y.toFixed(2), x + (w * 0.667), y + (h * 0.37));
+
+	switch (editor_entity.constructor.name) {
+		case "DreamSkater":
+			//state specifier
+			break;
 	}
 	// var midX =
 }
 
 function drawSelectionPane_line(x, y, w, h) {
-	//a collision line is selected; draw the line
-	var lnP1 = spaceToScreen(editor_entity.line[0]);
-	var lnP2 = spaceToScreen(editor_entity.line[1]);
-
-	ctx.beginPath();
-
 	//now draw aspects of the line
 	var lineColors = [
 		[`r`, 0.5, 0.2],
@@ -185,11 +270,11 @@ function drawSelectionPane_line(x, y, w, h) {
 		[`w`, 0.5, 0.4],
 	];
 
-	//I know mouse code should go in handlemouseDown, but honestly I can't be bothered to duplicate this code (or make some sort of button class, which seems to be the other option)
+	//I know mouse code should go in handlemouseDown, but honestly I can't be bothered to duplicate this code
 	//so here it is
 	var drawX, drawY;
 	var fontSize = Math.floor(canvas.height / 25);
-	ctx.font = `${fontSize}px Playfair Display`;
+	ctx.font = `${fontSize}px ${font_std}`;
 	fontSize **= 2;
 	lineColors.forEach(cd => {
 		drawX = x + cd[1] * w;
@@ -214,7 +299,23 @@ function drawSelectionPane_line(x, y, w, h) {
 	}
 }
 
-
+function drawPositionPane(x, y, w, h) {
+	//draw positions
+	ctx.textAlign = "left";
+	ctx.font = `${Math.floor(canvas.height / 30)}px ${font_std}`;
+	ctx.fillStyle = color_editorHighlight;
+	var cPos = screenToSpace(cursor.x, cursor.y);
+	var positions = [[`cam mode: ${camera.moveMode}`], [`camera`, [camera.x, camera.y]], [`player`, [player.x, player.y]], [`cursor`, cPos]];
+	var drawH;
+	for (var i=0; i<positions.length; i++) {
+		drawH = y + canvas.height * (0.04 * i + 0.03);
+		if (positions[i][1]) {
+			ctx.fillText(positions[i][0] + `: ` + positions[i][1][0].toFixed(2) + ` ` + positions[i][1][1].toFixed(2), x + canvas.width * 0.01, drawH);
+		} else {
+			ctx.fillText(positions[i][0], x + canvas.width * 0.01, drawH);
+		}
+	}
+}
 
 
 
@@ -278,11 +379,28 @@ function editor_deleteSelected() {
 	}
 
 	//full entity
+	entities.splice(entities.indexOf(editor_entity), 1);
+	if (world_entities.indexOf(editor_entity) != -1) {
+		world_entities.splice(world_entities.indexOf(editor_entity), 1);
+	}
+	editor_entity = undefined;
 }
 
 function exportCollision() {
 	return JSON.stringify(data_terrain).replaceAll(`"`, `'`).replace(`{`, `{\n`).replace(`}`, `\n};`).replaceAll(`,'`, `,\n'`);
 }
+
+function exportEditorPolygon() {
+	return JSON.stringify(editor_polyPoints.map((a) => {
+		return [+(a[0].toFixed(1)), +(a[1].toFixed(1))];
+	}));
+}
+
+function exportEntities() {
+	var safeEnts = entities.filter(e => e != player);
+	return `[\n\t${safeEnts.map(e => `"`+e.giveStringData()+`"`).join("\n\t")}\n];`;
+}
+
 
 function editor_adjustCamera(cxp) {
 	var percent = getPercentage(editor_sidebarW, 1, cxp);
@@ -300,15 +418,17 @@ function editor_adjustCamera(cxp) {
 function editor_handleMDMenu(cxp, cyp) {
 	//top bar
 	if (cxp > editor_sidebarW) {
+		editor_entity = undefined;
 		editor_adjustCamera(cxp);
 		return true;
 	}
 
 	//it's over the title/label, can safely ignore
 	if (cyp < editor_sidebarHs[0]) {
-		return;
+		return true;
 	}
 
+	//over action pane
 	if (cyp < editor_sidebarHs[1]) {
 		//create something new
 		var normPerc = (cyp - editor_sidebarHs[0]) / (editor_sidebarHs[1] - editor_sidebarHs[0]);
@@ -320,12 +440,26 @@ function editor_handleMDMenu(cxp, cyp) {
 		editor_entity = undefined;
 		return true;
 	}
+
+	//over selection pane
+	if (cyp < editor_sidebarHs[2]) {
+		if (editor_entity == undefined) {
+			return true;
+		}
+		editor_buttons.forEach(b => {
+			b.interact();
+		});
+	}
+
+	//over position pane
+
+	return true;
 }
 
 //selects collision given a cursor position
 function editor_handleMDCol(spa) {
 	editor_pointSelected = undefined;
-	var selectDist = (canvas.height / 75) / camera.scale;
+	var selectDist = editor_selectTolerance / camera.scale;
 	var keys = Object.keys(data_terrain);
 	var p;
 	for (var c of keys) {
@@ -355,12 +489,84 @@ function editor_handleMDCol(spa) {
 				l[1][0] += 0.5;
 			}
 			if (pointSegmentDistance(spa, l[0], l[1]) < selectDist) {
-				editor_entity = {layer: c, index: data_terrain[c].indexOf(l), line: l};
+				editor_select({layer: c, index: data_terrain[c].indexOf(l), line: l});
 				return true;
 			}
 		}
 	}
 	return false;
+}
+
+function editor_select(entity) {
+	editor_entity = entity;
+	//do extra bits for editing
+	editor_buttons = editor_buttons.slice(0, 2);
+
+	if (entity.x == undefined) {
+		return;
+	}
+
+	var newBHeight = editor_sidebarHs[2] - 0.06;
+	var b0 = editor_buttons[0];
+	switch (entity.constructor.name) {
+		case "DreamSkater":
+			//state editing
+			console.log('hi');
+			editor_buttons.push(new UI_Button(b0.x, newBHeight, b0.width, b0.height, `state: ${entity.stateSpecified ?? "[free]"}`, () => {
+				var validStates = editor_entity.states;
+				var v = prompt(`Please set the new state.`);
+				if (validStates.includes(v)) {
+					editor_buttons[2].label = `state: ${v}`;
+					editor_entity.forceState(v);
+				} else {
+					alert(`That is not a valid state. Valid states are ${(""+validStates).replaceAll(",", ", ")}`);
+					editor_buttons[2].label = `state: [free]`;
+					editor_entity.stateSpecified = undefined;
+				}
+			}));
+			break;
+		case "NPC":
+			//conversation editing
+			break;
+		case "Roof":
+			//roof type modification
+			editor_buttons.push(new UI_Button(b0.x, newBHeight, b0.width, b0.height, `txtr: ${roofNameFromData(editor_entity.giveDimensionData())}`, () => {editor_enum = editor_listR;}));
+			break;
+	}
+}
+
+function editor_handleMDEnt(cxp, cyp) {
+	var minDist = (1 / 60) ** 2;
+	var entity = undefined;
+	[...world_roofs, ...entities].forEach(e => {
+		var screenPos = spaceToScreen(e.homeX ?? e.x, e.homeY ?? e.y);
+		if (distSquared((screenPos[0] / canvas.width) - cxp, (screenPos[1] / canvas.height) - cyp) < minDist) {
+			entity = e;
+			minDist = distSquared((screenPos[0] / canvas.width) - cxp, (screenPos[1] / canvas.height) - cyp);
+		}
+	});
+	if (entity != undefined) {
+		editor_select(entity);
+		editor_buttons[0].label = editor_entity.constructor.name;
+		editor_buttons[1].label = editor_entity.id ?? "[no id]";
+		return true;
+	}
+}
+
+function editor_handleMDEnum(cxp, cyp) {
+	//transform cp to enum position
+	var cxe = cxp - (editor_sidebarW + editor_enumMargin);
+	var cye = cyp - (editor_topbarH + editor_enumMargin);
+	cxe /= (1 - 2 * editor_enumMargin - editor_sidebarW);
+	cye /= (1 - 2 * editor_enumMargin - editor_topbarH);
+
+	//if off the edge
+	if (clamp(cxe, 0, 1) != cxe || clamp(cye, 0, 1) != cye) {
+		editor_enum = undefined;
+		return true;
+	}
+
+	return true;
 }
 
 function changeLineLayer(l, oldLayer, newLayer) {
