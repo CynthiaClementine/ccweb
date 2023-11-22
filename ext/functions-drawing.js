@@ -161,33 +161,40 @@ function drawMenu() {
 
 
 
-function rasterizeBG() {
+function rasterizeBG(chunkArr, chunkStartX, chunkStartY) {
+	var bg_canvas = document.createElement("canvas");
+	var btx = bg_canvas.getContext("2d");
+
 	//figure out dimensions of the canvas
 	var chunkPxW = bg_tw * bg_chunkW;
 	var chunkPxH = bg_tw * vScale * bg_chunkH;
 
-	bg_canvas.width = chunkPxW * bg_chunkArr[0].length;
-	bg_canvas.height = chunkPxH * bg_chunkArr[1].length;
+	bg_canvas.width = chunkPxW * chunkArr[0].length;
+	bg_canvas.height = chunkPxH * chunkArr.length;
 	btx.imageSmoothingEnabled = false;
 
-	for (var y=0; y<bg_chunkArr.length; y++) {
-		for (var x=0; x<bg_chunkArr[0].length; x++) {
-			drawChunkToBG(x, y, chunkPxW, chunkPxH);
+	for (var y=0; y<chunkArr.length; y++) {
+		for (var x=0; x<chunkArr[y].length; x++) {
+			drawChunkToBG(btx, chunkArr, x, y, chunkPxW, chunkPxH);
 		}
 	}
-	bg_chunkArr
+	return {
+		chunkStartX: chunkStartX,
+		chunkStartY: chunkStartY,
+		canvas: bg_canvas,
+	};
 }
 
-function drawChunkToBG(chunkX, chunkY, chunkPxW, chunkPxH) {
+function drawChunkToBG(btx, chunkArr, chunkX, chunkY, chunkPxW, chunkPxH) {
 	//if there's no data there don't bother drawing
-	if (bg_chunkArr[chunkY][chunkX] == undefined) {
+	if (chunkArr[chunkY][chunkX] == undefined) {
 		return;
 	}
 
 	//if the image hasn't loaded yet, wait until it does
-	if (bg_chunkArr[chunkY][chunkX].width == 0) {
+	if (chunkArr[chunkY][chunkX].width == 0) {
 		window.setTimeout(() => {
-			drawChunkToBG(chunkX, chunkY, chunkPxW, chunkPxH);
+			drawChunkToBG(btx, chunkArr, chunkX, chunkY, chunkPxW, chunkPxH);
 		}, 10);
 		return;
 	}
@@ -197,13 +204,11 @@ function drawChunkToBG(chunkX, chunkY, chunkPxW, chunkPxH) {
 	var drawY = chunkPxH * chunkY;
 	
 	console.log(chunkX, chunkY, drawX, drawY);
-	btx.drawImage(bg_chunkArr[chunkY][chunkX], drawX, drawY);
+	btx.drawImage(chunkArr[chunkY][chunkX], drawX, drawY);
 }
 
-function drawWorldBG() {
+function drawWorldBG(bgObj) {
 	//solid bg color
-	ctx.fillStyle = `hsl(${dt_tLast * 0.01}, 50%, 30%)`;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 	//actual world background
 
@@ -212,8 +217,8 @@ function drawWorldBG() {
 	var bgScreenRatio = bg_tw / camera.scale;
 
 	//distance from the canvas origin to the world origin, in tiles
-	var origTransX = bg_chunkStart[0] * bg_chunkW;
-	var origTransY = bg_chunkStart[1] * bg_chunkH;
+	var origTransX = bgObj.chunkStartX * bg_chunkW;
+	var origTransY = bgObj.chunkStartY * bg_chunkH;
 
 	var origTransCoords = spaceToScreen(origTransX, origTransY);
 	var edgeCoords = screenToSpace(0, 0);
@@ -231,5 +236,5 @@ function drawWorldBG() {
 
 	// console.log(origTransX, origTransY, sx, sy, sw, sh);
 
-	ctx.drawImage(bg_canvas, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+	ctx.drawImage(bgObj.canvas, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
 }
