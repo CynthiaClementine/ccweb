@@ -220,19 +220,19 @@ var data_textures = {
 		],
 		villageHouseXL: [
 			[25, 33],
-			[21, 22],
+			[21, 23],
 			[12, 17.7]
 		],
 
 		badlandHouse: [
-			[67, 42],
+			[67, 57],
 			[13, 18],
 			[6.5, 18]
 		],
 		badlandShed: [
-			[56, 45],
+			[56, 60],
 			[11, 15],
-			[5.5, 15]
+			[5.5, 14]
 		],
 
 		badTree1: [
@@ -560,7 +560,7 @@ class Roof {
 		//draw self
 		var screenPos = spaceToScreen(this.x + this.offsetX, this.y + this.offsetY);
 		ctx.globalAlpha = linterp(this.maxOpacity, this.minOpacity, this.alphaTime / this.alphaTimeMax);
-		ctx.drawImage(this.sheet, this.sx * this.scale, this.sy * this.scale, this.w * this.scale, this.h * vScale * this.scale, screenPos[0], screenPos[1], this.w * camera.scale, this.h * vScale * camera.scale);
+		ctx.drawImage(this.sheet, this.sx * this.scale, this.sy * vScale * this.scale, this.w * this.scale, this.h * vScale * this.scale, screenPos[0], screenPos[1], this.w * camera.scale, this.h * vScale * camera.scale);
 		ctx.globalAlpha = 1;
 
 		//draw collider in editor
