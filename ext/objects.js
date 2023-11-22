@@ -1455,8 +1455,37 @@ class Player extends Orb {
 		//To prevent this, I check to make sure the player doesn't move too terribly far.
 		var oldPos = [this.x, this.y];
 		var newPos = moveInWorld(this.x, this.y, this.dx, this.dy, this.r, this.layer);
-		if (distSquared(newPos[0] - oldPos[0], newPos[1] - oldPos[1]) < this.dMax * this.dMax * 3) {
+		var expectedDist = distSquared(this.dx, this.dy) * 0.98;
+		var maxMovement = this.dMax * this.dMax * 3.5;
+		if (distSquared(newPos[0] - oldPos[0], newPos[1] - oldPos[1]) < maxMovement) {
 			[this.x, this.y] = newPos;
+		} else {
+			//if newPos can't be reached, set it to the currentPos so we know there's an issue
+			newPos = [this.x, this.y];
+		}
+
+		if (distSquared(oldPos[0] - newPos[0], oldPos[1] - newPos[1]) > expectedDist / 20) {
+			return;
+		}
+
+		//if there's no movement, try a little to the left and a little to the right
+		var mult = this.dMax;
+		var perpVel = [-this.ay * mult, this.ax * mult];
+		var leftPos = moveInWorld(this.x + perpVel[0], this.y + perpVel[1], this.dx, this.dy, this.r, this.layer);
+		var rightPos = moveInWorld(this.x - perpVel[0], this.y - perpVel[1], this.dx, this.dy, this.r, this.layer);
+		var leftDist = distSquared(oldPos[0] - leftPos[0], oldPos[1] - leftPos[1]);
+		var rightDist = distSquared(oldPos[0] - rightPos[0], oldPos[1] - rightPos[1]);
+
+		rightDist = (rightDist < maxMovement) ? rightDist : 0;
+		leftDist = (leftDist < maxMovement) ? leftDist : 0;
+		if (leftDist * 0.99 > rightDist && leftDist < maxMovement) {
+			[this.x, this.y] = leftPos;
+			return;
+		}
+		
+		if (rightDist * 0.99 > leftDist && rightDist < maxMovement) {
+			[this.x, this.y] = rightPos;
+			return;
 		}
 	}
 }
