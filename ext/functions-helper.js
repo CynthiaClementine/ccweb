@@ -255,12 +255,40 @@ function ellipticalRepelPlayer(ellipseX, ellipseY, radiusX, radiusY) {
 	[player.x, player.y] = moveInWorld(player.x, player.y, delta.x - player.x, delta.y - player.y, player.r, player.layer);
 }
 
+function importEntities(entityList) {
+	var finalEnts = {
+		r: [],
+		g: [],
+		b: []
+	}
+	entityList.forEach(e => {
+		var f = importEntity(e);
+		finalEnts[f.layer].push(f);
+	});
+	return finalEnts;
+}
+
+function changeEntityLayer(entity, newLayer) {
+	//take entity out of old layer
+	if (entities[entity.layer].indexOf(entity) != -1) {
+		entities[entity.layer].splice(entities[entity.layer].indexOf(entity), 1);
+	}
+	entity.layer = newLayer;
+	//add to new layer
+	entities[entity.layer].push(entity);
+	sortEntities(entities[entity.layer]);
+	
+}
+
 function importEntity(entityDataLine) {
 	var spl = entityDataLine.split("~");
+	console.log(entityDataLine);
 
 	switch (spl[0]) {
 		case "DreamSkater":
 			return new DreamSkater(+spl[1], +spl[2], spl[3], spl[4], spl[5]);
+		case "Roof":
+			return new Roof(+spl[1], +spl[2], spl[3], +spl[4], eval(spl[5]), JSON.parse(spl[6]));
 	}
 }
 
@@ -496,6 +524,47 @@ function screenToSpace(x, y) {
 		(x - (canvas.width / 2)) / camera.scale + camera.x,
 		(y - (canvas.height / 2)) / vScale / camera.scale + camera.y,
 	]
+}
+
+//usees comb sort as a fast way to sort entities (it's fast assuming most of them are already sorted)
+//see: the wikipedia article on comb sort
+function sortEntities(arr) {
+	var sorted = true;
+
+	//do first pass to check if all entities are sorted
+	for (var i=0; i<arr.length-1; i++) {
+		if (arr[i].y > arr[i+1].y) {
+			sorted = false;
+			i = arr.length - 1;
+		}
+	}
+
+	//if the entities are already sorted, don't try to sort again
+	if (sorted) {
+		return;
+	}
+	
+	var gap = arr.length - 1;
+	var shrink = 1.3;
+
+	while (!sorted) {
+		gap = Math.floor(gap / shrink);
+		//gap of 1 means the list is eligible for completion
+		if (gap < 1) {
+			sorted = true;
+			gap = 1;
+		} else if (gap == 9 || gap == 10) {
+			//rule of 11. Do I understand the math? No. But I trust
+			gap = 11;
+		}
+
+		for (i=0; i+gap<arr.length; i++) {
+			if (arr[i].y > arr[i+gap].y) {
+				[arr[i], arr[i+gap]] = [arr[i+gap], arr[i]];
+				sorted = false;
+			}
+		}
+	}
 }
 
 function spaceToScreen(x, y) {
