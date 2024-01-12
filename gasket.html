@@ -1,0 +1,204 @@
+<html>
+	<head>
+		<title>Sun god's plumbing solution</title>
+		<style>
+			body {
+				background-color: slateblue;
+			}
+
+			#cavo {
+				margin: auto;
+				text-align: center;
+				display: block;
+			}
+			#centerModule {
+				text-align: center;
+				margin: auto;
+				display: block;
+			}
+
+		</style>
+		<script src="common/functions-math.js"></script>
+		<script src="common/collision-2d.js"></script>
+		<script>
+			/*
+				http://lagrange.math.siu.edu/Kocik/apollo/papers/Diophantine.pdf
+				This paper helped a lot with the construction of the gasket. Although I don't understand most of it, the whole symmetry bit idea in this program came from page 15.
+
+			*/
+			window.onload = setup;
+			window.onresize = updateResolution;
+
+			var minPxSize = 1;
+			var page_animation;
+
+			var canvas;
+			var ctx;
+
+			var color_bg = "#FFF";
+			var color_line = "#002";
+
+			var gasketRadius = 1;
+			var config = {
+				centerR: 0.5,
+				axes: 3,
+			};
+
+			var startingCurves = [-1, 2, 2];
+			var minRadius = 0.01;
+
+			var circles = [
+				[0, 0, 1],
+				[-0.5, 0, 0.5],
+				[0.5, 0, 0.5]
+			];
+
+			function findBetterPos(x, y, dx, minSlope) {
+				
+			}
+
+			//setup function
+			function setup() {
+				canvas = document.getElementById("cavo");
+				ctx = canvas.getContext("2d");
+				updateResolution();
+				create();
+				render();
+			}
+
+			//takes in A, B, and C (the curvatures of 3 tangent circles) and outputs the curvature of the 4th circle.
+			function curvatureFrom(A, B, C) {
+				//using descartes' theorem (derivation not shown here)
+				var main = A + B + C;
+				var disc = 2 * Math.sqrt(A*B + A*C + B*C);
+				var partials = [main + disc, main - disc];
+
+
+				if (partials[0] < 0) {
+					return [partials[1]];
+				}
+				if (partials[1] < 0) {
+					return [partials[0]];
+				}
+				if (Math.abs(partials[0] - partials[1]) > 0.01) {
+					console.log(`help`, partials);
+				}
+				return partials[0];
+			}
+
+			//drawing function
+			function render() {
+				//background
+				ctx.fillStyle = color_bg;
+				ctx.fillRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+
+				//draw all circles
+				var maxR = canvas.width * 0.475;
+				var scale = maxR / circles[0][2];
+
+				ctx.strokeStyle = color_line;
+				ctx.lineWidth = canvas.height / 200;
+
+				circles.forEach(c => {
+					ctx.beginPath();
+					ctx.arc(c[0] * scale, c[1] * scale, c[2] * scale, 0, Math.PI * 2);
+					ctx.stroke();
+				});
+
+			}
+
+			function create() {
+				circles = [];
+
+				//add in starting curves
+				circles.push([0, 0, rad(startCurves[0])]);
+
+				//if there are two circles, we can shortcut
+				if (startCurves.length == 3) {
+					circles.push([-rad(startCurves[1]), 0, rad(startCurves[1])]);
+					circles.push([rad(startCurves[2]), 0, rad(startCurves[2])]);
+				}
+
+				create_recursive(circles[0], circles[1], circles[2]);
+
+				//if there's more than two, we need to go from the outside - there could be a center circle
+			}
+
+			function create_recursive(circleDat1, circleDat2, circleDat3) {
+				var A = crv(circleDat1[2]);
+				var B = crv(circleDat1[2]);
+				var C = crv(circleDat1[2]);
+			}
+
+			//takes in a curve set [b, c, d...] and outputs a set of circles with said curvatures, as well as the additional outer circle
+			function startCircsFromCurves(curveSet) {
+				//detect which type of possible symmetry we're dealing with
+				if (curveSet.length < 2) {
+					//impossible, sorry
+					console.log(`cannot make circles with curve set`, curveSet);
+					return undefined;
+				}
+			}
+
+			//where all the curves in the curveSet are the same
+			function startCircs_symCinf(curveSet) {
+
+			}
+
+			//b cc d
+			function startCircs_symD1E(curveSet) {
+				
+			}
+
+			//bb c d
+			function startCircs_symD1EI(curveSet) {
+
+			}
+
+			//b c dd
+			function startCircs_symD1O(curveSet) {
+
+			}
+
+			//bb cc
+			function startCircs_symD2(curveSet) {
+				
+			}
+
+			//b c d e
+			function startCircs_symNone(curveSet) {
+				
+			}
+
+			function rad(curvature) {
+				return 1 / curvature;
+			}
+
+			function crv(radius) {
+				return 1 / radius;
+			}
+
+			function updateResolution() {
+			//compute
+				var w = window.innerWidth * 0.96;
+				var h = window.innerHeight * 0.95;
+
+				//resize canvas
+				canvas.height = Math.min(h, w);
+				canvas.width = canvas.height;
+				// canvas.style["margin-left"] = `-${canvas.width / 2}px`;
+
+				//set canvas preferences
+				ctx.textBaseline = "middle";
+				ctx.textAlign = "center";
+				ctx.setTransform(1, 0, 0, 1, canvas.width / 2, canvas.height / 2);
+				render();
+			}
+		</script>
+	</head>
+	<body>
+		<div id="centerModule">
+			<canvas id="cavo" width="640" height="640"></canvas><br>
+		</div>
+	</body>
+</html>
