@@ -21,11 +21,6 @@
 		<script src="common/functions-math.js"></script>
 		<script src="common/collision-2d.js"></script>
 		<script>
-			/*
-				http://lagrange.math.siu.edu/Kocik/apollo/papers/Diophantine.pdf
-				This paper helped a lot with the construction of the gasket. Although I don't understand most of it, the whole symmetry bit idea in this program came from page 15.
-
-			*/
 			window.onload = setup;
 			window.onresize = updateResolution;
 
@@ -37,21 +32,20 @@
 
 			var color_bg = "#FFF";
 			var color_line = "#002";
+			var color_lineLight = "#88A";
 
 			var gasketRadius = 1;
-			var config = {
-				centerR: 0.5,
-				axes: 3,
-			};
 
+			var scale = 1;
 			var startingCurves = [-1, 2, 2];
-			var minRadius = 0.01;
+			var minRadius = 0.001;
+			var ε = 0.0005;
 
-			var circles = [
-				[0, 0, 1],
-				[-0.5, 0, 0.5],
-				[0.5, 0, 0.5]
-			];
+			var curvatures = [91, 91, 63];
+
+			var circles = [];
+
+			var displayNumbers = true;
 
 			function findBetterPos(x, y, dx, minSlope) {
 				
@@ -61,18 +55,22 @@
 			function setup() {
 				canvas = document.getElementById("cavo");
 				ctx = canvas.getContext("2d");
-				updateResolution();
 				create();
+				updateResolution();
 				render();
 			}
 
 			//takes in A, B, and C (the curvatures of 3 tangent circles) and outputs the curvature of the 4th circle.
 			function curvatureFrom(A, B, C) {
+				//we can assume A, B, and C are integers 	
 				//using descartes' theorem (derivation not shown here)
 				var main = A + B + C;
-				var disc = 2 * Math.sqrt(A*B + A*C + B*C);
+				var disc = 2 * Math.sqrt(Math.abs(A*B + A*C + B*C));
 				var partials = [main + disc, main - disc];
 
+				if (circles.length < 10) {
+					console.log(Math.abs(A*B + A*C + B*C), A, B, C, partials);
+				}
 
 				if (partials[0] < 0) {
 					return [partials[1]];
@@ -80,10 +78,7 @@
 				if (partials[1] < 0) {
 					return [partials[0]];
 				}
-				if (Math.abs(partials[0] - partials[1]) > 0.01) {
-					console.log(`help`, partials);
-				}
-				return partials[0];
+				return partials;
 			}
 
 			//drawing function
@@ -93,81 +88,167 @@
 				ctx.fillRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
 
 				//draw all circles
-				var maxR = canvas.width * 0.475;
-				var scale = maxR / circles[0][2];
-
 				ctx.strokeStyle = color_line;
-				ctx.lineWidth = canvas.height / 200;
+				ctx.lineWidth = 2;
 
-				circles.forEach(c => {
+				var sorted = [...circles].sort((a, b) => b[2] - a[2]);
+
+				sorted.forEach(c => {
 					ctx.beginPath();
-					ctx.arc(c[0] * scale, c[1] * scale, c[2] * scale, 0, Math.PI * 2);
+					ctx.arc(c[0] * scale, c[1] * scale, Math.abs(c[2]) * scale, 0, Math.PI * 2);
 					ctx.stroke();
 				});
 
+				//label text for slider circles
+				if (displayNumbers) {
+					var fontSize;
+					for (var c=0; c<20; c++) {
+						ctx.fillStyle = (c < curvatures.length) ? color_line : color_lineLight;
+						fontSize = Math.min(scale * (sorted[c][2] / 3), canvas.height * 0.1);
+						if (fontSize > canvas.height * 0.01) {
+							ctx.font = `${fontSize}px Times New Roman`;
+							ctx.fillText(`1 / ${Math.round(crv(sorted[c][2]))}`, sorted[c][0] * scale, sorted[c][1] * scale);
+						}
+					}
+				}
 			}
 
 			function create() {
 				circles = [];
-
-				//add in starting curves
-				circles.push([0, 0, rad(startCurves[0])]);
-
-				//if there are two circles, we can shortcut
-				if (startCurves.length == 3) {
-					circles.push([-rad(startCurves[1]), 0, rad(startCurves[1])]);
-					circles.push([rad(startCurves[2]), 0, rad(startCurves[2])]);
+				if (curvatures.length < 2) {
+					console.log(`not enough information!`);
+					return;
 				}
 
-				create_recursive(circles[0], circles[1], circles[2]);
+				var rad1 = rad(curvatures[0]);
+				var rad2 = rad(curvatures[1]);
+				var rad3;
+				//if there are only two starting curves, they'll always be side-by-side and we can shortcut
+				if (curvatures.length == 2) {
+					var fullRad = rad1 + rad2;
+					circles = [
+						//the first circle has negative radius to make addition easier (larger circles go further towards the center, which we want)
+						[0, 0, -fullRad],
+						[rad1 - fullRad, 0, rad(curvatures[0])],
+						[fullRad - rad2, 0, rad(curvatures[1])]
+					];
+				}
+
+				if (curvatures.length == 3) {
+					//right what's all this then.
+					var [A, B, C] = curvatures;
+
+					//figure out external size using descartes' again; this is a separate function because my curvatureFrom algo cuts out the negative radius
+					var main = A + B + C;
+					var disc = 2 * Math.sqrt(Math.abs(A*B + A*C + B*C));
+					var D = main - disc;
+					var [a, b, c, d] = [rad(A), rad(B), rad(C), rad(D)];
+
+
+					//first circle just goes at its default position
+					circles = [
+						[0, 0, d],
+						[d + a, 0, a]
+					];
+					console.log(a, b, c, d);
+					var q = circles;
+
+					//second circle should be as close to the first circle as possible
+					var coords = circleCircleIntersect([q[0][0], q[0][1], Math.abs(q[0][2] + b)], [q[1][0], q[1][1], q[1][2] + b]);
+					circles.push([coords[0][0], coords[0][1], b]);
+
+					//for the third circle... we do our best
+					var attCoords = circleCircleCircleIntersect([q[0][0], q[0][1], Math.abs(q[0][2] + c)], [q[1][0], q[1][1], q[1][2] + c], [q[2][0], q[2][1], q[2][2] + c]);
+					
+					//don't bother if it's not placable
+					if (attCoords.length > 0) {
+						circles.push([...attCoords[0], c]);
+					}
+				}
+
+				updateTolerance();
+				var maxRadius = Math.min(...circles.map(a => Math.abs(a[2])));
+				var lenCircs = circles.length;
+				for (var a=0; a<lenCircs-2; a++) {
+					for (var b=a+1; b<lenCircs-1; b++) {
+						for (var c=b+1; c<lenCircs; c++) {
+							console.log(a, b, c);
+							create_recursive(circles[a], circles[b], circles[c], maxRadius, minRadius);
+						}
+					}
+				}
 
 				//if there's more than two, we need to go from the outside - there could be a center circle
 			}
 
-			function create_recursive(circleDat1, circleDat2, circleDat3) {
-				var A = crv(circleDat1[2]);
-				var B = crv(circleDat1[2]);
-				var C = crv(circleDat1[2]);
-			}
+			function create_recursive(cDat1, cDat2, cDat3, upperRadLimit, lowerRadLimit) {
+				var A = crv(cDat1[2]);
+				var B = crv(cDat2[2]);
+				var C = crv(cDat3[2]);
 
-			//takes in a curve set [b, c, d...] and outputs a set of circles with said curvatures, as well as the additional outer circle
-			function startCircsFromCurves(curveSet) {
-				//detect which type of possible symmetry we're dealing with
-				if (curveSet.length < 2) {
-					//impossible, sorry
-					console.log(`cannot make circles with curve set`, curveSet);
-					return undefined;
+				//create 4th circle from previous 3
+				var D = curvatureFrom(A, B, C);
+				var d0 = rad(D[0]);
+				
+				if (d0 < upperRadLimit - ε && d0 > lowerRadLimit) {
+					create_recursive_place(cDat1, cDat2, cDat3, d0, upperRadLimit, lowerRadLimit);
+				}
+				if (D.length > 1) {
+					var d1 = rad(D[1]);
+					if (d1 < upperRadLimit - ε && d1 > lowerRadLimit) {
+						create_recursive_place(cDat1, cDat2, cDat3, d1, upperRadLimit, lowerRadLimit);
+					}
 				}
 			}
 
-			//where all the curves in the curveSet are the same
-			function startCircs_symCinf(curveSet) {
+			function circleCircleCircleIntersect(cDat1, cDat2, cDat3, lowerRadLimit) {
+				lowerRadLimit = lowerRadLimit ?? ε;
 
+				var coords = circleCircleIntersect(cDat1, cDat2);
+
+				//check which, if any, really intersect that third circle
+				var r0 = Math.sqrt((coords[0][0] - cDat3[0]) ** 2 + (coords[0][1] - cDat3[1]) ** 2);
+				var r1 = Math.sqrt((coords[1][0] - cDat3[0]) ** 2 + (coords[1][1] - cDat3[1]) ** 2);
+				var valid0 = Math.abs(r0 - cDat3[2]) < lowerRadLimit;
+				var valid1 = Math.abs(r1 - cDat3[2]) < lowerRadLimit;
+
+				if (valid0 && valid1) {
+					return coords;
+				}
+				if (valid0) {
+					return [coords[0]];
+				}
+				if (valid1) {
+					return [coords[1]];
+				}
+				return [];
 			}
 
-			//b cc d
-			function startCircs_symD1E(curveSet) {
+			function create_recursive_place(cDat1, cDat2, cDat3, d, upperRadLimit, lowerRadLimit) {
+				//figure out possible positions
+				var testRs = [cDat1[2], cDat2[2], cDat3[2], 0];
+				testRs = testRs.map(k => Math.abs(k + d));
+
+				var coords = circleCircleCircleIntersect([cDat1[0], cDat1[1], testRs[0]], [cDat2[0], cDat2[1], testRs[1]], [cDat3[0], cDat3[1], testRs[2]], lowerRadLimit);
 				
+				var cDat4;
+				coords.forEach(c => {
+					cDat4 = [c[0], c[1], d];
+					circles.push(cDat4);
+					create_recursive(cDat1, cDat2, cDat4, d, lowerRadLimit);
+					create_recursive(cDat1, cDat3, cDat4, d, lowerRadLimit);
+					create_recursive(cDat2, cDat3, cDat4, d, lowerRadLimit);
+				});
 			}
 
-			//bb c d
-			function startCircs_symD1EI(curveSet) {
-
-			}
-
-			//b c dd
-			function startCircs_symD1O(curveSet) {
-
-			}
-
-			//bb cc
-			function startCircs_symD2(curveSet) {
-				
-			}
-
-			//b c d e
-			function startCircs_symNone(curveSet) {
-				
+			function updateTolerance() {
+				if (circles[0] == undefined) {
+					return;
+				}
+				var maxR = canvas.width * 0.475;
+				scale = Math.abs(maxR / circles[0][2]);
+				minRadius = 1 / scale;
+				ε = minRadius / 8;
 			}
 
 			function rad(curvature) {
@@ -181,7 +262,7 @@
 			function updateResolution() {
 			//compute
 				var w = window.innerWidth * 0.96;
-				var h = window.innerHeight * 0.95;
+				var h = window.innerHeight * 0.95 - below.getBoundingClientRect().height;
 
 				//resize canvas
 				canvas.height = Math.min(h, w);
@@ -192,6 +273,51 @@
 				ctx.textBaseline = "middle";
 				ctx.textAlign = "center";
 				ctx.setTransform(1, 0, 0, 1, canvas.width / 2, canvas.height / 2);
+				updateTolerance();
+				render();
+			}
+
+			function sliderAdd() {
+				var existingSliders = sliderPos.children.length;
+				var parent = document.createElement("div");
+				parent.innerHTML = `<input type="range" min="1" max="180" value="2" class="slider" id="slider${existingSliders+1}" oninput=updateInitials()>`;
+				sliderPos.appendChild(parent.children[0]);
+
+				if (existingSliders == 0) {
+					sliderAdd();
+				}
+			}
+
+			function sliderRemove() {
+				var existingSliders = sliderPos.children.length;
+				if (existingSliders == 2) {
+					sliderPos.innerHTML = "";
+					return;
+				}
+
+				sliderPos.removeChild(sliderPos.children[sliderPos.children.length-1]);
+			}
+
+			function updateInitials() {
+				console.log(`updating!`);
+
+				var sliderCount = sliderPos.children.length;
+				if (sliderCount > 1) {
+					//pull from the sliders
+					curvatures = [];
+					for (var h=0; h<sliderCount; h++) {
+						curvatures[h] = +sliderPos.children[h].max + 1 - sliderPos.children[h].value;
+					}
+				} else {
+					curvatures = [1, 1];
+				}
+				circles = [];
+				create();
+				render();
+			}
+
+			function toggleNumbers() {
+				displayNumbers = !displayNumbers;
 				render();
 			}
 		</script>
@@ -199,6 +325,12 @@
 	<body>
 		<div id="centerModule">
 			<canvas id="cavo" width="640" height="640"></canvas><br>
+			<div id="below">
+				<div id="sliderPos"></div>
+				<button id="buttonAdd" onclick="sliderAdd()">+</button>
+				<button id="buttonRemove" onclick="sliderRemove()">-</button>
+				<button id="buttonCRV" onclick="toggleNumbers()">Toggle radii</button>
+			</div>
 		</div>
 	</body>
 </html>
