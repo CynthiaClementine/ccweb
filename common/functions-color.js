@@ -8,6 +8,8 @@ cBreakdownRGBA(rgbaString)
 cBrightness(hex)
 cLinterp(hex1, hex2, percentage)
 cInvert(hex)
+HSVtoRGB(hsvObj)
+RGBtoHSV(rgbObj)
 */
 
 
@@ -41,7 +43,7 @@ function cBreakdown(hexRGBA) {
 function cBreakdownRGBA(rgbaString) {
 	var split = rgbaString.split(" ");
 	return {
-		r: +split[0].slice(5, -1),
+		r: +split[0].slice(1, 3),
 		g: +split[1].slice(0, -1),
 		b: +split[2].slice(0, -1),
 		a: +split[3].slice(0, -1)
