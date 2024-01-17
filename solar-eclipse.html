@@ -24,7 +24,7 @@
 
         </style>
         <script src="common/functions-math.js"></script>
-        <script src="common/functions-coordinate.js"></script>
+        <script src="common/collision-2d.js"></script>
         <script>
             window.onload = setup;
 
@@ -126,7 +126,7 @@
                 var moonParams = [moonCoords[0] * canvas.width, moonCoords[1] * canvas.height, sunSize - 1];
 
                 //get intersection points
-                var intersects = intersectionOfTwoCircles(sunParams, moonParams);
+                var intersects = circleCircleIntersect(sunParams, moonParams);
                 if (intersects != undefined) {
                     //draw cutoff sun circle
                     var [i1, i2] = intersects;
