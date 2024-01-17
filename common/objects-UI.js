@@ -1,7 +1,16 @@
 const color_UI_text = "#F8F";
-const color_UI_grey = "#888";
-const color_UI_lightGrey = "#CCC";
 const color_UI_selection = "#0AF";
+
+var UI_properties = {
+	lineW: 1 / 96,
+	font: `Comic Sans MS`,
+	cornerR: 1 / 48,
+	colorLine: "#888",
+	colorFill: "#CCC",
+	colorFill2: "#888",
+	colorText: "#F8F",
+	hoverTol: 1 / 100,
+}
 
 class UI_Parent {
 	constructor(x, y, width) {
@@ -10,68 +19,90 @@ class UI_Parent {
 		this.width = width;
 	}
 
-	drawBox(x, y, width, height, arcRadius) {
+	//each UI class has 3 functions
 
-	}
+	//draw - draws the UI element
+
+	//interact - for handling when the mouse is pressed
+
+	//tick - for handling when the mouse has moved
+
 }
 
 
+
 class UI_Button extends UI_Parent {
-	constructor(x, y, widthPERCENTAGE, heightPERCENTAGE, label, codeOnClick) {
-		super(x, y, widthPERCENTAGE);
-		this.height = heightPERCENTAGE;
+	/**
+	 * X, Y, width, and height values are in screen percentages, so they scale with screen resolution.
+	 * @param {Number} x the center x position of the button
+	 * @param {Number} y the center y position of the button
+	 * @param {Number} width the width of the entire button
+	 * @param {Number} height the height of the entire button
+	 * @param {String} label text to display on the button
+	 * @param {Function} codeOnClick code to execute when the button is clicked
+	 */
+	constructor(x, y, width, height, label, codeOnClick) {
+		super(x, y, width);
+		this.height = height;
 		this.label = label;
-		this.code = codeOnClick;
+		this.func = codeOnClick;
 		this.mouseOver = false;
 	}
 
 	beDrawn() {
-		ctx.lineWidth = canvas.height / 96;
-		ctx.strokeStyle = color_grey_dark;
-		if (this.mouseOver) {
-			ctx.fillStyle = color_grey_dark;
-		} else {
-			ctx.fillStyle = color_grey_light;
-		}
-		this.drawBox(canvas.width * (this.x - this.width / 2), canvas.height * (this.y - this.height / 2), canvas.width * this.width, canvas.height * this.height, canvas.height / 48);
+		ctx.lineWidth = canvas.height * UI_properties.lineW;
+		ctx.strokeStyle = UI_properties.colorLine;
+		ctx.fillStyle = this.mouseOver ? UI_properties.colorFill2 : UI_properties.colorFill;
+		ctx.beginPath();
+		ctx.roundRect(canvas.width * (this.x - this.width / 2), canvas.height * (this.y - this.height / 2), canvas.width * this.width, canvas.height * this.height, canvas.height * UI_properties.cornerR);
 		ctx.fill();
 		ctx.stroke();
 
-		ctx.font = `${canvas.height / 25}px Comic Sans MS`;
+		ctx.font = `${canvas.height * this.height * 0.625}px ${UI_properties.font}`;
 		ctx.textAlign = "center";
-		ctx.fillStyle = color_text;
-		ctx.fillText(this.label, canvas.width * this.x, (canvas.height * this.y) + (canvas.height / 75));
+		ctx.fillStyle = UI_properties.colorText;
+		ctx.fillText(this.label, canvas.width * this.x, canvas.height * this.y);
 	}
 
 	tick() {
 		//mouseover check
-		this.mouseOver = (cursor_x > canvas.width * (this.x - this.width * 0.5) && 
-						cursor_x < canvas.width * (this.x + this.width * 0.5) && 
-						cursor_y > canvas.height * (this.y - this.height * 0.5) && 
-						cursor_y < canvas.height * (this.y + this.height * 0.5));
+		this.mouseOver = (Math.abs((cursor.x / canvas.width) - this.x) < this.width * 0.5 && Math.abs((cursor.y / canvas.height) - this.y) < this.height * 0.5);
 	}
 
 	interact() {
 		if (this.mouseOver) {
-			eval(this.code);
+			this.func();
 			return 31;
 		}
 	}
 }
 
 //slider
+
 class UI_Slider extends UI_Parent {
-	constructor(xPERCENTAGE, yPERCENTAGE, widthPERCENTAGE, sliderWidthPERCENTAGE, label, propertyToModifySTRING, displayProperty, minValue, maxValue, snapAmount) {
-		super(xPERCENTAGE, yPERCENTAGE, widthPERCENTAGE);
-		this.textSpace = this.width - sliderWidthPERCENTAGE;
+	/**
+	 * Draws text and a slider that slides between values. Can snap to values along the way.
+	 * X, Y, width, and sliderWidth values are in screen percentages, so they scale with screen resolution.
+	 * ex: [text -----•--]
+	 * @param {Number} x The x coordinate for the leftmost part of the text to be located at
+	 * @param {Number} y The y coordinate for the slider to be located at
+	 * @param {Number} width The width of the entire object
+	 * @param {Number} sliderWidth The width of the slider
+	 * @param {String} label The text to display to the left of the slider portion
+	 * @param {Function} executeOnChange The function that will be executed when 
+	 */
+	constructor(x, y, width, sliderWidth, label, executeOnChange, displayProperty, minValue, maxValue, snapAmount) {
+		super(x, y, width);
+		this.textSpace = this.width - sliderWidth;
 
 		this.property = displayProperty;
-		this.execution = propertyToModifySTRING;
+		this.func = executeOnChange;
 		this.label = label;
 		this.min = minValue;
 		this.max = maxValue;
 		this.snapTo = snapAmount;
-		this.doReset = resetTunnel;
+
+		this.changing = false;
 	}
 
 	beDrawn() {
@@ -83,10 +114,12 @@ class UI_Slider extends UI_Parent {
 			displayValue = Math.round(displayValue);
 		}
 		//text
-		ctx.fillStyle = color_text_bright;
-		ctx.font = `${canvas.height / 40}px Comfortaa`;
-		ctx.textAlign = "left";
-		ctx.fillText(`${this.label} (${displayValue})`, canvas.width * this.x, (canvas.height * this.y) + (canvas.height / 108));
+		if (this.label != null && this.label != "") {
+			ctx.fillStyle = UI_properties.colorText;
+			ctx.font = `${canvas.height / 40}px Comfortaa`;
+			ctx.textAlign = "left";
+			ctx.fillText(`${this.label} (${displayValue})`, canvas.width * this.x, (canvas.height * this.y) + (canvas.height / 108));
+		}
 
 
 
@@ -103,27 +136,26 @@ class UI_Slider extends UI_Parent {
 	}
 
 	interact() {
-		//update self's values if cursor is down
-		if (cursor_down) {
-			//if in the area, modify value
-			if (cursor_y > (canvas.height * this.y) - cursor_hoverTolerance && cursor_y < (canvas.height * this.y) + cursor_hoverTolerance &&
-			cursor_x < (canvas.width * (this.x + this.width)) + cursor_hoverTolerance && cursor_x > (canvas.width * this.x) - cursor_hoverTolerance) {
-				var percentage = cursor_x - (canvas.width * (this.x + this.textSpace));
-				percentage = clamp(percentage / (canvas.width * (this.width - this.textSpace)), 0, 1);
-				var value = linterp(this.min, this.max, percentage);
-				value = Math.round(value / this.snapTo) * this.snapTo;
-				eval(this.execution);
-				if (this.doReset) {
-					replacePlayer(0 + (7 * data_persistent.settings.pastaView));
-					loading_state.tunnel.updatePosition(loading_state.tunnel.x, loading_state.tunnel.y, loading_state.tunnel.z);
-					replacePlayer(7);
-				}
-				return 31;
-			}
+		//if the cursor is down over self start changing
+		if (Math.abs(cursor.y - (canvas.height * this.y)) < UI_properties.hoverTol * canvas.height && Math.abs(cursor.x - (canvas.width * (this.x + this.width / 2))) < UI_properties.hoverTol * canvas.height) {
+			this.changing = true;
+			//modify value so it doesn't have to wait until the user moves
+			return this.tick();
 		}
 	}
 
 	tick() {
+		if (!cursor.down) {
+			this.changing = false;
+			return;
+		}
+		if (this.changing) {
+			var percentage = clamp(getPercentage(this.x + this.textSpace, this.x + this.width, cursor.x / canvas.width), 0, 1);
+				var value = linterp(this.min, this.max, percentage);
+				value = Math.round(value / this.snapTo) * this.snapTo;
+				this.func(value);
+				return 31;
+		}
 	}
 }
 
@@ -144,34 +176,26 @@ class UI_TextBox extends UI_Parent {
 		drawSelectionBox(canvas.width * (this.x + (this.width * 0.5)), canvas.height * this.y, canvas.width * this.width, canvas.height / 25);
 
 		//text
-		ctx.fillStyle = color_text_bright;
+		ctx.fillStyle = UI_properties.colorText;
 		ctx.font = `${canvas.height / 42}px Comfortaa`;
 		ctx.textAlign = "left";
 		ctx.fillText(this.label + eval(this.property), canvas.width * (this.x + 0.01), (canvas.height * this.y) + (canvas.height / 126));
 	}
 
 	interact() {
-		//update self's values if cursor is down
-		if (cursor_down) {
-			//if in the area, modify value
-			if (cursor_y > (canvas.height * this.y) - cursor_hoverTolerance && cursor_y < (canvas.height * this.y) + cursor_hoverTolerance) {
-				if (cursor_x < (canvas.width * (this.x + this.width)) + cursor_hoverTolerance && cursor_x > (canvas.width * this.x) - cursor_hoverTolerance) {
-					var value = prompt(this.boxLabel, eval(this.boxContent));
-					//sanitize input because users are evil gremlins (sorry any user that's reading this, you're not an evil gremlin, but your typing habits could cause problems)
-					if (isValidString(value)) {
-						value.replaceAll(`\'`, "");
-						value.replaceAll(`\\`, "");
+		//if in the area, modify value
+		if (cursor.y > (canvas.height * this.y) - UI_properties.hoverTol && cursor.y < (canvas.height * this.y) + UI_properties.hoverTol) {
+			if (cursor.x < (canvas.width * (this.x + this.width)) + UI_properties.hoverTol && cursor.x > (canvas.width * this.x) - UI_properties.hoverTol) {
+				var value = prompt(this.boxLabel, eval(this.boxContent));
+				//sanitize input because users are evil gremlins (sorry any user that's reading this, you're not an evil gremlin, but your typing habits could cause problems)
+				if (isValidString(value)) {
+					value.replaceAll(`\'`, "");
+					value.replaceAll(`\\`, "");
 
-						eval(this.execution);
-						if (this.doReset) {
-							player = new Runner(player.x, player.y, player.z);
-							loading_state.tunnel.updatePosition(loading_state.tunnel.x, loading_state.tunnel.y, loading_state.tunnel.z);
-							player = new Pastafarian(player.x, player.y, player.z);
-						}
-						//repeat pop-up prevention
-						cursor_x = -1000;
-						cursor_y = -1000;
-					}
+					eval(this.execution);
+					//repeat pop-up prevention
+					cursor.x = -1000;
+					cursor.y = -1000;
 				}
 			}
 		}
@@ -182,19 +206,35 @@ class UI_TextBox extends UI_Parent {
 }
 
 class UI_Toggle extends UI_Parent {
-	constructor(xPERCENTAGE, yPERCENTAGE, widthPERCENTAGE, label, propertyToModifySTRING) {
-		super(xPERCENTAGE, yPERCENTAGE, widthPERCENTAGE);
+	/**
+	 * A labelled checkbox that you can toggle
+	 * @param {Number} x The screen percentage of the leftmost X position
+	 * @param {Number} y The screen percentage of the middle Y position 
+	 * @param {Number} width The screen percentage of the item width. The checkbox will be located at x + width
+	 * @param {String} label The text to label the checkbox with
+	 * @param {Function} propertyFunc A function that takes in one or no arguments (for setting new values) and returns the value of the property
+	 */
+	constructor(x, y, width, height, label, propertyFunc) {
+		super(x, y, width);
+		this.height = height / 2;
 		this.text = label;
-		this.property = propertyToModifySTRING;
+		this.func = propertyFunc;
 	}
 
 	beDrawn() {
 		//selection box
-		drawSelectionBox((this.x + this.width) * canvas.width, this.y * canvas.height, (canvas.height / 36) * 2,( canvas.height / 36) * 2);
+		var boxL = this.height * canvas.height;
+		ctx.lineWidth = canvas.height * UI_properties.lineW;
+		ctx.strokeStyle = UI_properties.colorLine;
+		ctx.fillStyle = this.mouseOver ? UI_properties.colorFill2 : UI_properties.colorFill;
+		ctx.beginPath();
+		ctx.roundRect(canvas.width * (this.x + this.width) - boxL, canvas.height * this.y - boxL, boxL * 2, boxL * 2, canvas.height * UI_properties.cornerR);
+		ctx.fill();
+		ctx.stroke();
 
-		ctx.fillStyle = color_text_bright;
-		if (eval(this.property)) {
-			ctx.fillRect(((this.x + this.width) * canvas.width) - (canvas.height / 72), (this.y * canvas.height) - (canvas.height / 72), canvas.height / 36, canvas.height / 36);
+		ctx.fillStyle = UI_properties.colorText;
+		if (this.func()) {
+			ctx.fillRect(((this.x + this.width) * canvas.width) - boxL / 2, (this.y * canvas.height) - boxL / 2, boxL, boxL);
 		}
 
 		//text
@@ -204,8 +244,8 @@ class UI_Toggle extends UI_Parent {
 	}
 
 	interact() {
-		if (cursor_x > this.x * canvas.width && cursor_x < (this.x + this.width) * canvas.width && cursor_y > (this.y * canvas.height) - (canvas.height / 36) && cursor_y < (this.y * canvas.height) + (canvas.height / 36)) {
-			eval(`${this.property} = !${this.property};`);
+		if (cursor.x > this.x * canvas.width && cursor.x < (this.x + this.width) * canvas.width && Math.abs(this.y - (cursor.y / canvas.height)) < this.height) {
+			this.func(!this.func());
 		}
 	}
 
