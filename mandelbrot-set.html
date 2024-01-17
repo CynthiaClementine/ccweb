@@ -96,11 +96,11 @@
                     /*initializing variables. i is number of iterations, 
                     cx/cy are starting coordinates (stay the same), 
                     and zx/zy are iterating coordinates (change with every iteration) */
-                    i = 0;
+                    i = 1;
                     cx = ((x * pixelSize) / scale) + cornerCoords[0];
                     cy = ((y * pixelSize) / scale) + cornerCoords[1];
-                    zx = 0;
-                    zy = 0;
+                    zx = cx;
+                    zy = cy;
 
                     //main processing loop
                     while(i < maxIterations && zx * zx + zy * zy < 4) {
