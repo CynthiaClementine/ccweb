@@ -39,13 +39,14 @@
 			var scale = 1;
 			var startingCurves = [-1, 2, 2];
 			var minRadius = 0.001;
+			var maxRadiusMult = 1; //math is hard
 			var ε = 0.0005;
 
 			var curvatures = [91, 91, 63];
 
 			var circles = [];
 
-			var displayNumbers = true;
+			var displayNumbers = false;
 
 			function findBetterPos(x, y, dx, minSlope) {
 				
@@ -67,10 +68,6 @@
 				var main = A + B + C;
 				var disc = 2 * Math.sqrt(Math.abs(A*B + A*C + B*C));
 				var partials = [main + disc, main - disc];
-
-				if (circles.length < 10) {
-					console.log(Math.abs(A*B + A*C + B*C), A, B, C, partials);
-				}
 
 				if (partials[0] < 0) {
 					return [partials[1]];
@@ -102,7 +99,7 @@
 				//label text for slider circles
 				if (displayNumbers) {
 					var fontSize;
-					for (var c=0; c<20; c++) {
+					for (var c=0; c<Math.min(20, circles.length); c++) {
 						ctx.fillStyle = (c < curvatures.length) ? color_line : color_lineLight;
 						fontSize = Math.min(scale * (sorted[c][2] / 3), canvas.height * 0.1);
 						if (fontSize > canvas.height * 0.01) {
@@ -114,11 +111,15 @@
 			}
 
 			function create() {
-				circles = [];
 				if (curvatures.length < 2) {
 					console.log(`not enough information!`);
 					return;
 				}
+				//only remove the circles if there's enough information to replace them again
+				if (curvatures.length < 4) {
+					circles = [];
+				}
+				
 
 				var rad1 = rad(curvatures[0]);
 				var rad2 = rad(curvatures[1]);
@@ -142,6 +143,32 @@
 					var main = A + B + C;
 					var disc = 2 * Math.sqrt(Math.abs(A*B + A*C + B*C));
 					var D = main - disc;
+
+					console.log(`initial: ${[A, B, C, D]}`);
+
+
+					//vieta jump (replace one circle at a time with its larger dual) to make sure we have the largest circles
+					var largests = [false, false, false];
+					var vietas = [A, B, C, D];
+					var proposed;
+					while (!largests.reduce((a, b) => a && b)) {
+						for (var g=0; g<3; g++) {
+							//minimum curvature = largest circle
+							var temp = [...vietas];
+							temp.splice(g, 1);
+							proposed = Math.min(...curvatureFrom(...temp));
+							if (proposed < vietas[g]) {
+								vietas[g] = proposed;
+								largests[g] = false;
+							} else {
+								largests[g] = true;
+							}
+						}
+					}
+
+					[A, B, C, D] = vietas;
+					console.log(`after vieta: ${[A, B, C, D]}`);
+
 					var [a, b, c, d] = [rad(A), rad(B), rad(C), rad(D)];
 
 
@@ -173,7 +200,7 @@
 					for (var b=a+1; b<lenCircs-1; b++) {
 						for (var c=b+1; c<lenCircs; c++) {
 							console.log(a, b, c);
-							create_recursive(circles[a], circles[b], circles[c], maxRadius, minRadius);
+							create_recursive(circles[a], circles[b], circles[c], maxRadius * maxRadiusMult, minRadius);
 						}
 					}
 				}
@@ -206,6 +233,10 @@
 
 				var coords = circleCircleIntersect(cDat1, cDat2);
 
+				if (coords == undefined) {
+					return [];
+				}
+
 				//check which, if any, really intersect that third circle
 				var r0 = Math.sqrt((coords[0][0] - cDat3[0]) ** 2 + (coords[0][1] - cDat3[1]) ** 2);
 				var r1 = Math.sqrt((coords[1][0] - cDat3[0]) ** 2 + (coords[1][1] - cDat3[1]) ** 2);
@@ -235,9 +266,9 @@
 				coords.forEach(c => {
 					cDat4 = [c[0], c[1], d];
 					circles.push(cDat4);
-					create_recursive(cDat1, cDat2, cDat4, d, lowerRadLimit);
-					create_recursive(cDat1, cDat3, cDat4, d, lowerRadLimit);
-					create_recursive(cDat2, cDat3, cDat4, d, lowerRadLimit);
+					create_recursive(cDat1, cDat2, cDat4, d, lowerRadLimit * maxRadiusMult);
+					create_recursive(cDat1, cDat3, cDat4, d, lowerRadLimit * maxRadiusMult);
+					create_recursive(cDat2, cDat3, cDat4, d, lowerRadLimit * maxRadiusMult);
 				});
 			}
 
@@ -247,7 +278,7 @@
 				}
 				var maxR = canvas.width * 0.475;
 				scale = Math.abs(maxR / circles[0][2]);
-				minRadius = 1 / scale;
+				minRadius = 0.5 / scale;
 				ε = minRadius / 8;
 			}
 
@@ -279,8 +310,25 @@
 
 			function sliderAdd() {
 				var existingSliders = sliderPos.children.length;
+
+				if (existingSliders == 4) {
+					return;
+				}
+
 				var parent = document.createElement("div");
-				parent.innerHTML = `<input type="range" min="1" max="180" value="2" class="slider" id="slider${existingSliders+1}" oninput=updateInitials()>`;
+
+				if (existingSliders == 3) {
+					//make the first 3 invisible, add the 4th special slider
+					[slider1, slider2, slider3].forEach(e => {
+						e.style.display = "none";
+					});
+					parent.innerHTML = `<input type="range" min="2" max="12" value="4" class="slider" id="slider4" oninput=updateInitials_radial()>`;
+					window.setTimeout(() => {updateInitials_radial();}, 1);
+				} else {
+					parent.innerHTML = `<input type="range" min="1" max="180" value="2" class="slider" id="slider${existingSliders+1}" oninput=updateInitials()>`;
+				}
+				
+				
 				sliderPos.appendChild(parent.children[0]);
 
 				if (existingSliders == 0) {
@@ -290,18 +338,27 @@
 
 			function sliderRemove() {
 				var existingSliders = sliderPos.children.length;
+				if (existingSliders == 0) {
+					return;
+				}
 				if (existingSliders == 2) {
 					sliderPos.innerHTML = "";
 					return;
+				}
+
+				if (existingSliders == 4) {
+					//make the first 3 visible again
+					[slider1, slider2, slider3].forEach(e => {
+						e.style.display = "inline-block";
+					});
+					updateInitials();
 				}
 
 				sliderPos.removeChild(sliderPos.children[sliderPos.children.length-1]);
 			}
 
 			function updateInitials() {
-				console.log(`updating!`);
-
-				var sliderCount = sliderPos.children.length;
+				var sliderCount = Math.min(sliderPos.children.length, 3);
 				if (sliderCount > 1) {
 					//pull from the sliders
 					curvatures = [];
@@ -312,6 +369,39 @@
 					curvatures = [1, 1];
 				}
 				circles = [];
+				create();
+				render();
+			}
+
+			function updateInitials_radial() {
+				console.log(`making radial`);
+				var n = +sliderPos.children[3].value;
+				curvatures = [1, 1, 1, 1];
+				circles = [];
+				maxRadiusMult = (n == 4) ? 1.05 : 1;
+
+				//since it's radial symmetry, all circles will exist at the corners of a regular polygon
+				//figure out dimensions of said polygon
+				var r = 1 / n;
+				var x = r / Math.sin(Math.PI / n);
+
+				circles.push([0, 0, -(x+r)]);
+
+				var a;
+				for (var v=0; v<n; v++) {
+					a = Math.PI * 2 * (v / n);
+					circles.push([-x * Math.cos(a), x * Math.sin(a), r]);
+				}
+
+				//also make the center circle because it won't be done otherwise
+				if (n > 3) {
+					circles.push([0, 0, x-r]);
+				}
+
+				while (curvatures.length < n + +(n > 5)) {
+					curvatures.push(1);
+				}
+
 				create();
 				render();
 			}
