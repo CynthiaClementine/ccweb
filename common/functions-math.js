@@ -247,6 +247,11 @@ function easerp(a, b, percentage) {
 	return a + (b - a) * (1 - 2 * (percentage - 1) * (percentage - 1));
 }
 
+//the opposite of easerp - starts and ends fast, but is slow in the middle
+function waverp(a, b, percentage) {
+	return linterp(a, b, 2 * percentage ** 3 - 3 * percentage ** 2 + 2 * percentage);
+}
+
 //factorial, named a greek letter so it's compact without taking up one of the english letters
 function Ξ(x) {
 	var max = 1;
