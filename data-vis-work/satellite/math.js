@@ -221,5 +221,5 @@ function calculateL2Dist(largeBody, smallBody) {
 	var mu = smallBody.gm / (smallBody.gm + largeBody.gm);
 	var R = dist(largeBody.x, largeBody.y, smallBody.x, smallBody.y);
 	var hillR = R * Math.cbrt(mu / 3);
-	return hillR;
+	return R + hillR;
 }
