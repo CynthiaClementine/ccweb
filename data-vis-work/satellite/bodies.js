@@ -30,6 +30,7 @@ class Planet {
 
 		this.x = 0;
 		this.y = 0;
+		this.a = 0;
 	}
 
 	draw() {
@@ -93,7 +94,8 @@ class Planet {
 	}
 
 	calculatePos() {
-		return polToXY(this.parent.x, this.parent.y, this.calculateAngleAt(time), this.peri);
+		this.a = this.calculateAngleAt(time);
+		return polToXY(this.parent.x, this.parent.y, this.a, this.peri);
 	}
 
 	calculateAngleAt(t) {
@@ -154,12 +156,17 @@ class Satellite {
 		//set up orbit to start
 		this.updatePos();
 
-		//move along orbit
+		//lagrange
+		if (stDat.body2 != undefined) {
+			this.theta += dt * (Math.PI * 2 / stDat.period) * stDat.parity;
+			return;
+		}
+
+		//regular elliptical orbit
 		var a = (stDat.peri + stDat.apo) / 2;
 		var b = bFromApoA(stDat.apo, a);
 		var velocity = this.calcV(stDat);
 
-		
 		this.da = calculateDeltaTheta(a, b, this.theta, velocity * dt * stDat.parity);
 		this.theta += this.da;
 	}
@@ -178,6 +185,15 @@ class Satellite {
 
 	updatePos() {
 		var stDat = this.moveDatFull[this.state][1];
+
+		//lagrange case
+		if (stDat.body2 != undefined) {
+			var centerPos = polToXY(stDat.body.x, stDat.body.y, stDat.body2.a, calculateL2Dist(stDat.body, stDat.body2));
+			[this.x, this.y] = polToXY(...centerPos, stDat.body2.a + Math.PI / 2, stDat.peri * Math.sin(this.theta));
+			return;
+		}
+
+		//regular case
 		var a = (stDat.peri + stDat.apo) / 2;
 		var b = bFromApoA(stDat.apo, a);
 		var c = a - stDat.peri;
@@ -230,6 +246,18 @@ class Satellite {
 
 		noFill();
 		stroke(128 + 127 * (highlight || false), 128, 128);
+
+		if (stDat.body2 != undefined) {
+			//lagrange orbit
+			var trueR = calculateL2Dist(stDat.body, stDat.body2);
+			var L2Coords = polToXY(stDat.body.x, stDat.body.y, stDat.body2.a, trueR);
+			L2Coords = spaceToScreen(...L2Coords);
+			var offset = polToXY(0, 0, stDat.body2.a + Math.PI / 2, drawA);
+			line(L2Coords[0] - offset[0], L2Coords[1] - offset[1], L2Coords[0] + offset[0], L2Coords[1] + offset[1]);
+			noStroke();
+			return;
+		}
+
 		drawEllipseBody(x, y, drawA, drawB, drawC, stDat.a);
 		noStroke();
 	}
@@ -248,38 +276,71 @@ class Satellite {
 
 		//make sure it's reasonable to switch orbits
 		var pos = [this.x, this.y];
-		var maxDelta = this.calcV(stDat) * dt;
+		var maxDelta = this.calcV(oldStDat) * dt;
+		var newTheta;
 
 		//calculate new orbit parameters
-		var newA = (stDat.apo + stDat.peri) / 2;
-		var newB = bFromApoA(stDat.apo, newA);
-		var newC = newA - stDat.peri;
-		var newRot = stDat.a;
-		
-		//transforming to new orbit
-		var newCenter = ellipseCenter(stDat.apo, stDat.peri, stDat.a, stDat.body);
-		pos[0] -= newCenter[0];
-		pos[1] -= newCenter[1];
-		pos = rot(...pos, -newRot);
-		var newTheta = Math.atan2(pos[1] / newB, pos[0] / newA);
-		newTheta = (newTheta + PI * 2) % (PI * 2);
+		if (stDat.body2 != undefined) {
+			//lagrange case
+			var newCenter = polToXY(stDat.body.x, stDat.body.y, stDat.body2.a, calculateL2Dist(stDat.body, stDat.body2));
 
-		//calculate the closest position on the new orbit (also in transformed coordinates)
-		var newPos = ellipsePos(newA, newB, newTheta);
-		var dispPos = rot(...newPos, newRot);
+			//transform to new orbit
+			pos[0] -= newCenter[0];
+			pos[1] -= newCenter[1];
 
-		if (debug) {
-			fill(255, 0, 0);
-			stroke(255, 0, 0);
-			// console.log(newPos, stDat.body.x, stDat.body.y);
-			line(...spaceToScreen(...newCenter), ...spaceToScreen(dispPos[0] + newCenter[0], dispPos[1] + newCenter[1]));
-			circle(...spaceToScreen(dispPos[0] + newCenter[0], dispPos[1] + newCenter[1]), 4);
-		}
-		
-		//finally compare them
-		if (dist(...pos, ...newPos) > maxDelta) {
-			//too far, try again later
-			return;
+			pos = rot(...pos, -stDat.body2.a);
+
+			//in transformed coordinates, the lagrange orbit is a straight line centered at (0, 0) that goes up and down
+			var newPos = [0, clamp(pos[1], -stDat.peri, stDat.peri)];
+			var dispPos = rot(...newPos, stDat.body2.a);
+
+			if (debug) {
+				fill(255, 0, 0);
+				stroke(255, 0, 0);
+				line(...spaceToScreen(...newCenter), ...spaceToScreen(dispPos[0] + newCenter[0], dispPos[1] + newCenter[1]));
+				circle(...spaceToScreen(dispPos[0] + newCenter[0], dispPos[1] + newCenter[1]), 4);
+			}
+
+			//calculate distance
+			if (dist(...pos, ...newPos) > maxDelta) {
+				return;
+			}
+
+			//if we're actually switching, we should figure out orbit timings
+			newTheta = Math.asin(newPos[1] / stDat.peri);
+			//assume initial movement towards the center
+			stDat.parity = (newTheta < 0) ? 1 : -1;
+
+		} else {
+			var newA = (stDat.apo + stDat.peri) / 2;
+			var newB = bFromApoA(stDat.apo, newA);
+			var newRot = stDat.a;
+			
+			//transforming to new orbit
+			var newCenter = ellipseCenter(stDat.apo, stDat.peri, stDat.a, stDat.body);
+			pos[0] -= newCenter[0];
+			pos[1] -= newCenter[1];
+			pos = rot(...pos, -newRot);
+			var newTheta = Math.atan2(pos[1] / newB, pos[0] / newA);
+			newTheta = (newTheta + PI * 2) % (PI * 2);
+
+			//calculate the closest position on the new orbit (also in transformed coordinates)
+			var newPos = ellipsePos(newA, newB, newTheta);
+			var dispPos = rot(...newPos, newRot);
+
+			if (debug) {
+				fill(255, 0, 0);
+				stroke(255, 0, 0);
+				// console.log(newPos, stDat.body.x, stDat.body.y);
+				line(...spaceToScreen(...newCenter), ...spaceToScreen(dispPos[0] + newCenter[0], dispPos[1] + newCenter[1]));
+				circle(...spaceToScreen(dispPos[0] + newCenter[0], dispPos[1] + newCenter[1]), 4);
+			}
+			
+			//finally compare them
+			if (dist(...pos, ...newPos) > maxDelta) {
+				//too far, try again later
+				return;
+			}
 		}
 
 		//we're all good!
@@ -323,6 +384,18 @@ class Satellite {
 							energy: -bod.gm / (2 * peri),	//calculateEnergy(bod, peri, calculateOrbitalVelocity(bod, peri, peri))
 							parity: 1
 						};
+					} else if (spl.length == 5) {
+						var superSpl = spl[2].split("-");
+						//lagrange orbit
+						datum[1] = {
+							body: solarBodies[superSpl[0]],
+							body2: solarBodies[superSpl[1]],
+							peri: peri,
+							apo: peri,
+							a: 0,
+							period: +spl[4],
+							parity: 0
+						}
 					} else if (spl.length == 6 || spl.length == 7) {
 						//elliptical gives 3 arguments
 						datum[1] = {
@@ -422,32 +495,50 @@ var satData = [
 	// 	// `Mar-5-1979 orbit sun 149E9 780E9 1.3`,
 	// 	`Jan-1-2000 escape`,
 		
-	// ], `a satellite used for testing. Will orbit the earth for exactly one year.`),
+	// ], `OwO`),
 	
 	
 	//ANNOYING!
-	// new Satellite(`EQUULEUS`, `China`, [
-	// 	`Nov-16-2022 orbit earth 1E7 3.85E8 3.8`,
-	// 	`Nov-21-2022 orbit earth 0.5E8 4.5E8 3.1`,
-	// 	`Dec-17-2022 orbit earth 0.4E8 4.5E8 3.05`,
-	// 	`Dec-21-2022 orbit earth 0.4E8 4.05E8 3.25`,
-	// 	`Jan-8-2023 orbit earth 0.4E8 4.1E8 3.25`,
-	// 	`Jan-27-2023 orbit earth 0.4E8 4.1E8 3.3`,
-	// 	`Feb-6-2023 orbit earth 0.45E8 4.1E8 3.3`,
-	// 	`Feb-15-2023 orbit earth 0.45E8 4.1E8 3.15`,
-	// 	//gravity assist here?
-	// 	`Mar-27-2023 orbit earth 1.6E8 9E8 4.1`,
-	// 	// `Mar-27-2023 orbit L2-earth-moon 1.6E8 9E8 4.1`,
+
+	// new Satellite(`test`, `China`, [
+	// 	`Mar-28-2023 orbit earth 1.6E8 4.5E8 3.05`,
+	// 	`Mar-27-2023 orbit earth-moon 0.4E8 20`,
 	// ], `Equuleus is a nanosatellite launched by Japan to orbit around Earth's moon and Lagrange point 2 on November 16, 2022. Its purpose was to measure the distribution of plasma around the Earth.`),
-	
-	
-	
+
 	
 
-	new Satellite(`IM-1`, `NASA`, [`Jan-1-1957 orbit earth 3E8`], `a`),
+
 	
-	/*
+	
 	//completed data
+	new Satellite(`IM-1`, `US`, [
+		`Feb-16-2024 orbit earth 6E6 3.85E8 1.62`,
+		`Feb-18-2024 orbit moon 1.84E6 1E8 3.2`,
+		`Feb-21-2024 orbit moon 1.84E6`,
+		`Feb-24-2024 land moon`,
+	], `IM-1 is a lunar mission satellite created by a U.S. company called Intutitive Machines. It was the first liquid methane and methalox-powered spacecraft to travel beyond low-earth orbit.`),
+
+	new Satellite(`JWST`, `US/EU/Canada`, [
+		`March-15-2022 orbit earth 0.1E8 1.52E9 -1.28 CW`,
+		`April-5-2022 orbit sun-earth 2.5E8 90`,
+	], `The James Webb Telescope was launched from French Guiana by collaborating countries from Europe along with the United States and Canada. 
+	It was designed to construct infrared astronomy, and it orbits around the Sun-Earth Lagrange point 2 to maintain stability without expending fuel.`),
+
+	new Satellite(`EQUULEUS`, `Japan`, [
+		`Nov-16-2022 orbit earth 1E7 3.85E8 3.1`,
+		`Nov-21-2022 orbit earth 0.5E8 4.5E8 2.4`,
+		`Dec-25-2022 orbit earth 0.4E8 4.5E8 2.35`,
+		`Dec-27-2022 orbit earth 0.4E8 4.05E8 2.55`,
+		`Jan-8-2023 orbit earth 0.4E8 4.1E8 2.55`,
+		`Jan-27-2023 orbit earth 0.4E8 4.1E8 2.6`,
+		`Feb-6-2023 orbit earth 0.45E8 4.1E8 2.5`,
+		`Feb-15-2023 orbit earth 0.45E8 4.1E8 2.2`,
+		`Mar-30-2023 orbit earth 1.6E8 7E8 3.055`,
+		//super scuffed, only gets to L2 on the third wrap-around
+		//but I blame this on wikipedia for not giving me a full orbit diagram
+		`Mar-31-2023 orbit earth-moon 0.4E8 20`,
+	], `Equuleus is a nanosatellite launched by Japan to orbit around the Earth-Moon Lagrange point 2. Its purpose was to measure the distribution of plasma around the Earth.`),
+
 	new Satellite(`Queqiao-2`, `China`, [
 		`Mar-20-2024 orbit earth 7E6 0.3E8 2.8`,
 		`Mar-21-2024 orbit earth 7E6 3.87E8 2.75`,
@@ -502,5 +593,5 @@ var satData = [
 		`Nov-7-2023 orbit moon 1E7 5E7 2.4`,
 		`Nov-8-2023 orbit moon 1E7 1E7 2.4`
 	], `SLIM is a lunar lander satellite launched by Japan to a lunar orbit on September 6, 2023. The satellite was set to launch in 2021 but was postponed due to delays from its rideshare XRISM.`),
-	*/
+	
 ];
