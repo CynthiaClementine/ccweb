@@ -220,14 +220,17 @@ class Satellite {
 
 		
 		//draw future orbit if there is one
-		if (this.state < this.moveDatFull.length - 1) {
-			if (this.moveDatFull[this.state+1][0] < time) {
-				this.increaseState(this.dt, true);
-				try {
-					this.drawOrbit(this.moveDatFull[this.state+1][1], true);
-				} catch (e) {}
+		if (globalDebug) {
+			if (this.state < this.moveDatFull.length - 1) {
+				if (this.moveDatFull[this.state+1][0] < time) {
+					this.increaseState(this.dt, true);
+					try {
+						this.drawOrbit(this.moveDatFull[this.state+1][1], true);
+					} catch (e) {}
+				}
 			}
 		}
+		
  
 		//draw self on orbit
 		fill(255, 255, 255);
@@ -516,13 +519,26 @@ var satData = [
 		`Feb-18-2024 orbit moon 1.84E6 1E8 3.2`,
 		`Feb-21-2024 orbit moon 1.84E6`,
 		`Feb-24-2024 land moon`,
-	], `IM-1 is a lunar mission satellite created by a U.S. company called Intutitive Machines. It was the first liquid methane and methalox-powered spacecraft to travel beyond low-earth orbit.`),
+	], 
+	`IM-1 is a lunar mission satellite 
+	created by a U.S. company called 
+	Intutitive Machines. It was the first 
+	liquid methane and methalox-powered 
+	spacecraft to travel beyond 
+	low-earth orbit.`),
 
 	new Satellite(`JWST`, `US/EU/Canada`, [
 		`March-15-2022 orbit earth 0.1E8 1.52E9 -1.28 CW`,
 		`April-5-2022 orbit sun-earth 2.5E8 90`,
-	], `The James Webb Telescope was launched from French Guiana by collaborating countries from Europe along with the United States and Canada. 
-	It was designed to construct infrared astronomy, and it orbits around the Sun-Earth Lagrange point 2 to maintain stability without expending fuel.`),
+	], 
+	`The James Webb Telescope was launched 
+	from French Guiana by collaborating 
+	countries from Europe along with the 
+	United States and Canada. It was 
+	designed to construct infrared 
+	astronomy, and it orbits around the 
+	Sun-Earth Lagrange point 2 to maintain 
+	stability without expending fuel.`),
 
 	new Satellite(`EQUULEUS`, `Japan`, [
 		`Nov-16-2022 orbit earth 1E7 3.85E8 3.1`,
@@ -537,23 +553,44 @@ var satData = [
 		//super scuffed, only gets to L2 on the third wrap-around
 		//but I blame this on wikipedia for not giving me a full orbit diagram
 		`Mar-31-2023 orbit earth-moon 0.4E8 20`,
-	], `Equuleus is a nanosatellite launched by Japan to orbit around the Earth-Moon Lagrange point 2. Its purpose was to measure the distribution of plasma around the Earth.`),
+	], 
+	`EQUULEUS is a nanosatellite launched by 
+	Japan to orbit around the Earth-Moon 
+	Lagrange point 2. Its purpose was to 
+	measure the distribution of plasma 
+	around the Earth.`),
 
 	new Satellite(`Queqiao-2`, `China`, [
 		`Mar-20-2024 orbit earth 7E6 0.3E8 2.8`,
 		`Mar-21-2024 orbit earth 7E6 3.87E8 2.75`,
 		`Mar-23-2024 orbit moon 2.1E6 2.5E7 -1.6 CW`,
 		`Mar-25-2024 orbit moon 2.1E6 1.6E7 -1.6 CW`,
-	], `Queqiao-2 is a relay satellite launched from China to a highly eccentric lunar orbit. Its purpose was to support communications from the far side of the moon and Lunar south pole.`),
+	], 
+	`Queqiao-2 is a relay satellite launched 
+	from China to a highly eccentric lunar 
+	orbit. Its purpose was to support 
+	communications from the far side of the 
+	moon and Lunar south pole.`),
 
 	new Satellite(`IXPE`, `USA/Italy`, [
 		`Dec-9-2021 orbit earth 6.91E6`,
-	], `The IXPE is a space observatory satellite with 3 telescopes, designed to last for at least 2 years. Its purpose is to measure the polarization of various cosmic X-rays. `),
+	], 
+	`The IXPE is a space observatory 
+	satellite with 3 telescopes, 
+	designed to last for at least 2 years. 
+	Its purpose is to measure the 
+	polarization of various cosmic X-rays. `),
 
 	new Satellite(`TURKSAT-5B`, `Turkey`, [
 		`Dec-19-2021 orbit earth 7E6 4.22E7 2`,
 		`Dec-20-2021 orbit earth 4.22E7`,
-	], `TURKSAT-5B is a geostationary high-throughput communications satellite launched by Turkey to a geosynchronous orbit on December 19, 2021. It was developed for military and commercial purposes.`),
+	], 
+	`TURKSAT-5B is a geostationary high-
+	throughput communications satellite 
+	launched by Turkey to a geosynchronous 
+	orbit on December 19, 2021. It was 
+	developed for military and 
+	commercial purposes.`),
 
 	new Satellite(`Artemis 1`, `USA`, [
 		`Nov-19-2022 orbit earth 2.1E6 3.87E8 3.65`,
@@ -563,7 +600,11 @@ var satData = [
 		`Nov-8-2022 orbit moon 2.1E6 1E8 -2.2 CW`,
 		`Nov-30-2022 orbit earth 2.1E6 3.84E8 -0.63 CW`,
 		`Dec-5-2022 land earth`,
-	], `Artemis-1 is an uncrewed lunar orbit mission launched by the US on November 16, 2022. Its purpose was to test the Orion spacecraft's durability for future Artemis missions.`),
+	], 
+	`Artemis-1 is an uncrewed lunar orbit 
+	mission launched by the US. Its purpose 
+	was to test the Orion spacecraft's 
+	durability for future Artemis missions.`),
 
 	new Satellite(`Chandrayaan-3`, `India`, [
 		`Jul-14-2023 orbit earth 8E6 0.63E8 -0.33`,
@@ -577,12 +618,21 @@ var satData = [
 		`Aug-4-2023 orbit moon 9E6 8E7 2.9`,
 		`Aug-9-2023 orbit moon 9E6 3E7 2.9`,
 		`Aug-15-2023 orbit moon 9E6 1E7 2.9`,
-	], `Chandrayaan-3 is the third lunar exploration mission launched by India in the Chandrayaan program to a lunar orbit on July 14, 2023. 
-	Its purpose was to demonstrate soft landing on a lunar surface.`),
+	], 
+	`Chandrayaan-3 is the third lunar 
+	exploration mission launched by India 
+	in the Chandrayaan program to a lunar 
+	orbit on July 14, 2023. Its purpose was 
+	to demonstrate soft landing on a 
+	lunar surface.`),
 
 	new Satellite(`lunIR`, `USA`, [
 		`Nov-24-2022 orbit moon 2.0E6`
-	], `The LunIR is a nanosatellite launched alongside the Artemis 1 mission to a lunar orbit. Its purpose is to observe the moon's spectroscopy and thermography.`),
+	], 
+	`LunIR is a nanosatellite launched 
+	alongside the Artemis 1 mission to a 
+	lunar orbit. Its purpose is to observe 
+	the moon's spectroscopy and thermography.`),
 
 	new Satellite(`SLIM`, `Japan`, [
 		`Sept-6-2023 orbit earth 8E6 1.28E8 0.1`,
@@ -592,6 +642,13 @@ var satData = [
 		`Nov-1-2023 orbit moon 1E7 9E7 2.4`,
 		`Nov-7-2023 orbit moon 1E7 5E7 2.4`,
 		`Nov-8-2023 orbit moon 1E7 1E7 2.4`
-	], `SLIM is a lunar lander satellite launched by Japan to a lunar orbit on September 6, 2023. The satellite was set to launch in 2021 but was postponed due to delays from its rideshare XRISM.`),
-	
+	], 
+	`SLIM is a lunar lander satellite 
+	launched by Japan to a lunar orbit. The 
+	satellite was set to launch in 2021 but 
+	was postponed due to delays from its 
+	rideshare XRISM.`),
 ];
+
+var satStarts = satData.map(s =>  s.moveDatFull[0][0] - 1);
+satStarts = satStarts.sort((a, b) => a - b);
