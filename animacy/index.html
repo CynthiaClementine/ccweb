@@ -1,0 +1,555 @@
+<!doctype html>
+<!-- Copyright Cynthia Clementine
+August-23-2021 -->
+<html>
+    <head>
+        <title>Animacy v0.2</title>
+        <meta charset="utf-8">
+        <link rel='icon' href='favicon.png' type='image/png'/>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+        <style>
+
+            /* variables for the whole program */
+            :root {
+                --appHeight: 600;
+                --appWidth: 1000;
+
+                --pxUnits: 1;
+                --pxUnits2: 2;
+                --pxUnits4: 4;
+
+                --uilines: #FFFFFF;
+                --sidebarWidth: 10%;
+                --timelineHeight: 400;
+
+                --colorPlayhead: #8a0d0d;
+                --colorSelect: #26F8FF;
+
+                --colorLayerFilled: #AAAAAA;
+                --colorLayerMask: #95A0AD;
+                --colorLayerMasked: #B8B89F;
+                --colorOnionPast: #FF6666;
+                --colorOnionFuture: #6666FF;
+
+                --colorUIDark: #363636;
+                --colorUIMid: #555559;
+            }
+
+
+             /*Top bar dropdown styling*/
+             .dropButton {
+                background-color: #333333;
+                color: white;
+                padding: 2px;
+                font: 16px Ubuntu;
+                border: none;
+                user-select: none;
+            }
+            .dropdown {
+                position: relative;
+                display: inline-block;
+            }
+
+            .dropdownContent {
+                display: none;
+                position: absolute;
+                background-color: #f1f1f1;
+                min-width: 160px;
+                font: 12px Ubuntu;
+                box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+                z-index: 1;
+            }
+
+            .dropdownContent a {
+                color: black;
+                padding: 12px 16px;
+                text-decoration: none;
+                display: block;
+            }
+
+            .dropdownContent a:hover {
+                background-color: #ddd;
+            }
+
+            .dropdown:hover .dropdownContent {
+                display: block;
+            }
+
+            .dropdown:hover .dropButton {
+                background-color: #463646;
+            }
+            .dropdownContent {
+                display: auto !important;
+            }
+
+
+            /* Sidebar styling */
+            #sidebar_activeColors {
+                display: table;
+                table-layout: fixed;
+                width: 100%;
+            }
+            #sidebar_activeColors rect {
+                display: table-cell;
+                text-align: center;
+                margin: auto;
+            }
+
+            #sidebar_color {
+                width: 100px;
+            }
+
+            #sidebar_colorControls {
+                font: 15px Ubuntu;
+                color: #FFFFFF;
+            }
+
+            body {
+                background-color: slateblue;
+            }
+            #base {
+                position: absolute;
+                stroke-linejoin: round;
+            }
+            #convos {
+                display: block;
+                position: absolute;
+            }
+            .timelineButton {
+                cursor: pointer;
+                stroke: #FFFFFF;
+                fill: transparent;
+            }
+            .textTimeline {
+                cursor: text;
+                font: 15px Ubuntu; 
+                fill: #FFFFFF;
+                dominant-baseline: middle;
+                text-align: left;
+                user-select: none;
+            }
+            .textTimelineLength {
+                font: 15px Ubuntu;
+                fill: #FFFFFF;
+                dominant-baseline: middle;
+                user-select: none;
+            }
+            .toolLine {
+                fill: transparent;
+                stroke: var(--uilines);
+                stroke-width: 2;
+            }
+            .select {
+                stroke: var(--colorSelect);
+                stroke-width: var(--pxUnits2);
+                fill: none;
+            }
+
+
+            #help_container {
+                z-index: 2;
+                width: 50%;
+                margin: auto;
+                margin-left: 25%;
+                text-align: center;
+                position: absolute;
+
+                background-color: var(--colorUIDark);
+                border: 2px solid var(--uilines);
+
+                display: none;
+            }
+            .textHelp {
+                font: 15px Ubuntu;
+                color: #FFFFFF;
+            }
+
+        </style>
+        <!--other people's code-->
+        <script src="CCapture.all.min.js"></script> <!-- https://github.com/spite/ccapture.js -->
+        <script src="ffmpeg.min.js"></script> <!-- https://github.com/ffmpegwasm/ffmpeg.wasm -->
+
+        <!--my common code-->
+        <script src="../common/functions-color.js"></script>
+        <script src="../common/functions-DOMnode.js"></script>
+        <script src="../common/functions-math.js"></script>
+        <script src="../common/functions-bezier.js"></script>
+        <script src="../common/functions-2dVector.js"></script>
+        <script src="../common/collision-2d.js"></script>
+        
+        <!--my app-specific code-->
+        <script src="functions-spline.js"></script>
+        <script src="functions-api.js"></script>
+        <script src="functions-helper.js"></script>
+        <script src="functions-interact.js"></script>
+        <script src="functions-misc.js"></script>
+        <script src="functions-files.js"></script>
+        <script src="objects.js"></script>
+        <script src="modes.js"></script>
+		
+    </head>
+    <body>
+        <div class="dropdown" id="top_import">
+            <button class="dropButton">Import (-fin)</button>
+            <div class="dropdownContent" id="top_import_contents">
+                <a onclick="upload.click()">Import Project</a>
+                <a onclick="upload_img.click()">Import image </a>
+                <a href="#">Import video (-fin)</a>
+                <a href="#">Import audio (-fin)</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_export">
+            <button class="dropButton">Export</button>
+            <div class="dropdownContent" id="top_export_contents">
+                <a onclick="exportFile()">Save Project</a>
+                <a onclick="downloadTimelineAsImage(1080, 'frame.png')">Export current frame as PNG</a>
+                <a onclick="downloadTimelineAsVideo(1080, 'anim')">Export as webm</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_pref">
+            <button class="dropButton">Preferences (-fin)</button>
+            <div class="dropdownContent" id="top_pref_contents">
+                <a onclick="">Change edit history length (-fin)</a>
+                <a onclick="">Change keyboard shortcuts (-fin)</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_view">
+            <button class="dropButton">View</button>
+            <div class="dropdownContent" id="top_view_contents">
+                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 1.1)">Zoom in</a>
+                <a onclick="zoom(0, 0, φGet(workspace_container, 'scaling') * 0.9)">Zoom out</a>
+                <a onclick="zoom(0, 0, 0.5)">Zoom to 50%</a>
+                <a onclick="zoom(0, 0, 1)">Zoom to 100%</a>
+                <a onclick="zoom(0, 0, 2)">Zoom to 200%</a>
+                <a onclick="zoom(0, 0, 4)">Zoom to 400%</a>
+                <a onclick="toggleOnionSkin()">Toggle Onion Skin</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_timeline">
+            <button class="dropButton">Timeline</button>
+            <div class="dropdownContent" id="top_timeline_contents">
+                <a onclick="user_changeAnimLength()">Change length</a>
+                <a onclick="user_changeFPS()">Change framerate</a>
+                <a onclick="addLayer()">Add layer</a>
+                <a onclick="user_removeLayer()">Remove selected layer</a>
+                <a onclick="user_keyframe(1)">Add blank keyframe</a>
+                <a onclick="user_keyframe(2)">Add copied keyframe</a>
+                <a onclick="user_keyframe(3)">Remove selected keyframe</a>
+            </div>
+        </div>
+        <div class="dropdown" id="top_help">
+            <button class="dropButton">Help (-fin)</button>
+            <div class="dropdownContent" id="top_help_contents">
+                <a onclick="user_changeAnimLength()">Explanation (-fin)</a>
+                <a target="_blank" href="https://forms.gle/whhjWmd8fmTS9VzB9">Feedback form</a>
+                <a target="_blank" href="dev.html">Development timeline</a>
+            </div>
+        </div>
+
+        <br>
+        <div id="putPot">
+        </div>
+        <!--canvas so ctx is accessible, in case-->
+        <canvas id="convos" width="1000" height=600></canvas>
+
+        <!-- <div id="outside_container" width="90%" height="90%"> -->
+        <svg id="base" xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+            <defs id="globalDefs">
+                <!--timeline types
+                empty, frame, keyframe
+                -->
+                <clipPath id="MASTER_frameBox">
+                    <rect id="MASTER_frameBoxPath" width="10" height="20"/>
+                </clipPath>
+                <rect id="MASTER_frameEmpty" width="10" height="20" stroke="#CCCCCC" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
+                <svg id="MASTER_frameEmptyKey" overflow="visible">
+                    <rect width="10" height="20" stroke="#CCCCCC" fill="transparent" clip-path="url(#MASTER_frameBox)"/>
+                    <circle r="3" cx="5" cy="10" stroke-width="0" fill="#000000"/>
+                </svg>
+                <rect id="MASTER_frameFull" width="10" height="20" stroke="#CCCCCC" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
+                <svg id="MASTER_frameFullKey" overflow="visible">
+                    <rect width="10" height="20" stroke="#CCCCCC" fill="#AAAAAA" clip-path="url(#MASTER_frameBox)"/>
+                    <circle r="3" cx="5" cy="10" stroke-width="0" fill="#000000"/>
+                </svg>
+
+                <!--color picker-->
+                <svg id="MASTER_picker" width="100" height="110" viewBox="0 0 100 110" variable="color_selected" overflow="hidden">
+                    <defs>
+                        <linearGradient id="gradientLR">
+                            <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
+                            <stop offset="100%" stop-color="rgba(0, 255, 0, 1)"/>
+                        </linearGradient>
+                        <linearGradient id="gradientUD" gradientTransform="rotate(90)">
+                            <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
+                            <stop offset="100%" stop-color="rgba(255, 0, 0, 1)"/>
+                        </linearGradient>
+                        <linearGradient id="gradientC">
+                            <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
+                            <stop offset="100%" stop-color="rgba(0, 0, 255, 1)"/>
+                        </linearGradient>
+                        <linearGradient id="gradientD">
+                            <stop offset="0"  stop-color="rgba(255, 255, 255, 0)"/>
+                            <stop offset="100%" stop-color="rgba(255, 255, 255, 1)"/>
+                        </linearGradient>
+                    </defs>
+                    <!--background lines-->
+                    <rect x="0" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="10" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="20" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="30" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="40" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="50" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="60" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="70" y="0" width="10" height="110" fill="#000000"/>
+                    <rect x="80" y="0" width="10" height="110" fill="#888888"/>
+                    <rect x="90" y="0" width="10" height="110" fill="#000000"/>
+
+                    <!--For some reason I can't pass an event into setDownType here. Is it because I'm using a use tag? I'm not sure.-->
+                    <rect id="picker_rectMain" x="0" y="0" width="100" height="100" fill="url('#gradientLR')" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
+                    <rect id="picker_rectMain2" x="0" y="0" width="100" height="100" fill="url('#gradientUD')" style="mix-blend-mode: screen" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
+                    <rect id="picker_rectC" x="0" y="100" width="100" height="5" fill="url('#gradientC')" onmousedown="setDownType('pickerC')" ignoredown="true"/>
+                    <rect id="picker_rectD" x="0" y="105" width="100" height="5" fill="url('#gradientD')" onmousedown="setDownType('pickerD')" ignoredown="true"/>
+                    <circle id="picker_selectorAB" cx="100" cy="100" r="4" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
+                    <rect id="picker_selectorC" x="-2" y="100" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerC')" ignoredown="true"/>
+                    <rect id="picker_selectorD" x="98" y="105" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerD')" ignoredown="true"/>
+                  </svg>
+
+                  <!--Onion skin filters-->
+                  <filter id="onionPast">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="1 1 1 1 0
+                              0 0 0 0 0
+                              0 0 0 0 0
+                              0 0 0 1 0"/>
+                  </filter>
+                  <filter id="onionFuture">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="0 0 0 0 0
+                              0 0 0 0 0
+                              1 1 1 1 0
+                              0 0 0 1 0"/>
+                  </filter>
+            </defs>
+
+            <rect id="bg" fill="#000000"/>
+
+
+
+
+
+
+            <!--The main workspace (where the lines go)-->
+            <svg id="workspace_container" x="0" y="0" width="1000" height="600" overflow="visible" scaling="1" viewBox="0 0 1000 600">
+                <rect id="workspace_background" width="1000" height="600"/>
+
+                <!--where the permanent drawings go-->
+                <g id="workspace_permanent"></g>
+                <!--where temporary overlays created by tools go-->
+                <g id="workspace_toolTemp"></g>
+                <rect id="workspace_border" width="1000" height="600" fill="none" stroke="var(--uilines)" stroke-width="var(--pxUnits2)"/>
+            </svg>
+            <text id="workspace_zoomText" class="textTimelineLength" paint-order="stroke" stroke-width="2" stroke="#000000" text-anchor="end" x="1000" y="15">100% scale</text>
+
+
+
+
+
+            <!--The sidebar - colors, symbol options, tweening, etc -->
+            <svg id="sidebar_container" width="300">
+                <rect id="sidebar_background" fill="var(--colorUIDark)" stroke="none" height="600" width="300"/>
+                <use id="sidebar_colorPicker" width="250" height="275" ignoredown="true" href="#MASTER_picker"/>
+
+                <!-- text color picker -->
+                <foreignObject id="sidebar_colorControls" x="250" y="10" width="100" height="600">
+                    <!-- dropdown -->
+                    <select id="sidebar_colorType" onchange="updatePickerType()">
+                        <option value="rgb">RGBA</option>
+                        <option value="hsv">HSVA</option>
+                        <option value="sw-u">swatch (uniform)</option>
+                        <option value="sw-p">swatch (paint)</option>
+                    </select>
+                    <br>
+                    <!-- numerical adjusters -->
+                    <table cellpadding="0" cellspacing="0">
+                        <tr><td><label for="pickerNumR">R:</label></td><td><input type="number" id="pickerNumR" min="0" max="255"></td></tr>
+                        <tr><td><label for="pickerNumG">G:</label></td><td><input type="number" id="pickerNumG" min="0" max="255"></td></tr>
+                        <tr><td><label for="pickerNumB">B:</label></td><td><input type="number" id="pickerNumB" min="0" max="255"></td></tr>
+                        <tr><td><label for="pickerNumA">A:</label></td><td><input type="number" step="0.01" id="pickerNumA" min="0.00" max="1.00"></td></tr>
+                        <tr><td><label for="pickerNumH">H:</label></td><td><input type="number" id="pickerNumH" min="0" max="359"></td></tr>
+                        <tr><td><label for="pickerNumS">S:</label></td><td><input type="number" id="pickerNumS" min="0" max="100"></td></tr>
+                        <tr><td><label for="pickerNumV">V:</label></td><td><input type="number" id="pickerNumV" min="0" max="100"></td></tr>
+                    </table>
+                </foreignObject>
+                
+                <!-- color UI -->
+                <svg id="sidebar_activeColors" y="100" overflow="visible">
+                    <rect id="activeColor_stroke" stroke-width="2"  stroke="var(--colorSelect)" fill="rgba(255, 255, 255, 1)" x="42.5" width="40" height="40" onclick="selectColor(activeColor_stroke)"/>
+                    <rect id="activeColor_fill" stroke-width="2" stroke="var(--uilines)" fill="rgba(255, 0, 255, 1)" x="105" width="40" height="40" onclick="selectColor(activeColor_fill)"/>
+                    <rect id="activeColor_stage" stroke-width="2" stroke="var(--uilines)" fill="rgba(0, 0, 0, 1)" x="167.5" width="40" height="40" onclick="selectColor(activeColor_stage)"/>
+                </svg>
+
+                <!-- toolbar -->
+                <svg id="toolbar_container" x="250">
+                    <rect id="toolbar_background" fill="var(--colorUIMid)" width="50" height="600"/>
+                    <!--tool icons-->
+                    <svg class="toolIcon" id="tool_pencil" x="5" y="5"  overflow="visible" onclick="changeToolTo('Pencil');">
+                        <title>Pencil Tool (Y)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 5 10 25 30 30 30 30 25 10 5 5 10"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_line" x="5" y="45"  overflow="visible" onclick="changeToolTo('Line');">
+                        <title>Line Tool (N)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 5 5 30 30"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_rect" x="5" y="85" overflow="visible" onclick="changeToolTo('Rectangle');">
+                        <title>Rectangle Tool (R)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 5 10 5 25 30 25 30 10 5 10"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_circle" x="5" y="125" overflow="visible" onclick="changeToolTo('Circle');">
+                        <title>Circle/Ellipse Tool (C)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <circle class="toolLine" cx="17.5" cy="17.5" r="13"/> 
+                    </svg>
+                    <svg class="toolIcon" id="tool_shape" x="5" y="165" overflow="visible" title="Polygon" onclick="changeToolTo('Polygon');">
+                        <title>Polygon Tool</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 7.5 12.5 7.5 22.5 17.5 30 27.5 22.5 27.5 12.5 17.5 5 7.5 12.5"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_move" x="5" y="205" overflow="visible" onclick="changeToolTo('Move');">
+                        <title>Move Tool (M)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 5 5 15 30 21 24 26 29 29 26 24 21 30 15 5 5"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_transform" x="5" y="245" overflow="visible" onclick="changeToolTo('Transform');">
+                        <title>Transform Tool (J)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <rect class="toolLine" x="4" y="6.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="16.5" y="6.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="29" y="6.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="4" y="16.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="29" y="16.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="4" y="26.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="16.5" y="26.5" width="2" height="2"/> 
+                        <rect class="toolLine" x="29" y="26.5" width="2" height="2"/>
+                        <path class="toolLine" d="M 5 7.5 L 30 7.5 L 30 27.5 L 5 27.5 L 5 7.5"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_fill" x="5" y="285" overflow="visible" onclick="changeToolTo('Fill');">
+                        <title>Fill Tool (K)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <circle class="toolLine" cx="17.5" cy="9" r="4"/> 
+                        <path class="toolLine" d="M 5 20 C 5 17.5 30 17.5 30 20 C 30 23 20 23 20 25 C 20 26 22 27 22 28 C 22 30 4 30 4 27.5 C 4 25 7.5 25 7.5 22.5 C 7.5 21 5 21 5 20"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_eyedrop" x="5" y="325" overflow="visible" onclick="changeToolTo('Eyedrop');">
+                        <title>Eyedropper Tool (I)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <path class="toolLine" d="M 20 10 10 20 M 17.5 12.5 30 30 12.5 17.5 
+                        M 18 12 A 6 6 0 1 0 12 18"/>
+                    </svg>
+                    <svg class="toolIcon" id="tool_text" x="5" y="365" overflow="visible" onclick="changeToolTo('Text');">
+                        <title>Text Tool (T)</title>
+                        <rect stroke="var(--uilines)" fill="transparent" x="0" y="0" rx="5" width="35" height="35"/>
+                        <line class="toolLine" x1="15" x2="15" y1="10" y2="25"/>
+                        <line class="toolLine" x1="10" x2="20" y1="10" y2="10"/>
+
+                        <line class="toolLine" x1="27.5" x2="27.5" y1="7.5" y2="27.5"/>
+                        <line class="toolLine" x1="25" x2="30" y1="7.5" y2="7.5"/>
+                        <line class="toolLine" x1="25" x2="30" y1="27.5" y2="27.5"/>
+                    </svg>
+                </svg>
+
+                <rect id="sidebar_edge_detector" stroke="transparent" fill="var(--uilines)" x="295" y="0" width="10" height="600" cursor="ew-resize" onmousedown="setDownType('sideEdge', event)"/>
+            </svg>
+
+
+
+
+
+            <!--The lower bar; The Timeline. -->
+            <!--
+                In firefox, making overflow=visible on an svg element appears to make its bounding box always equal the bounding box of the parent svg element.
+                I'd like this svg to have overflow visible, but it's not worth the shenanigans it causes
+            -->
+            <svg id="timeline_container" y="400" hinv="200">
+                <rect id="timeline_background" fill="var(--colorUIDark)" y="0" width="1000" height="400"/>
+                <rect id="timeline_edge_detector" stroke="transparent" fill="var(--uilines)" x="0" y="-5" width="1000" height="10" cursor="ns-resize" onmousedown="setDownType('timeEdge', event)"/>
+
+                <!--buttons and the like -->
+                <text id="timeline_fps" class="textTimeline" x="10" y="20" noselect="true" text-anchor="start" text-decoration="underline" onclick="user_changeFPS()">fps: 24</text>
+                <svg id="timeline_button_add" x="10" y="35">
+                    <line class="timelineButton" x1="10" y1="4" x2="10" y2="16"/>
+                    <line class="timelineButton" x1="4" y1="10" x2="16" y2="10"/>
+                    <rect class="timelineButton" width="20" height="20" onclick="addLayer();"/>
+                </svg>
+                <svg id="timeline_button_remove" x="10" y="60" >
+                    <line class="timelineButton" x1="5" y1="10" x2="15" y2="10"/>
+                    <rect class="timelineButton" width="20" height="20" onclick="user_removeLayer();"/>
+                </svg>
+
+                <!-- the main timeline rectangle bit -->
+                <!--The outer container is for the highlight rectangle, the inner one is for all the regular blocks-->
+                <svg id="timeline_main_container" x="150" y="5" overflow="visible">
+                    <!--this gets complicated so I should note
+                        timeline_blocks_container is used to clip all timeline elements that will scroll
+                        timeline_clipped contains all the scrolling elements
+                        timeline_blocks are the actual blocks
+                    -->
+                    <svg id="timeline_blocks_container">
+                        <svg id="timeline_clipped" overflow="visible">
+                            <g id="timeline_blocks">
+                            </g>
+                            <g id="timeline_labels">
+                            </g>
+                            <svg id="timeline_onionhead" overflow="visible" stroke-width="2" display="none">
+                                <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="var(--colorOnionPast)"/>
+                                <line id="onionLeftExtender" y1="2" y2="13" stroke="var(--colorOnionPast)" stroke-width="4" stroke-linecap="round" cursor="ew-resize" onmousedown="setDownType('onionPullLeft', event)"/>
+                                <rect id="onionRight" width="0" height="11" y="2" x="10" fill="none" stroke="var(--colorOnionFuture)"/>
+                                <line id="onionRightExtender" y1="2" y2="13" stroke="var(--colorOnionFuture)" stroke-width="4" stroke-linecap="round" cursor="ew-resize" onmousedown="setDownType('onionPullRight', event)"/>
+                            </svg>
+                            <rect id="timeline_playbody" width="10" height="15" fill="var(--colorPlayhead)" stroke="var(--colorPlayhead)"/>
+                            <rect id="timeline_playhead" width="10" fill="transparent" y="15" stroke="var(--colorPlayhead)" frame="0"/>
+                            <rect id="timeline_selector" y="15" width="10" height="20" stroke-width="2" stroke="var(--colorSelect)" fill="none"/>
+                            <rect id="timeline_extender" x="1" y="15" stroke="#FFFFFF" fill="transparent" x="-3" width="6" height="10" cursor="ew-resize" onmousedown="setDownType('timeExtend', event)"/>
+                        </svg>
+                    </svg>
+                    <svg id="timeline_text_container" overflow="visible">
+                    </svg>
+                </svg>
+
+            </svg>
+
+            <svg id="settings_container">
+            </svg>
+        </svg>
+        
+        <!-- </div> -->
+        <script src="main.js"></script>
+        <a download="saveData.asi" id="download">[download]</a>
+        <input type="file" id="upload" onChange="importFile();">
+        <input type="file" id="upload_img" onChange="importImage();">
+
+
+
+        <!--The help section-->
+        <div id="help_container">
+            <p id="help_generic" class="textHelp">
+                This is the help section. Hopefully, if you need to do something, this text area will help you accomplish that. 
+                Contained here is information about the program, as well as preferences to change.
+            </p>
+            <p id="help_workspace">
+            </p>
+            <p id="help_timeline">
+            </p>
+            <p id="help_workspace">
+            </p>
+
+
+            <p id="help_pencil">
+                The pencil tool allows you to draw
+            </p>
+        </div>
+    </body>
+</html>

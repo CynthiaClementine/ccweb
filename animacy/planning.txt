@@ -1,0 +1,79 @@
+
+
+IDEAS
+
+Vector or pixel based?
+    Conversion from one to another potentially
+        would be solid research but also seems super difficult if not outright impossible
+    Potentially have both types, and use separate files
+    potrace
+
+Storage size
+    browser allows up to 5mb in localStorage
+    compression algorithms?
+        how are we storing drawings? Kind of relies on first part here
+    cookies?
+        cookies are text files
+        cannot be edited, but can be set to expire and then resent
+            so really can be edited, just annoyingly
+        browser standard is 300 cookies, although exact number supported is unknown
+        maximum size of a cookie is 4096 bytes
+        cookies are TINY
+        4096 * 300 gives just over 1MB, which means cookies don't really solve the storage problem. Might as well just use localStorage, or else use a different solution
+    if this is a desktop app, there aren't any storage limits (:
+    if this is connected to a server, there are much laxer storage limits until the user goes offline, at which point the storage restriction returns, now filled 
+    with a burning fury and the blood of 3 young goats. I wanted those goats to live. 
+
+
+
+    webassembly - code written in rust / C
+        low-level, compiles to assembly, gets loaded into the webpage in a module
+        callable as javascript
+        uses much less memory
+
+
+CONCRETE TODO
+
+just get a vector drawing system on a canvas
+see if you can draw, move points around
+    use bezier curves between each point
+    cp1 - velocity from start point
+    cp2 - reverse velocity from end point
+
+
+
+
+use indexedDB? Has lower limit of 250mb
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+OFFTASK
+
+    why is go difficult?
+        how does cosumi play go?
+            cosumi is super flexible
+            takes super large areas and then uses influence to make your groups small
+        cosumi doesn't play like a human, which makes them difficult to play against
+        well what do humans do?
+            humans have ideas of what they want from a game
+            you can more easily pressure a human's group, more easily predict the ways they'll defend, and use that to get more points then them
+
+        so logically go is difficult because it's difficult to determine what gives points
+        and cosumi has a better handle on which moves will give the most points, hence the title "distracted 5 kyu"
+        cosumi will just give you an area if you try hard enough because it thinks that'll cause you to not take other areas while it does
+
+
