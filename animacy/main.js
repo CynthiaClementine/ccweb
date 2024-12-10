@@ -11,6 +11,14 @@ window.onkeyup = handleKeyRelease;
 
 //trackpad gestures
 window.addEventListener("wheel", handleWheel, {passive: false});
+window.addEventListener("gestureend", htest, false);
+window.addEventListener("gesturestart", htest, false);
+window.addEventListener("gesturechange", htest, false);
+
+function htest(e) {
+	console.log("hi");
+	console.log(e);
+}
 
 //misc
 window.onresize = handleResize;
@@ -56,7 +64,8 @@ var debug_active = false;
 
 var editDeltaTracker = 0;
 var editDeltasFuture = [];		//changes required to get to the future (present time)
-var editDeltasPast = [];	//changes required to get to the past
+var editDeltasPast = [];		//changes required to get to the past
+var editDeltasIDs = [];			//list of IDs for each change. A grouping of identical delta IDs will be treated as one action.
 var editDeltasMax = 100;
 
 var fps_limitMin = 1;
@@ -64,8 +73,9 @@ var fps_limitMin = 1;
 var fps_limitMax = 144;
 
 var hotkeys = [
-	// ["Modifier1 Modifier2 Key.code", `function`, `description`],
 	// ["Key", `function`, `description`],
+	//where Key is "Modifier1 Modifier2 Key.code"
+	//and Modifiers are: Shift Alt Force
 	
 	//tools
 	["KeyC", `changeToolTo("Circle")`, `Circle tool`],
@@ -112,7 +122,7 @@ var hotkeys_polygon = [
 
 var images = [];
 
-var layer_reorderChar = `⧰`; //close second: ⥌
+var layer_reorderChar = `⥌`; //close second: ⧰
 var layer_reordering;
 
 //the decimal point to quantize to
@@ -136,7 +146,6 @@ var timeline_headHeight = 15;
 var timeline_oldKeyPos = [0, 0];
 var timeline_marginRight = 3;
 var timeline_labelPer = 12;
-var timeline_lenStore = 1;
 
 var uidChars = `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZςερτυθιοπασδφγηξκλζχψωβνμ`;
 var uidCount = 0;
@@ -518,7 +527,7 @@ function handleMouseMove(a) {
 				var goodHeight = box.height - cursorVbaseY;
 
 				φSet(timeline_container, {'hinv': goodHeight});
-				resizeTimeline(box.width, clamp(goodHeight, 0, box.height));
+				resizeTimeline(box.width, clamp(goodHeight, 5, box.height));
 				resizeSidebar(undefined, box.height - goodHeight);
 				break;
 			case "timeExtend":
@@ -549,42 +558,6 @@ function handleMouseMove(a) {
 				break;
 			case "work":
 				toolCurrent.mouseMove(a);
-				break;
-			case "pickerAB":
-				var box = sidebar_colorPicker.getBoundingClientRect();
-				var cx = (cursor.x - box.x) / box.width;
-				var cy = (cursor.y - box.y) / box.height;
-				cx = clamp(cx, 0, 1);
-				cy = clamp(cy * (11 / 10), 0, 1);
-				
-				if (sidebar_colorType.value == "hsv") {
-					setColorHSVA("", Math.floor(cx * 100), Math.floor((1 - cy) * 100), "");
-				} else {
-					setColorRGBA(Math.floor(cy * 255), Math.floor(cx * 255), "", "");
-				}
-				break;
-			case "pickerC":
-				var box = sidebar_colorPicker.getBoundingClientRect();
-				var cx = (cursor.x - box.x) / box.width;
-				cx = clamp(cx, 0, 1);
-				
-				if (sidebar_colorType.value == "hsv") {
-					//doing 359.999 to avoid modulus issues
-					setColorHSVA(cx * 359.999, "", "", "");
-				} else {
-					setColorRGBA("", "", cx * 255, "");
-				}
-				break;
-			case "pickerD":
-				var box = sidebar_colorPicker.getBoundingClientRect();
-				var cx = (cursor.x - box.x) / box.width;
-				cx = clamp(cx, 0, 1);
-
-				if (sidebar_colorType.value == "hsv") {
-					setColorHSVA("", "", "", cx);
-				} else {
-					setColorRGBA("", "", "", cx);
-				}
 				break;
 			default:
 				console.log(`unknown down type: ${cursor.downType}`);
@@ -636,14 +609,10 @@ function handleMouseUp(a) {
 		}
 	}
 	if (cursor.downType == "timeExtend") {
-		var prevLen = timeline_lenStore;
-		
-		
 		//if the timeline's gotten longer it's easy to make edit history for that - reversing an increase in time can't get rid of any keyframes
 		if (timeline.len > timeline_lenStore) {
 			recordAction(() => {
 				changeAnimationLength(timeline.len);
-				timeline_lenStore = timeline.len;
 			}, () => {
 				changeAnimationLength(prevLen);
 				timeline_lenStore = timeline.len;
@@ -693,7 +662,7 @@ function handleWheel(a) {
 	if (φOver(timeline_background)) {
 		moveTimeline(a.deltaX, a.deltaY);
 	} else {
-		moveWorkspace(a.deltaX, a.deltaY);
+		moveWorkspace(a.deltaX, a.deltaY * (a.ctrlKey ? -4 : 1), a.ctrlKey);
 	}
 }
 
@@ -749,22 +718,6 @@ function resizeSidebar(w, h) {
 		'width': pickerWidth,
 		'y': sideProps ? (pickerHeight + 20) : Math.max((h - squareSize - 20), (pickerHeight + 20))
 	});
-
-	if (sideProps) {
-		φSet(sidebar_colorControls, {
-			'x': 250,
-			'y': 10,
-			'width': 100,
-			'height': 300
-		});
-	} else {
-		φSet(sidebar_colorControls, {
-			'x': 10,
-			'y': pickerHeight + 5,
-			'width': 100,
-			'height': 400
-		});
-	}
 }
 
 //resizes timeline to the specified width and height
@@ -818,6 +771,6 @@ function updatePlayheadPosition() {
 
 function handleUnload(e) {
 	//in the unlikely event that a browser is being used which allows custom escape messages
-	(e || window.event).returnValue = `Are you sure you want to exit? You may have unsaved changes.`;
+	e.returnValue = `Are you sure you want to exit? You may have unsaved changes.`;
 	return `Are you sure you want to exit? You may have unsaved changes.`;
 }

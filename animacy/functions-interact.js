@@ -34,9 +34,9 @@ function changeOnionWingLength(wingIndex) {
 }
 
 
-function moveWorkspace(deltaX, deltaY) {
+function moveWorkspace(deltaX, deltaY, ctrlEvent) {
 	//holding control zooms instead of moving up/down
-	if (button_force) {
+	if (button_force || ctrlEvent) {
 		zoom(cursor.x, cursor.y, clamp(φGet(workspace_container, "scaling") * (1 + deltaY * 0.001), ...workspace_scaleBounds));
 	} else {
 		φAdd(workspace_container, {
@@ -75,8 +75,9 @@ function moveTimeline(deltaX, deltaY) {
 
 
 function selectColor(colorNode) {
-	φSet(color_selectedNode, {"stroke": "var(--uilines)"});
-	φSet(colorNode, {"stroke": "var(--colorSelect)"});
+	//pop open the color picker
+
+
 	color_selectedNode = colorNode;
 	color_objLast = undefined;
 	var newColor = φGet(colorNode, "fill").split(" ");
@@ -230,7 +231,7 @@ function user_keyframe(n) {
 			node = m.l[iden][m.t];
 		}
 		takeAction(() => {
-			makeKeyframe(s, t, node);
+			makeKeyframe(s, t, frame_copy(node, timeline.layerIDs[s]));
 		}, () => {
 			makeUnKeyframe(s, t);
 			m.changeFrameTo(t);

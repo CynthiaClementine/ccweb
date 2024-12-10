@@ -1,21 +1,66 @@
 /*
-functions that can accomplish the same tasks as user input, but with the benefit of being callable functions
+Callable functions that change the state of the animation. 
+All user input that edits a part of the animation will eventually call one of these.
 
 
 
 INDEX
+changeAnimationLength(newLength)
 changeBrushSize(newSize)
-getSelectedFrame();
+getSelectedFrame()
 toggleTimelinePlayback()
 fill(workspaceX, workspaceY)
 makeKeyframe(layerIndex, frame, frameNode)
 makeUnKeyframe(layer, frame)
 moveCursorTo(workspaceX, workspaceY)
+addLayer(name)
 removeLayer(id)
 select(layer, frame)
 setColorRGBA(r, g, b, a)
 setColorHSVA(h, s, v, a)
+undo()
+redo()
 */
+
+/**
+ * Changes the animation length to a specified length. Also updates the edit history.
+ * @param {Integer} newLength The new length, in frames, of the timeline
+ */
+function changeAnimationLength(newLength) {
+	//if it's the same length do nothing
+	if (newLength == timeline.len) {
+		return;
+	}
+
+	//if it's shorter than the current length
+	var oldLength = timeline.len;
+	if (newLength < oldLength) {
+		var removedFrames = timelineShortenTo(newLength, oldLength);
+
+		recordAction(() => {
+			timelineShortenTo(newLength, oldLength);
+		}, () => {
+			timelineLengthenTo(oldLength, newLength);
+			//add data back
+			removedFrames.forEach(f => {
+				var ind = timeline.layerIDs.indexOf(f.layer);
+				if (ind == -1) {
+					console.error(`cannot replace frame at ${f.layer}, ${f.frame} with data`, f.data);
+					return;
+				}
+				makeKeyframe(ind, f.frame, f.data);
+			});
+		}, "timeshort");
+	} else {
+		timelineLengthenTo(newLength, oldLength);
+
+		recordAction(() => {
+			timelineLengthenTo(newLength, oldLength);
+		}, () => {
+			timelineShortenTo(oldLength, newLength);
+		}, "timelong");
+	}
+}
 
 function changeBrushSize(newSize) {
 	data_persistent.brushSize = clamp(newSize, brush_limits[0], brush_limits[1]);
@@ -77,8 +122,8 @@ function toggleTimelinePlayback(loop) {
 
 
 /**
- * Attempts to fill a region with the current fill color that includes the specified X and Y. Will start with the currently selected layer and then try fill layers top to bottom.
- * 
+ * Attempts to fill a region with the current fill color that includes the specified X and Y. Will start with the currently selected layer and then try
+ * to fill layers top to bottom.
  * @param {Number} workspaceX the X, in workspace coordinates, to fill at
  * @param {Number} workspaceY the Y, in workspace coordinates, to fill at
  * @returns {Boolean} whether the operation succeeded or not
@@ -93,16 +138,19 @@ function fill(workspaceX, workspaceY) {
  * Turns a specified frame into a keyframe
  * @param {Number} layerIndex The index of the layer to make a keyframe
  * @param {Number} frame The frame to make the keyframe at
- * @param {*} frameNode OPTIONAL: a node to clone. If left blank, creates a blank keyframe.
+ * @param {*} frameNode OPTIONAL: Frame data to use. If left blank, creates a blank keyframe.
  */
  function makeKeyframe(layerIndex, frame, frameNode) {
 	timeline.makeInvisible();
 
 	var layerID = timeline.layerIDs[layerIndex];
+	if (frameNode) {
+		document.getElementById(`layer_${layerID}`).appendChild(frameNode);
+	}
 	//first create the new layer object
 	var arrRef = timeline.l[layerID];
 	var oldObj = arrRef[frame];
-	var newObj = (frameNode == undefined) ? frame_create(createUid(), layerID) : frame_copy(frameNode, layerID);
+	var newObj = frameNode ?? frame_create(createUid(), layerID);
 	var frameID = φGet(newObj, 'uid');
 
 	var theBin = document.getElementById(`layer_${layerID}_group`);
@@ -180,6 +228,40 @@ function moveCursorTo(workspaceX, workspaceY) {
 	//(workX / wh[0] * box.width) + box.x = cursor.x
 	cursor.x = box.x + (workspaceX / wh[0] * box.width);
 	cursor.y = box.y + (workspaceY / wh[1] * box.height);
+}
+
+/**
+ * Creates and adds a new empty layer to the timeline in the lowest position.
+ * @param {String|undefined} name The name of the new layer. If undefined, the name will default to "New Layer".
+ * @returns true
+ */
+function addLayer(name) {
+	name = name ?? "New Layer";
+	var layerID = createUid();
+	var frameID = createUid();
+
+	//create frame object
+	var frameObj = frame_create(frameID);
+	var layerObj = φCreate('g', {'id': `layer_${layerID}`});
+	var index = timeline.layerIDs.length;
+
+	//create layer reference
+	timeline.layerIDs.push(layerID);
+	timeline.names[layerID] = name;
+	//populate the layer array
+	timeline.l[layerID] = [];
+	timeline.l[layerID][timeline.len-1] = frameObj;
+	timeline.l[layerID].fill(frameObj);
+
+	//put layer into the workspace
+	workspace_permanent.insertBefore(layerObj, workspace_permanent.children[0]);
+	layerObj.appendChild(frameObj);
+
+	createTimelineBlocks(layerID, 0, timeline.len-1);
+	updateTimelineExtender();
+	//update the timeline's visibility
+	timeline.makeVisible();
+	return true;
 }
 
 /**
@@ -271,6 +353,7 @@ function reorderLayer(oldIndex, newIndex) {
 function select(layer, frame) {
 	//change the timeline selector while staying in-bounds
 	timeline.s = clamp(layer, 0, timeline.layerIDs.length-1);
+	console.log("changing frame to ", frame);
 	timeline.changeFrameTo(frame);
 
 	//update layer/frame variables so I can use them
@@ -323,57 +406,11 @@ function selectAt(workX, workY) {
  * @param {Number} a The [0, 1] number representing opacity
  */
 function setColorRGBA(r, g, b, a) {
-	var cRef = φGet(color_selectedNode, "fill");
-	var rChange = r.constructor.name == "Number";
-	var gChange = g.constructor.name == "Number";
-	var bChange = b.constructor.name == "Number";
-	var aChange = a.constructor.name == "Number";
-	if (color_objLast == undefined || color_objLast.r == undefined) {
-		color_objLast = cBreakdownRGBA(cRef);
-	}
-
-	//don't bother if none of them are changing
-	if (!(rChange || gChange || bChange || aChange)) {
-		return;
-	}
-	if (rChange) {
-		color_objLast.r = r;
-	} else {
-		r = color_objLast.r;
-	}
-	if (gChange) {
-		color_objLast.g = g;
-	} else {
-		g = color_objLast.g;
-	}
-	if (bChange) {
-		color_objLast.b = b;
-	} else {
-		b = color_objLast.b;
-	}
-	if (aChange) {
-		color_objLast.a = a;
-	} else {
-		a = color_objLast.a;
-	}
-
 	//set the color
-	var newColorStr = `rgba(${r}, ${g}, ${b}, ${a})`;
-	φSet(color_selectedNode, {"fill": newColorStr});
-	//special - color variables need to be updated
-	switch (color_selectedNode) {
-		case activeColor_stroke:
-			color_stroke = newColorStr;
-			break;
-		case activeColor_fill:
-			color_fill = newColorStr;
-			break;
-		case activeColor_stage:
-			color_stage = newColorStr;
-			φSet(workspace_background, {"fill": newColorStr});
-			break;
-		
-	}
+	color_stroke = newColorStr;
+	color_fill = newColorStr;
+	color_stage = newColorStr;
+	φSet(workspace_background, {"fill": newColorStr});
 
 	//set the color picker
 	setColorPickerRGBA(r, g, b, a);
@@ -437,6 +474,7 @@ function setColorHSVA(h, s, v, a) {
 }
 
 function setColorPickerRGBA(r, g, b, a) {
+	return; //no picker anymore. I'm using the built in browser picker until I can work out a better system
 	var wh = φGet(MASTER_picker, ['width', 'height']);
 	//red + green circle pos
 	φSet(picker_selectorAB, {
@@ -484,4 +522,31 @@ function setColorPickerHSVA(h, s, v, a) {
 
 	//gradients
 	φSet(gradientLR.children[1], {'stop-color': `hsla(${h}, 100%, 50%, ${a})`});
+}
+
+function undo() {
+	var edids = editDeltasIDs;
+	//move the tracker back and perform an inverse action
+	if (editDeltaTracker > 0) {
+		editDeltaTracker -= 1;
+		editDeltasPast[editDeltaTracker]();
+
+		//group identical actions together
+		if (edids[editDeltaTracker] != undefined && edids[editDeltaTracker - 1] == edids[editDeltaTracker]) {
+			undo();
+		}
+	}
+}
+
+function redo() {
+	var edids = editDeltasIDs;
+	//similar - move the tracker forward and perform the action
+	if (editDeltaTracker < editDeltasFuture.length) {
+		editDeltasFuture[editDeltaTracker]();
+		editDeltaTracker += 1;
+
+		if (edids[editDeltaTracker] != undefined && edids[editDeltaTracker - 1] == edids[editDeltaTracker]) {
+			redo();
+		}
+	}
 }

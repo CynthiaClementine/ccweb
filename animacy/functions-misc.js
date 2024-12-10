@@ -74,53 +74,42 @@ function drawCubicBins() {
  * Runs and records a reversable action that could be undone with undo()
  * @param {Function} actionFunc The action to take
  * @param {Function} inverseFunc The function that negates actionFunc
+ * @param {String|undefined} actionID An optional ID for the action
  */
-function takeAction(actionFunc, inverseFunc) {
+function takeAction(actionFunc, inverseFunc, actionID) {
 	//execute the action
 	actionFunc();
-	recordAction(actionFunc, inverseFunc);
+	recordAction(actionFunc, inverseFunc, actionID);
 }
 
 /**
  * Records a reversable action that could be undone with undo()
  * @param {Function} actionFunc action function
  * @param {Function} inverseFunc inverse action function
+ * @param {String|undefined} actionID An optional ID for the action
  */
-function recordAction(actionFunc, inverseFunc) {
+function recordAction(actionFunc, inverseFunc, actionID) {
 	//first make sure the counter is at the end by removing anything past it
 	if (editDeltaTracker < editDeltasPast.length) {
 		editDeltasPast = editDeltasPast.slice(0, editDeltaTracker);
 		editDeltasFuture = editDeltasFuture.slice(0, editDeltaTracker);
+		editDeltasIDs = editDeltasIDs.slice(0, editDeltaTracker);
 	}
 
 	//add both the action and reverse action to the list
 	editDeltasPast.push(inverseFunc);
 	editDeltasFuture.push(actionFunc);
+	editDeltasIDs.push(actionID);
 
 	//make sure the deltas list doesn't get too long
 	if (editDeltasPast.length > editDeltasMax) {
 		var removeCount = editDeltasPast.length - editDeltasMax;
 		editDeltasPast.splice(0, removeCount);
 		editDeltasFuture.splice(0, removeCount);
+		editDeltasIDs.splice(0, removeCount);
 		editDeltaTracker -= removeCount;
 	}
 
 	//increment the counter
 	editDeltaTracker += 1;
-}
-
-function undo() {
-	//move the tracker back and perform an inverse action
-	if (editDeltaTracker > 0) {
-		editDeltaTracker -= 1;
-		editDeltasPast[editDeltaTracker]();
-	}
-}
-
-function redo() {
-	//similar - move the tracker forward and perform the action
-	if (editDeltaTracker < editDeltasFuture.length) {
-		editDeltasFuture[editDeltaTracker]();
-		editDeltaTracker += 1;
-	}
 }

@@ -20,7 +20,7 @@ August-23-2021 -->
                 --pxUnits2: 2;
                 --pxUnits4: 4;
 
-                --uilines: #FFFFFF;
+                --uilines: #BBCCE6;
                 --sidebarWidth: 10%;
                 --timelineHeight: 400;
 
@@ -41,7 +41,7 @@ August-23-2021 -->
              /*Top bar dropdown styling*/
              .dropButton {
                 background-color: #333333;
-                color: white;
+                color: var(--uilines);
                 padding: 2px;
                 font: 16px Ubuntu;
                 border: none;
@@ -106,6 +106,12 @@ August-23-2021 -->
                 color: #FFFFFF;
             }
 
+            input[type=color] {
+                width: 35px;
+                padding: 0px 0px 0px 0px;
+                stroke-width: 0.1;
+            }
+
             body {
                 background-color: slateblue;
             }
@@ -125,14 +131,14 @@ August-23-2021 -->
             .textTimeline {
                 cursor: text;
                 font: 15px Ubuntu; 
-                fill: #FFFFFF;
+                fill: var(--uilines);
                 dominant-baseline: middle;
                 text-align: left;
                 user-select: none;
             }
             .textTimelineLength {
                 font: 15px Ubuntu;
-                fill: #FFFFFF;
+                fill: var(--uilines);
                 dominant-baseline: middle;
                 user-select: none;
             }
@@ -213,6 +219,7 @@ August-23-2021 -->
             <div class="dropdownContent" id="top_pref_contents">
                 <a onclick="">Change edit history length (-fin)</a>
                 <a onclick="">Change keyboard shortcuts (-fin)</a>
+                <a onclick="">Change widget layout (-fin)</a>
             </div>
         </div>
         <div class="dropdown" id="top_view">
@@ -242,7 +249,7 @@ August-23-2021 -->
         <div class="dropdown" id="top_help">
             <button class="dropButton">Help (-fin)</button>
             <div class="dropdownContent" id="top_help_contents">
-                <a onclick="user_changeAnimLength()">Explanation (-fin)</a>
+                <a onclick="">Explanation (-fin)</a>
                 <a target="_blank" href="https://forms.gle/whhjWmd8fmTS9VzB9">Feedback form</a>
                 <a target="_blank" href="dev.html">Development timeline</a>
             </div>
@@ -275,7 +282,7 @@ August-23-2021 -->
                 </svg>
 
                 <!--color picker-->
-                <svg id="MASTER_picker" width="100" height="110" viewBox="0 0 100 110" variable="color_selected" overflow="hidden">
+                <!-- <svg id="MASTER_picker" width="100" height="110" viewBox="0 0 100 110" variable="color_selected" overflow="hidden">
                     <defs>
                         <linearGradient id="gradientLR">
                             <stop offset="0"  stop-color="rgba(0, 0, 0, 1)"/>
@@ -294,7 +301,7 @@ August-23-2021 -->
                             <stop offset="100%" stop-color="rgba(255, 255, 255, 1)"/>
                         </linearGradient>
                     </defs>
-                    <!--background lines-->
+                    < !--background lines-- >
                     <rect x="0" y="0" width="10" height="110" fill="#888888"/>
                     <rect x="10" y="0" width="10" height="110" fill="#000000"/>
                     <rect x="20" y="0" width="10" height="110" fill="#888888"/>
@@ -306,7 +313,7 @@ August-23-2021 -->
                     <rect x="80" y="0" width="10" height="110" fill="#888888"/>
                     <rect x="90" y="0" width="10" height="110" fill="#000000"/>
 
-                    <!--For some reason I can't pass an event into setDownType here. Is it because I'm using a use tag? I'm not sure.-->
+                    < !--For some reason I can't pass an event into setDownType here. Is it because I'm using a use tag? I'm not sure.-- >
                     <rect id="picker_rectMain" x="0" y="0" width="100" height="100" fill="url('#gradientLR')" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
                     <rect id="picker_rectMain2" x="0" y="0" width="100" height="100" fill="url('#gradientUD')" style="mix-blend-mode: screen" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
                     <rect id="picker_rectC" x="0" y="100" width="100" height="5" fill="url('#gradientC')" onmousedown="setDownType('pickerC')" ignoredown="true"/>
@@ -314,28 +321,26 @@ August-23-2021 -->
                     <circle id="picker_selectorAB" cx="100" cy="100" r="4" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerAB')" ignoredown="true"/>
                     <rect id="picker_selectorC" x="-2" y="100" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerC')" ignoredown="true"/>
                     <rect id="picker_selectorD" x="98" y="105" width="4" height="5" stroke="#FFFFFF" fill="transparent" cursor="crosshair" onmousedown="setDownType('pickerD')" ignoredown="true"/>
-                  </svg>
+                </svg> -->
 
-                  <!--Onion skin filters-->
-                  <filter id="onionPast">
+                <!--Onion skin filters-->
+                <filter id="onionPast">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="1 1 1 1 0
                               0 0 0 0 0
                               0 0 0 0 0
                               0 0 0 1 0"/>
-                  </filter>
-                  <filter id="onionFuture">
+                </filter>
+                <filter id="onionFuture">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="0 0 0 0 0
                               0 0 0 0 0
                               1 1 1 1 0
                               0 0 0 1 0"/>
-                  </filter>
+                </filter>
             </defs>
 
             <rect id="bg" fill="#000000"/>
-
-
 
 
 
@@ -362,8 +367,8 @@ August-23-2021 -->
                 <use id="sidebar_colorPicker" width="250" height="275" ignoredown="true" href="#MASTER_picker"/>
 
                 <!-- text color picker -->
-                <foreignObject id="sidebar_colorControls" x="250" y="10" width="100" height="600">
-                    <!-- dropdown -->
+                <!-- <foreignObject id="sidebar_colorControls" x="250" y="10" width="100" height="600">
+                    < !-- dropdown -- >
                     <select id="sidebar_colorType" onchange="updatePickerType()">
                         <option value="rgb">RGBA</option>
                         <option value="hsv">HSVA</option>
@@ -371,7 +376,7 @@ August-23-2021 -->
                         <option value="sw-p">swatch (paint)</option>
                     </select>
                     <br>
-                    <!-- numerical adjusters -->
+                    < !-- numerical adjusters -- >
                     <table cellpadding="0" cellspacing="0">
                         <tr><td><label for="pickerNumR">R:</label></td><td><input type="number" id="pickerNumR" min="0" max="255"></td></tr>
                         <tr><td><label for="pickerNumG">G:</label></td><td><input type="number" id="pickerNumG" min="0" max="255"></td></tr>
@@ -381,13 +386,11 @@ August-23-2021 -->
                         <tr><td><label for="pickerNumS">S:</label></td><td><input type="number" id="pickerNumS" min="0" max="100"></td></tr>
                         <tr><td><label for="pickerNumV">V:</label></td><td><input type="number" id="pickerNumV" min="0" max="100"></td></tr>
                     </table>
-                </foreignObject>
+                </foreignObject> -->
                 
                 <!-- color UI -->
                 <svg id="sidebar_activeColors" y="100" overflow="visible">
-                    <rect id="activeColor_stroke" stroke-width="2"  stroke="var(--colorSelect)" fill="rgba(255, 255, 255, 1)" x="42.5" width="40" height="40" onclick="selectColor(activeColor_stroke)"/>
-                    <rect id="activeColor_fill" stroke-width="2" stroke="var(--uilines)" fill="rgba(255, 0, 255, 1)" x="105" width="40" height="40" onclick="selectColor(activeColor_fill)"/>
-                    <rect id="activeColor_stage" stroke-width="2" stroke="var(--uilines)" fill="rgba(0, 0, 0, 1)" x="167.5" width="40" height="40" onclick="selectColor(activeColor_stage)"/>
+                    
                 </svg>
 
                 <!-- toolbar -->
@@ -459,6 +462,13 @@ August-23-2021 -->
                         <line class="toolLine" x1="25" x2="30" y1="7.5" y2="7.5"/>
                         <line class="toolLine" x1="25" x2="30" y1="27.5" y2="27.5"/>
                     </svg>
+
+                    <foreignObject x="5" y="420" width="35" height="35"><input id="activeColor_stroke" type="color" id="html5colorpicker" onchange="" value="#FF587D"></foreignObject>
+                    <foreignObject x="5" y="460" width="35" height="35"><input id="activeColor_fill" type="color" id="html5colorpicker" onchange="" value="#FFDE1F"></foreignObject>
+                    <foreignObject x="5" y="500" width="35" height="35"><input id="activeColor_stage" type="color" id="html5colorpicker" onchange="" value="#FF8A52"></foreignObject>
+                    <!-- <rect  stroke-width="2" stroke="var(--colorSelect)" fill="rgba(255, 255, 255, 1)"  onclick="selectColor(activeColor_stroke)"/> -->
+                    <!-- <rect  stroke-width="2" stroke="var(--uilines)" fill="rgba(255, 0, 255, 1)"          onclick="selectColor(activeColor_fill)"/> -->
+                    <!-- <rect  stroke-width="2" stroke="var(--uilines)" fill="rgba(0, 0, 0, 1)"             onclick="selectColor(activeColor_stage)"/> -->
                 </svg>
 
                 <rect id="sidebar_edge_detector" stroke="transparent" fill="var(--uilines)" x="295" y="0" width="10" height="600" cursor="ew-resize" onmousedown="setDownType('sideEdge', event)"/>

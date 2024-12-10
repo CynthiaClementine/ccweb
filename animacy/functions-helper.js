@@ -18,6 +18,8 @@ cursorWorkspacePos()
 createSpline(curves, color, pathWidth)
 frame_addPath(layerNode, curves, width, color)
 frame_removePath(layerNode, spline)
+timelineShortenTo()
+timelineLengthenTo()
 makeUnKeyframe(layerIndex, frame)
 
 moveWorkspace(x, y)
@@ -31,36 +33,6 @@ updateSelectedColor()
 function φOver(node) {
 	var box = node.getBoundingClientRect();
 	return (cursor.x >= box.x && cursor.x <= box.x + box.width && cursor.y >= box.y && cursor.y <= box.y + box.height);
-}
-
-
-function addLayer(name) {
-	name = name ?? "New Layer";
-	var layerID = createUid();
-	var frameID = createUid();
-
-	//create frame object
-	var frameObj = frame_create(frameID);
-	var layerObj = φCreate('g', {'id': `layer_${layerID}`});
-	var index = timeline.layerIDs.length;
-
-	//create layer reference
-	timeline.layerIDs.push(layerID);
-	timeline.names[layerID] = name;
-	//populate the layer array
-	timeline.l[layerID] = [];
-	timeline.l[layerID][timeline.len-1] = frameObj;
-	timeline.l[layerID].fill(frameObj);
-
-	//put layer into the workspace
-	workspace_permanent.insertBefore(layerObj, workspace_permanent.children[0]);
-	layerObj.appendChild(frameObj);
-
-	createTimelineBlocks(layerID, 0, timeline.len-1);
-	updateTimelineExtender();
-	//update the timeline's visibility
-	timeline.makeVisible();
-	return true;
 }
 
 function appendToPath(pathNode, newPts) {
@@ -128,71 +100,6 @@ function createTimelineBlocks(layerID, startFrame, endFrame) {
 			'href': '#' + ((layerRef[a] != layerRef[a-1]) ? `MASTER_layerKey_${id}` : `MASTER_layer_${id}`)
 		}));
 	}
-}
-
-function changeAnimationLength(newLength) {
-	//break out if it's the same length
-	if (newLength == timeline.len) {
-		return;
-	}
-
-	//set the timeout for length changing
-
-	//if it's shorter than the current length
-	var labPer = timeline_labelPer;
-	var oldLength = timeline.len;
-	timeline.len = newLength;
-	if (newLength < oldLength) {
-		//loop through layers and set them all to the new length
-		timeline.layerIDs.forEach(id => {
-			timeline.l[id].splice(newLength, oldLength - newLength);
-
-			//delete extra frames
-			for (var z=oldLength-1; z>newLength-1; z--) {
-				document.getElementById(`layer_${id}_frame_${z}`).remove();
-			}
-		});
-
-		//remove label text
-		for (var k=Math.ceil(newLength/labPer) * labPer; k<oldLength; k+=labPer) {
-			document.getElementById(`label_${k}`).remove();
-		}
-	} else {
-		//longer than the current length
-		var copyFrame;
-		timeline.layerIDs.forEach(lid => {
-			//propogate the last frame forwards
-			copyFrame = timeline.l[lid][oldLength-1];
-	
-			//extend, fill, and then update the visible timeline blocks
-			timeline.l[lid][newLength-1] = copyFrame;
-			timeline.l[lid].fill(copyFrame, oldLength, newLength-1);
-			createTimelineBlocks(lid, oldLength, newLength-1);
-		});
-
-
-		
-		//add label text
-		//make sure to include the 0
-		if (oldLength == 1) {
-			oldLength = 0;
-		}
-		var labHeight = (timeline_headHeight / 2) + 1;
-		for (var k=Math.ceil(oldLength/labPer) * labPer; k<newLength; k+=labPer) {
-			timeline_labels.appendChild(φCreate("text", {
-				'x': (timeline_blockW + 1) * (k + 0.5),
-				'y': labHeight,
-				'id': `label_${k}`, 
-				'class': 'textTimelineLength',
-				'text-anchor': 'middle',
-				'innerHTML': k,
-				'noselect': 'on',
-			}));
-		}
-	}
-
-	updateTimelineExtender();
-	setOnionWingLengths();
 }
 
 function changeFramerate(newFPS) {
@@ -804,6 +711,89 @@ function splitPathsAt(layer, x, y) {
 		
 }
 
+function timelineShortenTo(newLength, oldLength) {
+	//move if necessary
+	if (timeline.t >= newLength) {
+		console.log("selecting");
+		select(timeline.s, newLength - 1);
+	}
+	timeline.len = newLength;
+
+	var removedFrames = [];
+	//loop through layers and set them all to the new length
+	timeline.layerIDs.forEach(id => {
+
+		//delete extra frame blocks + frame data in the DOM
+		for (var z=oldLength-1; z>newLength-1; z--) {
+			document.getElementById(`layer_${id}_frame_${z}`).remove();
+
+			//if it's a keyframe save it for the reverse delta
+			if (timeline.l[id][z] != timeline.l[id][z-1]) {
+				removedFrames.push({
+					layer: id,
+					frame: z,
+					data: timeline.l[id][z],
+				});
+				document.getElementById(timeline.l[id][z].id).remove();
+			}
+		}
+
+		timeline.l[id].splice(newLength, oldLength - newLength);
+	});
+
+	//remove label text
+	var labPer = timeline_labelPer;
+	for (var k=Math.ceil(newLength/labPer) * labPer; k<oldLength; k+=labPer) {
+		document.getElementById(`label_${k}`).remove();
+	}
+
+	updateTimelineExtender();
+	setOnionWingLengths();
+	timeline_lenStore = timeline.len;
+
+	return removedFrames;
+}
+
+function timelineLengthenTo(newLength, oldLength) {
+	timeline.len = newLength;
+
+	//longer than the current length
+	var copyFrame;
+	timeline.layerIDs.forEach(lid => {
+		//propogate the last frame forwards
+		copyFrame = timeline.l[lid][oldLength-1];
+
+		//extend, fill, and then update the visible timeline blocks
+		timeline.l[lid][newLength-1] = copyFrame;
+		timeline.l[lid].fill(copyFrame, oldLength, newLength-1);
+		createTimelineBlocks(lid, oldLength, newLength-1);
+	});
+
+	//add label text
+	//make sure to include the 0
+	if (oldLength == 1) {
+		oldLength = 0;
+	}
+	var labHeight = (timeline_headHeight / 2) + 1;
+	var labPer = timeline_labelPer;
+	for (var k=Math.ceil(oldLength/labPer) * labPer; k<newLength; k+=labPer) {
+		timeline_labels.appendChild(φCreate("text", {
+			'x': (timeline_blockW + 1) * (k + 0.5),
+			'y': labHeight,
+			'id': `label_${k}`, 
+			'class': 'textTimelineLength',
+			'text-anchor': 'middle',
+			'innerHTML': k,
+			'noselect': 'on',
+		}));
+	}
+
+	updateTimelineExtender();
+	setOnionWingLengths();
+	timeline.makeVisible();
+	timeline_lenStore = timeline.len;
+}
+
 /**
  * Returns a list of numbers corresponding to the indeces of testCurves that intersect the first curve
  * @param {Number[][]} curve New potentially intersecting curve. Can be between two and four 2d points
@@ -1108,12 +1098,6 @@ function simplifyLineDuplicates(points, tolerance) {
 		}
 	}
 	return newPts;
-}
-
-function rotate(x, z, radians) {
-	var sin = Math.sin(radians);
-	var cos = Math.cos(radians);
-	return [x * cos - z * sin, z * cos + x * sin];
 }
 
 function updateCursorPos(a) {
