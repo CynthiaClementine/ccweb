@@ -52,8 +52,13 @@ class State_World {
 				}
 
 				//every once in a while, or if the camera's outside the tunnel, order the near objects
-				if (world_time % 50 == 24 || player.parentPrev.coordinateIsInTunnel(world_camera.x, world_camera.y, world_camera.z, false)) {
+				var timeCheck = world_time % 50 == 24;
+				var cameraCheck = player.parentPrev.coordinateIsInTunnel(world_camera.x, world_camera.y, world_camera.z, true);
+				if (timeCheck || !cameraCheck) {
 					this.nearObjs = orderObjects(this.nearObjs);
+					if (cameraCheck) {
+						this.orderParentLast();
+					}
 				}
 
 				//ticking near objects
@@ -336,6 +341,16 @@ class State_World {
 			}
 		});
 		this.nearObjs = orderObjects(this.nearObjs);
+		this.orderParentLast();
+	}
+
+	orderParentLast() {
+		//if the camera is inside the player's parent, (inside the polygonal tunnel part, not just in the bounding box) then the parent must be the last one to be drawn
+		var parentInd = this.nearObjs.indexOf(player.parentPrev);
+		if (parentInd != -1 && parentInd != this.nearObjs.length - 1 && player.parentPrev.coordinateIsInTunnel(world_camera.x, world_camera.y, world_camera.z)) {
+			this.nearObjs.splice(parentInd, 1);
+			this.nearObjs.push(player.parentPrev);
+		}
 	}
 
 	handleKeyPress(a) {
@@ -1632,7 +1647,8 @@ class State_Map {
 			}
 
 			//if the camera is moving, update what the user has selected
-			if (!editor_active && (Math.abs(world_camera.targetZ - world_camera.z) > 1 || Math.abs(this.mouseChangeZ) > 0)) {
+			var overAngelPanel = (cursor_x > canvas.width * checklist_margin && cursor_x < canvas.width * (checklist_margin + checklist_width) && cursor_y > canvas.height * (1 - checklist_height));
+			if (!overAngelPanel && !editor_active && (Math.abs(world_camera.targetZ - world_camera.z) > 1 || Math.abs(this.mouseChangeZ) > 0)) {
 				this.cursorPos = [-100, -100];
 				this.objSelected = undefined;
 				this.selectMapObject();
@@ -1648,6 +1664,10 @@ class State_Map {
 				drawAngelPanel(this.substate);
 			}
 		}
+
+		//back arrow
+		ctx.lineWidth = canvas.height / 200;
+		drawArrow(canvas.width * 0.08, canvas.height * 0.05, (this.substate == 2) ? color_map_bg_dark : color_map_bg, Math.PI, canvas.width * 0.04, canvas.width * 0.02, canvas.height * 0.02, canvas.height * 0.04);
 		
 
 		var fontSize = Math.floor(canvas.height / 22);
@@ -1722,6 +1742,12 @@ class State_Map {
 	handleMouseDown(a) {
 		//update cursor position
 		updateCursorPos(a);
+
+		//back arrow
+		if (cursor_x < canvas.width * 0.1 && cursor_y < canvas.height * 0.1) {
+			loading_state = new State_Menu();
+			return;
+		}
 
 		//box things
 		if (data_persistent.bridgeBuildingProgress != undefined) {
@@ -2066,6 +2092,7 @@ class State_Menu {
 	constructor() {
 		this.characterSelected = 0;
 		this.displayCharacterSelected = 0;
+		this.displaySwivelSpeed = 0.2;
 
 		this.displayCostumeSelected = costumes_active;
 
@@ -2105,8 +2132,10 @@ class State_Menu {
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 		//swivel display character
-		this.displayCharacterSelected = ((this.displayCharacterSelected * (render_animSteps - 1)) + this.characterSelected) / render_animSteps;
-
+		var newTarget = ((this.displayCharacterSelected * (render_animSteps - 1)) + this.characterSelected) / render_animSteps;
+		var difference = newTarget - this.displayCharacterSelected;
+		this.displayCharacterSelected += clamp(difference, -this.displaySwivelSpeed, this.displaySwivelSpeed);
+		
 		//selection box for username
 		drawSelectionBox(canvas.width * ((player_maxNameWidth / 2) + 0.02), canvas.height * 0.0375, canvas.width * (player_maxNameWidth + 0.02), canvas.height * 0.055);
 

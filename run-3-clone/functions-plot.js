@@ -144,8 +144,8 @@ function updatePlotProgression() {
 		}
 	} else if (data_persistent.version > world_version) {
 		//past date case, how dare you mess with my save file like this. All your stars are lizards.
-		for (var j=0; j<world_stars.length; j++) {
-			world_stars[j] = new Star_Lizard(world_stars[j].x, world_stars[j].y, world_stars[j].z);
+		for (var j=0; j<star_arr.length; j++) {
+			star_arr[j] = new Star_Lizard(star_arr[j].x, star_arr[j].y, star_arr[j].z);
 		}
 	}
 

@@ -72,7 +72,7 @@ class FreePoly {
 	//clips self and returns an array with two polygons, clipped at the input plane.
 	//always returns [polygon inside plane, polgyon outside plane]
 	//if self polygon does not intersect the plane, then one of the two return values will be undefined.
-	/*clipAtPlane(planePoint, planeNormal) {
+	clipAtPlane(planePoint, planeNormal) {
 		var inPart = undefined;
 		var outPart = undefined;
 
@@ -87,45 +87,42 @@ class FreePoly {
 		var clip = false;
 		for (var y=1;y<tempPoints.length;y++) {
 			//if the signs of the points match, don't clip them. However, if any polarity of a point is different from the first one, clip the polygon
-			if (!sign == tempPoints[y][2] > 0) {
+			if (sign != tempPoints[y][2] > 0) {
 				clip = true;
 				y = tempPoints.length;
 			}
 		}
-		if (clip) {
-			//get copy of self
-			var outPoints = [];
-			for (var a=0;a<tempPoints.length;a++) {
-				outPoints[a] = tempPoints[a];
-			}
-
-			//clip
-			tempPoints = clipToZ0(tempPoints, 0, false);
-
-			//transforming points to world coordinates
-			for (var q=0;q<tempPoints.length;q++) {
-				tempPoints[q] = relativeToSpace(tempPoints[q], planePoint, planeNormal);
-			}
-
-			outPoints = clipToZ0(outPoints, 0, true);
-			for (var q=0;q<outPoints.length;q++) {
-				outPoints[q] = relativeToSpace(outPoints[q], planePoint, planeNormal);
-			}
-
-			//turning point array into objects that can be put into nodes
-			inPart = new FreePoly(tempPoints, this.color);
-			inPart.calculateNormal();
-			outPart = new FreePoly(outPoints, this.color);
-			outPart.calculateNormal();
-		} else {
+		if (!clip) {
 			//if clipping is not necessary, then just return self
-			if (tempPoints[0][2] > 0) {
-				return [this, undefined];
-			}
-			return [undefined, this];
+			return (tempPoints[0][2] > 0) ? [this, undefined] : [undefined, this];
 		}
+
+		//get copy of self
+		var outPoints = [];
+		for (var a=0;a<tempPoints.length;a++) {
+			outPoints[a] = tempPoints[a];
+		}
+
+		//clip
+		tempPoints = clipToZ0(tempPoints, 0, false);
+
+		//transforming points to world coordinates
+		for (var q=0;q<tempPoints.length;q++) {
+			tempPoints[q] = relativeToSpace(tempPoints[q], planePoint, planeNormal);
+		}
+
+		outPoints = clipToZ0(outPoints, 0, true);
+		for (var q=0;q<outPoints.length;q++) {
+			outPoints[q] = relativeToSpace(outPoints[q], planePoint, planeNormal);
+		}
+
+		//turning point array into objects that can be put into nodes
+		inPart = new FreePoly(tempPoints, this.color);
+		inPart.calculateNormal();
+		outPart = new FreePoly(outPoints, this.color);
+		outPart.calculateNormal();
 		return [inPart, outPart];
-	}*/
+	}
 
 	tick() {
 		this.getCameraDist();

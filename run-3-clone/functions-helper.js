@@ -1946,8 +1946,12 @@ function tunnelData_convertOldData(dataStr) {
 			return;
 		}
 
+		//there are both color0 tags and color tags. Thanks player03.
 		if (t.indexOf("color0-0x") == 0) {
 			ndo.color = t.replace("color0-0x", "");
+		}
+		if (t.indexOf("color-0x") == 0) {
+			ndo.color = t.replace("color-0x", "");
 		}
 
 		if (t.indexOf("spawn-") == 0) {

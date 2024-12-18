@@ -2,7 +2,13 @@
 
 V1.3 - THE CONSISTENCY UPDATE PART 2 - (?????)
     TODO:
+        
+        vertical box warping still happens (IM-230)
+        kill duplicates that are past the void boundary when transitioning tunnels
         add achievement panel?
+        angel can currently be unlocked just by clicking The Way Back, even though it shouldn't be until Angel Missions is done
+        last angel mission cutscene should have knocked-out crumbling tiles
+        make cutscenes traversable with up arrow (after grace time)
         back / forward buttons for switching between levels
         also todo: make "River" text instead of a cutscene
         pastafarian is too pointy, make less pointy
@@ -11,6 +17,23 @@ V1.3 - THE CONSISTENCY UPDATE PART 2 - (?????)
         ramp sides succing the player? (IM-184)
         inside-box camera optimization could allow for the sides of all connected boxes to be ignored
             this seems to also require plane clipping
+        when we're done with everything, CC10 should take 41 sections tops
+            what does this mean???????????
+
+        Bug Fixes:
+            fixed the save button in the tunnel editor
+            fixed duplicator occasionally not strafing after switching duplicates
+            fixed bug in "Can't Wait" cutscene
+            fixed tunnels being mis-ordered when jumping between them
+            you can no longer select levels when they are occluded by the going home checklist
+            fixed crash when loading a save file from the future (thanks A-16)
+        Visuals:
+            
+
+        misc:
+            added back arrow to map
+
+        Development:
 
 
 
