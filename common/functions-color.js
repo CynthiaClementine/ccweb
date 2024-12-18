@@ -27,15 +27,15 @@ function cBreakdown(hexRGBA) {
 	if (hex.length == 4) {
 		return {
 			r: parseInt(hex[1], 16) * 17,
-			b: parseInt(hex[2], 16) * 17,
-			g: parseInt(hex[3], 16) * 17,
+			g: parseInt(hex[2], 16) * 17,
+			b: parseInt(hex[3], 16) * 17,
 			a: 1
 		};
 	}
 	return {
 		r: parseInt(hex.slice(1, 3), 16),
-		b: parseInt(hex.slice(3, 5), 16),
-		g: parseInt(hex.slice(5, 7), 16),
+		g: parseInt(hex.slice(3, 5), 16),
+		b: parseInt(hex.slice(5, 7), 16),
 		a: (hexRGBA.length > 7) ? parseInt(hex.slice(7, 9), 16) / 255 : 1
 	};
 }
@@ -48,6 +48,11 @@ function cBreakdownRGBA(rgbaString) {
 		b: +split[2].slice(0, -1),
 		a: +split[3].slice(0, -1)
 	};
+}
+
+function cConstruct(r, g, b, a) {
+	var q = (x) => {return Math.floor(x).toString(16).padStart(2, "0")};
+	return ("#" + q(r) + q(g) + q(b) + (a ? q(a) : ""));
 }
 
 //returns a 0-1 apparent brightness of a hex color
