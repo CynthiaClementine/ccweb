@@ -26,17 +26,17 @@
             .main {
                 margin-left: 1%;
                 margin-right: 1%;
-                color: white;
+                color: #F5EDF0;
                 font-size: 20px;
             }
 
             #top-text {
-                color: white;
+                color: #F5EDF0;
                 font-size: 35px;
                 text-align: center;
             }
             #localStorage-text {
-                color: white;
+                color: #F5EDF0;
                 font-size: 20px;
                 text-align: center;
                 bottom: 0;
@@ -61,7 +61,7 @@
             }
 
             #top-bar {
-                color: white;
+                color: #F5EDF0;
             }
 
             #doCompact {
@@ -69,10 +69,10 @@
             }
 
             .main a:link {
-                color: #49fcff;
+                color: #49EEEE;
             }
             .main a:visited {
-                color: #3a0000;
+                color: #022B3A;
             }
 
             /* why isn't this working? */
@@ -85,8 +85,8 @@
 
             .top-link, .up-link {
                 font-size: 20px;
-                color: white;
-                background-color: #686291;
+                color: #F5EDF0;
+                background-color: #8b81a3;
                 text-decoration: none;
                 border: none;
                 border-radius: 5px;
@@ -117,6 +117,7 @@
             <a class="top-link" href="#interact-list">Interactables</a>
             <a class="top-link" href="#display-list">Displays</a>
             <a class="top-link" href="#tools-list">Tools</a>
+            <a class="top-link" href="#other-list">Other</a>
         </div>
 
         <div id="games-list" class="main surrounded">
@@ -154,7 +155,7 @@
         <div id="interact-list" class="main surrounded">
             <p>
                 <b>Interactables</b><br>
-                <a href="mandelbrot-set.html">Interactive Mandelbrot set</a> - Click to zoom in, use sliders, play around! Watch out for the creeping existential dread you get if you zoom in too far.<h3></h3>
+                <a href="mandel/index.html">Interactive Mandelbrot set</a> - Click to zoom in, use sliders, play around! This version uses Web Workers for maximum efficiency. You can compare it to my<a class="main" href="mandelbrot-set.html">singlethreaded version </a>if you want to!<h3></h3>
                 <a href="prime-spiral.html">A Plot of Primes in Polar Coordinates</a> - superb subtractively spaced spirals<h3></h3>
                 <a href="solar-eclipse.html">Solar eclipse visualizer</a> - kind of neat I guess<h3></h3>
                 <a href="pascal-triangle.html">Pascal's triangle</a> - (now with neat little coloring schema)<h3></h3>
@@ -201,14 +202,15 @@
             </p>
         </div>
 
-        <!-- 
-        <div id="extras-list">
+        <a class="up-link" href="#top-bar">^</a><br>
+        <div id="other-list" class="main surrounded">
             <p>
-                <b>Extras:</b><h3></h3>
-                <a
-
+                <!-- call this Extras instead? -->
+                <b>Other</b><br>
+                <a href="maze-generator.html">Oje Singett</a> - A multi-format video I made about isolation and the internet. It took me a year to make and is approximately 50 minutes long.<br>I'm always a little unsure of how to explain this project, as there are a lot of parts to it, and it's not really like anything else. But at the very least, it's got a bunch of humorous bits. So hopefully you enjoy it!<h3></h3>
+                <a href="ring.purduehackers.com/previous?host=clementine.viridian.page">←</a>&nbsp;&nbsp;<a href="ring.purduehackers.com">Purdue Hackers Webring</a>&nbsp;&nbsp;<a href="ring.purduehackers.com/next?host=clementine.viridian.page">→</a><h3></h3>
             </p>
-        </div>-->
+        </div>
 
         <!--display storage size-->
         <footer id="localStorage-text">
