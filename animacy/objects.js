@@ -494,6 +494,7 @@ function Frame(svgObj) {
 	//reflecting properties
 	svgObj.lines = svgObj.children["lines"];
 	svgObj.fills = svgObj.children["fills"];
+	svgObj.objs = svgObj.children["objs"];
 
 	//exports an object with a copy of all the lines, fills, and cubic bins
 	svgObj.exportCopyObj = () => {

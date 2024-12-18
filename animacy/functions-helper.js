@@ -16,6 +16,8 @@ cursorIsInBounds()
 cursorTimelinePos()
 cursorWorkspacePos()
 createSpline(curves, color, pathWidth)
+frame_addFill(layerNode, fill)
+frame_addObject(layerNode, obj)
 frame_addPath(layerNode, curves, width, color)
 frame_removePath(layerNode, spline)
 timelineShortenTo()
@@ -29,10 +31,22 @@ updateSelectedColor()
 */
 
 
-//says whether the cursor is over an element
+
+/**
+ * Determines whether the cursor is currently over a node. If a specific node is passed in, returns a boolean value. 
+ * If no node is passed in, returns the full list of nodes the cursor is over.
+ * @param {*} node The specific node to check
+ * @returns {Boolean|Array}
+ */
 function φOver(node) {
+	var list = document.querySelectorAll(":hover");
+	if (!node) {
+		return list;
+	}
+	return Array.from(list).includes(node);
+	/* old implementation
 	var box = node.getBoundingClientRect();
-	return (cursor.x >= box.x && cursor.x <= box.x + box.width && cursor.y >= box.y && cursor.y <= box.y + box.height);
+	return (cursor.x >= box.x && cursor.x <= box.x + box.width && cursor.y >= box.y && cursor.y <= box.y + box.height); */
 }
 
 function appendToPath(pathNode, newPts) {
@@ -427,8 +441,16 @@ function frame_addFill(layerNode, fill) {
 	}
 }
 
-
-
+/**
+ * Adds an Object to a specified frame object.
+ * an Object has much fewer guarantees than a Spline. The only thing for certain is that Objects have a location and bounding box.
+ * @param {*} layerNode the frame to add to
+ * @param {*} obj the object to add
+ */
+function frame_addObject(layerNode, obj) {
+	layerNode.children["objs"].appendChild(obj);
+	frame_checkEmpty(layerNode);
+}
 
 /**
  * Adds a Spline to a specified frame object.
@@ -444,10 +466,7 @@ function frame_addPath(layerNode, spline) {
 		layerNode.lines.appendChild(spline);
 		layerNode.binModify(spline, false);
 
-		//change to indicate the frame is full
-		var uid = φGet(layerNode, 'uid');
-		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameFullKey'});
-		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameFull'});
+		frame_checkEmpty(layerNode);
 		return spline;
 	}
 
@@ -520,12 +539,15 @@ function frame_addPath(layerNode, spline) {
 }
 
 /**
- * Adds a special object to a frame
- * @param {Frame} layerNode the frame to add to
- * @param {*} specialObj the object to add
+ * Checks whether a frame is empty and updates its keyframe visibility in the timeline
+ * @param {*} frameNode the frame to check
  */
-function frame_addSpecial(layerNode, specialObj) {
-	layerNode.children["objs"].appendChild(specialObj);
+function frame_checkEmpty(frameNode) {
+	var uid = φGet(frameNode, 'uid');
+	var isEmpty = (frameNode.lines.children.length + frameNode.fills.children.length + frameNode.objs.children.length == 0);
+
+	φSet(frameNode.querySelector(`#MASTER_layerKey_${uid}`), {"href": isEmpty ? "#MASTER_frameEmptyKey" : "#MASTER_frameFullKey"});
+	φSet(frameNode.querySelector(`#MASTER_layer_${uid}`), {"href": isEmpty ? "#MASTER_frameEmpty" : "#MASTER_frameFull"});
 }
 
 function pointsToOrderedT(spline, points) {
@@ -613,23 +635,28 @@ function multiSlice(spline, sliceTimes) {
 }
 
 /**
+ * Removes an object from a specified frame object
+ * @param {*} layerNode the frame object the object belongs to
+ * @param {*} spline the object to remove
+ */
+function frame_removeObject(layerNode, spline) {
+
+}
+
+/**
  * Removes a path from a specified frame object
- * @param {Frame} layerNode the frame object the spline belongs to
- * @param {Spline} spline the spline path object to remove
+ * @param {*} layerNode the frame object the spline belongs to
+ * @param {*} spline the spline path object to remove
  */
 function frame_removePath(layerNode, spline) {
 	//go through the curves and remove them from the curve bins
 	layerNode.binModify(spline, true);
 	layerNode.lines.removeChild(spline);
 
-	//keep markers up to date
-	if (layerNode.lines.children.length == 0) {
-		var uid = φGet(layerNode, "uid");
-		φSet(layerNode.querySelector(`#MASTER_layerKey_${uid}`), {'href': '#MASTER_frameEmptyKey'});
-		φSet(layerNode.querySelector(`#MASTER_layer_${uid}`), {'href': '#MASTER_frameEmpty'});
-	}
+	frame_checkEmpty(layerNode);
 }
 
+//TODO: this function appears to be unfinished?
 /**
  * Splits all the paths that go through a specified xy point on a specified layer
  * @param {Frame} layer the frame object paths belong to

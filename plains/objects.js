@@ -77,10 +77,10 @@ class Mesh extends EditableWorldObject {
 		this.objects.forEach(r => {
 			//if the objects have points (are a face), put them in directly. If not, put their component faces in
 			if (r.points != undefined) {
-				this.binTree.accept(r);
+				this.binTree.acceptFace(r);
 			} else {
 				r.faces.forEach(f => {
-					this.binTree.accept(f);
+					this.binTree.acceptFace(f);
 				});
 			}
 		});
@@ -136,6 +136,14 @@ class Mesh extends EditableWorldObject {
 		return output;
 	}
 
+	//returns whether the point is inside this mesh or not
+	contains(x, y, z) {
+		return (
+			(x > this.minMaxs[0][0] && x < this.minMaxs[0][1]) && 
+			(y > this.minMaxs[1][0] && y < this.minMaxs[1][1]) && 
+			(z > this.minMaxs[2][0] && z < this.minMaxs[2][1]));
+	}
+
 	move(changeXBy, changeYBy, changeZBy) {
 		this.x += changeXBy;
 		this.y += changeYBy;
@@ -170,139 +178,16 @@ class Mesh extends EditableWorldObject {
 }
 
 
-
-class Player {
-	constructor(x, y, z, xRot, yRot) {
-		this.friction = 0.85;
-		this.gravity = -0.15;
-
-		this.height = 4.9;
-		this.onGround = false;
-		this.posBuffer = [];
-
-		this.scale = 250;
-		this.sens = 0.04;
-		this.speed = 0.05;
-
-
-		this.x = x;
-		this.y = y;
-		this.z = z;
-
-		this.dx = 0;
-		this.dy = 0;
-		this.dz = 0;
-		this.dMax = 1;
-		this.fallMax = this.dMax * 1.98;
-
-		this.ax = 0;
-		this.ay = 0;
-		this.az = 0;
-
-
-		this.theta = yRot;
-		this.phi = xRot;
-		this.normalsBuffer = [
-			polToCart(this.theta + Math.PI / 2, 0, 1),
-			polToCart(this.theta, this.phi + Math.PI / 2, 1),
-			polToCart(this.theta, this.phi, 1)
-		];
-
-		this.dt = 0;
-		this.dp = 0;
-	}
-
-	fixPosBuffer() {
-		this.posBuffer.forEach(p => {
-			this.x += p[0];
-			this.y += p[1];
-			this.z += p[2];
-		});
-		this.posBuffer = [];
-	}
-
-	tick() {
-		//handling velocity
-
-		//adding
-		this.dx += this.ax;
-
-		//binding max
-		if (Math.abs(this.dx) > this.dMax) {
-			this.dx *= 0.95;
-		}
-
-		//friction
-		if (this.ax == 0) {
-			this.dx *= this.friction;
-		}
-
-		this.dz += this.az;
-		if (Math.abs(this.dz) > this.dMax) {
-			this.dz *= 0.95;
-		}
-		if (this.az == 0) {
-			this.dz *= this.friction;
-		}
-
-		//gravity
-		this.dy += this.gravity;
-		if (Math.abs(this.dy) > this.fallMax) {
-			this.dy *= 0.95;
-		}
-
-		//handling position
-		if (!noclip_active) {
-			this.x += this.dz * Math.sin(this.theta);
-			this.z += this.dz * Math.cos(this.theta);
-
-			this.x += this.dx * Math.sin(this.theta + (Math.PI/2));
-			this.z += this.dx * Math.cos(this.theta + (Math.PI/2));
-			
-			this.y += this.dy;
-		} else {
-			var moveCoords = [0, 0, 0];
-			if (Math.abs(this.dz) > 0.1) {
-				var toAdd = polToCart(this.theta, this.phi, this.dz * player_noclipMultiplier);
-				moveCoords = [moveCoords[0] + toAdd[0], moveCoords[1] + toAdd[1], moveCoords[2] + toAdd[2]];
-				
-			}
-			if (Math.abs(this.dx) > 0.1) {
-				var toAdd = polToCart(this.theta + (Math.PI / 2), 0, this.dx * player_noclipMultiplier);
-				moveCoords = [moveCoords[0] + toAdd[0], moveCoords[1] + toAdd[1], moveCoords[2] + toAdd[2]];
-			}
-			this.x += moveCoords[0];
-			this.y += moveCoords[1];
-			this.z += moveCoords[2];
-		}
-
-
-		//camera velocity
-		this.theta += this.dt;
-		this.phi += this.dp;
-
-		//special case for vertical camera orientation
-		if (Math.abs(this.phi) >= Math.PI * 0.5) {
-			//if the camera angle is less than 0, set it to -1/2 pi. Otherwise, set it to 1/2 pi
-			this.phi = Math.PI * (-0.5 + (this.phi > 0));
-		}
-		this.normalsBuffer = [
-			polToCart(this.theta + Math.PI / 2, 0, 1),
-			polToCart(this.theta, this.phi + Math.PI / 2, 1),
-			polToCart(this.theta, this.phi, 1)
-		];
-	}
-}
-
 class TreeNode {
 	constructor(contains) {
 		this.contains = contains;
+		//"inside" means in front - the same direction the normal points
 		this.inObj = undefined;
 		this.outObj = undefined;
 	}
 
 	//passes object to a spot below the self
-	accept(object) {
+	acceptFace(object) {
 		if (this.contains == undefined) {
 			console.log('case caught');
 			this.contains = object;
@@ -311,13 +196,13 @@ class TreeNode {
 		var ref = this.contains;
 		var outputs = object.clipAtPlane([ref.x, ref.y, ref.z], ref.normal);
 
-		//if the object in the below bucket is not defined, push output to below bucket
+		//if a below clipped output exists, push to below
 		if (outputs[0] != undefined) {
 			if (this.inObj == undefined) {
 				this.inObj = new TreeNode(outputs[0]);
 			} else {
 				//if there is something in the below bucket, make sure that the output is valid before making it the below bucket's problem
-				this.inObj.accept(outputs[0]);
+				this.inObj.acceptFace(outputs[0]);
 			}
 		}
 
@@ -325,7 +210,7 @@ class TreeNode {
 			if (this.outObj == undefined) {
 				this.outObj = new TreeNode(outputs[1]);
 			} else {
-				this.outObj.accept(outputs[1]);
+				this.outObj.acceptFace(outputs[1]);
 			}
 		}
 	}
@@ -362,34 +247,59 @@ class TreeNode {
 		return ((v1[0] * v2[0]) + (v1[1] * v2[1]) + (v1[2] * v2[2])) <= 0;
 	}
 
+	//calculates whether a point is inside the partition
+	isInside(point) {
+		var v1 = polToCart(this.contains.normal[0], this.contains.normal[1], 1);
+		var v2 = [point[0] - this.contains.x, point[1] - this.contains.y, point[2] - this.contains.z];
+		return ((v1[0] * v2[0]) + (v1[1] * v2[1]) + (v1[2] * v2[2])) <= 0;
+
+	}
+
+	drawPartition() {
+		//use containment normal to get points, then draw those points transparently
+		var partDist = 200;
+		var norm = this.contains.normal;
+		var pts = [[partDist, partDist, 0], [partDist, -partDist, 0], [-partDist, -partDist, 0], [-partDist, partDist, 0]];
+		pts = pts.map(a => spaceToRelative(a, [this.contains.x, this.contains.y, this.contains.z], norm));
+
+		var alphaStore = ctx.globalAlpha;
+		ctx.globalAlpha = 0.1;
+		drawWorldPoly(pts, color_partition);
+		ctx.globalAlpha = alphaStore;
+		
+	}
+
 	traverse(ticking) {
 		//decide traversal order
-		if (this.isBackwards()) {
+		var toggleOrder = this.isBackwards();
+
+		//back
+		if (toggleOrder) {
 			if (this.inObj != undefined) {
 				this.inObj.traverse(ticking);
 			}
-			if (ticking) {
-				this.contains.tick();
-			} else {
-				this.contains.beDrawn();
+		} else {
+			if (this.outObj != undefined) {
+				this.outObj.traverse(ticking);
 			}
+		}
+
+		//center
+		if (ticking) {
+			this.contains.tick();
+		} else {
+			if (render_drawPartitions) {
+				this.drawPartition();
+			}
+			this.contains.beDrawn();
+		}
+
+		//front
+		if (toggleOrder) {
 			if (this.outObj != undefined) {
 				this.outObj.traverse(ticking);
 			}
 		} else {
-			//right
-			if (this.outObj != undefined) {
-				this.outObj.traverse(ticking);
-			}
-
-			//center
-			if (ticking) {
-				this.contains.tick();
-			} else {
-				this.contains.beDrawn();
-			}
-
-			//left
 			if (this.inObj != undefined) {
 				this.inObj.traverse(ticking);
 			}
@@ -400,16 +310,34 @@ class TreeNode {
 //like a treenode, but doesn't have children. Instead, any objects that go in will be grouped by distance to the camera
 class TreeBlob {
 	constructor(contains) {
-		//this array should contain only binary trees containing meshes
+		//this array should contain only binary trees containing meshes or entities
 		this.contains = [contains];
 	}
 
-	accept(object) {
-		this.contains.push(object);
+	acceptFace(faceObj) {
+		this.contains.push(faceObj);
 	}
 
 	acceptNode(object) {
 		this.contains.push(object);
+	}
+
+	acceptEntity(entity) {
+		//if the entity fits into any of the meshes, place it there
+		for (var g=0; g<this.contains.length; g++) {
+			//make sure it's a mesh
+			if (this.contains[g].minMaxs != undefined) {
+				if (this.contains[g].contains(entity)) {
+					this.contains[g].acceptEntity(entity);
+					return;
+				}
+			}
+		}
+
+		//if it doesn't just place it in contains arr
+		this.contains.push(entity);
+		//give entity a copy of its location
+		entity.inList = this.contains;
 	}
 
 	traverse(ticking) {
@@ -420,9 +348,7 @@ class TreeBlob {
 		} else {
 			//get distance to all objects
 			this.contains.forEach(c => {
-				//variable definition avoids having to reconstruct the array every time
-				var playArr = [player.x, player.y, player.z];
-				c.parent.playerDist = getDistance3d([c.parent.x, c.parent.y, c.parent.z], playArr);
+				c.parent.playerDist = Math.hypot(c.parent.x - player.x, c.parent.y - player.y, c.parent.z - player.z);
 			});
 			//order based on distance
 			//TODO: change this sort to be custom, rather than the built-in javascript sort. Also test if my custom sorting algorithm is faster or if I'm wasting my time
@@ -442,12 +368,19 @@ class World {
 		this.id = worldID;
 		this.bg = bgColor;
 		this.meshes = [];
+		this.entities = [];
 		this.binTree;
 	}
 
 	addFormally(object) {
 		editor_meshSelected.objects.push(object);
 		this.generateBinTree();
+	}
+
+	addEntity(entity) {
+		//put entity through the first binary tree
+
+		//after its position
 	}
 
 	generateBinTree() {
@@ -463,6 +396,8 @@ class World {
 		for (var m=1; m<this.meshes.length; m++) {
 			this.binTree.acceptNode(this.meshes[m].binTree);
 		}
+
+		//step 4: place all entities
 	}
 
 	giveStringData() {

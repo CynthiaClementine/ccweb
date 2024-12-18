@@ -16,6 +16,7 @@ polyArea(polyPoints);
 randomBounded(min, max);
 rootsCubic(a, b, c, d);
 rootsQuadratic(a, b, c);
+rotate(x, z, radians);
 sigmoid(input, outputLowerBound, outputUpperBound);
 easerp(a, b, percentage);
 Ξ(x); -takes the factorial of a number
@@ -28,6 +29,10 @@ A WARNING TO MY FUTURE SELF:
 do not rename these functions. Just don't. It may seem like a good idea. It's not. 
 There are projects that rely on these names that you have forgotten about. 
 Save yourself the time!!
+
+OTHER NOTES:
+after years of importing this file and then copy/pasting the rotate code separately, I've finally bundled it here. 
+It's technically a multi-dimensional math thing but it's useful enough in so many applications that I'm just going to have it here.
 */
 
 //returns the value of a normal distribution at some distance from mean=0
@@ -213,6 +218,12 @@ function rootsQuadratic(a, b, c) {
 			(-b - sqrtDisc) / (2 * a)
 		];
 	}
+}
+
+function rotate(x, z, radians) {
+	var sin = Math.sin(radians);
+	var cos = Math.cos(radians);
+	return [x * cos - z * sin, z * cos + x * sin];
 }
 
 //approximate integral of sin(k)/k from 0 -> x

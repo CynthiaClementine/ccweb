@@ -12,16 +12,19 @@ class Editor {
 
 		this.clipboard;
 		this.obj;
-		this.mesh;
-		this.points = [];
-		this.handle = -1;
+		this.objHandle = -1;
 
-		this.handleStorageArray = [[[]]];
+		this.mesh;
+		this.meshSelected = -1;
+		this.points = [];
+
+		this.handleStorageArr = [];
 	}
 
 	beDrawn() {
 		if (loading_world.meshes.indexOf(this.mesh) == -1) {
 			this.mesh = loading_world.meshes[0];
+			this.meshSelected = 0;
 		}
 		//crosshair
 		var center = polToCart(player.theta, player.phi, render_crosshairSize * render_crosshairDivide);
@@ -37,7 +40,13 @@ class Editor {
 	}
 
 	drawHandles() {
-		var hRef = this.handleStorageArray;
+		var hRef = this.handleStorageArr;
+
+		//don't continue if there's nothing to draw
+		if (this.handleStorageArr.length < 1) {
+			return;
+		}
+
 		//first 3 lines
 		drawCrosshair(hRef[0][0], hRef[0][1], hRef[1][1], hRef[2][1]);
 		//any lines beyond the first 3 get drawn with a pink line
@@ -54,7 +63,7 @@ class Editor {
 			pnt = [hRef[h][0][0] + hRef[h][1][0], hRef[h][0][1] + hRef[h][1][1], hRef[h][0][2] + hRef[h][1][2]];
 			if (!isClipped(pnt)) {
 				var coords = spaceToScreen(pnt);
-				drawCircle(((this.handle == h) && color_selection) || color_editor_handles, coords[0], coords[1], this.tolerance / 2);
+				drawCircle(((this.objHandle == h) && color_selection) || color_editor_handles, coords[0], coords[1], this.tolerance / 2);
 			}
 		}
 	}
@@ -71,9 +80,17 @@ class Editor {
 		ctx.font = `${canvas.height/ 40}px Comfortaa`;
 		ctx.fillStyle = color_text_light;
 		var x = canvas.width * 0.01;
-		for (var a=0; a<loading_world.meshes.length; a++) {
+
+		//the first mesh is center-aligned because it's the main one - after that they're left-aligned
+		ctx.textAlign = "center";
+		ctx.fillText(loading_world.meshes[0].name, (x + canvas.width * this.sBarWidth) / 2, canvas.height * (this.tBarHeight + 0.05));
+		ctx.textAlign = "left";
+		
+		for (var a=1; a<loading_world.meshes.length; a++) {
 			ctx.fillText(loading_world.meshes[a].name, x, canvas.height * (this.tBarHeight + 0.05 + (0.04 * a)));
 		}
+
+		//selection box
 
 		//icons
 		var y = (canvas.height * this.tBarHeight * 0.5);
@@ -87,11 +104,11 @@ class Editor {
 		//color
 		if (this.obj != undefined) {
 			ctx.fillStyle = color_text_light;
-			ctx.fillText("#", canvas.width * 0.935, y);
+			ctx.fillText("#", canvas.width * 0.92, y);
 			for (var c=0; c<3; c++) {
-				ctx.fillText("▲", canvas.width * (0.945 + 0.015 * c), y - (canvas.height / 42));
-				ctx.fillText(this.obj.color[c+1], canvas.width * (0.95 + 0.015 * c), y);
-				ctx.fillText("▼", canvas.width * (0.945 + 0.015 * c), y + (canvas.height / 50));
+				ctx.fillText("▲", canvas.width * (0.94 + 0.02 * c), y - (canvas.height / 42));
+				ctx.fillText(this.obj.color[c+1], canvas.width * (0.94 + 0.02 * c), y);
+				ctx.fillText("▼", canvas.width * (0.94 + 0.02 * c), y + (canvas.height / 42));
 			}
 		}
 
@@ -136,10 +153,11 @@ class Editor {
 			drawWorldLine(ps[3], ps[7]);
 		} else {
 			this.obj.beDrawn();
-
+			
 			//if it's an actual object
 			if (this.points.length == 0) {
 				ctx.strokeStyle = color_selection;
+				console.log('highlighting');
 				ctx.stroke();
 			} else {
 				//if it's a collection of points
@@ -153,13 +171,17 @@ class Editor {
 				}
 				ctx.stroke();
 			}
-
-			//on top of object, draw the handles
-			this.drawHandles();
 		}
+		//on top of object, draw the handles
+		this.drawHandles();
 	}
 
 	giveHandlePositions() {
+		//if no object is defined use the mesh as an object
+		var undefine = (this.obj == undefined);
+		if (undefine) {
+			this.obj = this.mesh;
+		}
 		//get offsets
 		var defCenter = [this.obj.x, this.obj.y, this.obj.z];
 		var pCenter = [this.obj.x, this.obj.y, this.obj.z];
@@ -188,7 +210,8 @@ class Editor {
 			handles.push([pCenter, polToCart(this.obj.normal[0], this.obj.normal[1], render_crosshairSize)]);
 		}
 
-		if (this.obj == undefined) {
+		if (undefine) {
+			this.obj = undefined;
 			return handles;
 		}
 
@@ -205,26 +228,37 @@ class Editor {
 				handles.push([defCenter, [0, 0, 0]]);
 				break;
 		}
+
+		
 		return handles;
 	}
 
 	handleClick() {
-		//top bar stuff
+		//top bar 
 		if (cursor_y < canvas.height * this.tBarHeight) {
-			this.handleBarClick();
-		} else {
-			//world stuff
-			this.handleHandleClick();
-			if (this.objHandle != -1) {
-				return;
-			}
-			//select new object if necessary
-			this.obj = selectPoly(this.mesh.binTree);
+			this.handleTopClick();
+			return;
 		}
-		//do click event for selected object
+
+		//side bar
+		if (cursor_x < canvas.width * this.sBarWidth) {
+			this.handleSideClick();
+			return;
+		}
+
+		//world stuff
+		this.handleHandleClick();
+		if (this.objHandle != -1) {
+			return;
+		}
+		//select new object if necessary
+		this.obj = selectPoly(this.mesh.binTree);
+		console.log('getting new storage');
+		this.handleStorageArr = this.giveHandlePositions();
+		console.log(this.handleStorageArr);
 	}
 
-	handleBarClick() {
+	handleTopClick() {
 		//only do if valid mouse pos
 		if (cursor_y > canvas.height * this.tBarHeight) {
 			return;
@@ -268,10 +302,24 @@ class Editor {
 		}
 	}
 
+	handleSideClick() {
+		//switch meshes selected
+		var prev = this.meshSelected;
+		this.meshSelected = clamp(Math.floor((cursor_y - canvas.height * (this.tBarHeight + 0.01)) / (canvas.height * 0.04)), 0, loading_world.meshes.length - 1);
+		if (this.meshSelected != prev) {
+			this.mesh = loading_world.meshes[this.meshSelected];
+			this.handleStorageArr = this.giveHandlePositions();
+		}
+	}
+
 	handleHandleClick() {
 		//first get handles
 		var handles = this.giveHandlePositions();
 		var reqDist = this.tolerance;
+
+		if (handles.length < 1) {
+			return;
+		}
 
 		//loop through handles, select the closest one
 		for (var a=0; a<handles.length; a++) {
@@ -283,22 +331,24 @@ class Editor {
 				var trueDist = Math.sqrt(xDist * xDist + yDist * yDist);
 				if (trueDist < reqDist) {
 					reqDist = trueDist;
-					this.handleSelected = a;
+					this.objHandle = a;
 				}
 			}
 		}
 	}
 
-	tick() {
+	//deals with dragging inputs
+	handleDrag() {
+		console.log('ticking');
 		this.handleStorageArr = this.giveHandlePositions();
 
 		//freepoly case
 		if (this.obj.constructor.name == "FreePoly") {
-			if (this.handleSelected != -1) {
+			if (this.objHandle != -1) {
 				this.handleHandles();
-				if (this.handleSelected > 2) {
-					this.pointSelected = (this.handleSelected - 3) / 2;
-					this.handleSelected = -1;
+				if (this.objHandle > 2) {
+					this.pointSelected = (this.objHandle - 3) / 2;
+					this.objHandle = -1;
 	
 					//if past all points, return to the center
 					if (this.pointSelected >= this.points.length) {

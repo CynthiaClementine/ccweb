@@ -71,6 +71,17 @@ class Main {
 	}
 }
 
+class Map {
+	/**
+	 * class that contains a map
+	 * @param {*} strData 
+	 * @param {*} looping 
+	 */
+	constructor(strData, looping, leftConnectData, rightConnectData) {
+
+	}
+}
+
 //the camera stores important things like squares per screen and position to draw from.
 class Camera extends Main {
 	constructor(x, y) {
@@ -133,7 +144,7 @@ class Player extends Main {
 		this.glideARate = 0.8;
 		this.glideAMax = Math.PI * 0.4;
 		this.glideEffic = 0.15;
-		this.glideFriction = 1;
+		this.glideFriction = 0.75;
 	}
 
 	handleMomentum() {
@@ -785,19 +796,17 @@ class Ending extends GameWorld {
 		this.tileOffset = -1;
 		this.age = 0;
 		this.finalAge = 3000;
-		this.centerPos = [loadingMap[0].length * squareSize / 2, loadingMap.length * squareSize / 2];
 		this.amount = 0.01;
 	}
 
 	beRun() {
 		//updating canvas size, if the map is smaller than the canvas width make it smaller
-		if (loadingMap[0].length * squareSize < canvas.width) {
-			canvas.width = loadingMap[0].length * squareSize;
+		if (loadingMap[0].length < canvas.width) {
+			canvas.width = loadingMap[0].length;
 			//update centerX and centerpos because they're literals and don't update when they're referenced variables change
 			camera.x = 0;
 			camera.cornerX = 0;
 			centerX = canvas.width / 2;
-			this.centerPos = [loadingMap[0].length * squareSize / 2, loadingMap.length * squareSize / 2];
 		}
 
 		//main game world
@@ -810,8 +819,8 @@ class Ending extends GameWorld {
 		//drawing outside filter
 		ctx.globalAlpha = 1;
 		ctx.fillStyle = camera.shaderColor;
-		ctx.fillRect(canvas.width, 0, -1 * ((camera.x + canvas.width) - (loadingMap[0].length * squareSize)), canvas.height)
-		ctx.fillRect(0, 0, -1 * camera.x, canvas.height);
+		ctx.fillRect(canvas.width, 0, -1 * ((camera.x + canvas.width) - loadingMap[0].length), canvas.height)
+		ctx.fillRect(0, 0, -camera.x, canvas.height);
 
 		//drawing completion text
 		ctx.fillStyle = ballColor;
@@ -821,15 +830,12 @@ class Ending extends GameWorld {
 		if (this.age < this.finalAge) {
 			//changing camera position, moves a little bit of the way towards the center of the map
 			//change = [camera position now] - [camera position final, which is the center - centerX]
-			this.centerPos = [(loadingMap[0].length * squareSize / 2) - centerX, (loadingMap.length * squareSize / 2) - centerY];
-			var totalChangeX = camera.x - this.centerPos[0];
-			var totalChangeY = camera.y - this.centerPos[1];
-			camera.x -= totalChangeX * this.amount;
-			camera.y -= totalChangeY * this.amount;
+			camera.x = loadingMap[0].length / 2;
+			camera.y = loadingMap.length / 2;
 
 			//expanding camera field of view
-			if (squareSize > 4) {
-				squareSize -= this.amount * 10;
+			if (camera.scale > 4) {
+				camera.scale -= this.amount * 10;
 				camera.shaderOpacity += 1 / this.finalAge;
 			}
 			//changing age
@@ -841,7 +847,7 @@ class Ending extends GameWorld {
 class Debug extends GameWorld {
 	constructor() {
 		super();
-		this.tileOffset = Math.floor(squareSize / 16);
+		this.tileOffset = Math.floor(camera.scale / 16);
 	}
 
 	beRun() {

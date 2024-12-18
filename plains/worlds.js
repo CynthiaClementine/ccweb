@@ -1,7 +1,10 @@
-
+var worlds = `
+//all worlds start with WORLD~[name]~[background color]
 WORLD~main~#202
+//objects that make up the main world structure go here
 WLY~0~0~0~5000~5000~#868
 
+//meshes are collections of objects that don't necessarily intersect with the world structure. They get their own space partitions to save time
 MESH~box1
 WLZ~70~10~-10~10~10~#068
 WLZ~70~10~10~15~10~#068
@@ -63,6 +66,10 @@ MESH~platforms
 FRP~[[-5010,-6,5025],[-5022,-6,5028],[-5029,-6,5039],[-5032,-6,5055],[-5026,-6,5060],[-5014,-6,5061],[-5002,-6,5055],[-4996,-6,5042],[-5000,-6,5029]]~#868
 FRP~[[-5032,-6,5055],[-5030,-21,5047],[-5026,-6,5060]]~#769
 
+//free objects - entities that may move around - get denoted with the FREE keyword.
+FREE
+
+
 
 
 WORLD~void~#666
@@ -73,4 +80,4 @@ FRP~[[781,-1263,1382.846932901971],[773,-1234,1516],[1098,-1234,1317]]~#878
 
 MESH~tree
 FRP~[[-264,-1224,641],[-266,-1234,646],[-263,-1234,646],[-262,-1224,641]]~#787
-FRP~[[-266,-1234,643],[-266,-1234,646],[-264,-1224,641],[-264,-1224,638]]~#887
+FRP~[[-266,-1234,643],[-266,-1234,646],[-264,-1224,641],[-264,-1224,638]]~#887`

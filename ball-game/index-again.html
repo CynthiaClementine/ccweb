@@ -1,0 +1,54 @@
+<html>
+	<head>
+		<title>Better Ball Maze Game</title>
+		<meta charset="utf-8">
+		<style>
+			body {
+				background-color: #6a5acd;
+			}
+
+			#cornh {
+				margin: auto;
+				text-align: center;
+				display: block;
+			}
+
+			#centerModule {
+				text-align: center;
+				margin: auto;
+			}
+		</style>
+		<script>
+			window.onload = setup;
+			window.addEventListener("keydown", handleKeyPress, false);
+			window.addEventListener("keyup", handleKeyNegate, false);
+
+			//global variables
+			var color_water = "#5A51AA";
+			var color_waves = "#32A287";
+			var color_land = "#44CF6C";
+			var color_qsand = "#F1FFE7";
+
+
+			var canvas;
+			var ctx;
+			var centerX;
+			var centerY;
+
+			let page_animation;
+			let player;
+
+			var world_bg = "#002";
+			var world_starDistance = 5000;
+			let world_objects = [];
+			
+
+			var render_clipDistance = 0.1;
+		</script>
+	</head>
+	<body>
+		<div id="centerModule">
+		<canvas id="cornh" width="640" height="480"></canvas><br>
+		</div>
+	</body>
+</html>

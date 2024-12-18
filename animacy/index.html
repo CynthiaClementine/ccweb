@@ -35,6 +35,8 @@ August-23-2021 -->
 
                 --colorUIDark: #363636;
                 --colorUIMid: #555559;
+
+                --t: "true";
             }
 
 
@@ -463,9 +465,9 @@ August-23-2021 -->
                         <line class="toolLine" x1="25" x2="30" y1="27.5" y2="27.5"/>
                     </svg>
 
-                    <foreignObject x="5" y="420" width="35" height="35"><input id="activeColor_stroke" type="color" id="html5colorpicker" onchange="" value="#FF587D"></foreignObject>
-                    <foreignObject x="5" y="460" width="35" height="35"><input id="activeColor_fill" type="color" id="html5colorpicker" onchange="" value="#FFDE1F"></foreignObject>
-                    <foreignObject x="5" y="500" width="35" height="35"><input id="activeColor_stage" type="color" id="html5colorpicker" onchange="" value="#FF8A52"></foreignObject>
+                    <foreignObject x="5" y="420" width="35" height="35"><input id="activeColor_stroke" type="color" id="html5colorpicker" onchange="updateColorVars()" value="#FF587D"></foreignObject>
+                    <foreignObject x="5" y="460" width="35" height="35"><input id="activeColor_fill" type="color" id="html5colorpicker" onchange="updateColorVars()" value="#FFDE1F"></foreignObject>
+                    <foreignObject x="5" y="500" width="35" height="35"><input id="activeColor_stage" type="color" id="html5colorpicker" onchange="updateColorVars()" value="#FF8A52"></foreignObject>
                     <!-- <rect  stroke-width="2" stroke="var(--colorSelect)" fill="rgba(255, 255, 255, 1)"  onclick="selectColor(activeColor_stroke)"/> -->
                     <!-- <rect  stroke-width="2" stroke="var(--uilines)" fill="rgba(255, 0, 255, 1)"          onclick="selectColor(activeColor_fill)"/> -->
                     <!-- <rect  stroke-width="2" stroke="var(--uilines)" fill="rgba(0, 0, 0, 1)"             onclick="selectColor(activeColor_stage)"/> -->

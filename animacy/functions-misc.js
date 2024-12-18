@@ -4,6 +4,7 @@ for weird functions that aren't any of the other things but that I can't be just
 assignRID(node)
 markTempPoint(x, y)
 randomizeColorsFor(frame)
+updateColorVars();
 
 */
 
@@ -32,6 +33,14 @@ function randomizeColorsFor(frame) {
 	for (var d=0; d<frame.lines.children.length; d++) {
 		φSet(frame.lines.children[d], {"stroke": `rgba(${r()}, ${r()}, ${r()}, 1)`});
 	}
+}
+
+function updateColorVars() {
+	//update variables
+	color_stroke = activeColor_stroke.value;
+	color_fill = activeColor_fill.value;
+	color_stage = activeColor_stage.value;
+	φSet(workspace_background, {"fill": color_stage});
 }
 
 function bezTest(lamb) {

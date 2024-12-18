@@ -8,7 +8,6 @@ changeOnionWingLength(wingIndex)
 moveWorkspace(deltaX, deltaY)
 moveTimeline(deltaX, deltaY)
 
-selectColor(colorNode)
 setDownType(type)
 startReordering(layerID)
 toggleOnionSkin()
@@ -71,19 +70,6 @@ function moveTimeline(deltaX, deltaY) {
 
 
 
-
-
-
-function selectColor(colorNode) {
-	//pop open the color picker
-
-
-	color_selectedNode = colorNode;
-	color_objLast = undefined;
-	var newColor = φGet(colorNode, "fill").split(" ");
-	setColorRGBA(+(newColor[0].slice(5, -1)), +(newColor[1].slice(0, -1)), +(newColor[2].slice(0, -1)), +(newColor[3].slice(0, -1)));
-}
-
 function setDownType(type) {
 	cursor.downType = type;
 }
@@ -91,6 +77,16 @@ function setDownType(type) {
 function startReordering(layerID) {
 	layer_reordering = layerID;
 	cursor.downType = "layerReorder";
+}
+
+function textMode_start() {
+	if (toolCurrent.constructor.name == "ToolText") {
+		textMode = true;
+	}
+}
+
+function textMode_end() {
+	textMode = false;
 }
 
 /**

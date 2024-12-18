@@ -117,7 +117,6 @@ var data_textures = {
 			...animSizesDS,
 			[[6,0]]
 		]
-
 	},
 	NPCS: {
 		sheet: getImage(`img/spritesNPCs.png`),
@@ -188,6 +187,15 @@ var data_textures = {
 			1 / 24,
 			...animSizesDefault,
 		]
+	},
+	Collector: {
+		tileSize: 200,
+		sheet: getImage(`img/spritesCollector.png`),
+		walkSide: [
+
+		]
+
+
 	},
 	Roofs: {
 		//Most of the roofs, with the exception of the waterfall, aren't animated.
@@ -496,9 +504,11 @@ class Roof {
 	 * @param {Char} layer The world layer the roof should be on
 	 * @param {Integer} sheetID the ID of the sheet to use for textures. [1-2]
 	 * @param {Number[][]|String} dimensionData The texture [x,y],[width,height],[originX, originY] data 
-	 * @param {?Number[][]|undefined} collisionPoly OPTIONAL: the bounding box that will make the roof transluscent
+	 * @param {?Number[][]|undefined} visibilityPoly the bounding box that will make the roof transluscent
+	 * @param {Number|undefined} collisionWidth The width of the potential collision ellipse
+	 * @param {Number|undefined} collisionHeight The height of the potential collision ellipse
 	 */
-	constructor(x, y, layer, sheetID, dimensionData, collisionPoly) {
+	constructor(x, y, layer, sheetID, dimensionData, visibilityPoly, collisionWidth, collisionHeight) {
 		this.sheet = (sheetID == 1) ? data_textures.Roofs.sheet : data_textures.Roofs.sheet2;
 		this.sheetID = sheetID;
 		this.scale = data_textures.Roofs.tileSize;
@@ -513,14 +523,14 @@ class Roof {
 		this.offsetX = -dimensionData[2][0];
 		this.offsetY = -dimensionData[2][1];
 
-		this.collider = collisionPoly ?? [];
+		this.collider = visibilityPoly ?? [];
 		this.colliderXBounds;
 		this.colliderYBounds;
 		this.calculateColliderBounds();
 
 		this.alphaTime = 0;
 		this.alphaTimeMax = 15;
-		this.minOpacity = 0.1;
+		this.minOpacity = 0.05;
 		this.maxOpacity = 1;
 	}
 

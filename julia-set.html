@@ -1,0 +1,292 @@
+<html>
+    <head>
+        <title>Julia set!</title>
+        <style>
+            body {
+                background-color: slateblue;
+            }
+
+            #cavo {
+                margin: auto;
+                text-align: center;
+                display: block;
+            }
+            #centerModule {
+                text-align: center;
+                margin: auto;
+                display: block;
+            }
+
+        </style>
+        <script>
+            window.onload = setup;
+            document.onmousedown = handlePress;
+
+            //global variables
+            var pixelSize = 8;
+            var maxIterations = 255;
+
+            //page_animation is the animation handler, page_parity is what set of lines is currently being drawn, and parities is number of line sets
+            var page_animation;
+
+            var performance_log = [];
+
+            var canvas;
+            var ctx;
+
+            //setup function
+            function setup() {
+                canvas = document.getElementById("cavo");
+                ctx = canvas.getContext("2d");
+                document.getElementById("zoomRange").oninput = updateScaleFactor;
+                document.getElementById("resolutionRange").oninput = updateResolution;
+
+                cornerCoords = [xCenter - (canvas.width / scale) / 2, yCenter - (canvas.height / scale) / 2, xCenter + (canvas.width / scale) / 2, yCenter + (canvas.height / scale) / 2];
+                draw();
+            }
+
+            function setupInitialArr() {
+                //
+            }
+
+            //drawing function
+            function draw() {
+                //logging highest i value
+                highestI = 0;
+                secondHighestI = 0;
+                performance_log = [performance.now(), 0];
+                page_animation = drawingHandle();
+            }
+
+            //handles which lines to draw when
+            function drawingHandle() {
+                for (var y=page_parity; y<canvas.height/pixelSize; y+=parities) {
+                    drawRow(y);
+                }
+
+                page_parity += 1;
+                
+                //call self if not done with computation
+                if (page_parity < parities) {
+                    page_animation = window.requestAnimationFrame(drawingHandle);
+                } else {
+                    //if done, call final stuffies
+                    page_parity = 0;
+                    finalizeCycle();
+                }
+            }
+
+            function computeIterations_mandel(x, y) {
+                var i = 1;
+                var cx = x;
+                var cy = y;
+                var zx = cx;
+                var zy = cy;
+
+                //main processing loop
+                while(i < maxIterations && zx * zx + zy * zy < 4) {
+                    i += 1;
+                    //these are kind of cheaty, I can get away with not using complex numbers with this formula
+                    //xt = z
+                    xt = 2 * zx * zy;
+                    //z = z^2 + c
+                    zx = zx * zx - zy * zy + cx;
+                    zy = xt + cy;
+                }
+                return i;
+            }
+
+            function computeIterations_julia(x, y) {
+                var i = 1;
+                var zx = x;
+                var zy = y;
+
+                //kind of sort of like the mandelbrot set, except instead of 
+                while(i < maxIterations && zx * zx + zy * zy < 4) {
+                    i += 1;
+                   
+                    xt = zx * zx - zy * zy;
+                    zy = 2 * zx * zy + cy;
+                    zx = xt + cx;
+                }
+
+
+                
+                
+                
+            }
+
+            function drawRow(y) {
+                var i;
+                var cx;
+                var cy;
+                var zx;
+                var zy;
+                for (var x=0;x<canvas.width/pixelSize;x++) {
+                    /*initializing variables. i is number of iterations, 
+                    cx/cy are starting coordinates (stay the same), 
+                    and zx/zy are iterating coordinates (change with every iteration) */
+                    i = 0;
+                    cx = ((x * pixelSize) / scale) + cornerCoords[0];
+                    cy = ((y * pixelSize) / scale) + cornerCoords[1];
+                    zx = 0;
+                    zy = 0;
+
+                    //main processing loop
+                    while(i < maxIterations && zx * zx + zy * zy < 4) {
+                        i += 1;
+                        //these are kind of cheaty, I can get away with not using complex numbers with this formula
+                        //xt = z
+                        xt = 2 * zx * zy;
+                        //z = z^2 + c
+                        zx = zx * zx - zy * zy + cx;
+                        zy = xt + cy;
+                    }
+
+                    //draw colors based on i
+
+                    var color;
+                    if (i != maxIterations) {
+                        color = "hsl(" + (i*4) + ", 75%, 50%)";
+
+                        //if i is not max iterations and is larger than almost all the other i, log it
+                        if (i > secondHighestI) {
+                            if (i > highestI) {
+                                secondHighestI = highestI;
+                                highestI = i;
+                            } else {
+                                secondHighestI = i;
+                            }
+                        }
+                    } else {
+                        color = "hsl(0, 0%, 0%)";
+                    }
+                    ctx.beginPath();
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+                }
+                computationLine += 1;
+            }
+
+            function finalizeCycle() {
+                //update position text at the end
+                var text = `(${xCenter}, ${yCenter}, ${(scale / 100).toFixed(3)})`;;
+                document.getElementById("totalPos").innerHTML = text;
+
+                //updating dynamic maxIterations so that computation and accuracy is preserved
+
+                //failsafe in case secondHighestI is 0, just so the mandelbrot set doesn't get stuck in a loop of reducing computation
+                if (secondHighestI == 0) {
+                    secondHighestI = highestI;
+                }
+                //as a final failsafe, if highestI is 0, maxIterations will not update. 
+
+                if (highestI != 0) {
+                    //update max iterations
+                    if (secondHighestI >= maxIterations - 5) {
+                        maxIterations = highestI + 20;
+                    } else if (maxIterations >= secondHighestI) {
+                        //if maxIterations is more than 100 above the highest pixel, then reduce maxIterations by 20
+                        maxIterations -= 20;
+
+                        //keep a minimum number of iterations
+                        if (maxIterations < minIterations) {
+                            maxIterations = minIterations;
+                        }
+                    }
+                }
+
+                //checking performance
+                performance_log[1] = performance.now();
+                var totalTime = performance_log[1] - performance_log[0];
+                
+                console.log(`rendering took ${totalTime} expected ${20 * parities}`);
+                //change expected number of frames for animation
+                parities = Math.floor(totalTime / 22);
+                //keep a maximum number of parities
+                if (parities > canvas.height / pixelSize) {
+                    parities = Math.floor(canvas.height / pixelSize);
+                }
+                
+                //keep a minimum number of parities
+                if (parities < 2) {
+                    parities = 2;
+                }
+                
+
+                updateDownloadImage();
+            }
+
+            function handlePress(v) {
+                canvasArea = canvas.getBoundingClientRect();
+                //getting pixel x and y of mouse
+      	        var mousePosX = Math.round(v.clientX - canvasArea.left);
+                var mousePosY = Math.round(v.clientY - canvasArea.top);
+
+                //only continue if the coords are inside the canvas
+                var isInside = (mousePosX > 0 && mousePosX < canvas.width) && (mousePosY > 0 && mousePosY < canvas.height);
+
+                if (isInside) {
+                    //converting pixel coords to fractal coords
+                    mousePosX = (mousePosX / scale) + cornerCoords[0];
+                    mousePosY = (mousePosY / scale) + cornerCoords[1];
+                    //setting center coords to that
+                    xCenter = mousePosX;
+                    yCenter = mousePosY;
+                    //adjusting scale
+                    scale *= scaleFactor;
+                    cornerCoords = [xCenter - (canvas.width / scale) / 2, yCenter - (canvas.height / scale) / 2, xCenter + (canvas.width / scale) / 2, yCenter + (canvas.height / scale) / 2];
+                    //redrawing
+                    draw();
+                }
+            }
+
+            function updateScaleFactor(bb) {
+                //updating value
+                scaleFactor = this.value;
+                //updating text, multiplying by a little more than 1 so that toFixed will work properly
+                document.getElementById("zoomOutput").innerHTML = (scaleFactor * 1.000001).toFixed(1);
+            }
+
+            function updateResolution(bb) {
+                //same as in scale factor function
+                pixelSize = this.value;
+                document.getElementById("resolutionOutput").innerHTML = pixelSize;
+
+                //redraw after a set amount of time
+                setTimeout(draw, 200);
+            }
+
+            function updateDownloadImage() {
+                var url = canvas.toDataURL();
+                pictureLink.href = url;
+            }
+
+            function updateCanvasSize() {
+                try {
+                    canvas.width = document.getElementById("xSizeValue").value;
+                } catch (e) {}
+
+                try {
+                    canvas.height = document.getElementById("ySizeValue").value;
+                } catch (e) {}
+
+                draw();
+            }
+        </script>
+    </head>
+    <body>
+        <div id="centerModule">
+            <canvas id="cavo" width="640" height="480"></canvas><br>
+
+            <p> 
+                <input type="number" id="xSizeValue" value="640"> x 
+                <input type="number" id="ySizeValue" value="480">
+                <button onclick="updateCanvasSize()">Update Canvas Size</button>
+            </p>
+            <p>
+                Click on a location in the mandelbrot set to see its corresponding julia set!
+            </p>
+        </div>
+    </body>
+</html>

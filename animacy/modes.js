@@ -589,7 +589,7 @@ class ToolSelects {
 		this.downPos;
 		this.lastPos;
 
-		this.minRadius = quantizeTo
+		this.minRadius = quantizeTo;
 
 		this.status = "up";
 
@@ -610,9 +610,17 @@ class ToolSelects {
 
 	delete() {
 		//delete selected objects
+		var stype;
 		if (this.selected.length > 0) {
 			for (var s=0; s<this.selected.length; s++) {
-				frame_removePath(this.selectedLayers[s], this.selected[s]);
+				stype = this.selectedLayers[s].lines.contains(this.selected[s]);
+				if (stype) {
+					//path case
+					frame_removePath(this.selectedLayers[s], this.selected[s]);
+				} else {
+					//object case
+					frame_removeObject(this.selectedLayers[s], this.selected[s]);
+				}
 			}
 			workspace_toolTemp.innerHTML = "";
 			this.selected = [];
@@ -632,6 +640,10 @@ class ToolSelects {
 		this.selectedLayers[index].binModify(this.selected[index], false);
 		this.selected.splice(index, 1);
 		this.selectedLayers.splice(index, 1);
+	}
+
+	escape() {
+		this.deselect();
 	}
 
 	mouseDown(a) {
@@ -857,29 +869,47 @@ class ToolTransform extends ToolSelects {
 			}
 
 			//do the scaling
-			if (xScale != 1) {
-				this.selected.forEach(s => {
-					s.curves.forEach(c => {
-						c.forEach(p => {
-							p[0] = linterp(this.center[0], p[0], xScale);
-						});
-					});
-				});
-			}
-			if (yScale != 1) {
-				this.selected.forEach(s => {
-					s.curves.forEach(c => {
-						c.forEach(p => {
-							p[1] = linterp(this.center[1], p[1], yScale);
-						});
-					});
-				});
-			}
+			this.rescale(xScale, yScale);
 			
 			//and of course update visuals
 			this.redrawAll();
 			this.createOverlay();
 		}
+	}
+
+	rescale(xScale, yScale) {
+
+		//splines
+		if (xScale != 1) {
+			this.selected.forEach(s => {
+				if (s.curves) {
+					this.rescaleSplineInd(s, 0);
+				} else {
+					this.rescaleTransformInd(s, 0);
+				}
+			});
+		}
+		if (yScale != 1) {
+			this.selected.forEach(s => {
+				if (s.curves) {
+					this.rescaleSplineInd(s, 1);
+				} else {
+					this.rescaleTransformInd(s, 1);
+				}
+			});
+		}
+	}
+
+	rescaleSplineInd(index) {
+		s.curves.forEach(c => {
+			c.forEach(p => {
+				p[1] = linterp(this.center[index], p[index], yScale);
+			});
+		});
+	}
+
+	rescaleTransformInd(index) {
+		s
 	}
 
 	mouseUp() {
@@ -1251,7 +1281,7 @@ class ToolEyedrop {
 		var canX = floor((xy[0] - this.canvas.startX) * this.canvas.scaling);
 		var canY = floor((xy[1] - this.canvas.startY) * this.canvas.scaling);
 		var pxDat = this.ctx.getImageData(canX, canY, 1, 1).data;
-		setColorRGBA(...pxDat);
+		setColorRGBA("stroke", ...pxDat);
 
 		if (debug_active) {
 			//also put a red dot on the canvas
@@ -1410,15 +1440,37 @@ class ToolFill extends ToolEyedrop {
 
 class ToolText {
 	constructor() {
-		this.startHTML = `<text x="0" y="0">
-			<tspan dx="0" dy="1.2em">How doth the little crocodile</tspan>
-			<tspan dx="0" dy="1.2em">Improve his shining tail,</tspan>
-			<tspan dx="0" dy="1.2em">And pour the waters of the Nile</tspan>
-			<tspan dx="0" dy="1.2em">On every golden scale!</tspan>
-		</text>`;
+		//tspan dys should be 1.2em
+		this.startHTML = /*`<text x="0" y="0">
+			This is a test of the emergency alert system.
+		</text>`;*/
+		`<foreignobject width="120" height="120" ignoredown="true" onclick="textMode_start.call(this)">
+		<div class="textarea canvas-renderer" contenteditable="false" style="white-space: pre-line; word-break: normal; overflow-wrap: break-word; overflow: hidden; color: black;">this</div>
+		</foreignobject>`;
 		this.typebox = document.createElement("input");
 		this.selected;
 		this.first = true;
+
+		this.interCovered;
+		this.interval = window.setInterval(() => {
+			if (textMode) {
+				return;
+			}
+			var list = φOver();
+			var goal = list[list.length-1];
+			console.log(goal);
+
+			if (goal != toolCurrent.interCovered) {
+				if (toolCurrent.interCovered) {
+					var pastSet = φGet(toolCurrent.interCovered, "contenteditable");
+					if (pastSet) {
+						φSet(toolCurrent.interCovered, {"contenteditable": false});
+					}
+				}
+				toolCurrent.interCovered = goal;
+				φSet(goal, {"contenteditable": true});
+			}
+		}, 15);
 	}
 
 	createTextbox() {
@@ -1431,12 +1483,15 @@ class ToolText {
 		φSet(inner, {
 			'x': x,
 			'y': quantizeNum(cPos[1] - box.height / 2),
-			'fill': color_fill
+			'color': color_fill
 		});
-		frame_addSpecial(timeline.frameAt(timeline.t, timeline.s), inner);
+		frame_addObject(timeline.frameAt(timeline.t, timeline.s), inner);
 	}
 
 	mouseDown(a) {
+		if (textMode) {
+			return;
+		}
 		if (this.first) {
 			this.createTextbox();
 			// this.first = false;

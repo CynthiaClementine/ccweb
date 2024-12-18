@@ -4,6 +4,9 @@ window.onkeyup = keyNegate;
 window.onload = setup;
 document.onmousemove = mouseMoveHandle;
 document.onmousedown = mouseClickHandle;
+document.onmouseup = mouseUpHandle;
+
+window.addEventListener("wheel", handleWheel, {passive: false});
 //setting up variables for later
 var canvas;
 var ctx;
@@ -250,71 +253,25 @@ function mouseClickHandle() {
 	}
 }
 
+function mouseUpHandle() {
+	mouseDown = false;
+}
+
 /* mapSquare is the function that draws all the different tiles. */
 function mapSquare(value, ex, why, offset) {
-	//drawing based off the floor of the value
-	/*switch (Math.ceil(value)) {
-		case 0:
-			ctx.fillStyle = landColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			break;
-		case 1:
-			ctx.fillStyle = landColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			ctx.fillStyle = lLandColor;
-			ctx.fillRect(ex + (squareSize / 8), why + (squareSize / 8), (squareSize * 0.75) - offset, (squareSize * 0.75) - offset);
-			break;
-		case 2:
-			ctx.fillStyle = landColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			ctx.fillStyle = lLandColor;
-			ctx.fillRect(ex + (squareSize / 8), why + (squareSize / 8), (squareSize * 0.75) - offset, (squareSize * 0.75) - offset);
-			ctx.fillStyle = grassColor;
-			ctx.fillRect(ex + (squareSize / 8), why, (squareSize * 0.75) - offset, squareSize / 4);
-			break;
-		case 3:
-			ctx.fillStyle = stoneColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			break;
-		case 4:
-			ctx.fillStyle = stoneColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			ctx.fillStyle = lStoneColor;
-			ctx.fillRect(ex + (squareSize / 8), why + (squareSize / 8), (squareSize * 0.75) - offset, (squareSize * 0.75) - offset);
-			break;
-		case 5:
-			ctx.fillStyle = cloudColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			break;
-		case 6:
-			ctx.fillStyle = cloudColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			ctx.fillStyle = lCloudColor;
-			ctx.fillRect(ex + (squareSize / 8), why + (squareSize / 8), (squareSize * 0.75) - offset, (squareSize * 0.75) - offset);
-			break;
-		case 7:
-			ctx.fillStyle = solColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			break;
-		case 8:
-			ctx.fillStyle = solColor;
-			ctx.fillRect(ex, why, squareSize - offset, squareSize - offset);
-			ctx.fillStyle = lSolColor;
-			ctx.fillRect(ex + (squareSize / 8), why + (squareSize / 8), (squareSize * 0.75) - offset, (squareSize * 0.75) - offset);
-			break;
-		case 9:
-		default:
-			break;
-	} */
-	switch (Math.ceil(value)) {
-		case 1:
-		case 2:
-		case 4:
-		case 6:
-		case 8:
-			ctx.fillStyle = stoneColor;
-			ctx.fillRect(ex, why, camera.scale - offset, camera.scale - offset);
-		break;
+	if (value < -0) {
+		ctx.beginPath();
+		ctx.strokeStyle = "#F00";
+		ctx.lineWidth = canvas.height / 100;
+		ctx.moveTo(ex, why);
+		ctx.lineTo(ex + camera.scale, why + camera.scale);
+		ctx.stroke();
+		value *= -1;
+	}
+
+	if (Math.ceil(value) == 1) {
+		ctx.fillStyle = stoneColor;
+		ctx.fillRect(ex, why, camera.scale - offset, camera.scale - offset);
 	}
 
 	//drawing cracks
@@ -324,7 +281,6 @@ function mapSquare(value, ex, why, offset) {
 }
 
 function drawMapCracks(value, ex, why) {
-	var squareX = ex / camera.scale
 	//different phases based on how broken block is
 	var percentage = value - Math.floor(value);
 
@@ -378,24 +334,10 @@ function drawMap() {
 				value = loadingMap[ySquare][xSquare];
 			}
 			//the actual drawing, xPos and yPos are floored so that subpixels don't create ugly lines
-			mapSquare(value, floor(xPos), floor(yPos), loadingMode.tileOffset);
+			
+			mapSquare(value * -boolToSigned(loadingMode.constructor.name == "Debug" && xSquare != lowerCorner[0] + o), floor(xPos), floor(yPos), loadingMode.tileOffset);
 		}
 	}
-}
-
-function drawTimer() {
-	//draws main menu things
-	ctx.fillStyle = textColor;
-	ctx.font = `${canvas.height / 20}px Raleway`;
-	var realTime = (time / 66.6666666);
-	var strTime = (realTime % 60).toFixed(2);
-	if (realTime >= 60) {
-		strTime = Math.floor((realTime / 60) % 60) + ":" + strTime;
-	}
-	if (realTime >= 3600) {
-		strTime = Math.floor((realTime / 3600)) + ":" + strTime;
-	}
-	ctx.fillText(strTime, canvas.width / 2, canvas.height * 0.05);
 }
 
 function mapEdit() {
@@ -416,39 +358,6 @@ function mapEdit() {
 	textTime = 100;
 }
 
-function mapOutput(onlyShowEdits) {
-	var hey = "";
-	if (onlyShowEdits) {
-		hey += "["
-		//searches through the map
-		for (var s=0;s<loadingMap.length;s++) {
-			for (var t=0;t<loadingMap[0].length;t++) {
-				//if the squares are not the same, append it to hey
-				if (loadingMap[s][t] != map[s][t]) {
-					hey += "[" + t +", " + s + ", " + map[s][t] + ", " + loadingMap[s][t] + "], ";
-				}
-			}
-		}
-		hey += "]";
-	} else {
-		//outputting the whole map
-		for (var s=0;s<loadingMap.length;s++) {
-			hey = hey + "\n [";
-			for (var t=0;t<loadingMap[s].length;t++) {
-				//special case for the end of a line, in addition to a regular case
-				if (t == (loadingMap[s].length - 1)) {
-					hey = hey + loadingMap[s][t];
-				} else {
-					hey = hey + loadingMap[s][t] + ", ";
-				}
-			}
-			//the same thing happens here with the end of the map
-			if (s == (map.length - 1)) {
-				hey = hey + "]";
-			} else {
-				hey = hey + "],";
-			}
-		}
-	}
-	console.log(hey);
+function handleWheel(e) {
+	camera.scale = clamp(camera.scale * (1 + 0.005 * e.deltaY), 20, 60);
 }

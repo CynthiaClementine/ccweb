@@ -1,0 +1,35 @@
+<canvas width="300" height="300"></canvas>
+<video autoplay controls></video>
+<script src="CCapture.all.min.js"></script>
+<script>
+	var canvas = document.querySelector("canvas");
+	var ctx = canvas.getContext("2d");
+
+	var video = document.querySelector("video");
+
+	var colors = ["#F88", "#FF8", "#8F8", "#8FF", "#88F", "#F8F"];
+	var frameCounter = 0;
+
+	var recorder = new CCapture({
+		name: 'test',
+		format: 'webm',
+		framerate: 30,
+	});
+
+
+	function draw() {
+		for (var a=0; a<10; a++) {
+			ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.fillStyle = "#000";
+			ctx.fillText(frameCounter, 10, 50);
+			frameCounter += 1;
+			recorder.capture(canvas);
+		}
+	}
+	
+	recorder.start();
+	setInterval(draw, 300);
+	setTimeout(() => {recorder.stop(); recorder.save()}, 5000);
+	draw();
+</script>

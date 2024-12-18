@@ -10,6 +10,56 @@ function getDistance(x1, y1, z1, x2, y2, z2) {
 	return Math.sqrt(((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)) + ((z1 - z2) * (z1 - z2)));
 }
 
+//does square root, but faster
+var sqrtTable = [];
+for (var a=9999; a>-1; a--) {
+	sqrtTable[a] = Math.sqrt(a);
+}
+
+//bit magic to get the bits out of a float
+function doubleToIEEE(f) {
+	var buf = new ArrayBuffer(8);
+	(new Float64Array(buf))[0] = f;
+	return [(new Uint32Array(buf))[0], (new Uint32Array(buf))[1]];
+}
+
+//warning - this function is slower somehow
+function fastSqrt(x) {
+	//if x is less than 10, just use the square root - the precision is important for small numbers
+	if (x <= 10 || x > ray_maxDist) {
+		return Math.sqrt(x);
+	}
+
+	//bitshifting is faster than Math.floor
+	return sqrtTable[x << 1 >> 1];
+}
+
+function performanceTest() {
+	var perf = [performance.now(), 0];
+	var storage = 0;
+
+	for (var x=0; x<100000000; x++) {
+		storage += Math.sqrt(x % 10000) * (2 * (x % 1) - 1);
+	}
+
+	perf[1] = performance.now();
+	console.log(storage, perf[1] - perf[0]);
+	return;
+}
+
+function performanceTest2() {
+	var perf = [performance.now(), 0];
+	var storage = 0;
+
+	for (var x=0; x<100000000; x++) {
+		storage += fastSqrt(x % 10000) * (2 * (x % 1) - 1);
+	}
+
+	perf[1] = performance.now();
+	console.log(storage, perf[1] - perf[0]);
+	return;
+}
+
 
 //for quaternion functions, quaternions are expected to be an array of length 4, with the structure [w, x, y, z].
 function quatNormalize(quat) {

@@ -1,0 +1,496 @@
+Meuzac bus station$Meuzac Central Junction$>morning bus terminal>Apach bus depot>Corgirnon bus terminal>Ceintrey bus station>Ebersviller bus hub>Stephansfeld bus depot>Loivre bus hub>Clerval bus hub$+2+3+3+1+3+2+2+1
+Chamoy bus station$Central Chamoy$>Bussang bus hub>Zetting bus station>twilight bus terminal>Metzing bus hub>Strasbourg bus depot>main street bus stop>twilight bus terminal$+2+1+1+1+2+3+2
+elm street bus station$yerevan Central$>Sierentz bus hub>Morhange bus depot>kingsway bus terminal$+3+2+1
+dawn bus depot$bilbao$>Vignory bus terminal>Beauchastel bus station>Liart bus depot>Zetting bus station>Seltz bus station>north bus terminal>maple street bus terminal>Ravezies bus terminal>Roppenheim bus depot>Anchamps bus station$+3+3+2+3+3+2+3+3+1+1
+Chamoy bus station$Chamoy$>Suippes bus terminal>Ay bus station>Masevaux bus depot>hospital bus depot$+3+1+3+1
+hospital bus depot$prague$>Embermenil bus depot$+1
+hillside bus station$Central nizhny novgorod$>Hericourt bus hub>riverside bus terminal>Vagney bus hub>Rountzenheim bus station>mountain view bus depot>Rixheim bus depot>Vecoux bus station>Louverne bus terminal$+2+2+3+1+2+3+3+2
+Marainviller bus station$Marainviller Central Plaza$>industrial park bus terminal$+1
+Hendaye bus depot$Hendaye Central Stop$>Lucy bus terminal>Ravezies bus terminal>Cernay bus station>Hendaye bus depot>Autrey bus terminal>seaside bus station>Loivre bus hub>Beuvrages bus terminal>Flaxlanden bus depot$+3+2+3+2+1+3+3+1+3
+Einvaux bus station$Einvaux Central$>Roppenheim bus depot>Freistroff bus hub>Turckheim bus depot>Burnhaupt bus hub>Voujeaucourt bus station>Zetting bus station>Ravezies bus terminal>Fismes bus station>Chenois bus station>Charmes bus depot$+2+3+2+1+1+2+3+1+2+3
+Sarreguemines bus station$Sarreguemines$>Menton bus terminal>Seltz bus station>Roye bus station>Joeuf bus hub>Lauterbourg bus hub>Ceintrey bus station$+1+2+3+3+1+2
+Tantonville bus hub$Tantonville$>airport bus station>Boves bus hub>Maatz bus station>Bazoches bus station>Vignory bus terminal>Champagney bus station$+3+2+2+2+1+2
+sunrise bus depot$Central seville$>Lunel bus depot>Songy bus terminal>Aurillac bus depot>Albas bus station>springfield bus station$+2+2+3+1+3
+kazipara bus terminal$perm$>Lesse bus depot$+2
+Champigneulles bus terminal$Champigneulles$>queensway bus station>evening bus station>Wilwisheim bus station>Amberieu bus hub$+1+3+1+3
+Drusenheim bus depot$Drusenheim Central$>Stephansfeld bus depot>Cernay bus station>Drusenheim bus depot>Graffenstaden bus hub>Vecoux bus station>city center bus hub>lakeside bus terminal>Wilwisheim bus station>Carnac bus station$+1+3+3+1+2+2+2+3+2
+garden bus depot$palencia$>Arvant bus terminal>Louverne bus terminal>Chenevieres bus hub>Deville bus hub>airport bus station$+3+2+2+2+3
+Boe bus hub$Boe Central Depot$>Laifour bus depot>Amifontaine bus hub>Aurillac bus depot$+1+2+1
+Vaucouleurs bus depot$Vaucouleurs$>Ebersviller bus hub>Dettwiller bus station>Sierentz bus hub>Beuvrages bus terminal>Blanchifontaine bus terminal$+3+3+2+3+1
+Gambsheim bus terminal$Gambsheim Central$>Ballersdorf bus terminal>Holacourt bus depot>Einvaux bus station>garden bus depot>Seltz bus station>cedar street bus depot>Villette bus hub>Louverne bus terminal>Ebring bus hub$+1+2+3+3+1+3+1+2+2
+Darnieulles bus depot$Darnieulles$>Agen bus hub>Vandieres bus terminal>morning bus terminal>Lauterbourg bus hub>Freistroff bus hub>high street bus depot>Thiefosse bus depot>Agen bus hub>north bus terminal>Maatz bus station$+1+1+2+2+3+2+3+2+1+3
+Apach bus depot$Apach Central$>Welferding bus depot>Voujeaucourt bus station>Hendaye bus depot>ridge bus station>springfield bus station>Germaine bus terminal>Deinvillers bus depot>Jussey bus hub>Fresse bus depot>Bayard bus hub$+2+2+1+1+3+2+2+3+2+2
+Rixheim bus depot$Rixheim Central$>Ceintrey bus station>riverside bus terminal>Herbitzheim bus hub>Holacourt bus depot>Marainviller bus station>wood bus depot>creekside bus terminal>Croix bus station>Marainviller bus station$+2+1+2+1+3+2+1+3+3
+maple street bus terminal$istanbul Central$>Deville bus hub>Roppenheim bus depot>Joeuf bus hub>Rehainviller bus terminal>Aiguillon bus hub>Ravezies bus terminal$+3+1+1+3+3+2
+Sewen bus station$Sewen$>Chevremont bus terminal>Montivilliers bus hub>Croix bus station>Champagney bus station>north bus terminal>Bressuire bus hub$+3+1+2+3+1+2
+Boe bus hub$Boe$>Eurville bus depot>east bus terminal>Allassac bus hub>Colomiers bus depot>Allenc bus station>Lamarche bus terminal$+1+1+3+2+3+3
+twilight bus terminal$alicante$>Malling bus depot>Ebersviller bus hub>Avail bus hub$+3+3+1
+Metzeresche bus station$Metzeresche$>union bus station$+1
+Songy bus terminal$Songy$>st. mary's bus station>Joeuf bus hub>Blanchifontaine bus terminal>Domgermain bus terminal>Montbre bus station>Walheim bus station>Brouvelieures bus hub>Mouroux bus terminal>Beuvrages bus terminal$+2+2+1+2+1+3+3+3+2
+grove bus station$cuenca Central Stop$>Blagny bus station>evening bus station>Pontrieux bus terminal>university bus station>Biffontaine bus depot>Autreville bus hub>Maatz bus station>Vecoux bus station>Remelfing bus station$+2+1+2+2+2+3+2+3+1
+Vallois bus hub$Vallois$>Cornimont bus station>hillside bus station>summit bus station>Leffond bus station>wood bus depot>cedar street bus depot$+1+1+3+1+2+3
+Aiguillon bus hub$Central Aiguillon$>Blanchifontaine bus terminal>Foug bus terminal>Autrey bus terminal>Revigny bus terminal>Vandieres bus terminal$+2+2+2+3+2
+Bouin bus terminal$Bouin$>Wilwisheim bus station>high street bus depot>Metzeresche bus station$+3+3+3
+Hericourt bus hub$Hericourt$>riverside bus terminal>Foug bus terminal>kazipara bus terminal>Barges bus depot>Joeuf bus hub>plateau bus station>Sarreinsming bus terminal$+2+3+3+2+2+2+3
+city center bus hub$athens Central$>Deinvillers bus depot>vista bus terminal$+1+1
+Loivre bus hub$Loivre Central$>Beuvrages bus terminal>Thann bus hub>Stephansfeld bus depot>Fismes bus station>Domgermain bus terminal>Leffond bus station>Leintrey bus hub$+1+2+3+2+2+1+2
+Chevremont bus terminal$Chevremont$>Cernay bus station>Arvant bus terminal>Strasbourg bus depot>vista bus terminal>Graffenstaden bus hub>Louverne bus terminal$+1+2+3+3+3+2
+central bus station$paris Central$>solstice bus depot>Zetting bus station>hospital bus depot>Louverne bus terminal>Darnieulles bus depot>Bressuire bus hub>Agen bus hub>forest bus depot$+2+2+3+3+2+1+3+1
+Raincourt bus terminal$Raincourt$>Bouin bus terminal>Amifontaine bus hub>Meuzac bus station>Racrange bus hub>elm street bus station>Joeuf bus hub>Allenc bus station>Thiefosse bus depot$+2+1+2+1+3+1+2+3
+Freistroff bus hub$Freistroff Central$>Ceintrey bus station>Bouin bus terminal>Rehainviller bus terminal>Menton bus terminal$+3+3+2+1
+union bus station$stockholm$>Menton bus terminal>seaside bus station>hillside bus station>Freistroff bus hub>Lesse bus depot$+3+3+1+1+2
+cedar street bus depot$Central novosibirsk$>Domgermain bus terminal>Vandieres bus terminal>Ranspach bus hub$+1+3+2
+Maatz bus station$Maatz Central$$
+Aboncourt bus hub$Aboncourt$>airport bus station>Albens bus station>beachside bus depot>Wittring bus station>Domgermain bus terminal>Mirecourt bus terminal>Sewen bus station>Munchhausen bus terminal>Allenc bus station>Maatz bus station$+3+2+3+2+1+3+2+2+1+1
+industrial park bus terminal$zurich$>hospital bus depot>Linay bus depot$+1+2
+Muizon bus depot$Central Muizon$>plateau bus station>Sierentz bus hub$+2+3
+beachside bus depot$chelyabinsk Central$>springfield bus station>north bus terminal>cedar street bus depot>Metzing bus hub>Rehon bus hub>north bus terminal>riverside bus terminal>Bazoches bus station$+2+3+1+2+3+3+2+1
+Chenois bus station$Chenois Central Stop$>Metz bus depot>Vaucouleurs bus depot>high street bus depot>plateau bus station>Blagny bus station>Ravezies bus terminal>Voujeaucourt bus station>industrial park bus terminal$+2+2+2+2+2+1+3+2
+Fumay bus depot$Fumay Central$>Jussey bus hub>Walbach bus terminal>Carnac bus station>Mouroux bus terminal>Domgermain bus terminal>Joeuf bus hub$+3+2+1+3+1+3
+Uzerche bus depot$Uzerche$$
+Agen bus hub$Agen$>Graffenstaden bus hub>elm street bus station>Racrange bus hub>Hayange bus depot>Rehon bus hub>maple street bus terminal$+3+3+1+1+1+2
+twilight bus terminal$alicante Central$>beachside bus depot>Stephansfeld bus depot>Bouin bus terminal$+3+1+2
+Allassac bus hub$Allassac Central$>Apach bus depot>airport bus station>Apach bus depot>Boe bus hub>Autrey bus terminal>Roye bus station>Louverne bus terminal>Dannemarie bus station>Boe bus hub>union bus station$+3+1+3+1+3+3+2+2+2+3
+Remelfing bus station$Remelfing$>historic district bus station>Boe bus hub$+3+3
+university bus station$budapest Central Terminal$>Beuvrages bus terminal>Avail bus hub>Menton bus terminal>Domgermain bus terminal>Brouvelieures bus hub>mountain view bus depot>Prauthoy bus depot$+2+3+3+1+3+2+2
+seaside bus station$Central rostov-on-don$>city center bus hub>main street bus stop>Foug bus terminal>Ravezies bus terminal>Albas bus station$+1+3+1+3+3
+Remelfing bus station$Remelfing Central$>Chenois bus station>Logelbach bus terminal>Aboncourt bus hub>grove bus station>Dannemarie bus station>north bus terminal>Thiefosse bus depot>Blanchifontaine bus terminal>Flaxlanden bus depot$+2+1+2+1+1+2+3+3+3
+Blagny bus station$Blagny$$
+Bertrichamps bus depot$Bertrichamps$>kazipara bus terminal>elm street bus station>Metzing bus hub>Distroff bus hub$+2+1+3+3
+Autrey bus terminal$Autrey Central$>Sewen bus station>Boe bus hub>Anchamps bus station>Ceintrey bus station>Aurillac bus depot$+3+1+1+1+3
+Roppenheim bus depot$Roppenheim$>seaport bus terminal>Tagolsheim bus station>Biffontaine bus depot>Croix bus station>Fumay bus depot>Freistroff bus hub>Embermenil bus depot$+2+2+1+1+1+1+3
+Rehainviller bus terminal$Rehainviller$>plateau bus station>Beuvrages bus terminal>cedar street bus depot>Carnac bus station>Ravezies bus terminal>Xeuilley bus station>kazipara bus terminal>Bayard bus hub$+2+1+3+3+2+2+1+2
+vista bus terminal$oviedo Central Hub$>Thann bus hub>kazipara bus terminal>Lunel bus depot>Foug bus terminal>east bus terminal>Teting bus hub>Hendaye bus depot>Beillant bus hub>queensway bus station>Dettwiller bus station$+3+2+2+2+2+2+2+1+2+2
+Altkirch bus hub$Altkirch Central Terminal$>peak bus depot>Jussey bus hub>Ceintrey bus station>Clerval bus hub>Jussey bus hub>beachside bus depot>Roye bus station>Aurillac bus depot>north end bus depot$+3+3+2+1+3+3+2+2+1
+Ceintrey bus station$Central Ceintrey$>Joeuf bus hub>Boe bus hub$+2+2
+Drusenheim bus depot$Drusenheim Central$>Louverne bus terminal$+1
+Leffond bus station$Central Leffond$>Louverne bus terminal>Blanchifontaine bus terminal>union bus station>springfield bus station>Voujeaucourt bus station$+2+1+3+2+3
+Welferding bus depot$Welferding$>Autrey bus terminal>field bus station>Limersheim bus station>Graffenstaden bus hub>twilight bus terminal>beachside bus depot>Vendome bus station>Welferding bus depot$+1+3+1+3+1+2+2+3
+Turckheim bus depot$Turckheim Central$>Muizon bus depot>Autreville bus hub>Muizon bus depot>Darnieulles bus depot>Lesse bus depot>Corgirnon bus terminal>Graffenstaden bus hub$+1+1+2+2+1+1+1
+Blagny bus station$Blagny$>Wilwisheim bus station$+3
+Lesse bus depot$Central Lesse$>east bus terminal>Chenois bus station>willow street bus terminal>Muizon bus depot>Joeuf bus hub>Raincourt bus terminal>Freistroff bus hub>Menton bus terminal>Torcenay bus terminal>morning bus terminal$+2+1+3+2+3+1+2+2+1+1
+forest bus depot$krasnodar$>Teting bus hub$+1
+Achiet bus terminal$Achiet$>Tantonville bus hub>broadway bus hub$+1+1
+lakeside bus terminal$ufa$>Ebring bus hub>sunrise bus depot>west bus terminal>Champigneulles bus terminal>Croix bus station>Bussang bus hub>Holacourt bus depot>Linay bus depot$+2+1+1+2+1+1+2+3
+creekside bus terminal$omsk$$
+Vecoux bus station$Vecoux Central$>Anchamps bus station>Rountzenheim bus station>north bus terminal>Beillant bus hub>Charmes bus depot$+3+3+1+1+2
+Bressuire bus hub$Bressuire$$
+civic center bus depot$sarajevo Central Stop$>Boe bus hub>Liart bus depot>Montivilliers bus hub>Avail bus hub>seaside bus station>Champagney bus station$+2+1+2+3+1+1
+Germaine bus terminal$Germaine Central Transit$$
+Anzeling bus hub$Anzeling$>Graffenstaden bus hub>Herrlisheim bus terminal>Avail bus hub>twilight bus terminal$+2+3+3+1
+Turckheim bus depot$Turckheim Central Stop$>Croix bus station>Orville bus terminal>solstice bus depot>Tantonville bus hub$+1+2+3+1
+Beillant bus hub$Beillant$>north bus terminal>Maatz bus station>Roye bus station>Herrlisheim bus terminal$+2+3+2+3
+Rixheim bus depot$Rixheim Central Station$>Roppenheim bus depot>Stephansfeld bus depot>Corgirnon bus terminal>Corgirnon bus terminal>Agen bus hub$+2+2+1+1+2
+Ravezies bus terminal$Ravezies Central$>dusk bus station>Dompaire bus hub>Chenevieres bus hub$+2+3+2
+Herbitzheim bus hub$Herbitzheim$>industrial park bus terminal>Darnieulles bus depot>Ceintrey bus station>Andelot bus station>north bus terminal>Raincourt bus terminal>Sarreguemines bus station$+1+2+3+1+1+1+2
+AC10 bus station$jaen$>Suippes bus terminal$+2
+Louverne bus terminal$Central Louverne$>Boe bus hub>Lesse bus depot>Sewen bus station>west bus terminal>maple street bus terminal>Meuzac bus station$+2+2+3+3+2+3
+Distroff bus hub$Distroff$>Avail bus hub>Deinvillers bus depot>Vire bus terminal$+1+3+1
+Beillant bus hub$Beillant$>twilight bus terminal>Marainviller bus station>Masevaux bus depot>Valdieu bus station>Autrey bus terminal>dusk bus station>Autreville bus hub>Boves bus hub>garden bus depot>grove bus station$+1+3+1+1+1+3+3+3+1+1
+Lesse bus depot$Lesse$>Maatz bus station>Ay bus station>Louverne bus terminal>Seltz bus station>Xertigny bus hub>historic district bus station>Ravezies bus terminal>Vaucouleurs bus depot$+2+2+1+1+2+1+3+1
+Maatz bus station$Maatz Central Plaza$>Metzing bus hub>Bressuire bus hub>Songy bus terminal>Hayange bus depot>north end bus depot>Remelfing bus station>Voujeaucourt bus station>Remelfing bus station$+1+2+2+3+3+2+3+3
+kingsway bus terminal$riga Central Plaza$>Domgermain bus terminal>Clerval bus hub>Bazoches bus station>Loivre bus hub>Einvaux bus station$+1+2+3+3+2
+Allassac bus hub$Central Allassac$>Munchhausen bus terminal>Vire bus terminal>Amifontaine bus hub>Bayard bus hub>Allassac bus hub$+3+1+2+2+2
+Rehon bus hub$Rehon$>Welferding bus depot>Rehon bus hub>Bayard bus hub>Gambsheim bus terminal>Darnieulles bus depot>Laifour bus depot$+3+2+2+3+2+3
+Soulosse bus station$Soulosse Central$>Ravezies bus terminal>Maatz bus station>Rehainviller bus terminal$+2+3+1
+Dieppe bus hub$Dieppe Central$>Revigny bus terminal>Bussang bus hub>knob bus terminal>Thann bus hub>kazipara bus terminal>hillside bus station>Illfurth bus station$+3+3+1+1+1+3+1
+Deville bus hub$Central Deville$>Herbitzheim bus hub>industrial park bus terminal>Ballersdorf bus terminal>Logelbach bus terminal>Chevremont bus terminal$+1+3+2+3+2
+Beuvrages bus terminal$Beuvrages$>Distroff bus hub>riverside bus terminal>zenith bus station>Remelfing bus station>Leffond bus station>Darnieulles bus depot>Croix bus station>Aiguillon bus hub$+3+1+2+3+3+3+1+2
+Tagolsheim bus station$Tagolsheim$>Cambrai bus terminal>Boe bus hub$+1+2
+Ebersviller bus hub$Ebersviller$>Burnhaupt bus hub>Rixheim bus depot$+2+2
+wood bus depot$toledo Central$>Embermenil bus depot>Fumay bus depot>Raincourt bus terminal>Chevremont bus terminal>Muizon bus depot>Turckheim bus depot>field bus station$+1+1+1+2+2+3+2
+Fremifontaine bus terminal$Fremifontaine$>broadway bus hub>Limersheim bus station$+2+3
+north end bus depot$zagreb$>Wittring bus station>Embermenil bus depot>Chenois bus station$+3+1+1
+Strasbourg bus depot$Strasbourg Central Square$>Aiserey bus depot>Chamoy bus station>Menton bus terminal>Limersheim bus station>Laifour bus depot>city bus depot>Champagney bus station>Oyrieres bus depot>Domgermain bus terminal>Lunel bus depot$+2+1+1+2+3+3+1+2+1+3
+dawn bus depot$bilbao$>Herbitzheim bus hub>Lesse bus depot>orchard bus terminal>Ceintrey bus station>Jussey bus hub>Aurillac bus depot>Lucy bus terminal>Allassac bus hub>Bouin bus terminal>Bouzonville bus terminal$+1+3+2+2+2+3+2+3+1+2
+Ravezies bus terminal$Ravezies$>Avignon bus hub>airport bus station$+1+2
+Bazoches bus station$Bazoches Central Junction$>Dax bus station>Anchamps bus station$+3+2
+Dettwiller bus station$Dettwiller$>Vignory bus terminal>peak bus depot>Boe bus hub>kazipara bus terminal>sunrise bus depot>Burnhaupt bus hub>north bus terminal>Sarreinsming bus terminal$+1+3+2+1+2+2+2+2
+Teterchen bus depot$Central Teterchen$>Fumay bus depot>Xeuilley bus station>Voujeaucourt bus station>Linay bus depot>Songy bus terminal>Zetting bus station$+2+2+3+1+2+2
+Rehon bus hub$Rehon Central$$
+Sarreinsming bus terminal$Sarreinsming Central Hub$>Thann bus hub$+2
+Mundolsheim bus terminal$Central Mundolsheim$$
+Beuvrages bus terminal$Beuvrages Central Station$>Charmes bus depot>sunrise bus depot>Domgermain bus terminal>Bussang bus hub$+2+1+1+3
+Albens bus station$Albens$>Autrey bus terminal>Rehainviller bus terminal>historic district bus station>park avenue bus station>market square bus station>Avail bus hub$+3+3+1+2+1+2
+high street bus depot$moldova$>Tantonville bus hub$+3
+Metzeresche bus station$Metzeresche Central$>vista bus terminal>Allenc bus station>Herbitzheim bus hub>Soulosse bus station>Freistroff bus hub>Welferding bus depot>new town bus terminal>Remelfing bus station>north bus terminal$+1+2+1+3+2+2+2+3+1
+Ravezies bus terminal$Ravezies$>orchard bus terminal>Beauchastel bus station>Villette bus hub>Fumay bus depot>Illfurth bus station>Welferding bus depot>Mundolsheim bus terminal>market square bus station$+2+2+2+3+1+1+3+2
+Xeuilley bus station$Xeuilley Central Depot$>Breitenbach bus terminal>Menton bus terminal>Tagolsheim bus station>solstice bus depot>summit bus station>pine street bus station$+3+1+1+3+2+2
+Racrange bus hub$Racrange$>kazipara bus terminal$+2
+Fresse bus depot$Fresse Central Plaza$>Xertigny bus hub>hillside bus station>Fresse bus depot>Hericourt bus hub>north end bus depot$+1+2+3+2+2
+Menton bus terminal$Menton$>Zetting bus station>Bouin bus terminal>vista bus terminal$+1+1+3
+Torcenay bus terminal$Torcenay$>historic district bus station>historic district bus station>Lamarche bus terminal>Aurillac bus depot>grove bus station>Loivre bus hub>airport bus station>plateau bus station$+1+1+1+2+1+2+1+1
+city center bus hub$athens Central Plaza$>Burnhaupt bus hub>Ravezies bus terminal>Mouroux bus terminal>Ranspach bus hub>Hayange bus depot>vista bus terminal>Lunel bus depot>sunrise bus depot>Breitenbach bus terminal>Liverdun bus depot$+1+3+2+1+3+3+1+1+1+2
+Lemberg bus station$Lemberg Central$>Sarreinsming bus terminal>Aiserey bus depot>Vagney bus hub>Stephansfeld bus depot>Vendome bus station>Uzerche bus depot>Oderen bus station>zenith bus station>Maatz bus station$+1+3+1+3+2+1+2+1+3
+Montbre bus station$Montbre$>Cambrai bus terminal>Bouin bus terminal>beachside bus depot$+1+3+1
+Andelot bus station$Andelot$>airport bus station>Allassac bus hub$+1+3
+Boves bus hub$Boves Central Junction$>Beauvais bus depot>Champagney bus station>airport bus station$+3+1+1
+Metzeresche bus station$Metzeresche$>Montivilliers bus hub>Fismes bus station>Allassac bus hub>old town bus depot>Champagney bus station>city bus depot>Beuvrages bus terminal>Bussang bus hub$+3+3+2+1+1+1+2+1
+Albas bus station$Albas$>Limersheim bus station>Flaxlanden bus depot>Avignon bus hub>Autreville bus hub>Fepin bus terminal>Contrexeville bus hub>Beuvrages bus terminal>Welferding bus depot>maple street bus terminal$+1+3+2+1+3+1+2+3+2
+Foug bus terminal$Central Foug$>Lunel bus depot>university bus station>Einvaux bus station>Turckheim bus depot>Zetting bus station>Montbre bus station$+2+1+2+3+1+2
+springfield bus station$Central tyumen$>Arvant bus terminal>Sierentz bus hub>Agen bus hub>creekside bus terminal>riverside bus terminal>Hendaye bus depot>Aboncourt bus hub>Pontrieux bus terminal>dawn bus depot>grove bus station$+1+1+3+2+3+3+2+1+2+1
+Vendome bus station$Vendome$>Boe bus hub>Aiguillon bus hub>Fumay bus depot>st. mary's bus station>Domgermain bus terminal$+2+2+2+3+1
+Sierentz bus hub$Central Sierentz$>Aiserey bus depot>Ebring bus hub>Cambrai bus terminal>Charmes bus depot>Marainviller bus station>Maatz bus station>Maatz bus station>Germaine bus terminal$+1+3+1+2+1+1+3+3
+Walbach bus terminal$Walbach$>plateau bus station$+3
+Deinvillers bus depot$Deinvillers Central$>Moyen bus terminal>Bocquegney bus terminal$+2+2
+Muizon bus depot$Muizon$>Xertigny bus hub>Lauterbourg bus hub>Teting bus hub>Teting bus hub>Strasbourg bus depot>Autrey bus terminal>plateau bus station$+3+1+2+2+3+3+2
+Sewen bus station$Central Sewen$>Champagney bus station>Jussey bus hub>Lumes bus depot$+2+1+2
+Herbitzheim bus hub$Herbitzheim$>mountain view bus depot>Charmes bus depot$+1+2
+Allassac bus hub$Allassac Central Stop$>riverside bus terminal>Loivre bus hub>Cernay bus station>Louverne bus terminal>grove bus station$+3+3+3+2+2
+airport bus station$geneva$>Ceintrey bus station>Chevremont bus terminal>Biffontaine bus depot>Wittring bus station>garden bus depot>Rehainviller bus terminal>Dettwiller bus station$+3+1+1+3+1+1+2
+Louverne bus terminal$Louverne Central$>maple street bus terminal>Herbitzheim bus hub$+1+3
+Valdieu bus station$Valdieu Central Depot$>Chamoy bus station>Champagney bus station>Raincourt bus terminal>Allassac bus hub$+3+1+2+1
+seaside bus station$rostov-on-don Central Stop$>Distroff bus hub>Rehon bus hub>Beuvrages bus terminal>Bouzonville bus terminal>Metzeresche bus station>Beauchastel bus station>Bocquegney bus terminal$+3+3+1+2+1+2+1
+Fumay bus depot$Fumay Central Station$>grove bus station>Bouin bus terminal>Chevremont bus terminal>Drusenheim bus depot>Ay bus station$+2+3+2+1+2
+Raincourt bus terminal$Raincourt$>Ravezies bus terminal>Leffond bus station>Limersheim bus station>Dax bus station>willow street bus terminal>Amberieu bus hub>Sewen bus station>hospital bus depot>Roppenheim bus depot$+1+1+2+3+3+2+2+3+2
+Fismes bus station$Fismes$>Roppenheim bus depot>Tourcoing bus hub>Montbre bus station>Vandieres bus terminal>high street bus depot>Roye bus station>Vendome bus station>Louverne bus terminal>Sarreinsming bus terminal$+2+1+3+1+3+2+1+3+1
+Embermenil bus depot$Embermenil Central$>Logelbach bus terminal>Beuvrages bus terminal>Lauterbourg bus hub$+1+3+3
+Pierreville bus depot$Pierreville Central Terminal$>Beillant bus hub>Bussang bus hub>Aiserey bus depot>Roye bus station$+3+2+3+1
+Darnieulles bus depot$Darnieulles$>Metzeresche bus station>Lucy bus terminal>Suippes bus terminal>Harfleur bus station$+3+2+1+1
+sunrise bus depot$seville Central Station$>Villette bus hub>seaport bus terminal>Rountzenheim bus station$+1+3+1
+Suippes bus terminal$Suippes Central$>grove bus station>Meuzac bus station>east bus terminal>Boves bus hub>Aboncourt bus hub>Tourcoing bus hub>north end bus depot>Freistroff bus hub>cedar street bus depot$+2+2+2+1+3+1+1+2+3
+north bus terminal$london Central Gate$>Foug bus terminal>Aurillac bus depot>Corgirnon bus terminal>royal bus terminal>seaport bus terminal$+2+1+1+1+3
+willow street bus terminal$saint petersburg Central Terminal$$
+east bus terminal$madrid$>Chenevieres bus hub>Dettwiller bus station>Lamarche bus terminal>Metzeresche bus station>Sundhoffen bus station>Beillant bus hub>Embermenil bus depot>AC10 bus station>industrial park bus terminal$+1+1+1+1+2+3+3+3+3
+Aiguillon bus hub$Central Aiguillon$>chestnut street bus station>Bussang bus hub>Beillant bus hub$+1+3+2
+Sierentz bus hub$Sierentz Central Plaza$>airport bus station>Vandieres bus terminal>Teting bus hub$+2+3+2
+Cambrai bus terminal$Cambrai$>Blanchifontaine bus terminal>Brouvelieures bus hub>Bressuire bus hub>old town bus depot>Ravezies bus terminal>Bouin bus terminal>Lumes bus depot>Anchamps bus station>Tantonville bus hub$+1+2+1+3+3+1+3+3+3
+Vagney bus hub$Central Vagney$>Vignory bus terminal>main street bus stop>Chamoy bus station>Montivilliers bus hub>summit bus station>Beillant bus hub>Drusenheim bus depot$+1+3+1+3+3+2+2
+Burnhaupt bus hub$Burnhaupt$>Oderen bus station>Valdieu bus station>Cornimont bus station>Aurillac bus depot>Chamoy bus station>Jussey bus hub>Sewen bus station>Chevremont bus terminal>Autrey bus terminal$+3+3+2+2+1+2+2+2+2
+Rehainviller bus terminal$Central Rehainviller$>civic center bus depot>Chevremont bus terminal>Pierreville bus depot>Rehon bus hub>sunrise bus depot>Fumay bus depot>Cambrai bus terminal$+3+1+3+2+1+3+2
+Hericourt bus hub$Central Hericourt$$
+Tagolsheim bus station$Central Tagolsheim$>morning bus terminal>Beuvrages bus terminal>Menton bus terminal>Chamoy bus station>Raincourt bus terminal>Blagny bus station>twilight bus terminal$+2+1+3+2+2+2+2
+Masevaux bus depot$Masevaux Central Gate$$
+st. mary's bus station$skopje Central Transit$>garden bus depot>grove bus station>Wittring bus station>Vaucouleurs bus depot>springfield bus station>Allassac bus hub>Thiefosse bus depot>Dieppe bus hub$+2+1+2+2+3+2+1+2
+Bouzonville bus terminal$Bouzonville$>dawn bus depot>Bocquegney bus terminal>Chatres bus depot>Teting bus hub>Stephansfeld bus depot>Allassac bus hub>Vendome bus station>vista bus terminal$+2+1+1+3+2+3+2+3
+Avignon bus hub$Avignon Central Terminal$$
+Marbache bus hub$Marbache Central Hub$>Mundolsheim bus terminal>Raincourt bus terminal$+1+2
+Metzing bus hub$Central Metzing$>Sewen bus station>Aurillac bus depot>Rountzenheim bus station>Rehon bus hub>Thann bus hub>Vaucouleurs bus depot>Metzeresche bus station>Vire bus terminal>Aiserey bus depot$+1+1+3+1+3+1+1+1+1
+Drusenheim bus depot$Drusenheim Central Plaza$>Lesse bus depot>Villette bus hub>Illfurth bus station$+2+3+1
+Distroff bus hub$Distroff Central Hub$>Dannemarie bus station>Mirecourt bus terminal>lakeside bus terminal>Aiguillon bus hub>Mouroux bus terminal$+1+1+2+3+3
+historic district bus station$reykjavik Central$>Laifour bus depot>Distroff bus hub>Blanchifontaine bus terminal>springfield bus station>Teterchen bus depot$+1+1+1+3+2
+Amifontaine bus hub$Amifontaine$>Ceintrey bus station>Corgirnon bus terminal>Strasbourg bus depot$+1+1+3
+Einvaux bus station$Einvaux$>Blagny bus station>Einvaux bus station>Amifontaine bus hub>dusk bus station>Leintrey bus hub>Bayard bus hub>Strasbourg bus depot>Corgirnon bus terminal$+3+3+1+3+3+2+1+3
+seaport bus terminal$luxembourg Central Terminal$$
+Pontrieux bus terminal$Central Pontrieux$>beachside bus depot>Vallois bus hub>noon bus terminal>Zetting bus station>knob bus terminal>Ravezies bus terminal>market square bus station>Leintrey bus hub$+2+2+1+3+2+2+1+1
+Metzeresche bus station$Central Metzeresche$>university bus station>Roye bus station>Darnieulles bus depot>Donjeux bus hub>Villette bus hub>Lunel bus depot$+2+1+2+3+2+1
+Wittring bus station$Wittring Central Plaza$>Corgirnon bus terminal>Albens bus station>Dax bus station>Aurillac bus depot>Xertigny bus hub>Albas bus station>Lamarche bus terminal$+3+3+2+3+3+1+1
+Fumay bus depot$Fumay$>civic center bus depot>Ferdrupt bus terminal>Loivre bus hub>Chevremont bus terminal>industrial park bus terminal>Joeuf bus hub>orchard bus terminal>Ay bus station>Zetting bus station>Liverdun bus depot$+3+3+2+2+1+2+2+3+3+2
+beachside bus depot$chelyabinsk Central Depot$>Boe bus hub>Masevaux bus depot>solstice bus depot>Sarreinsming bus terminal>Cambrai bus terminal>Boe bus hub>Achiet bus terminal>Lunel bus depot>Chenevieres bus hub>Cambrai bus terminal$+1+1+3+1+3+1+2+3+3+2
+Lunel bus depot$Lunel$>Fremifontaine bus terminal>Montivilliers bus hub>Bazoches bus station>Montivilliers bus hub>Vignory bus terminal>Sierentz bus hub>hospital bus depot>Ravezies bus terminal>Beuvrages bus terminal$+2+2+1+2+1+1+1+1+3
+Lunel bus depot$Lunel Central$>north bus terminal>Champagney bus station$+2+3
+Brouvelieures bus hub$Brouvelieures Central Gate$>Andelot bus station>Bussang bus hub>lakeside bus terminal>Cornimont bus station>Arvant bus terminal>industrial park bus terminal$+3+2+2+2+1+3
+Aiserey bus depot$Aiserey$>Allassac bus hub>Metzeresche bus station>Ravezies bus terminal$+3+1+2
+Clerval bus hub$Clerval$$
+Corgirnon bus terminal$Corgirnon$>Flaxlanden bus depot>grove bus station$+2+2
+Chevremont bus terminal$Chevremont Central$>Herbitzheim bus hub>Cornimont bus station>airport bus station>Autreville bus hub>Rehainviller bus terminal>Pierreville bus depot>noon bus terminal$+3+2+3+3+3+1+1
+Hendaye bus depot$Hendaye Central$>vista bus terminal>Breitenbach bus terminal>Herrlisheim bus terminal$+3+3+2
+Lamarche bus terminal$Lamarche Central Terminal$>mountain view bus depot$+1
+Boe bus hub$Boe$>knob bus terminal$+1
+main street bus stop$brussels$>Chamoy bus station>Zetting bus station>sunrise bus depot>Allenc bus station>Rehon bus hub>Teting bus hub>Bouin bus terminal>Lesse bus depot>Lumes bus depot>dawn bus depot$+2+3+1+2+1+1+1+3+3+1
+west bus terminal$rome Central$>Colomiers bus depot>Hendaye bus depot>market square bus station>Masevaux bus depot>wood bus depot>Vendome bus station$+1+1+1+1+1+1
+Ceintrey bus station$Ceintrey Central Terminal$>Darnieulles bus depot$+3
+Barges bus depot$Barges Central$>solstice bus depot>north end bus depot>forest bus depot>airport bus station>Bocquegney bus terminal>Charmes bus depot$+2+3+3+3+3+2
+noon bus terminal$palma Central Transit$>Thann bus hub>vista bus terminal>Maatz bus station>solstice bus depot$+1+1+2+3
+Chenevieres bus hub$Chenevieres$>Liart bus depot>Sierentz bus hub>Autreville bus hub>Croix bus station>Metzing bus hub>Dannemarie bus station>Vandieres bus terminal$+1+2+1+1+3+3+2
+Aurillac bus depot$Aurillac$>Ravezies bus terminal>Vallois bus hub>Beuvrages bus terminal$+2+1+2
+Zetting bus station$Central Zetting$>Bazoches bus station>midtown bus stop>Vandieres bus terminal>Chenois bus station>ridge bus station$+3+1+2+1+2
+Teting bus hub$Teting$>Lesse bus depot>Bocquegney bus terminal>north bus terminal>north end bus depot>Logelbach bus terminal>Xertigny bus hub>Maatz bus station$+2+1+3+2+2+3+2
+hospital bus depot$prague$>west bus terminal>Montbre bus station>north bus terminal>Ravezies bus terminal>central bus station>Bazoches bus station>Metzing bus hub>Turckheim bus depot>Ranspach bus hub>Allassac bus hub$+3+2+2+2+2+2+1+1+1+1
+Pontrieux bus terminal$Pontrieux Central$>Roppenheim bus depot>Ravezies bus terminal>Lesse bus depot>Boe bus hub>Chamoy bus station>Hendaye bus depot>Blagny bus station>Villette bus hub$+2+2+2+2+1+3+1+2
+sunset bus station$valencia$>Embermenil bus depot>industrial park bus terminal$+3+1
+Kruth bus station$Kruth$>Cambrai bus terminal>Sierentz bus hub>lakeside bus terminal$+3+1+1
+Amberieu bus hub$Amberieu Central Square$>Malling bus depot>creekside bus terminal>Allassac bus hub>zenith bus station>Charmoille bus station>Thann bus hub>ridge bus station>Cambrai bus terminal>Ceintrey bus station$+2+3+2+2+2+1+1+1+3
+Mouroux bus terminal$Central Mouroux$>Sarreinsming bus terminal>Songy bus terminal>lakeside bus terminal>Roye bus station>Lesse bus depot>Wittring bus station>Apach bus depot>Ay bus station>Bouzonville bus terminal>Fumay bus depot$+1+3+3+3+1+3+3+2+3+3
+park avenue bus station$vaduz$>Teting bus hub>Bouin bus terminal>Chenevieres bus hub$+1+2+1
+Boves bus hub$Boves Central$>Tantonville bus hub>Bussang bus hub>sunset bus station>Deinvillers bus depot>Deville bus hub>cedar street bus depot>Fumay bus depot$+2+2+2+1+2+3+1
+ridge bus station$burgos$>Bayard bus hub>Voujeaucourt bus station>twilight bus terminal$+2+3+3
+Vire bus terminal$Vire Central Terminal$>Maatz bus station>Ravezies bus terminal>Joeuf bus hub>Einvaux bus station>Suippes bus terminal>Mirecourt bus terminal>Fremifontaine bus terminal>Roye bus station>Champagney bus station>Foug bus terminal$+2+2+1+2+3+2+2+2+2+1
+Embermenil bus depot$Central Embermenil$>Fepin bus terminal>vista bus terminal>Muizon bus depot>Oyrieres bus depot$+2+2+3+1
+Aurillac bus depot$Central Aurillac$$
+Maatz bus station$Maatz Central$>Breitenbach bus terminal>Fumay bus depot>Embermenil bus depot>Ceintrey bus station>Bocquegney bus terminal>high street bus depot>Aurillac bus depot>airport bus station$+2+1+1+2+2+3+3+3
+Anchamps bus station$Central Anchamps$>Voujeaucourt bus station>Sarreinsming bus terminal>west bus terminal>Avail bus hub>Revigny bus terminal>Thiefosse bus depot$+1+3+3+2+2+1
+Bussang bus hub$Bussang$>Walbach bus terminal>maple street bus terminal>Embermenil bus depot>morning bus terminal>Zetting bus station>Bressuire bus hub$+2+2+3+3+3+1
+Raincourt bus terminal$Raincourt$$
+Bazoches bus station$Bazoches$>Burnhaupt bus hub>Lesse bus depot>meadow bus terminal>Bayard bus hub>Metzeresche bus station>Sewen bus station$+2+3+3+1+2+2
+old town bus depot$dublin Central Station$>dusk bus station>dawn bus depot>Moyen bus terminal>Aiguillon bus hub>Apach bus depot>Vecoux bus station>Drusenheim bus depot$+2+3+1+1+2+3+2
+Montivilliers bus hub$Montivilliers Central Plaza$>Metzing bus hub>airport bus station>Teting bus hub>Vignory bus terminal>Jussey bus hub$+3+1+3+2+1
+Beauchastel bus station$Beauchastel Central Stop$>Zetting bus station>Vendome bus station>cedar street bus depot>central bus station>sunrise bus depot>Contrexeville bus hub>Menton bus terminal$+3+1+3+3+3+2+2
+Hendaye bus depot$Hendaye$>Beillant bus hub>Torcenay bus terminal>Dettwiller bus station>Vignory bus terminal>Contrexeville bus hub>Clerval bus hub>twilight bus terminal>north bus terminal$+1+3+1+2+3+2+3+3
+Montbre bus station$Montbre Central Depot$>Clerval bus hub>Flaxlanden bus depot>Dettwiller bus station>Colomiers bus depot$+2+1+2+3
+Leintrey bus hub$Leintrey Central Hub$>Roppenheim bus depot>Anchamps bus station>Albas bus station>Montivilliers bus hub$+3+2+1+1
+Aboncourt bus hub$Aboncourt Central$>forest bus depot$+3
+Avail bus hub$Avail$>Mouroux bus terminal>Bussang bus hub>Chamoy bus station$+3+3+2
+Logelbach bus terminal$Logelbach Central Terminal$$
+Metzing bus hub$Metzing Central Square$>morning bus terminal>Masevaux bus depot>Blagny bus station>cedar street bus depot>Einvaux bus station>Montbre bus station$+1+2+2+2+2+2
+Burnhaupt bus hub$Burnhaupt Central$>Aiguillon bus hub>Racrange bus hub>Herbitzheim bus hub>midtown bus stop>Burnhaupt bus hub>Aiguillon bus hub>Vire bus terminal>Corgirnon bus terminal$+1+3+1+2+1+2+2+1
+Limersheim bus station$Limersheim$>evening bus station$+1
+Bouin bus terminal$Bouin$$
+Limersheim bus station$Limersheim Central Hub$>Boe bus hub>evening bus station>Oyrieres bus depot>north bus terminal>Allassac bus hub$+3+3+1+3+2
+Eurville bus depot$Eurville Central Gate$>Jussey bus hub>dawn bus depot>Drusenheim bus depot>Rixheim bus depot>Bayard bus hub>Anzeling bus hub>cedar street bus depot>Welferding bus depot>Montbre bus station>plateau bus station$+2+2+2+2+3+3+2+1+1+2
+Herrlisheim bus terminal$Herrlisheim$>Bening bus terminal>Donchery bus depot>Achiet bus terminal>Hayange bus depot>Zetting bus station>Boe bus hub$+3+1+1+1+3+3
+Bussang bus hub$Bussang$>Avail bus hub>broadway bus hub>meadow bus terminal>Vaucouleurs bus depot>Logelbach bus terminal>Hericourt bus hub>seaport bus terminal$+2+2+2+1+1+2+3
+forest bus depot$krasnodar Central Hub$>Uzerche bus depot>Montivilliers bus hub$+3+1
+Cernay bus station$Cernay$>Ceintrey bus station>cedar street bus depot>Apach bus depot>beachside bus depot$+3+3+3+3
+Thann bus hub$Central Thann$>springfield bus station>twilight bus terminal>Arvant bus terminal>Blanchifontaine bus terminal$+3+2+1+1
+springfield bus station$tyumen$>Boe bus hub>Beauchastel bus station>Vallois bus hub>Blagny bus station>Lunel bus depot$+1+3+1+1+2
+Seltz bus station$Seltz Central Depot$>Lunel bus depot>Joeuf bus hub>Charmoille bus station>sunrise bus depot>Suippes bus terminal>Corgirnon bus terminal>Ranspach bus hub>civic center bus depot>Laifour bus depot$+1+1+3+2+3+1+3+2+2
+Ballersdorf bus terminal$Ballersdorf Central Junction$>Chenois bus station>Morhange bus depot>Revigny bus terminal>grove bus station>Vendome bus station$+3+3+3+3+1
+cedar street bus depot$novosibirsk Central$>Orville bus terminal>Walheim bus station>Xeuilley bus station>Prauthoy bus depot$+3+2+1+3
+Logelbach bus terminal$Logelbach Central Station$>Walheim bus station>Vandieres bus terminal$+1+1
+Autreville bus hub$Autreville Central Hub$>Fepin bus terminal>summit bus station>Vallois bus hub>Brouvelieures bus hub>Raincourt bus terminal$+3+1+3+2+3
+Zetting bus station$Zetting Central Station$>Charmoille bus station>Charmoille bus station>Graffenstaden bus hub>Torcenay bus terminal>Metzeresche bus station>Montivilliers bus hub>Metzing bus hub>Champigneulles bus terminal>Wittring bus station>Domgermain bus terminal$+1+2+2+1+1+1+3+1+1+2
+Bertrichamps bus depot$Bertrichamps$>Bouzonville bus terminal>Chenois bus station>old town bus depot>beachside bus depot>north bus terminal>dawn bus depot$+1+2+1+1+3+3
+Ravezies bus terminal$Ravezies$>Louverne bus terminal>noon bus terminal>Zetting bus station>east bus terminal>high street bus depot>Allassac bus hub>Jussey bus hub>Aiguillon bus hub>Marainviller bus station$+3+3+3+1+3+1+2+2+2
+Boe bus hub$Boe$>Drusenheim bus depot>Agen bus hub>Meuzac bus station>Dieppe bus hub>Fremifontaine bus terminal>university bus station>Chamoy bus station>Zetting bus station$+3+1+1+2+3+3+3+2
+Domgermain bus terminal$Domgermain Central$>Racrange bus hub>Mundolsheim bus terminal>Fismes bus station>Ay bus station>Bussang bus hub>Rehainviller bus terminal>pine street bus station>AC10 bus station>Suippes bus terminal>Metz bus depot$+1+1+2+2+1+1+3+2+1+1
+Cornimont bus station$Cornimont$>Ballersdorf bus terminal>hillside bus station>Hendaye bus depot>Wittring bus station>Songy bus terminal$+2+2+2+3+2
+field bus station$avila$>dusk bus station$+2
+Roppenheim bus depot$Roppenheim$>Dannemarie bus station>Brouvelieures bus hub>Sarreguemines bus station>Breitenbach bus terminal$+2+3+1+1
+high street bus depot$moldova$$
+zenith bus station$vitoria$>Xertigny bus hub>Maatz bus station>Xertigny bus hub$+3+2+3
+Bayard bus hub$Bayard$>Stephansfeld bus depot>Autrey bus terminal>Maatz bus station>Remelfing bus station>riverside bus terminal>Soulosse bus station>Aiserey bus depot>Lumes bus depot>Munchhausen bus terminal$+2+3+3+2+2+2+1+2+1
+Moyen bus terminal$Central Moyen$>chestnut street bus station>Deinvillers bus depot$+2+1
+Sewen bus station$Sewen Central Station$>elm street bus station>sunrise bus depot>dawn bus depot>Voujeaucourt bus station>historic district bus station>Hendaye bus depot>Autreville bus hub$+2+2+1+2+3+3+3
+Champagney bus station$Champagney$>Bayard bus hub>Boves bus hub>mountain view bus depot>maple street bus terminal>Cernay bus station>Chamoy bus station>Blanchifontaine bus terminal$+3+1+1+2+3+3+1
+market square bus station$belgrade$>morning bus terminal>airport bus station>Aiserey bus depot>Amifontaine bus hub>Aiserey bus depot>Hendaye bus depot>east end bus station>Louverne bus terminal$+1+3+2+1+2+2+2+2
+new town bus terminal$Central lisbon$>Drusenheim bus depot>Sewen bus station>Aurillac bus depot>Lucy bus terminal$+2+1+1+2
+Wilwisheim bus station$Wilwisheim$>Vaucouleurs bus depot>Hendaye bus depot>hillside bus station>Metz bus depot>Vallois bus hub>mountain view bus depot$+3+2+2+2+3+1
+Lumes bus depot$Lumes Central Gate$>heritage bus hub>Hericourt bus hub>Burnhaupt bus hub>north bus terminal>forest bus depot>Herbitzheim bus hub$+1+1+2+1+1+2
+Bening bus terminal$Bening$>Voujeaucourt bus station>Mouroux bus terminal>Ceintrey bus station>Rixheim bus depot>Pontrieux bus terminal>Hendaye bus depot>orchard bus terminal>Songy bus terminal>riverside bus terminal$+3+2+3+2+2+2+1+2+3
+Liverdun bus depot$Liverdun$>Bouzonville bus terminal>Torcenay bus terminal>Thann bus hub>Strasbourg bus depot>city bus depot$+2+2+1+3+2
+Lauterbourg bus hub$Lauterbourg Central$>hilltop bus station>Agen bus hub>Limersheim bus station>grove bus station>Herbitzheim bus hub>Cornimont bus station>knob bus terminal>Anzeling bus hub>Germaine bus terminal>maple street bus terminal$+3+3+3+1+1+2+3+2+1+3
+Champagney bus station$Champagney Central Plaza$>creekside bus terminal>Bertrichamps bus depot>Aurillac bus depot$+2+2+1
+Hendaye bus depot$Hendaye Central$>Corgirnon bus terminal>Aurillac bus depot>Metzing bus hub>Maatz bus station>Raincourt bus terminal>Avignon bus hub>chestnut street bus station$+1+2+1+2+3+3+2
+east end bus station$bratislava Central Terminal$>north end bus depot$+2
+airport bus station$geneva Central Gate$>Blanchifontaine bus terminal>Altkirch bus hub>chestnut street bus station>Logelbach bus terminal>peak bus depot$+2+2+2+1+1
+Munchhausen bus terminal$Munchhausen$>dawn bus depot$+1
+knob bus terminal$albacete Central$$
+twilight bus terminal$alicante Central$>Champigneulles bus terminal>Vire bus terminal>Adamswiller bus terminal>Linay bus depot>Apach bus depot>Liverdun bus depot>east bus terminal>Suippes bus terminal$+1+2+1+3+3+3+2+1
+Thann bus hub$Thann$>Agen bus hub>Chamoy bus station>Sewen bus station$+1+2+3
+Jussey bus hub$Jussey$$
+Torcenay bus terminal$Torcenay$>riverside bus terminal>morning bus terminal$+2+3
+Bussang bus hub$Central Bussang$$
+Sierentz bus hub$Sierentz Central Station$>Bussang bus hub>Menton bus terminal>Holacourt bus depot>park avenue bus station>Teting bus hub$+3+1+1+1+2
+Beauchastel bus station$Beauchastel$>city center bus hub>Rountzenheim bus station>Louverne bus terminal>Amberieu bus hub>Bressuire bus hub>market square bus station>Roye bus station>Boe bus hub>Boe bus hub>Boe bus hub$+3+1+2+3+2+3+3+3+2+1
+Blanchifontaine bus terminal$Blanchifontaine Central$>Welferding bus depot>Autreville bus hub>Dax bus station>Champagney bus station>Valdieu bus station>Anchamps bus station>Ay bus station>Tagolsheim bus station>city bus depot$+1+2+2+1+2+1+3+2+3
+Joeuf bus hub$Joeuf$>Lunel bus depot>Rountzenheim bus station>Laifour bus depot>Burnhaupt bus hub$+3+2+2+2
+Voujeaucourt bus station$Voujeaucourt$>Metzeresche bus station>Hericourt bus hub>Fumay bus depot>Hendaye bus depot$+1+3+1+1
+Rehon bus hub$Rehon Central$>Villette bus hub>seaside bus station>Villette bus hub>vista bus terminal>Albens bus station>Torcenay bus terminal>Linay bus depot>kazipara bus terminal$+2+2+1+3+2+3+2+2
+morning bus terminal$zaragoza Central$>Autreville bus hub>Breitenbach bus terminal>Autrey bus terminal>Drusenheim bus depot>Voujeaucourt bus station>Autreville bus hub>Dompaire bus hub$+1+2+1+1+3+2+1
+Bazoches bus station$Bazoches$>morning bus terminal>grove bus station>Hendaye bus depot$+3+1+3
+Vignory bus terminal$Vignory Central Station$$
+Holacourt bus depot$Holacourt Central Square$>Ballersdorf bus terminal>Autreville bus hub>Boe bus hub>Jussey bus hub>willow street bus terminal$+2+1+3+3+1
+Chenois bus station$Chenois Central$>Ranspach bus hub>Hayange bus depot>Cornimont bus station>Vendome bus station>north bus terminal$+2+1+2+3+2
+Soulosse bus station$Central Soulosse$>north bus terminal>Maatz bus station>Sewen bus station>Ceintrey bus station>Amberieu bus hub$+3+1+1+2+2
+Dax bus station$Dax$>Aboncourt bus hub>Illfurth bus station>kazipara bus terminal>kazipara bus terminal>Limersheim bus station>Muizon bus depot>Autrey bus terminal>Allassac bus hub>Chenevieres bus hub>Croix bus station$+2+2+2+1+1+1+2+2+2+2
+Amberieu bus hub$Amberieu Central$$
+Beuvrages bus terminal$Beuvrages$>plateau bus station>Donchery bus depot>Brouvelieures bus hub>Ravezies bus terminal>vista bus terminal>Ravezies bus terminal>Holacourt bus depot>Turckheim bus depot$+2+3+1+1+1+3+3+2
+Seltz bus station$Seltz$>dawn bus depot>broadway bus hub>Drusenheim bus depot>plateau bus station>Lamarche bus terminal$+2+2+1+2+3
+Tourcoing bus hub$Tourcoing Central$>Turckheim bus depot>Boe bus hub>Roppenheim bus depot>Drusenheim bus depot$+2+2+3+2
+union bus station$stockholm Central$>Boe bus hub>Zetting bus station>Herbitzheim bus hub>broadway bus hub$+1+3+3+3
+kazipara bus terminal$Central perm$$
+Roye bus station$Roye$>Logelbach bus terminal>Sierentz bus hub>Fismes bus station$+1+2+1
+Maatz bus station$Central Maatz$>Rehon bus hub>Cernay bus station>Montivilliers bus hub>university bus station>Rehon bus hub>airport bus station>grove bus station>Ebring bus hub$+3+2+1+1+1+2+1+2
+Germaine bus terminal$Germaine Central$>Aboncourt bus hub>cedar street bus depot>hillside bus station>Andelot bus station>Metzing bus hub>Vandieres bus terminal>Boves bus hub$+3+1+1+3+3+3+3
+Ay bus station$Ay Central$>st. mary's bus station>Burnhaupt bus hub>chestnut street bus station>Einvaux bus station$+2+3+3+1
+solstice bus depot$vigo$$
+Vignory bus terminal$Vignory Central$>industrial park bus terminal>Montivilliers bus hub>Mirecourt bus terminal>Voujeaucourt bus station>hillside bus station>Mundolsheim bus terminal>Muizon bus depot$+3+2+1+2+1+1+2
+Metzeresche bus station$Central Metzeresche$>industrial park bus terminal>Mouroux bus terminal$+1+3
+Lucy bus terminal$Lucy$>Leintrey bus hub>vista bus terminal>Louverne bus terminal>old town bus depot>Chamoy bus station>Illfurth bus station>Boves bus hub>Voujeaucourt bus station>Aiguillon bus hub$+1+2+2+3+1+2+1+1+2
+Cambrai bus terminal$Cambrai Central Hub$>Metzeresche bus station>Aiserey bus depot>Croix bus station>Roppenheim bus depot>Embermenil bus depot>chestnut street bus station>Boe bus hub>Welferding bus depot>Fismes bus station>Ravezies bus terminal$+1+1+2+2+1+2+1+1+1+1
+Fepin bus terminal$Fepin$>Eurville bus depot>Jussey bus hub>Boves bus hub$+1+3+2
+grove bus station$cuenca$>Rixheim bus depot>Bussang bus hub>Albens bus station>Charmes bus depot>Sierentz bus hub>Hericourt bus hub>Ay bus station>Hendaye bus depot>Fremifontaine bus terminal$+1+2+2+3+3+3+3+3+3
+Illfurth bus station$Illfurth Central$$
+Roye bus station$Roye$>Turckheim bus depot>Lesse bus depot>Lamarche bus terminal>Montbre bus station>Tantonville bus hub>Stephansfeld bus depot>Embermenil bus depot>Einvaux bus station$+3+3+1+3+3+3+3+2
+Charmoille bus station$Charmoille$>Herbitzheim bus hub>Bocquegney bus terminal>Torcenay bus terminal>Cornimont bus station>twilight bus terminal>Leffond bus station>Chamoy bus station>Aboncourt bus hub$+2+2+3+3+3+1+2+2
+Amifontaine bus hub$Amifontaine Central$>Mirecourt bus terminal>Biffontaine bus depot>Thann bus hub>willow street bus terminal>Harfleur bus station>Ceintrey bus station>historic district bus station$+1+3+3+3+3+1+3
+Menton bus terminal$Menton Central$>Beillant bus hub>Boe bus hub>Fremifontaine bus terminal>Ravezies bus terminal>Fumay bus depot>Breitenbach bus terminal>Lamarche bus terminal>Bazoches bus station>Lunel bus depot>Lumes bus depot$+2+1+3+1+3+2+1+3+2+3
+Laifour bus depot$Laifour$$
+Domgermain bus terminal$Domgermain$>Meuzac bus station>Rehon bus hub>Thann bus hub>Corgirnon bus terminal$+1+1+1+2
+hilltop bus station$volgograd Central$>riverside bus terminal>Bazoches bus station>Flaxlanden bus depot>Laifour bus depot>Linay bus depot>Moyen bus terminal$+2+2+3+3+1+3
+Autrey bus terminal$Autrey$>Rehon bus hub>Chatres bus depot>Rehon bus hub$+3+1+2
+Harfleur bus station$Harfleur$>kazipara bus terminal>Brouvelieures bus hub$+1+2
+Pierreville bus depot$Pierreville$>Drusenheim bus depot>Vagney bus hub>Strasbourg bus depot>Ebring bus hub>Andelot bus station>Maatz bus station>Flaxlanden bus depot>Germaine bus terminal>Metzeresche bus station$+1+3+1+1+2+1+2+2+1
+Pierreville bus depot$Pierreville$>Ebersviller bus hub>Ceintrey bus station>Bressuire bus hub>Beuvrages bus terminal>orchard bus terminal>Carignan bus hub$+3+2+3+2+2+2
+kazipara bus terminal$perm$>Orville bus terminal>Cornimont bus station>creekside bus terminal>Champagney bus station>Vaucouleurs bus depot>Croix bus station>Morhange bus depot>Vendome bus station$+1+3+2+1+1+1+3+1
+Arvant bus terminal$Arvant$>Charmoille bus station>Illfurth bus station>Altkirch bus hub>orchard bus terminal>Metzeresche bus station>Cambrai bus terminal>Beauchastel bus station>Louverne bus terminal$+3+1+1+1+2+2+1+2
+Hayange bus depot$Central Hayange$>Dettwiller bus station>hilltop bus station>Charmoille bus station>Vendome bus station>Vendome bus station>Lunel bus depot$+3+2+2+1+1+1
+Graffenstaden bus hub$Graffenstaden$>Bouin bus terminal>Lunel bus depot>Turckheim bus depot>Champagney bus station>Raincourt bus terminal$+3+3+2+1+1
+maple street bus terminal$istanbul$>Allassac bus hub>Remelfing bus station>cedar street bus depot$+1+2+3
+Revigny bus terminal$Central Revigny$>knob bus terminal>grove bus station>Seltz bus station>Turckheim bus depot>Bouzonville bus terminal>Champagney bus station>kingsway bus terminal>lakeside bus terminal>Foug bus terminal>Eurville bus depot$+2+2+3+2+1+3+2+1+1+3
+Dettwiller bus station$Dettwiller$>Deinvillers bus depot>Foug bus terminal>Vendome bus station>Vaucouleurs bus depot>Dax bus station>Dax bus station>summit bus station>midtown bus stop>Ebersviller bus hub$+3+1+1+1+3+1+3+3+3
+Lamarche bus terminal$Lamarche Central$>new town bus terminal$+3
+Bayard bus hub$Bayard Central Transit$$
+Suippes bus terminal$Suippes$>park avenue bus station>city bus depot>Aurillac bus depot>Corgirnon bus terminal$+1+1+3+1
+Aiserey bus depot$Aiserey$>Embermenil bus depot>Burnhaupt bus hub>Walbach bus terminal>Einvaux bus station>Hayange bus depot>Lemberg bus station>Voujeaucourt bus station>hilltop bus station$+3+1+1+2+1+3+1+1
+Bayard bus hub$Bayard Central Depot$>Beuvrages bus terminal>historic district bus station$+3+1
+Ebring bus hub$Ebring$>Pierreville bus depot>Champagney bus station>Foug bus terminal$+3+1+1
+Brouvelieures bus hub$Brouvelieures Central$>cedar street bus depot>Torcenay bus terminal>Rehon bus hub>Villette bus hub$+2+1+1+2
+midtown bus stop$warsaw Central$>high street bus depot>Lemberg bus station>Freistroff bus hub>Sierentz bus hub>Voujeaucourt bus station$+1+3+2+2+2
+Illfurth bus station$Illfurth$>Suippes bus terminal>grove bus station>beachside bus depot>Charmoille bus station>Dax bus station>Graffenstaden bus hub>Thiefosse bus depot>Autreville bus hub>main street bus stop>Pontrieux bus terminal$+3+2+2+3+1+3+2+3+2+1
+Sarreinsming bus terminal$Sarreinsming Central Hub$>Rehainviller bus terminal>Lumes bus depot$+1+2
+Corgirnon bus terminal$Central Corgirnon$>Raincourt bus terminal>riverside bus terminal>Liart bus depot>Germaine bus terminal>Masevaux bus depot>Corgirnon bus terminal$+2+3+3+1+3+2
+Agen bus hub$Agen Central Hub$>high street bus depot>Prauthoy bus depot>Brouvelieures bus hub>high street bus depot>Sierentz bus hub>Xertigny bus hub$+1+3+2+2+1+3
+Thiefosse bus depot$Thiefosse Central$$
+north bus terminal$london$>Teterchen bus depot$+1
+Chamoy bus station$Chamoy Central$>Metzeresche bus station>Lesse bus depot>Drusenheim bus depot>north end bus depot$+3+1+3+1
+hospital bus depot$prague$>Allassac bus hub>Boe bus hub>Stephansfeld bus depot>Metzing bus hub>Vendome bus station>Tourcoing bus hub>Allenc bus station$+3+2+1+1+2+2+2
+Thann bus hub$Thann$$
+springfield bus station$tyumen$>Laifour bus depot>Ceintrey bus station$+1+3
+Joeuf bus hub$Joeuf Central Stop$>Lamarche bus terminal>Champigneulles bus terminal>Pontrieux bus terminal>Dannemarie bus station>Bussang bus hub>morning bus terminal>Thann bus hub>Burnhaupt bus hub>Maatz bus station$+1+2+1+2+2+1+1+1+1
+Chatres bus depot$Chatres$>Tagolsheim bus station>civic center bus depot>beachside bus depot>Beauvais bus depot>Chenevieres bus hub$+1+3+2+1+1
+Zetting bus station$Zetting$>Deville bus hub>mountain view bus depot>Louverne bus terminal>Valdieu bus station>Marainviller bus station$+2+1+3+2+1
+Bayard bus hub$Bayard Central$>Cambrai bus terminal>Domgermain bus terminal>Rehon bus hub>Germaine bus terminal>Champagney bus station>Freistroff bus hub>plateau bus station>Albas bus station>east end bus station$+1+2+2+3+3+3+1+2+1
+Dompaire bus hub$Central Dompaire$>Tourcoing bus hub>Hendaye bus depot>east end bus station$+2+1+1
+Voujeaucourt bus station$Voujeaucourt Central Hub$$
+Ceintrey bus station$Ceintrey$>twilight bus terminal>forest bus depot>Chenevieres bus hub>Morhange bus depot$+3+2+2+2
+airport bus station$geneva$>Hendaye bus depot$+1
+Beauvais bus depot$Beauvais$>Aiserey bus depot>Fumay bus depot>north end bus depot>heritage bus hub$+3+3+2+1
+industrial park bus terminal$zurich$>Fumay bus depot>Metzeresche bus station>market square bus station>Agen bus hub>Domgermain bus terminal>Autrey bus terminal>Voujeaucourt bus station>Sarreinsming bus terminal>sunset bus station$+1+2+2+1+2+1+2+3+2
+Logelbach bus terminal$Logelbach$>Leintrey bus hub>seaport bus terminal$+2+3
+Dannemarie bus station$Dannemarie Central$>kazipara bus terminal$+1
+Flaxlanden bus depot$Flaxlanden$>midtown bus stop>Aboncourt bus hub>Anchamps bus station>Roye bus station>Bertrichamps bus depot>industrial park bus terminal$+1+3+2+2+1+3
+Roppenheim bus depot$Roppenheim Central Station$>Achiet bus terminal>Chenois bus station>Champagney bus station$+3+2+3
+Beuvrages bus terminal$Beuvrages$>Sierentz bus hub$+1
+Vandieres bus terminal$Central Vandieres$>Jussey bus hub>Voujeaucourt bus station>Autreville bus hub>beachside bus depot>Cernay bus station>Zetting bus station>kazipara bus terminal>Muizon bus depot$+2+3+3+1+1+2+3+1
+Ballersdorf bus terminal$Ballersdorf Central Plaza$>Deinvillers bus depot>Joeuf bus hub>Hericourt bus hub>Fepin bus terminal>Albens bus station>plateau bus station>Embermenil bus depot>Bayard bus hub>Zetting bus station$+2+1+2+1+2+1+2+3+1
+Leintrey bus hub$Leintrey Central Hub$>Ceintrey bus station>Agen bus hub>Distroff bus hub$+1+3+3
+Wilwisheim bus station$Wilwisheim$>kazipara bus terminal>kazipara bus terminal>Bayard bus hub>Metzing bus hub>Lemberg bus station>Laifour bus depot>park avenue bus station>Vendome bus station>Teterchen bus depot$+2+1+3+3+2+3+3+2+2
+Charmoille bus station$Central Charmoille$>Herbitzheim bus hub>Morhange bus depot>Loivre bus hub$+3+3+1
+Embermenil bus depot$Embermenil$>north end bus depot>sunrise bus depot>Rehainviller bus terminal>Bayard bus hub>sunrise bus depot>Tourcoing bus hub$+3+3+2+3+1+2
+Oderen bus station$Oderen$>Suippes bus terminal>Dannemarie bus station>Blagny bus station>kingsway bus terminal>Cambrai bus terminal>Racrange bus hub$+3+3+3+2+3+2
+Contrexeville bus hub$Contrexeville$>Illfurth bus station>Stephansfeld bus depot>Beillant bus hub$+3+2+2
+Lesse bus depot$Lesse Central Depot$>sunrise bus depot$+3
+Rountzenheim bus station$Rountzenheim$>Apach bus depot>Autreville bus hub$+3+1
+Villette bus hub$Villette$>Brouvelieures bus hub>Villette bus hub>Chevremont bus terminal$+3+2+3
+broadway bus hub$vilnius Central$$
+Corgirnon bus terminal$Central Corgirnon$>hillside bus station>Vendome bus station>Laifour bus depot>twilight bus terminal$+1+2+2+1
+north bus terminal$london$>Chamoy bus station>Louverne bus terminal>Montivilliers bus hub>Bertrichamps bus depot>Beauvais bus depot>Liverdun bus depot>Ravezies bus terminal>Ferdrupt bus terminal$+1+1+3+1+3+1+3+2
+Sundhoffen bus station$Sundhoffen Central Plaza$>Wilwisheim bus station$+3
+Champagney bus station$Champagney$>Stephansfeld bus depot>Liart bus depot>Agen bus hub>Champagney bus station>Einvaux bus station>seaside bus station$+1+3+1+3+2+1
+Vendome bus station$Vendome Central$>beachside bus depot>east end bus station>Rehon bus hub>Breitenbach bus terminal>Aboncourt bus hub>knob bus terminal$+2+3+2+1+1+3
+Colomiers bus depot$Colomiers$>summit bus station>Lunel bus depot>Charmoille bus station>Germaine bus terminal$+1+1+2+2
+chestnut street bus station$moscow$>Suippes bus terminal>Fumay bus depot>Boe bus hub>Beauchastel bus station>Ballersdorf bus terminal>Germaine bus terminal>knob bus terminal>Seltz bus station>Mundolsheim bus terminal$+2+2+2+3+3+2+1+1+2
+Blanchifontaine bus terminal$Blanchifontaine Central Plaza$>Einvaux bus station>Sewen bus station$+1+1
+Croix bus station$Croix$>Vendome bus station>market square bus station>summit bus station>Sierentz bus hub>Chevremont bus terminal>Rehon bus hub>Fresse bus depot$+3+2+3+2+2+3+3
+Blanchifontaine bus terminal$Blanchifontaine$>Croix bus station>west bus terminal>Pontrieux bus terminal>knob bus terminal>Hendaye bus depot>Leintrey bus hub>Cernay bus station$+1+3+1+1+2+3+1
+Montivilliers bus hub$Montivilliers$>Blanchifontaine bus terminal>Raincourt bus terminal>north bus terminal>Autrey bus terminal>civic center bus depot>industrial park bus terminal>Fismes bus station$+3+3+3+1+2+1+2
+royal bus terminal$Central san marino$>Rehainviller bus terminal>Autrey bus terminal>Contrexeville bus hub>Beuvrages bus terminal>Rehon bus hub>Roye bus station$+3+3+3+3+2+3
+Loivre bus hub$Loivre$$
+Beillant bus hub$Central Beillant$>Soulosse bus station>Cambrai bus terminal>Ceintrey bus station$+1+2+1
+Liart bus depot$Central Liart$>Racrange bus hub>Aiguillon bus hub>Logelbach bus terminal>Drusenheim bus depot>Ebersviller bus hub>Dompaire bus hub$+1+1+2+3+1+1
+Strasbourg bus depot$Strasbourg Central$>Maatz bus station>Hendaye bus depot>Logelbach bus terminal>Clerval bus hub>midtown bus stop>willow street bus terminal>hospital bus depot>Remelfing bus station>Dieppe bus hub>Beauchastel bus station$+1+1+3+3+1+3+2+3+1+1
+Breitenbach bus terminal$Breitenbach Central$>Munchhausen bus terminal>broadway bus hub>Bussang bus hub>morning bus terminal>Leintrey bus hub>Leintrey bus hub>Chatres bus depot$+3+3+1+2+1+1+1
+Apach bus depot$Apach Central$>Loivre bus hub>Hericourt bus hub>Muizon bus depot>Turckheim bus depot>Xertigny bus hub>Eurville bus depot>Seltz bus station>Drusenheim bus depot>airport bus station$+3+3+1+2+3+1+1+3+2
+Laifour bus depot$Laifour Central$>knob bus terminal>Ravezies bus terminal>Metzeresche bus station>broadway bus hub>Charmes bus depot>Dieppe bus hub>Boe bus hub>Maatz bus station>Bazoches bus station$+1+3+2+2+3+2+2+3+1
+Vire bus terminal$Vire$>Beuvrages bus terminal>Bertrichamps bus depot>seaside bus station>pine street bus station>Sierentz bus hub$+2+2+2+2+3
+Welferding bus depot$Welferding$>Aurillac bus depot>Albens bus station>Raincourt bus terminal>Linay bus depot>Albas bus station>Rountzenheim bus station$+1+2+3+1+1+1
+Allenc bus station$Allenc$>Chenois bus station$+2
+solstice bus depot$vigo$>Pontrieux bus terminal$+1
+broadway bus hub$vilnius Central$>north bus terminal>Loivre bus hub>Domgermain bus terminal>Corgirnon bus terminal>north bus terminal>Donjeux bus hub>kingsway bus terminal$+1+1+2+3+1+2+3
+Metz bus depot$Metz$>Aurillac bus depot>Lauterbourg bus hub>Wilwisheim bus station>Rehon bus hub>Altkirch bus hub>Bouzonville bus terminal$+2+3+1+2+3+3
+dusk bus station$las palmas Central Stop$>Fismes bus station>Soulosse bus station>Andelot bus station>springfield bus station>Laifour bus depot>Leffond bus station>Oyrieres bus depot>Lesse bus depot$+2+1+2+2+3+1+3+1
+Albas bus station$Albas$>Bayard bus hub>market square bus station>sunrise bus depot>mountain view bus depot>vista bus terminal>Donchery bus depot>Sierentz bus hub>Mouroux bus terminal>Vagney bus hub>Breitenbach bus terminal$+1+3+1+3+3+3+3+1+1+3
+riverside bus terminal$helsinki Central Terminal$>Maatz bus station>union bus station>Sierentz bus hub>Albas bus station>Autrey bus terminal$+1+3+2+1+1
+Oderen bus station$Central Oderen$>Sarreinsming bus terminal>kingsway bus terminal>Malling bus depot>Vendome bus station>Holacourt bus depot>Metzing bus hub>Champagney bus station>Strasbourg bus depot>Sundhoffen bus station>Ceintrey bus station$+2+3+2+2+1+3+1+1+2+2
+Cornimont bus station$Cornimont$>sunrise bus depot>industrial park bus terminal$+3+3
+plateau bus station$logrono$>Joeuf bus hub>Charmes bus depot>Boe bus hub>Anzeling bus hub>Lumes bus depot>Bazoches bus station$+1+3+3+2+3+3
+orchard bus terminal$zamora Central$>Allassac bus hub>Amberieu bus hub>Fresse bus depot$+3+2+3
+vista bus terminal$oviedo Central$>Carnac bus station>Walheim bus station>Lumes bus depot>Lemberg bus station>Metzeresche bus station>Seltz bus station>st. mary's bus station>Autreville bus hub>Walbach bus terminal>lake view bus terminal$+3+2+3+1+2+1+1+3+1+2
+north end bus depot$zagreb$>heritage bus hub>Blagny bus station>Ballersdorf bus terminal>Dannemarie bus station>springfield bus station$+1+2+3+3+3
+Meuzac bus station$Meuzac Central Square$>Darnieulles bus depot>Burnhaupt bus hub>Limersheim bus station>solstice bus depot>Foug bus terminal>Pontrieux bus terminal>Sundhoffen bus station$+1+1+1+3+2+3+3
+Ranspach bus hub$Central Ranspach$>Chatres bus depot>Ravezies bus terminal>riverside bus terminal$+2+1+2
+Deinvillers bus depot$Central Deinvillers$>Drusenheim bus depot>Lesse bus depot>Metzeresche bus station>Apach bus depot>hospital bus depot>historic district bus station>morning bus terminal>Strasbourg bus depot>queensway bus station$+2+1+2+2+1+1+1+2+1
+Morhange bus depot$Morhange Central Depot$>Boe bus hub>Aiguillon bus hub>Ravezies bus terminal>Louverne bus terminal>Sewen bus station$+2+3+2+3+1
+orchard bus terminal$zamora Central Junction$>Logelbach bus terminal>Adamswiller bus terminal>Chamoy bus station$+3+1+2
+plateau bus station$Central logrono$>solstice bus depot>Ceintrey bus station>kazipara bus terminal$+2+1+2
+pine street bus station$kazan$>Bressuire bus hub$+2
+Ay bus station$Ay$>broadway bus hub>Darnieulles bus depot>cedar street bus depot>Aurillac bus depot>AC10 bus station>riverside bus terminal>Turckheim bus depot>Stephansfeld bus depot>Apach bus depot>vista bus terminal$+2+3+3+1+1+1+3+1+1+2
+Charmes bus depot$Central Charmes$>Dannemarie bus station>Dettwiller bus station>Vaucouleurs bus depot>Logelbach bus terminal>Champagney bus station>Montbre bus station>Soulosse bus station>Clerval bus hub$+3+1+3+1+1+2+1+3
+lake view bus terminal$kiev Central Gate$>Blagny bus station>forest bus depot>Sierentz bus hub>st. mary's bus station>Darnieulles bus depot>Metzeresche bus station>Thann bus hub>Allassac bus hub>grove bus station>creekside bus terminal$+2+2+3+3+2+1+1+3+3+2
+Walheim bus station$Walheim Central$>cedar street bus depot>Tagolsheim bus station>Suippes bus terminal$+1+1+3
+riverside bus terminal$helsinki$>Vandieres bus terminal>university bus station>Allenc bus station$+2+1+1
+Prauthoy bus depot$Prauthoy$>seaside bus station>Louverne bus terminal>Autreville bus hub>Autrey bus terminal>Lesse bus depot>Champagney bus station>market square bus station>Leintrey bus hub>maple street bus terminal$+1+3+1+3+1+1+2+3+2
+morning bus terminal$zaragoza$>heritage bus hub>central bus station>Dax bus station>cedar street bus depot>Vendome bus station>Morhange bus depot>Tagolsheim bus station>Amberieu bus hub>Aiserey bus depot>Teting bus hub$+3+3+1+1+1+3+3+3+3+3
+Corgirnon bus terminal$Corgirnon Central$$
+Strasbourg bus depot$Strasbourg$>Logelbach bus terminal>Croix bus station>city bus depot>Foug bus terminal>Avail bus hub>Agen bus hub>morning bus terminal$+2+1+1+1+3+2+2
+Dannemarie bus station$Dannemarie$>new town bus terminal>Sewen bus station$+1+3
+Biffontaine bus depot$Central Biffontaine$>Sierentz bus hub>Autrey bus terminal>Carignan bus hub>east end bus station>Welferding bus depot>Boves bus hub$+2+3+3+2+2+3
+Welferding bus depot$Welferding Central$>Liverdun bus depot>Albas bus station>Deinvillers bus depot>Avail bus hub>market square bus station>Stephansfeld bus depot$+1+2+1+1+1+3
+Drusenheim bus depot$Drusenheim$>airport bus station>Limersheim bus station>Montivilliers bus hub>Lunel bus depot$+3+1+3+3
+Linay bus depot$Linay Central$>Charmoille bus station>Montbre bus station$+1+3
+Rountzenheim bus station$Rountzenheim$>Bazoches bus station>Chamoy bus station>Amifontaine bus hub>Beauvais bus depot>Seltz bus station>Limersheim bus station>Bayard bus hub>Beauchastel bus station>Laifour bus depot>Domgermain bus terminal$+2+3+3+2+1+1+2+3+3+2
+Zetting bus station$Zetting Central$>Muizon bus depot>Fismes bus station>Strasbourg bus depot>Dompaire bus hub>Brouvelieures bus hub>airport bus station>Uzerche bus depot>Chenois bus station>Aurillac bus depot>Domgermain bus terminal$+1+1+1+2+3+1+1+2+1+2
+Graffenstaden bus hub$Graffenstaden$>Brouvelieures bus hub$+3
+Foug bus terminal$Foug$>Cornimont bus station>Loivre bus hub>Colomiers bus depot>Bayard bus hub>Pontrieux bus terminal$+1+2+1+1+2
+Stephansfeld bus depot$Stephansfeld Central Terminal$>dawn bus depot>beachside bus depot>union bus station>vista bus terminal>Dettwiller bus station>Einvaux bus station>north end bus depot>industrial park bus terminal>Leintrey bus hub$+1+1+2+1+1+3+2+3+3
+Charmes bus depot$Charmes$>Barges bus depot$+2
+Ravezies bus terminal$Central Ravezies$$
+queensway bus station$Central valletta$>garden bus depot>Menton bus terminal>Charmes bus depot>Meuzac bus station>Autreville bus hub>Croix bus station>Agen bus hub>Moyen bus terminal>midtown bus stop>hillside bus station$+3+2+2+3+1+3+2+1+2+2
+Autreville bus hub$Central Autreville$>Freistroff bus hub>royal bus terminal>Herrlisheim bus terminal>Aiguillon bus hub>Metzeresche bus station>airport bus station>Charmes bus depot>Masevaux bus depot>Logelbach bus terminal$+1+3+1+1+2+1+2+1+2
+Tagolsheim bus station$Tagolsheim$>Lumes bus depot>Sierentz bus hub>Ebring bus hub$+1+2+3
+Tantonville bus hub$Tantonville$>Autreville bus hub>Welferding bus depot>Marbache bus hub>Chenois bus station>Bressuire bus hub>forest bus depot$+1+3+2+1+3+3
+Ferdrupt bus terminal$Central Ferdrupt$>Herbitzheim bus hub>Sundhoffen bus station>Hendaye bus depot>east bus terminal>Rehon bus hub>Albens bus station>Bertrichamps bus depot>Embermenil bus depot>Beuvrages bus terminal>industrial park bus terminal$+2+3+2+2+3+1+3+3+3+1
+Donchery bus depot$Donchery$>Ravezies bus terminal>Contrexeville bus hub>seaport bus terminal>Sierentz bus hub>Lunel bus depot>Burnhaupt bus hub>city center bus hub>Menton bus terminal>Einvaux bus station>university bus station$+1+2+3+2+1+3+1+2+2+3
+Vendome bus station$Vendome$>plateau bus station>Distroff bus hub>Roppenheim bus depot>Clerval bus hub>Tantonville bus hub>Aurillac bus depot>Hendaye bus depot>Strasbourg bus depot>Joeuf bus hub$+3+1+3+1+3+1+1+1+2
+chestnut street bus station$moscow Central$>Pontrieux bus terminal>Pontrieux bus terminal$+1+1
+Mouroux bus terminal$Mouroux$>industrial park bus terminal>Achiet bus terminal$+1+1
+Cernay bus station$Cernay$>chestnut street bus station>hillside bus station>Leffond bus station>Rountzenheim bus station>Meuzac bus station>Contrexeville bus hub>Brouvelieures bus hub>heritage bus hub$+3+2+3+3+2+3+3+2
+Louverne bus terminal$Louverne Central Plaza$$
+mountain view bus depot$tallinn$>Racrange bus hub>Lamarche bus terminal>Morhange bus depot>lakeside bus terminal>Marainviller bus station>Leffond bus station>Zetting bus station>Pierreville bus depot>Tantonville bus hub>Hendaye bus depot$+1+1+3+2+3+3+3+2+1+3
+Avail bus hub$Avail$>Metzing bus hub>Lunel bus depot>Donchery bus depot>Bayard bus hub>Remelfing bus station$+2+1+3+2+2
+Malling bus depot$Malling$>Stephansfeld bus depot>city center bus hub>Cambrai bus terminal$+1+1+3
+hillside bus station$nizhny novgorod Central Gate$>seaside bus station>Cernay bus station>Munchhausen bus terminal$+3+1+1
+Domgermain bus terminal$Domgermain$>Teting bus hub>Zetting bus station>Anzeling bus hub$+3+1+1
+Breitenbach bus terminal$Breitenbach$$
+Domgermain bus terminal$Central Domgermain$>Ferdrupt bus terminal$+2
+Chamoy bus station$Chamoy Central Square$>Laifour bus depot>hillside bus station>Sundhoffen bus station>Pontrieux bus terminal>Carnac bus station>Logelbach bus terminal>Rehon bus hub>Metzing bus hub$+1+3+1+1+3+3+1+3
+Apach bus depot$Apach Central Station$>Lumes bus depot$+2
+Lunel bus depot$Lunel$>north end bus depot>Bussang bus hub>Liverdun bus depot>Thann bus hub>Ravezies bus terminal>Torcenay bus terminal>Drusenheim bus depot$+3+3+2+3+2+3+3
+west bus terminal$rome$>Embermenil bus depot$+3
+evening bus station$malaga Central Depot$>Allenc bus station>Wilwisheim bus station>Stephansfeld bus depot>Avail bus hub>Burnhaupt bus hub$+2+2+2+3+3
+Xertigny bus hub$Xertigny Central Hub$>Vandieres bus terminal>central bus station>Illfurth bus station>Walbach bus terminal>Illfurth bus station>springfield bus station>Blanchifontaine bus terminal$+2+3+2+3+3+1+2
+Stephansfeld bus depot$Stephansfeld Central Terminal$>Strasbourg bus depot$+3
+Jussey bus hub$Jussey Central Stop$>Einvaux bus station>city center bus hub$+1+3
+creekside bus terminal$omsk Central Square$>Suippes bus terminal>Racrange bus hub>Cernay bus station>Limersheim bus station>Corgirnon bus terminal>Champagney bus station>evening bus station>Soulosse bus station$+3+1+3+2+1+1+3+1
+Brouvelieures bus hub$Brouvelieures$>Cambrai bus terminal>city center bus hub>union bus station>Freistroff bus hub$+3+3+2+3
+summit bus station$cartagena Central Station$$
+market square bus station$belgrade Central$>Teterchen bus depot>Drusenheim bus depot>Oderen bus station>Ceintrey bus station>solstice bus depot>Chenevieres bus hub>Torcenay bus terminal$+1+2+2+3+3+2+3
+Vagney bus hub$Vagney Central Transit$>Jussey bus hub>Welferding bus depot$+2+1
+Vandieres bus terminal$Central Vandieres$>Apach bus depot>Menton bus terminal>Masevaux bus depot>Aiguillon bus hub>high street bus depot>plateau bus station>Ceintrey bus station>Ferdrupt bus terminal$+2+3+3+2+2+1+1+3
+Carignan bus hub$Carignan Central$>Sarreguemines bus station>Metzeresche bus station>Teting bus hub>Aurillac bus depot>Liverdun bus depot$+2+3+3+2+3
+Carnac bus station$Carnac$>Graffenstaden bus hub>Suippes bus terminal>market square bus station>kazipara bus terminal>Beuvrages bus terminal$+3+1+3+3+1
+Chenevieres bus hub$Chenevieres Central Terminal$>Champagney bus station$+3
+Ceintrey bus station$Central Ceintrey$>Mouroux bus terminal>Darnieulles bus depot>Fepin bus terminal>Agen bus hub$+2+3+3+3
+Bressuire bus hub$Bressuire Central Stop$>sunrise bus depot>Herbitzheim bus hub>Fumay bus depot>Aboncourt bus hub$+1+2+3+2
+Herbitzheim bus hub$Herbitzheim$>Sarreinsming bus terminal>Metzeresche bus station>Pierreville bus depot>west bus terminal>maple street bus terminal>Rehainviller bus terminal>Flaxlanden bus depot>Charmes bus depot>Mundolsheim bus terminal>Champagney bus station$+1+3+1+2+2+3+2+1+2+3
+Villette bus hub$Villette$>Pierreville bus depot>Fumay bus depot>sunset bus station>Joeuf bus hub$+1+2+2+1
+peak bus depot$la coruna Central$>Aiserey bus depot>Barges bus depot>union bus station>Sarreinsming bus terminal$+2+1+1+2
+riverside bus terminal$helsinki Central$>Xertigny bus hub>elm street bus station>Oderen bus station>Cornimont bus station>Kruth bus station$+1+1+1+2+1
+grove bus station$cuenca$>grove bus station>Illfurth bus station>Cernay bus station>Seltz bus station$+3+1+3+3
+city bus depot$vienna Central$>Corgirnon bus terminal>Anzeling bus hub>Bressuire bus hub>market square bus station$+3+3+3+1
+Holacourt bus depot$Holacourt$>lake view bus terminal>knob bus terminal>Bussang bus hub>dawn bus depot>twilight bus terminal>Sierentz bus hub>Albas bus station>Vendome bus station>Revigny bus terminal>Distroff bus hub$+3+3+1+2+2+1+1+2+3+1
+Boe bus hub$Boe Central Square$>main street bus stop>Charmoille bus station>Beuvrages bus terminal>Bressuire bus hub>seaport bus terminal$+3+2+3+1+3
+Donjeux bus hub$Donjeux$>Corgirnon bus terminal>Sarreguemines bus station>central bus station>Vendome bus station>Domgermain bus terminal$+3+2+3+2+2
+Bocquegney bus terminal$Bocquegney$$
+heritage bus hub$podgorica Central Station$>orchard bus terminal>Blagny bus station>sunrise bus depot>park avenue bus station>Bayard bus hub>Songy bus terminal$+3+3+2+3+2+3
+Oyrieres bus depot$Oyrieres Central Gate$>north bus terminal>Bertrichamps bus depot>Dettwiller bus station>Carnac bus station>Valdieu bus station>Jussey bus hub$+3+1+3+3+2+3
+Racrange bus hub$Racrange$>historic district bus station>Roppenheim bus depot>vista bus terminal>Zetting bus station>Leffond bus station>Metz bus depot$+3+3+2+1+3+2
+Leffond bus station$Leffond$>Achiet bus terminal>Lamarche bus terminal>Racrange bus hub>Teting bus hub>Vendome bus station>Thann bus hub>Marbache bus hub$+2+3+3+2+1+2+3
+Croix bus station$Croix Central$$
+Orville bus terminal$Orville Central$>city center bus hub>Boe bus hub>Beuvrages bus terminal>Dieppe bus hub>meadow bus terminal>north bus terminal>north bus terminal$+2+2+1+1+1+2+1
+Ravezies bus terminal$Ravezies$>Aurillac bus depot>Rixheim bus depot>Allassac bus hub>kazipara bus terminal>Sarreinsming bus terminal>Muizon bus depot>vista bus terminal>Hendaye bus depot>central bus station>Mouroux bus terminal$+3+1+1+2+3+3+3+3+3+1
+Mirecourt bus terminal$Mirecourt$>Wittring bus station>Fumay bus depot>Montivilliers bus hub>Pontrieux bus terminal>Joeuf bus hub>Voujeaucourt bus station>Lesse bus depot$+3+2+1+1+2+1+3
+kingsway bus terminal$riga Central$>Beauvais bus depot>Revigny bus terminal>Allassac bus hub>Uzerche bus depot>Xertigny bus hub>Lumes bus depot$+1+1+3+3+2+2
+cedar street bus depot$Central novosibirsk$>north bus terminal$+2
+Adamswiller bus terminal$Adamswiller$>Champigneulles bus terminal>Strasbourg bus depot$+1+1
+seaport bus terminal$Central luxembourg$>east end bus station>Sarreinsming bus terminal>Strasbourg bus depot>Lauterbourg bus hub>Dettwiller bus station>hilltop bus station>Bayard bus hub>Brouvelieures bus hub>springfield bus station>Jussey bus hub$+2+1+1+1+3+2+2+1+3+2
+Aurillac bus depot$Central Aurillac$>Moyen bus terminal>Barges bus depot>Beuvrages bus terminal>Limersheim bus station>Sarreinsming bus terminal>Seltz bus station>Sundhoffen bus station>Ebring bus hub>Carnac bus station>sunrise bus depot$+1+3+2+1+1+1+3+2+2+3
+knob bus terminal$albacete Central$>Lauterbourg bus hub>peak bus depot>Chamoy bus station>AC10 bus station>Boe bus hub>Ravezies bus terminal>Boe bus hub>Montbre bus station>Allassac bus hub$+3+2+1+1+2+1+2+1+3
+Rehon bus hub$Rehon$>Aurillac bus depot$+3
+Teting bus hub$Teting Central$>Ravezies bus terminal>Thann bus hub>north end bus depot>Zetting bus station>Freistroff bus hub>Fismes bus station>cedar street bus depot$+1+2+1+2+2+3+3
+Montivilliers bus hub$Montivilliers Central Plaza$>Graffenstaden bus hub$+1
+north bus terminal$london$>Ebring bus hub>north bus terminal>Joeuf bus hub>Ravezies bus terminal$+3+3+3+1
+Voujeaucourt bus station$Central Voujeaucourt$>Meuzac bus station>Suippes bus terminal>Domgermain bus terminal>Sarreinsming bus terminal>Ravezies bus terminal>Fresse bus depot$+2+2+2+1+3+1
+meadow bus terminal$huesca Central$>Tagolsheim bus station>Gambsheim bus terminal>twilight bus terminal>Charmoille bus station>Zetting bus station$+2+2+3+1+3

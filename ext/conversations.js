@@ -315,7 +315,41 @@ var data_conversations = {
 		`#$mage$You know what?`,
 		//moves receptionist out of the way
 		`#$mage$Alright, let's go.`
-	]
+	],
+
+
+
+	//dev commentaries
+	"comm-intro": `Hi! Welcome to the developer commentary section!
+		I wanted to put something like this in my game, because I think there are some interesting bits to how this game works, and how it changed over time, 
+		and I don't necessarily want that information to be lost to time, or to just be locked in my brain. 
+		Any time I have something I considered interesting to say about the game creation process, I've placed a bubble like this one around the world, and interacting with it will play an audio file.
+		There are also subtitles available in the settings.
+		If you're reading this, you already knew that. (:`,
+	
+	"comm-scaling": `One of the big obvious limitations I had to work around was the screen scaling. I built this game off of the engine that ran monarch, and monarch had a 16 tile wide screen, so this game had that as well. 
+		However, the most common problem I saw people run into when they played monarch was that the camera was too zoomed in - they would get lost, or they would cover areas more than once, 
+		because there weren't enough details on-screen to register where they were. 
+		This was a pretty big problem, especially because I knew this would be a larger game. So I started with making the terrain more dense.
+		
+		I knew the player wouldn't be able to see things that far off the screen, so I made it impossible to go downwards, and put the town directly above the player.
+		Theoretically, this would mean they would be sure to end up there.
+		The second thing I did was to mostly decouple the tiles from the actual terrain. While this game still uses tiles for coordinate tracking, there can be multiple walls or even entities per tile.
+		That, combined with more detailed art, helped a little (I hope)`,
+
+	"comm-layers": `The world of ext is, for the most part, completely euclidian. The map is one rectangular grid. But it really helps to have at least a bit of an escape from that,
+		especially when I'm already trying to fit more space into less space. So the layering system was born. I didn't want to go full 3d, but I did want a little depth, so the world has 3 layers stacked on each other.
+		Each layer corresponds to a primary color, going r » g » b in ascending order, and the player will switch between those layers when necessary. Most things in the main world are on the red layer, but the bosses and this training ring are on the green layer.
+		The blue layer also gets a few things, although it's used less, because if I had the space, I could just use the green layer.
+		Although the green layer is on top of the red layer, it can still be used as a "below" layer, because it basically looks the same. `,
+
+	"comm-artistry": `I made all of the artwork for this game, which was difficult at times because I'm not a professional artist. 
+		When I started sketching out the broad strokes, doing an area was as easy as drawing a lumpy shape and filling it in. But obviously that wasn't going to hold up in the final game.
+		As I did more of the art, I started to realize I didn't particularly like how it looked. This section of cliffs originally looked like this *show image*
+		Which looked fine zoomed out, the way I usually view it in the editor, but looks childlike when zoomed in. The lines are too thick, and there's not enough detail.
+		So those were the main issues I tried to fix. I limited myself to only drawing with line thickness 5, and made sure to add detailing, and tried to edit while zoomed in more.
+		A lot of areas were like this. The world is large enough that I can work on one area, go to another, and then when I've come back to the first one I realize it doesn't look good and I have to change things.
+		It does hurt a little to have to redo things, because it feels a little like the art I did earlier was pointless then, but eventually it does get better. And the art looks passable enough for my standards.`
 }
 
 var data_convoThreads = {

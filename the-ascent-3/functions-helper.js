@@ -70,6 +70,33 @@ function drawTextPrecise(text, x, y, fontSize, font, ) {
 
 }
 
+function drawTimer() {
+	//draws main menu things
+	ctx.fillStyle = textColor;
+	ctx.font = `${canvas.height / 20}px Raleway`;
+	var realTime = time / (1000 / frameTime);
+	var strSec = (realTime % 60).toFixed(2);
+	var strMin = Math.floor((realTime / 60) % 60);
+	var strHr = Math.floor((realTime / 3600));
+
+	//minute formatting is wacky
+	if (strMin > 0) {
+		strSec = strSec.padStart(5, "0");
+	}
+	var strTime = strSec;
+
+	if (realTime >= 60) {
+		if (strHr > 0) {
+			strMin = (""+strMin).padStart(2, "0");
+		}
+		strTime = strMin + ":" + strTime;
+	}
+	if (realTime >= 3600) {
+		strTime = strHr + ":" + strTime;
+	}
+	ctx.fillText(strTime, canvas.width / 2, canvas.height * 0.05);
+}
+
 function invertList(list) {
 	var obj = {};
 	
@@ -90,8 +117,16 @@ function screenToSpace(x, y) {
 
 
 function importMap(mapStrData) {
-	return mapStrData.map(line => line.split("").map(char => +char));
-	// return mapStrData.map(line => line.split("").map(char => base64_inv[char].toString(2).padStart(6, "0")));
+	// return mapStrData.map(line => line.split("").map(char => +char));
+	var lines = [];
+	var buffer1 = "";
+	for (var l=0; l<mapStrData.length; l++) {
+		lines[l] = [];
+		for (var c=0; c<mapStrData[l].length; c++) {
+			lines[l].push(...base64_inv[mapStrData[l][c]].toString(2).padStart(6, "0").split(""));
+		}
+	}
+	return lines;
 }
 
 function exportMap(mapArr) {

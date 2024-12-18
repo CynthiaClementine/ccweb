@@ -33,7 +33,7 @@ function drawCollision() {
 	});
 
 	//if a line is selected, draw that
-	if (editor_entity != undefined && editor_entity.x == undefined) {
+	if (editor_entity != undefined && editor_entity.x == undefined && editor_entity.type == "collision") {
 		var lnP1 = spaceToScreen(...editor_entity.line[0]);
 		var lnP2 = spaceToScreen(...editor_entity.line[1]);
 	
@@ -108,7 +108,6 @@ function drawEditorEnum() {
 
 		//button pressing, located here because I didn't want to duplicate code yet again
 		if (overtop && cursor.down) {
-			console.log(`selected ${words[t]}`);
 			editor_enum.create(t, editor_entity);
 
 			cursor.down = false;
@@ -168,22 +167,20 @@ function drawTopbar() {
 }
 
 function drawEditorPoly() {
-	if (editor_polyPoints.length == 0) {
+	if (editor_polyPoints == undefined || editor_polyPoints.length == 0) {
 		return;
 	}
 
 	ctx.beginPath();
 	ctx.lineWidth = 2;
 	ctx.strokeStyle = color_editorPolygon;
-	var r = Math.floor(canvas.height / 100);
-	var pNow;
-	var pNowSc;
-	var pNext;
-	var pNextSc;
-	for (var h=0; h<editor_polyPoints.length; h++) {
-		pNow = editor_polyPoints[h];
+	var r = editor_selectTolerance;
+	var epp = editor_polyPoints;
+	var pNow, pNowSc, pNext, pNextSc;
+	for (var h=0; h<epp.length; h++) {
+		pNow = epp[h];
 		pNowSc = spaceToScreen(...pNow);
-		pNext = editor_polyPoints[(h+1) % editor_polyPoints.length];
+		pNext = epp[(h+1) % epp.length];
 		pNextSc = spaceToScreen(...pNext);
 
 		//circle + line
@@ -194,13 +191,13 @@ function drawEditorPoly() {
 
 		//midpoint
 		ctx.beginPath();
-		ctx.arc((pNowSc[0] + pNextSc[0]) / 2, (pNowSc[1] + pNextSc[1]) / 2, r, 0, Math.PI * 2);
+		ctx.arc(...linterpMulti(pNowSc, pNextSc, 0.5), r, 0, Math.PI * 2);
 		ctx.stroke();
 	}
 }
 
 function drawEntityHighlights() {
-	[...world_roofs, ...entities].forEach(e => {
+	[...entities.r, ...entities.g, ...entities.b].forEach(e => {
 		var screenPos = spaceToScreen(e.homeX ?? e.x, e.homeY ?? e.y);
 		drawCircle(screenPos[0], screenPos[1], canvas.height / 60, color_editorHighlight3);
 	});
@@ -221,11 +218,11 @@ function drawActionPane(x, y, w, h) {
 
 //draws the selection pane for the editor sidebar
 function drawSelectionPane(x, y, w, h) {
-	if (editor_entity == undefined) {
-		console.log(`How????`);
+	//don't bother with single line points
+	if (editor_entity.type == "collisionPoint") {
 		return;
 	}
-	if (editor_entity.x == undefined && editor_entity.homeX == undefined) {
+	if (editor_entity.type == "collision") {
 		drawSelectionPane_line(x, y, w, h);
 		return;
 	}
@@ -236,24 +233,20 @@ function drawSelectionPane(x, y, w, h) {
 	});
 
 	//layers
-	ctx.globalAlpha = (editor_entity.layer == `r`) ? 1 : 0.3;
+	var layer = (editor_entity.layer ?? editor_entity.ent.layer);
+	ctx.globalAlpha = (layer == `r`) ? 1 : 0.3;
 	drawText(`r`, x + w * 0.25, y + h * 0.29, NaN, `#F88`);
-	ctx.globalAlpha = (editor_entity.layer == `g`) ? 1 : 0.3;
+	ctx.globalAlpha = (layer == `g`) ? 1 : 0.3;
 	drawText(`g`, x + w * 0.5, y + h * 0.29, NaN, `#8F8`);
-	ctx.globalAlpha = (editor_entity.layer == `b`) ? 1 : 0.3;
+	ctx.globalAlpha = (layer == `b`) ? 1 : 0.3;
 	drawText(`b`, x + w * 0.75, y + h * 0.29, NaN, `#88F`);
 	ctx.globalAlpha = 1;
 
 	//draw x/y
-	drawText(editor_entity.x.toFixed(2), x + (w * 0.333), y + (h * 0.37), NaN, color_editorHighlight);
-	drawText(editor_entity.y.toFixed(2), x + (w * 0.667), y + (h * 0.37));
-
-	switch (editor_entity.constructor.name) {
-		case "DreamSkater":
-			//state specifier
-			break;
+	if (editor_entity.x != undefined) {
+		drawText(editor_entity.x.toFixed(2), x + (w * 0.333), y + (h * 0.37), NaN, color_editorHighlight);
+		drawText(editor_entity.y.toFixed(2), x + (w * 0.667), y + (h * 0.37));
 	}
-	// var midX =
 }
 
 function drawSelectionPane_line(x, y, w, h) {
@@ -283,20 +276,10 @@ function drawSelectionPane_line(x, y, w, h) {
 		drawText(cd[0], drawX, drawY, NaN, editor_layerColors[cd[0]], "center");
 
 		if (cursor.down && distSquared(drawX - cursor.x, drawY - cursor.y) < fontSize) {
-			changeLineLayer(editor_entity.line, editor_entity.layer, cd[0]);
-			editor_entity.layer = cd[0];
+			changeLineLayer(editor_entity, cd[0]);
 		}
 	});
 	ctx.globalAlpha = 1;
-
-	//reverse the line button
-	drawX = x + 0.5 * w;
-	drawY = y + 0.9 * h;
-	drawText(`Reverse this line`, drawX, drawY, NaN, color_editorHighlight, NaN);
-	//if it's been pressed within a frame, reverse the line
-	if (dt_tLast - cursor.downTime < dt_buffer[dt_buffer.length-1] * 1500 && Math.abs(drawX - cursor.x) < w * 0.5 && Math.abs(drawY - cursor.y) < h * 0.1) {
-		[editor_entity.line[1], editor_entity.line[0]] = [editor_entity.line[0], editor_entity.line[1]];
-	}
 }
 
 function drawPositionPane(x, y, w, h) {
@@ -318,46 +301,6 @@ function drawPositionPane(x, y, w, h) {
 }
 
 
-
-
-
-function editor_handleSpritePoly() {
-	//create a triangle if one doesn't exist
-
-	editor_pointSelected = -1;
-	//select closest point within tolerance
-	var minDist = 1e1001;
-	var dist;
-	var scPoints = editor_polyPoints.map(a => spaceToScreen(a[0], a[1]));
-	for (var j=0; j<scPoints.length; j++) {
-		dist = Math.hypot(scPoints[j][0] - cursor.x, scPoints[j][1] - cursor.y);
-		if (dist < editor_selectTolerance && dist < minDist) {
-			minDist = dist;
-			editor_pointSelected = j;
-		}
-
-		//midpoint
-		
-		var midpoint = linterpMulti(scPoints[j], scPoints[(j+1)%scPoints.length], 0.5);
-		dist = Math.hypot(midpoint[0] - cursor.x, midpoint[1] - cursor.y);
-		if (dist < editor_selectTolerance && dist < minDist) {
-			minDist = dist;
-			editor_pointSelected = j + 0.5;
-		}
-	}
-
-	//if selected a half-point, make it a full point
-	if (editor_pointSelected % 1 != 0) {
-		var lowP = editor_pointSelected - 0.5;
-		var highP = (editor_pointSelected + 0.5) % editor_polyPoints.length;
-		editor_polyPoints.splice(lowP + 1, 0, [(editor_polyPoints[lowP][0] + editor_polyPoints[highP][0]) / 2, (editor_polyPoints[lowP][1] + editor_polyPoints[highP][1]) / 2]);
-		editor_pointSelected = lowP + 1;
-	}
-
-	return true;
-}
-
-
 function editor_createPts() {
 	editor_polyPoints = [
 		screenToSpace(canvas.width * 0.4, canvas.height * 0.4),
@@ -371,17 +314,34 @@ function editor_deleteSelected() {
 		return;
 	}
 
-	//collision line
-	if (editor_entity.x == undefined) {
-		data_terrain[editor_entity.layer].splice(editor_entity.index, 1);
-		editor_entity = undefined;
+	var en = editor_entity;
+
+	//test for poly editing
+	if (editor_pointSelected != undefined) {
+		editor_polyPoints.splice(editor_pointSelected, 1);
 		return;
 	}
 
+	//linear entity
+	if (en.constructor.name == "Object") {
+		switch (editor_entity.type) {
+			case "collision":
+				return;
+			case "collisionPoint":
+				data_terrain[editor_entity.layer].splice(editor_entity.index, 1);
+				editor_entity = undefined;
+				return;
+			case "portal":
+			case "trigger":
+				en = editor_entity.ent;
+				break;
+		}
+	}
+
 	//full entity
-	entities.splice(entities.indexOf(editor_entity), 1);
-	if (world_entities.indexOf(editor_entity) != -1) {
-		world_entities.splice(world_entities.indexOf(editor_entity), 1);
+	entities[en.layer].splice(entities[en.layer].indexOf(en), 1);
+	if (world_entities[en.layer].indexOf(en) != -1) {
+		world_entities[en.layer].splice(world_entities[en.layer].indexOf(en), 1);
 	}
 	editor_entity = undefined;
 }
@@ -397,13 +357,14 @@ function exportEditorPolygon() {
 }
 
 function exportEntities() {
-	var safeEnts = entities.filter(e => e != player);
-	return `[\n\t${safeEnts.map(e => `"`+e.giveStringData()+`"`).join("\n\t")}\n];`;
+	var ents = entities.r.concat(entities.g, entities.b);
+	var safeEnts = ents.filter(e => e != player);
+	return `[\n\t${safeEnts.map(e => `"`+e.giveStringData()+`"`).join(",\n\t")}\n];`;
 }
 
 
 function editor_adjustCamera(cxp) {
-	var percent = getPercentage(editor_sidebarW, 1, cxp);
+	var percent = clamp(getPercentage(editor_sidebarW, 1, cxp), 0, 1);
 	percent *= camera_xStops.length - 1;
 	if (percent % 1 < 0.1 || percent % 1 > 0.9) {
 		percent = Math.round(percent);
@@ -446,6 +407,31 @@ function editor_handleMDMenu(cxp, cyp) {
 		if (editor_entity == undefined) {
 			return true;
 		}
+
+		var linearEntity = (editor_entity.constructor.name == "Object");
+		var collisionEntity = (linearEntity && (editor_entity.type == "collision" || editor_entity.type == "collisionPoint"));
+
+		//colors
+		if (cyp > editor_sidebarHs[1] + 0.11 && cyp < editor_sidebarHs[1] + 0.14) {
+			var layerInd = Math.floor(3 * clamp(cxp / editor_sidebarW, 0, 0.999));
+			var layerChar = "rgb"[layerInd];
+
+			//special case for linear entities
+			if (linearEntity) {
+				if (collisionEntity) {
+					//collision lines? nope nope nope
+					return true;
+				}
+				//portals, triggers, etc
+				editor_entity.ent.layer = layerChar;
+			} else {
+				editor_entity.layer = layerChar;
+			}
+		}
+		if (collisionEntity) {
+			//if selected a line, don't activate the buttons
+			return;
+		}
 		editor_buttons.forEach(b => {
 			b.interact();
 		});
@@ -456,45 +442,85 @@ function editor_handleMDMenu(cxp, cyp) {
 	return true;
 }
 
+function editor_handleMDPoly(spa) {
+	//get all the half-points for adding points
+	var epp = editor_polyPoints;
+	var withHalves = [];
+	for (var p=0; p<epp.length; p++) {
+		withHalves.push(epp[p]);
+		withHalves.push(linterpMulti(epp[p], epp[(p+1) % epp.length], 0.5));
+	}
+
+	var closest = determineClosestIndex(spa, withHalves) / 2;
+	if (closest % 1 == 0) {
+		//move that point around
+		editor_pointSelected = closest;
+		return;
+	}
+	
+	//create a new point and then move that one
+	closest = Math.floor(closest);
+	epp.splice(closest + 1, 0, linterpMulti(epp[closest], epp[(closest+1) % epp.length], 0.5));
+	editor_pointSelected = closest + 1;
+}
+
 //selects collision given a cursor position
 function editor_handleMDCol(spa) {
-	editor_pointSelected = undefined;
-	var selectDist = editor_selectTolerance / camera.scale;
+	var selectDist = (editor_selectTolerance / camera.scale) ** 2;
+	var selected = undefined;
+	var toReturn = false;
 	var keys = Object.keys(data_terrain);
 	var p;
 	for (var c of keys) {
 		for (var l of data_terrain[c]) {
-			if (distSquared(l[0][0] - spa[0], l[0][1] - spa[1]) < selectDist) {
+			p = undefined;
+			if (distSquared(...d2_subtract(l[0], spa)) < selectDist) {
 				p = 0;
+				selectDist = distSquared(...d2_subtract(l[0], spa));
 			}
-			if (distSquared(l[1][0] - spa[0], l[1][1] - spa[1]) < selectDist) {
+			if (distSquared(...d2_subtract(l[1], spa)) < selectDist) {
 				p = 1;
+				selectDist = distSquared(...d2_subtract(l[1], spa));
 			}
 
 			if (p != undefined) {
-				if (button_alt) {
-					//if alt is pressed, duplicate the line before selecting it
-					var ind = data_terrain[c].indexOf(l);
-					var newLine = [JSON.parse(JSON.stringify(l[p])), JSON.parse(JSON.stringify(l[p]))];
-					data_terrain[c].splice(ind, 0, newLine);
-					editor_pointSelected = newLine[1];
-					return true;
-				}
-				editor_pointSelected = l[p];
-				return true;
+				selected = [c, l, p];
 			}
 			//if the cursor's over the line itself (not the end points) select that line
-			//only do this part if the line isn't of 0 size
-			if (distSquared(l[1][0] - l[0][0], l[1][1] - l[0][1]) == 0) {
-				l[1][0] += 0.5;
-			}
-			if (pointSegmentDistance(spa, l[0], l[1]) < selectDist) {
-				editor_select({layer: c, index: data_terrain[c].indexOf(l), line: l});
-				return true;
+			//distSquared != 0 so that pointSegmentDistance doesn't break when the two end points are the same
+			if (distSquared(...d2_subtract(l[1], l[0])) != 0 && pointSegmentDistance(spa, l[0], l[1]) < selectDist) {
+				selected = undefined;
+				selectDist = pointSegmentDistance(spa, l[0], l[1]);
+				editor_select({
+					line: l, 
+					type: `collision`,
+					layer: c,
+					index: data_terrain[c].indexOf(l)
+				});
+				toReturn = true;
 			}
 		}
 	}
-	return false;
+
+	if (selected != undefined) {
+		var c, l, p;
+		[c, l, p] = selected;
+		var trueP = l[p];
+		if (button_alt) {
+			//if alt is pressed, duplicate the line before selecting it
+			var ind = data_terrain[c].indexOf(l);
+			var newLine = [JSON.parse(JSON.stringify(l[p])), JSON.parse(JSON.stringify(l[p]))];
+			data_terrain[c].splice(ind, 0, newLine);
+			trueP = newLine[1];
+		}
+		editor_select({
+			line: [trueP],
+			type: `collisionPoint`,
+			index: 0
+		});
+		return true;
+	}
+	return toReturn;
 }
 
 function editor_select(entity) {
@@ -502,16 +528,11 @@ function editor_select(entity) {
 	//do extra bits for editing
 	editor_buttons = editor_buttons.slice(0, 2);
 
-	if (entity.x == undefined) {
-		return;
-	}
-
 	var newBHeight = editor_sidebarHs[2] - 0.06;
 	var b0 = editor_buttons[0];
 	switch (entity.constructor.name) {
 		case "DreamSkater":
 			//state editing
-			console.log('hi');
 			editor_buttons.push(new UI_Button(b0.x, newBHeight, b0.width, b0.height, `state: ${entity.stateSpecified ?? "[free]"}`, () => {
 				var validStates = editor_entity.states;
 				var v = prompt(`Please set the new state.`);
@@ -526,11 +547,69 @@ function editor_select(entity) {
 			}));
 			break;
 		case "NPC":
-			//conversation editing
+			//TODO: conversation editing
 			break;
 		case "Roof":
-			//roof type modification
+			//roof texture modification
 			editor_buttons.push(new UI_Button(b0.x, newBHeight, b0.width, b0.height, `txtr: ${roofNameFromData(editor_entity.giveDimensionData())}`, () => {editor_enum = editor_listR;}));
+			//visibility poly modification
+			editor_buttons.push(new UI_Button(b0.x, newBHeight - 0.06, b0.width, b0.height, `Visibility poly`, () => {
+				editor_polyPoints = editor_entity.collider;
+
+				//if there's not enough in there, create a triangle
+				if (editor_polyPoints.length < 3) {
+					editor_polyPoints.splice(0, editor_polyPoints.length);
+					var cPos = editor_quantizeArr([camera.x, camera.y]);
+					editor_polyPoints.push([cPos[0] - 1, cPos[1] + 1]);
+					editor_polyPoints.push([cPos[0], cPos[1] - 1]);
+					editor_polyPoints.push([cPos[0] + 1, cPos[1] + 1]);
+
+				}
+			}));
+			break;
+		case "Object":
+			//all lines have the switch line option
+			editor_buttons.push(new UI_Button(b0.x, newBHeight, b0.width, b0.height, `Reverse line`, () => {
+				var l = editor_entity.line;
+				[l[1][0], l[1][1], l[0][0], l[0][1]] = [l[0][0], l[0][1], l[1][0], l[0][1]];
+			}));
+			//selecting lines
+			switch (entity.type) {
+				case "collision":
+					//collision gets the color matrix but that's in the drawing phase so no buttons required
+					break;
+				case "trigger":
+					var b2 = (entity.ent.type == "music");
+					//triggers get value setting options
+					editor_buttons.push(new UI_Button(b2 ? b0.x * 2 / 3 : b0.x, newBHeight - 0.06, b2 ? b0.width / 3 : b0.width, b0.height, entity.ent.state, () => {
+						var val = prompt(`Please enter the target value: ${(entity.ent.type == "layer") ? "(camera target, player target)" : ""}`, entity.ent.state);
+						if (isValidStr(val)) {
+							entity.ent.state = val;
+							editor_buttons[3].label = val;
+						}
+					}));
+					if (b2) {
+						editor_buttons.push(new UI_Button(b0.x * 4 / 3, newBHeight - 0.06, b0.width / 3, b0.height, entity.ent.stateAfter, () => {
+							var val = prompt(`Please enter the target value:`, entity.ent.stateAfter);
+							if (isValidStr(val)) {
+								entity.ent.stateAfter = val;
+								editor_buttons[3].label = val;
+							}
+						}));
+					}
+					break;
+				case "portal":
+					//portals get boolean checks
+					editor_buttons.push(new UI_Toggle(b0.x * 0.25, newBHeight - 0.12, b0.width * 0.875, b0.height, "backtrackable", (value) => {
+						entity.ent.EtoS = value ?? entity.ent.EtoS;
+						return entity.ent.EtoS;
+					}))
+					editor_buttons.push(new UI_Toggle(b0.x * 0.25, newBHeight - 0.07, b0.width * 0.875, b0.height, "directional", (value) => {
+						entity.ent.directional = value ?? entity.ent.directional;
+						return entity.ent.directional;
+					}))
+					break;
+			}
 			break;
 	}
 }
@@ -538,19 +617,68 @@ function editor_select(entity) {
 function editor_handleMDEnt(cxp, cyp) {
 	var minDist = (1 / 60) ** 2;
 	var entity = undefined;
-	[...world_roofs, ...entities].forEach(e => {
-		var screenPos = spaceToScreen(e.homeX ?? e.x, e.homeY ?? e.y);
-		if (distSquared((screenPos[0] / canvas.width) - cxp, (screenPos[1] / canvas.height) - cyp) < minDist) {
-			entity = e;
-			minDist = distSquared((screenPos[0] / canvas.width) - cxp, (screenPos[1] / canvas.height) - cyp);
+	var i;
+
+	[...entities.r, ...entities.g, ...entities.b].forEach(e => {
+		var screenPos;
+		//portals require three tests, triggers require two tests
+		if (e instanceof Portal || e instanceof Trigger) {
+			screenPos = spaceToScreen(...e.line[0]);
+			[entity, minDist, i] = editor_handleMDEntSingle(cxp, cyp, screenPos, entity, minDist, e);
+			screenPos = spaceToScreen(...e.line[1]);
+			[entity, minDist, i] = editor_handleMDEntSingle(cxp, cyp, screenPos, entity, minDist, e);
+			if (e instanceof Portal) {
+				screenPos = spaceToScreen(...e.deltaPoint);
+				[entity, minDist, i] = editor_handleMDEntSingle(cxp, cyp, screenPos, entity, minDist, e);
+			}
+		} else {
+			screenPos = spaceToScreen(e.homeX ?? e.x, e.homeY ?? e.y);
+			[entity, minDist, i] = editor_handleMDEntSingle(cxp, cyp, screenPos, entity, minDist, e);
 		}
 	});
+
+	//actually select an entity
 	if (entity != undefined) {
-		editor_select(entity);
+		var selectNormally = true;
+		if (entity instanceof Trigger) {
+			editor_select({
+				line: entity.line,
+				type: `trigger`,
+				ent: entity,
+				index: determineClosestIndex(screenToSpace(cxp * canvas.width, cyp * canvas.height), entity.line),
+			});
+			selectNormally = false;
+		}
+		
+		
+		if (entity instanceof Portal) {
+			console.log(`testing with portal`);
+			console.log(screenToSpace(cxp * canvas.width, cyp * canvas.height), [entity.line[0], entity.line[1], entity.deltaPoint]);
+			var p = determineClosestIndex(screenToSpace(cxp * canvas.width, cyp * canvas.height), [entity.line[0], entity.line[1], entity.deltaPoint]);
+			console.log(`p = ${p}`);
+			editor_select({
+				line: (p == 2) ? [entity.deltaPoint] : entity.line, 
+				type: `portal`,
+				ent: entity,
+				index: (p == 2) ? 0 : p,
+			});
+			selectNormally = false;
+		}
+		if (selectNormally) {
+			editor_select(entity);
+		}
 		editor_buttons[0].label = editor_entity.constructor.name;
 		editor_buttons[1].label = editor_entity.id ?? "[no id]";
 		return true;
 	}
+}
+
+function editor_handleMDEntSingle(cxp, cyp, screenPos, entity, minDist, e) {
+	if (distSquared((screenPos[0] / canvas.width) - cxp, (screenPos[1] / canvas.height) - cyp) < minDist) {
+		entity = e;
+		minDist = distSquared((screenPos[0] / canvas.width) - cxp, (screenPos[1] / canvas.height) - cyp);
+	}
+	return [entity, minDist];
 }
 
 function editor_handleMDEnum(cxp, cyp) {
@@ -569,7 +697,10 @@ function editor_handleMDEnum(cxp, cyp) {
 	return true;
 }
 
-function changeLineLayer(l, oldLayer, newLayer) {
+function changeLineLayer(entity, newLayer) {
+	var l = entity.line;
+	var oldLayer = entity.layer;
+	entity.layer = newLayer;
 	//figure out where the line originally was
 	var originalInd = data_terrain[oldLayer].indexOf(l);
 	data_terrain[newLayer].push(l);

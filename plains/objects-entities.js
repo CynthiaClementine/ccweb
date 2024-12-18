@@ -125,6 +125,7 @@ class Player {
 
 class NPC {
 	constructor(x, y, z, r, name, sheet) {
+		this.home = [x, y, z];
 		this.x = x;
 		this.y = y;
 		this.z = z;
@@ -135,5 +136,22 @@ class NPC {
 
 		this.sheet = sheet;
 
+		this.inList;
+	}
+
+	beDrawn() {
+		var pDist = Math.hypot(this.x - player.x, this.y - player.y, this.z - player.z);
+		var coords = spaceToScreen([this.x, this.y, this.z]);
+
+		var r = (this.r / pDist) * player.scale;
+		ctx.drawImage(this.sheet, coords[0] - r, coords[1] - r, r * 2, r * 2);
+	}
+
+	tick() {
+		//remove self from current bin, move, then put self back into bins
+	}
+
+	giveStringData() {
+		return `NPC~${this.home[0]}~${this.home[1]}~${this.home[2]}~${this.r}~${this.name}`;
 	}
 }

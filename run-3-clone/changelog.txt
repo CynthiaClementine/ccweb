@@ -19,6 +19,7 @@ V1.3 - THE CONSISTENCY UPDATE PART 2 - (?????)
             this seems to also require plane clipping
         when we're done with everything, CC10 should take 41 sections tops
             what does this mean???????????
+                probably 41 seconds. it would be a performance metric that past me misspelled
 
         Bug Fixes:
             fixed the save button in the tunnel editor

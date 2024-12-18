@@ -1046,9 +1046,9 @@ class Player extends Orb {
 
 		this.ax = 0;
 		this.ay = 0;
-		this.dMax = 0.09;
+		this.dMax = 9;
 		this.friction = 0.85;
-		this.speed = 1.2;
+		this.speed = 72;
 
 		this.dashTime = 0;
 		this.dashTimeMax = 1 / 6;
@@ -1059,9 +1059,19 @@ class Player extends Orb {
 		this.dashCooldownMax = 0.5;
 
 		this.chocolate = 0;
+
+		this.skillCD = 0;
+		this.skillCDMax = 1;
+		this.chompCD = 0;
+		this.chompCDIncrement = 1.5;
+		this.chompMaxVal = 4;
 		
 		this.convoPartner = undefined;
 		this.locked = false;
+
+		this.skillLearned = 0;
+		this.skillActive = false;
+		this.skillChargeTime = 0;
 
 		this.weapon = 0;
 		this.attacking = false;
@@ -1179,14 +1189,15 @@ class Player extends Orb {
 	}
 
 	charge() {
-		//if doesn't know magic, or already charging, ignore
-		if (this.magicLearned == 0 || this.magicActive) {
+		//start charging the skill if we know it (and not already charging)
+		if (this.skillLearned == 0 || this.skillActive) {
 			return;
 		}
 
-		//if has learned magic, start charging
-		this.magicActive = true;
-		this.magicActiveAnim = this.magicChargeAnimation;
+		this.skillActive = true;
+		return;
+
+		this.textureActiveSkill = this.magicChargeAnimation;
 		this.magicChargeAnimation.reset();
 		this.magicHoldAnimation.reset();
 	}
@@ -1212,34 +1223,12 @@ class Player extends Orb {
 	}
 
 	discharge() {
-		var nSpheres;
-		//if haven't learned or not using, ignore
-		if (!this.magicLearned|| !this.magicActive) {
+		//ignore if the skill hasn't been learned
+		if (!this.skillLearned || !this.skillActive) {
 			return;
 		}
-
-		this.magicActive = false;
-
-		//if not charged enough
-		if (this.magicActiveAnim == this.magicChargeAnimation) {
-			var percentage = this.magicActiveAnim.frame / this.magicActiveAnim.frames.length;
-			if (percentage > 0.5) {
-				nSpheres = 3;
-				for (var a=0; a<nSpheres; a++) {
-					world_entities.splice(0, 0, new MagicSphere(this.x, this.y, (a / nSpheres) * (Math.PI * 2), false))
-				}
-				audio_sfxChannel.play("fxOrbS");
-			}
-			
-			return;
-		}
-
-		//release SPHERES
-		nSpheres = 8;
-		for (var a=0; a<nSpheres; a++) {
-			world_entities.splice(0, 0, new MagicSphere(this.x, this.y, (a / nSpheres) * (Math.PI * 2), true))
-		}
-		audio_sfxChannel.play("fxOrbL");
+		this.skillActive = false;
+		this.useSkill();
 	}
 
 	draw(dt) {
@@ -1386,6 +1375,7 @@ class Player extends Orb {
 		//accelerate and reduce speed due to friction
 		var effAX = this.ax * accMult * dt;
 		var effAY = this.ay * accMult * dt;
+		//I just gave up trying to keep friction frame-independent. It gets into messy log things
 		this.dx += effAX * this.speed;
 		if (this.dx * effAX <= tol) {
 			this.dx *= this.friction;
@@ -1423,8 +1413,12 @@ class Player extends Orb {
 		}
 
 		for (var t=Math.max(1, this.dashSpeedMult * Math.sign(this.dashTime)); t>0; t--) {
-			this.collide();
+			this.collide(dt);
 		}
+	}
+
+	useSkill() {
+
 	}
 
 	playFootstep() {
@@ -1432,31 +1426,15 @@ class Player extends Orb {
 		// audio_sfxChannel.play(effect);
 	}
 
-	updateAngle() {
-		if (this.iframes > this.iframesMax - 5) {
-			return;
-		}
-		var previousA = modulate(this.a, Math.PI * 2);
-		var nextA = modulate(Math.atan2(this.dy, this.dx), Math.PI * 2);
-
-		//if there's more than pi difference, (prev = 0.1, next = 6.1) adjust the smaller one to be larger
-		if (Math.abs(previousA - nextA) > Math.PI) {
-			if (nextA - previousA > 0) {
-				previousA += Math.PI * 2;
-			} else {
-				nextA += Math.PI * 2;
-			}
-		}
-		this.a = modulate(linterp(previousA, nextA, 0.4), Math.PI * 2);
-	}
-
-	collide() {
+	collide(dt) {
+		var effDX = this.dx * dt;
+		var effDY = this.dy * dt;
 		//the moveInWorld algorithm has proven to ocassionally fling the player halfway across the map. 
 		//To prevent this, I check to make sure the player doesn't move too terribly far.
 		var oldPos = [this.x, this.y];
-		var newPos = moveInWorld(this.x, this.y, this.dx, this.dy, this.r, this.layer);
-		var expectedDist = distSquared(this.dx, this.dy) * 0.98;
-		var maxMovement = this.dMax * this.dMax * 3.5;
+		var newPos = moveInWorld(this.x, this.y, effDX, effDY, this.r, this.layer);
+		var expectedDist = distSquared(effDX, effDY) * 0.98;
+		var maxMovement = (this.dMax * dt) ** 2 * 3.5;
 		if (distSquared(newPos[0] - oldPos[0], newPos[1] - oldPos[1]) < maxMovement) {
 			[this.x, this.y] = newPos;
 		} else {
@@ -1469,10 +1447,10 @@ class Player extends Orb {
 		}
 
 		//if there's no movement, try a little to the left and a little to the right
-		var mult = this.dMax;
-		var perpVel = [-this.ay * mult, this.ax * mult];
-		var leftPos = moveInWorld(this.x + perpVel[0], this.y + perpVel[1], this.dx, this.dy, this.r, this.layer);
-		var rightPos = moveInWorld(this.x - perpVel[0], this.y - perpVel[1], this.dx, this.dy, this.r, this.layer);
+		var mult = this.dMax * dt;
+		var perpOff = [-this.ay * mult, this.ax * mult];
+		var leftPos = moveInWorld(this.x + perpOff[0], this.y + perpOff[1], effDX, effDY, this.r, this.layer);
+		var rightPos = moveInWorld(this.x - perpOff[0], this.y - perpOff[1], effDX, effDY, this.r, this.layer);
 		var leftDist = distSquared(oldPos[0] - leftPos[0], oldPos[1] - leftPos[1]);
 		var rightDist = distSquared(oldPos[0] - rightPos[0], oldPos[1] - rightPos[1]);
 
@@ -1559,6 +1537,33 @@ class Mage extends Player {
 
 			}
 		})
+	}
+
+	useSkill() {
+		var nSpheres;
+
+		this.magicActive = false;
+
+		//if not charged enough
+		if (this.magicActiveAnim == this.magicChargeAnimation) {
+			var percentage = this.magicActiveAnim.frame / this.magicActiveAnim.frames.length;
+			if (percentage > 0.5) {
+				nSpheres = 3;
+				for (var a=0; a<nSpheres; a++) {
+					world_entities.splice(0, 0, new MagicSphere(this.x, this.y, (a / nSpheres) * (Math.PI * 2), false))
+				}
+				audio_sfxChannel.play("fxOrbS");
+			}
+			
+			return;
+		}
+
+		//release SPHERES
+		nSpheres = 8;
+		for (var a=0; a<nSpheres; a++) {
+			world_entities.splice(0, 0, new MagicSphere(this.x, this.y, (a / nSpheres) * (Math.PI * 2), true))
+		}
+		audio_sfxChannel.play("fxOrbL");
 	}
 }
 

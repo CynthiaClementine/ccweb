@@ -21,6 +21,23 @@ getEntityFromID(id)
 
 */
 
+//
+function determineClosestIndex(point, pointsArr) {
+	var minDist = distSquared(point[0] - pointsArr[0][0], point[1] - pointsArr[0][1]);
+	var minInd = 0;
+	var tempDist;
+
+	for (var g=1; g<pointsArr.length; g++) {
+		tempDist = distSquared(point[0] - pointsArr[g][0], point[1] - pointsArr[g][1]);
+		if (tempDist < minDist) {
+			minDist = tempDist;
+			minInd = g;
+		}
+	}
+
+	return minInd;
+}
+
 function endGame() {
 	//switch to ending state
 	setMusic("end");
@@ -282,13 +299,24 @@ function changeEntityLayer(entity, newLayer) {
 
 function importEntity(entityDataLine) {
 	var spl = entityDataLine.split("~");
-	console.log(entityDataLine);
 
 	switch (spl[0]) {
 		case "DreamSkater":
 			return new DreamSkater(+spl[1], +spl[2], spl[3], spl[4], spl[5]);
+		case "Portal":
+			return new Portal(JSON.parse(spl[1]), spl[2], JSON.parse(spl[3]), JSON.parse(spl[4]), JSON.parse(spl[5]));
 		case "Roof":
 			return new Roof(+spl[1], +spl[2], spl[3], +spl[4], eval(spl[5]), JSON.parse(spl[6]));
+		case "Trigger":
+			if (spl[1] == "music") {
+
+			} else {
+				return new Trigger(+spl[2], +spl[3], +spl[4], +spl[5], spl[6], +spl[7], spl[1], spl[8]);
+
+			}
+		default:
+			console.error(`ERROR: cannot import entity ${entityDataLine}`);
+			break;
 	}
 }
 

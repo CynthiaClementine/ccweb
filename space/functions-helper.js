@@ -72,7 +72,7 @@ function calculateOrbitalVelocity(centerMass, periapsis, apoapsis) {
 		//periapsis and apoapsis are always opposite, so I can just add them to get semi-major axis
 		return Math.sqrt((centerMass / gravityDampener) * ((2 / apoapsis) - (1 / (periapsis + apoapsis))));
 	}
-}
+} 
 
 //takes in parameters and turns them into x / y, dx / dy
 function calculateOrbitalParameters(body, apo, peri, apoA, startA, counterClockwiseBOOLEAN) {

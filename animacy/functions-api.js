@@ -16,7 +16,7 @@ moveCursorTo(workspaceX, workspaceY)
 addLayer(name)
 removeLayer(id)
 select(layer, frame)
-setColorRGBA(r, g, b, a)
+setColorRGBA(type, r, g, b, a)
 setColorHSVA(h, s, v, a)
 undo()
 redo()
@@ -399,21 +399,29 @@ function selectAt(workX, workY) {
 
 /**
  * Sets the selected color to be a certain value. Also changes the color picker to match.
- * If an argument is left blank, the set color will keep that value from the previous color.
+ * @param {"stroke"|"fill"|"bg"} type A string indicating the color context to change
  * @param {Number} r The [0, 255] integer representing red content
  * @param {Number} g The [0, 255] integer representing green content
  * @param {Number} b The [0, 255] integer representing blue content
  * @param {Number} a The [0, 1] number representing opacity
  */
-function setColorRGBA(r, g, b, a) {
-	//set the color
-	color_stroke = newColorStr;
-	color_fill = newColorStr;
-	color_stage = newColorStr;
-	φSet(workspace_background, {"fill": newColorStr});
+function setColorRGBA(type, r, g, b, a) {
+	var val = cConstruct(r, g, b, a * 255);
+	switch (type) {
+		case "stroke":
+			activeColor_stroke.value = val;
+			break;
+		case "fill":
+			activeColor_fill.value = val;
+			break;
+		case "bg":
+			activeColor_stage.value = val;
+			break;
+		default:
+			console.error(`invalid type ${type}!`);
+	}
 
-	//set the color picker
-	setColorPickerRGBA(r, g, b, a);
+	updateColorVars();
 }
 
 function setColorHSVA(h, s, v, a) {

@@ -39,10 +39,25 @@
 		<script src="/common/functions-mouse.js"></script>
 
 		<script type="text/javascript">
+			var animation;
+			var aspect = 0.5;
 			var appleCoords = [];
-			var bridge = [];
 			var appleVel = 1;
+			var applePeriod = 0.5;
+			var bridge = [];
+
+			var canvas;
+			var ctx;
+
+			var gameTime = 0;
+
 			var dtMult = 1;
+			var dt = 0;
+			var tLast = 0;
+
+			var player;
+
+
 
 			//it's just easier to have a player class. Apples I can get away with, they don't interact much, but players have enough data that it's worth encapsulating
 			class Player {
@@ -59,40 +74,99 @@
 
 				}
 
-				tick(dt) {
+				tick() {
 					var trueAX = this.ax * this.speed * dt;
 
 					//if we're not accelerating, experience friction
 
 					//friction is linear because I really don't want to have to deal with lns and other shenanigans
 					if (trueAX * this.dx <= 0) {
-						this.dx
+						this.dx += dt * this.friction * boolToSigned(this.dx < 0);
+						//snap to 0 if dx is small enough
+						if (Math.abs(this.dx) < this.friction * dt) {
+							this.dx = 0;
+						}
 					}
-					this.x += this.dx * this.dt;
+					this.x += this.dx * dt;
 				}
 
 
 			}
 
 			function setup() {
+				canvas = document.getElementById("corvid");
+				ctx = canvas.getContext("2d");
 
+				player = new Player();
+
+				animation = window.requestAnimationFrame(main);
 			}
 
-			function tick(dt) {
+			
 
+			function tick() {
+				gameTime += dt;
+				appleVel = calcAppleV(gameTime);
 			}
 
 			function draw() {
+				//bridge
 
+				//water
+
+				//apples
+				appleCoords.forEach(a => {
+
+				});
+
+				//player
+				player.draw();
+
+				
+
+				
 			}
-			function main(dt) {
 
+			function main() {
+				var tNew = performance.now();
+				dt = dtMult * clamp(tLast - tNew, 0, 30);
+				tLast = tNew;
+
+				tick();
+				draw();
+			}
+
+
+
+
+			//helper functions
+			function beginGame() {
+				gameTime = 0;
+			}
+
+			function calcAppleV(t) {
+				return sigmoid()
+			}
+
+			function handleResize() {
+				//compute
+				var w = window.innerWidth - 6;
+				var h = window.innerHeight - 6;
+				var scaleFactor = 1 / aspect;
+
+				//resize canvas
+				canvas.height = Math.min(h, w * scaleFactor);
+				canvas.width = canvas.height / scaleFactor;
+
+				//set canvas preferences
+				ctx.textBaseline = "middle";
+				ctx.textAlign = "center";
 			}
 		</script>
 	</head>
 	<body>
 		<div id="centerModule">
-			<canvas id="corvid" width="640" height="480"></canvas><br>
+			<canvas id="corvid" width="240" height="480"></canvas><br>
 		</div>
 	</body>
 </html>

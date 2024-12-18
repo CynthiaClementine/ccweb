@@ -71,7 +71,7 @@ class GameSet {
 		this.player = player;
 		this.isOffset = doOffsets ?? false;
 
-		this.ticksPerBeat = 50;
+		this.timePerBeat = fts(50);
 		this.orangeSeparation = 10;
 		this.baseSpinChance = 0.1;
 
@@ -103,10 +103,10 @@ class GameSet {
 			return;
 		}
 
+	
 		//only create while it's time
-		//using this -1 expression so fractional times work
-		var modularTime = (game_time + this.isOffset * (this.levelSpecs.ticksPerBeat / 2));
-		if ((modularTime % this.levelSpecs.ticksPerBeat) - 1 >= 0) {
+		var modularTime = (game_time + this.isOffset * (this.levelSpecs.timePerBeat / 2)) % this.levelSpecs.timePerBeat;
+		if (modularTime <= msDelta) {
 			return;
 		}
 
@@ -236,6 +236,17 @@ class Projectile {
 		}
 	}
 
+	beDrawnInternal(x, y, angle) {
+		ctx.fillStyle = color_projectile;
+		ctx.beginPath();
+		if (!this.spent) {
+			ctx.arc(x, y, this.r, 0, Math.PI * 2);
+		} else {
+			ctx.ellipse(x, y, this.r / 2, this.r, angle, 0, Math.PI * 2);
+		}
+		ctx.fill();
+	}
+
 	beDrawn() {
 		var opacityDist = level_specifications[level].bulletSpeed * 20;
 		var drawX = this.target.x + (this.dist * Math.cos(this.angle));
@@ -245,25 +256,18 @@ class Projectile {
 		if (this.dist + opacityDist >= this.maxDist) {
 			ctx.globalAlpha = (this.maxDist - this.dist) / opacityDist;
 		}
-		ctx.fillStyle = color_projectile;
-		ctx.beginPath();
-		if (!this.spent) {
-			ctx.arc(drawX, drawY, this.r, 0, Math.PI * 2);
-		} else {
-			ctx.ellipse(drawX, drawY, this.r / 2, this.r, this.angle, 0, Math.PI * 2);
-		}
-		ctx.fill();
+		
+		this.beDrawnInternal(drawX, drawY, this.angle);
 		ctx.globalAlpha = 1;
 	}
 }
 
 //modified projectiles
 class Projectile_Spinning extends Projectile {
-	constructor(direction, target, maxDist, speed, flipSpinDir) {
+	constructor(direction, target, maxDist, speed) {
 		super(direction, target, maxDist, speed);
 		this.hitAngle = this.angle;
 		this.aDifference = Math.PI;
-		this.flipSpinDir = flipSpinDir ?? false;
 	}
 
 	calculateAngle() {
@@ -277,5 +281,20 @@ class Projectile_Spinning extends Projectile {
 			angularProgress *= -1;
 		}
 		this.angle = this.hitAngle + this.aDifference * angularProgress;
+	}
+}
+
+class Projectile_Rotating extends Projectile {
+	constructor(direction, target, maxDist, speed) {
+		super(direction, target, maxDist, speed);
+		this.rotDist = player.shieldOffset + (this.maxDist / 3);
+		this.rotWidth = Math.min(this.maxDist / 6, 20);
+	}
+
+	calculateAngle() {
+		var diMin = this.rotDist - this.rotWidth;
+		var diMax = this.rotDist + this.rotWidth;
+
+		var progress = clamp()
 	}
 }

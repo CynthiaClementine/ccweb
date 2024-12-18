@@ -7,6 +7,8 @@ class FreePoly extends EditableWorldObject {
 		this.faces = undefined;
 		this.pointSelected = -1;
 		this.color = color;
+		this.lightColor;
+		this.darkColor;
 
 		//collision tolerance
 		this.tolerance = player.fallMax * 1.5;
@@ -15,6 +17,7 @@ class FreePoly extends EditableWorldObject {
 
 		this.collisionPoints;
 		this.construct();
+		this.calculateColors();
 	}
 
 	beDrawn() {
@@ -39,6 +42,11 @@ class FreePoly extends EditableWorldObject {
 			//zs are going to be zero, so they can be ignored
 			this.collisionPoints.push([transformed[0], transformed[1]]);
 		}
+	}
+
+	calculateColors() {
+		//first convert the existing color to HSV
+		// var colorObj = 
 	}
 
 	calculateNormal() {
@@ -246,6 +254,7 @@ class FreePoly extends EditableWorldObject {
 
 class Star {
 	constructor(x, y, z) {
+		this.sheet = getImage(`img/osborneCropped.png`, true);
 		this.color = "#AAF";
 		this.r = star_size;
 		this.drawR;
@@ -269,9 +278,10 @@ class Star {
 	}
 
 	beDrawn() {
-		if (!isClipped([this.x, this.y, this.z])) {
+		if (!isClipped([this.x, this.y, this.z]) && this.sheet.width > 0) {
 			var drawCoords = spaceToScreen([this.x, this.y, this.z]);
-			drawCircle(this.color, drawCoords[0], drawCoords[1], this.drawR);
+			// drawCircle(this.color, drawCoords[0], drawCoords[1], this.drawR);
+			ctx.drawImage(this.sheet, drawCoords[0] - this.drawR, drawCoords[1] - this.drawR, this.drawR * 2, this.drawR * 2);
 		}
 	}
 }

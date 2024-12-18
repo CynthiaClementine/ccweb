@@ -140,6 +140,8 @@ var workspace_scaleBounds = [0.02, 100];
 
 var saveData;
 
+var textMode = false;
+
 var timeline_blockH;
 var timeline_blockW;
 var timeline_headHeight = 15;
@@ -258,7 +260,7 @@ function testTimeline() {
 		
 		timeline.changeFrameTo(6);
 		
-		setColorRGBA(255, 128, 0, 1);
+		setColorRGBA("stroke", 255, 128, 0, 1);
 		
 		makeKeyframe(1, 5);
 		select(1, 5);
@@ -278,7 +280,7 @@ function testTimeline() {
 		makeUnKeyframe(1, 5);
 		
 		select(2, 2);
-		setColorRGBA(255, 0, 255, 0.5);
+		setColorRGBA("stroke", 255, 0, 255, 0.5);
 		// create([r(), r(), r(), r(), r(), r()]);
 		create([[295,60],[300,59],[311,55],[334,45],[369,31],[413,14],[439,5],[464,-5],[485,-13],[512,-23],[527,-28],[539,-31],[543,-32],[551,-36],[556,-37],[559,-38],[563,-38],[562,-37],[556,-33],
 			[547,-28],[536,-20],[512,-3],[481,18],[461,31],[441,48],[421,61],[382,90],[363,106],[351,117],[341,125],[339,128],[338,128],[338,129],[349,129],[358,127],[369,124],[379,122],[394,117],
@@ -292,9 +294,9 @@ function testTimeline() {
 	}
 
 	/*
-	
+	hi guys - lenny
 
-	setColorRGBA(128, 128, 255, 1);
+	setColorRGBA("stroke", 128, 128, 255, 1);
 	var interPoly = [[268.9,261.2],[257.6,274],[254.8,281.1],[252,283.9],[246.3,300.9],[246.3,330.6],[247.7,333.4],[247.7,340.5],[252,350.4],[252,356.1],[256.2,368.8],[256.2,387.2],[249.1,407],[244.9,414.1],
 	[244.9,416.9],[226.5,446.6],[225.1,453.7],[218,467.9],[216.6,491.9],[223.6,511.8],[236.4,530.2],[243.5,534.4],[295.8,541.5],[321.3,541.5],[341.1,533],[385,524.5],[397.7,518.8],[411.9,507.5],
 	[420.4,494.8],[430.3,486.3],[434.5,479.2],[435.9,479.2],[441.6,469.3],[444.4,467.9],[447.3,460.8],[448.7,460.8],[450.1,450.9],[451.5,450.9],[451.5,436.7],[445.8,428.3],[443,428.3],[438.8,425.4],
@@ -340,7 +342,7 @@ function testTimeline() {
 	if (testSuite.apple) {
 		makeUnKeyframe(2, 5);
 		makeKeyframe(2, 5);
-		setColorRGBA(255, 0, 0, 1);
+		setColorRGBA("stroke", 255, 0, 0, 1);
 		// create([[159.64,140.41],[133.3,147.72],
 		// 	[118.57,157.85],
 		// 	[112.94,200],[210.28,200],
@@ -375,6 +377,10 @@ function handleKeyPress(a) {
 	if (a.key == "Escape") {
 		toolCurrent.escape();
 		cursor.down = false;
+		textMode_end();
+		return;
+	}
+	if (textMode) {
 		return;
 	}
 	//make sure to allow zooming in / out
@@ -448,8 +454,6 @@ function handleMouseDown(a) {
 		console.log('returning');
 		return;
 	}
-
-	console.log(`c`);
 
 	if (φOver(timeline_blocks_container)) {
 		var cPos = cursorTimelinePos();

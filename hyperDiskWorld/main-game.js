@@ -102,7 +102,7 @@ function main() {
 		var MCenter = polToXY(0, 0, polarCursorPos[1], MLen);
 		var OBcirc = [0, 0, polarCursorPos[0]];
 		var MOcirc = [MCenter[0], MCenter[1], MLen];
-		var intersectPts = intersectionOfTwoCircles(OBcirc, MOcirc);
+		var intersectPts = circleCircleIntersect(OBcirc, MOcirc);
 		var bisectorLine = circleFrom3Points(intersectPts[0], intersectPts[1], hypInvert(intersectPts[0]));
 
 		drawCircle(OBcirc[0] * scale, OBcirc[1] * scale, OBcirc[2] * scale);
@@ -139,7 +139,7 @@ function handleMouseDown(a) {
 	var OBcirc = [0, 0, polarCursorPos[0]];
 	var MOcirc = [MCenter[0], MCenter[1], MLen];
 
-	var intersectPts = intersectionOfTwoCircles(OBcirc, MOcirc);
+	var intersectPts = circleCircleIntersect(OBcirc, MOcirc);
 	var bisectorLine = circleFrom3Points(intersectPts[0], intersectPts[1], hypInvert(intersectPts[0]));
 
 	hypPoints = hypInvertGroup(hypPoints, undefined, bisectorLine);

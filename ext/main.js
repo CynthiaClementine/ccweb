@@ -221,11 +221,10 @@ dt_buffer.maxLen = 30;
 
 var editor_active = false;
 var editor_creatables = [
-	[`collision`, 	(x, y) => {data_terrain[player.layer].push([[x - 1, y - 1], [x + 1, y + 1]])}],
-	[`portal`, 		(x, y) => {return new Portal()}], //layer, position
-	[`trigger`, 	(x, y) => {editor_enum = editor_listT;}], //cutscene, music, spawn
-	[`audioSource`, (x, y) => {}], 
-	[`entity`, 		(x, y) => {editor_enum = editor_listE;}], //npc, enemy, moth, dreamskater, debug comments, etc
+	[`collision`,	(x, y) => {data_terrain[player.layer].push([[x - 1, y - 1], [x + 1, y + 1]])}],
+	[`trigger`,		(x, y) => {editor_enum = editor_listT;}], //see listT
+	[`misc`,		(x, y) => {}], //audioSource, comment, audio log
+	[`entity`,		(x, y) => {editor_enum = editor_listE;}], //npc, moth, dreamskater, etc
 ];
 var editor_entity = undefined;
 var editor_enum;
@@ -302,6 +301,7 @@ var editor_listT = {
 	str: [
 		`cutscene`,
 		`music`,
+		`portal`,
 		`layer`,
 		`respawn`,
 		`arbitrary`
@@ -317,17 +317,22 @@ var editor_listT = {
 			case 0:
 				break;
 			case 1:
+				entity = new Trigger_Music(x1, y1, x2, y2, layer, 0.5, data_persistent.music, "none");
 				break;
 			case 2:
-				entity = new Trigger(x1, y1, x2, y2, layer, 0.5, "layer", (player.layer == 'r') ? 'gg' : 'rr');
+				entity = new Portal([[x1, y1], [x2, y2]], layer, [1, -1], false, true);
 				break;
 			case 3:
+				entity = new Trigger(x1, y1, x2, y2, layer, 0.5, "layer", (layer == 'r') ? 'gg' : 'rr');
 				break;
 			case 4:
 				break;
+			case 5:
+				entity = new Trigger(x1, y1, x2, y2, layer, 0.5, )
+				break;
 		}
 		if (entity) {
-			// entities[]
+			entities[layer].push(entity);
 		}
 	}
 }
@@ -338,9 +343,10 @@ var editor_locations = [
 	[158, 73, 'r'], //bismuth garden start
 	[155, 17, 'r'], //LLC start
 	[113, 123, 'r'], //town start
-	[32, 116, 'b'] //temple inside
+	[32, 116, 'b'], //temple inside
+	[192, 113, 'r'] //crystal cave entrance
 ];
-var editor_polyPoints = [];
+var editor_polyPoints = undefined;
 var editor_pointSelected = -1;
 var editor_roundR = 0.025;
 var editor_selectTolerance = 10;
@@ -424,23 +430,24 @@ var eData_place = [
 
 
 var entities_pre = [
-	"Roof~108.4~98~r~1~data_textures.Roofs.villageHouseL~[]",
-	"Roof~117~99.9~r~1~data_textures.Roofs.villageHouseS~[]",
-	"Roof~133.1~101~r~1~data_textures.Roofs.villageHouseXL~[]",
+	"Roof~108.4~98.1~r~1~data_textures.Roofs.villageHouseL~[[100,98.8],[100,89.8],[104,89.8],[104,88.8],[111.9,88.8],[111.9,97.9],[105.8,97.9],[105.8,98.9]]",
+	"Roof~117~99.9~r~1~data_textures.Roofs.villageHouseS~[[114,99.7],[114,92.8],[119.8,92.8],[119.8,99.7]]",
+	"Roof~133.1~101~r~1~data_textures.Roofs.villageHouseXL~[[121.9,97.7],[129.9,93.8],[140.9,93.8],[140.9,101.9],[132,101.9],[124,105.9]]",
 	"Roof~39.3~106.1~r~1~data_textures.Roofs.badTree1~[]",
 	"Roof~10.3~107.8~r~1~data_textures.Roofs.badTreeL2~[]",
 	"Roof~63.8~112.7~r~1~data_textures.Roofs.badTree2~[]",
 	"Roof~23.1~113.7~r~1~data_textures.Roofs.badTree2~[]",
-	"Roof~111~116~r~1~data_textures.Roofs.villageHouseM~[]",
+	"Roof~111~116~r~1~data_textures.Roofs.villageHouseM~[[106,115.9],[106,106.7],[115.9,106.7],[115.9,115.9]]",
+	"Trigger~layer~190.9~110.2~193.1~110.2~r~0.5~yg",
 	"Roof~52.6~118.9~r~1~data_textures.Roofs.badlandHouse~[]",
-	"Roof~101~121.9~r~1~data_textures.Roofs.villageHouseS~[]",
+	"Roof~101~121.9~r~1~data_textures.Roofs.villageHouseS~[[98,121.7],[98.1,114.9],[103.8,114.9],[103.8,121.7]]",
 	"Roof~43~122.3~r~1~data_textures.Roofs.badTree2~[]",
-	"DreamSkater~50.5~131.8~r",
-	"Roof~127~123.9~r~1~data_textures.Roofs.villageHouseS~[]",
+	"Roof~127~123.9~r~1~data_textures.Roofs.villageHouseS~[[124,123.8],[124,116.9],[129.9,117],[129.9,123.8]]",
 	"Roof~10.9~124.4~r~1~data_textures.Roofs.badTree1~[]",
-	"Roof~29.1~126~r~1~data_textures.Roofs.badTree4~[]",
+	"Roof~29~125.9~r~1~data_textures.Roofs.badTree4~[]",
 	"DreamSkater~18.5~125.1~r",
 	"Roof~55.1~131.9~r~1~data_textures.Roofs.badTree3~[]",
+	"DreamSkater~50.5~131.8~r",
 	"DreamSkater~35.7~139.8~r",
 	"Roof~19.2~143.3~r~1~data_textures.Roofs.badTreeL2~[]",
 	"Roof~44.6~144.4~r~1~data_textures.Roofs.badTree2~[]",
@@ -452,15 +459,27 @@ var entities_pre = [
 	"DreamSkater~51.3~158.0~r",
 	"Roof~24~160.8~r~1~data_textures.Roofs.badLump~[]",
 	"Roof~46.9~164.4~r~1~data_textures.Roofs.badTreeL1~[]",
+	"Trigger~layer~9.5~176.0~12.5~176.0~r~0.5~pb",
 	"Roof~58.8~173~r~1~data_textures.Roofs.badTree1~[]",
-	"DreamSkater~11.0~179.1~r~DSblocker~charge",
 	"Roof~10.8~178.4~r~1~data_textures.Roofs.badlandShed~[]",
+	"DreamSkater~11.0~179.1~r~DSblocker~charge",
 	"DreamSkater~21.7~188.0~r",
 	"Roof~39.4~188.7~r~1~data_textures.Roofs.badTree1~[]",
 	"DreamSkater~57.8~192.6~r",
 	"DreamSkater~14.8~212.8~r",
-	"Roof~14.8~214.7~r~1~data_textures.Roofs.badTree3~[]"
+	"Roof~14.8~214.7~r~1~data_textures.Roofs.badTree3~[]",
+	"Portal~[[34.2,104],[39,104]]~g~[-8,37]~true~false",
+	"Portal~[[16,90.1],[16,84]]~g~[39,0]~false~true",
+	"Portal~[[42,127],[42,133]]~g~[-31,-43.1]~false~true",
+	"Trigger~layer~190.8~111.2~193.1~111.2~g~0.5~rr",
+	"Portal~[[10,112],[10,108.8]]~b~[62,0]~false~true",
+	"Trigger~layer~9.6~177.0~12.4~177.0~b~0.5~rr",
+	"Portal~[[22,170.5],[19.6,170.5]]~b~[18.5,-97.2]~false~true",
+	"Trigger~layer~16.5~160.7~16.5~162.7~b~0.5~tb",
+	"Trigger~layer~15.2~160.7~15.2~162.7~b~0.5~pb"
 ];
+
+
 var entities = {
 	r: [],
 	g: [],
@@ -517,7 +536,8 @@ function setup2() {
 }
 
 function runGame() {
-	var newTime = performance.now();
+	//I can modulate by a large power of 10. This won't break anything because there's nothing in the world that's on a global timer (except for the world background)
+	var newTime = performance.now() % 1E8;
 	var dt = clamp(newTime - dt_tLast, 1, 30) / 1000;
 	dt_tLast = newTime;
 	dt_buffer.push(dt);
@@ -525,6 +545,7 @@ function runGame() {
 		dt_buffer.shift();
 	}
 
+	//TODO: uncomment this in the final game, it makes error reporting easier for non-coders
 	// try {
 		game_mainLoop(dt);
 		animation = window.requestAnimationFrame(runGame);
@@ -876,8 +897,6 @@ function handleKeyDown(a) {
 		code = button_conversions[code];
 	}
 
-
-
 	//if in accepting mode, only accept that key
 	if (button_acceptingOutput != undefined) {
 		return;
@@ -944,6 +963,12 @@ function handleKeyDown(a) {
 			}
 			break;
 		case 'Escape':
+			if (editor_polyPoints != undefined) {
+				editor_polyPoints = undefined;
+				editor_pointSelected = undefined;
+				return;
+			}
+
 			if (player.convoPartner == undefined) {
 				//escape activates / deactivates the menu
 				if (menu_rate <= 0 && menu_t < 1) {
@@ -1055,6 +1080,11 @@ function handleMouseDown_custom() {
 		return;
 	}
 
+	if (editor_polyPoints != undefined) {
+		editor_handleMDPoly(spa);
+		return;
+	}
+
 	editor_entity = undefined;
 
 	if (editor_handleMDCol(spa)) {
@@ -1146,6 +1176,13 @@ function handleMouseMove_custom() {
 		editor_adjustCamera(cursor.x / canvas.width);
 	}
 
+	if (editor_pointSelected != undefined) {
+		//move selected point
+		editor_polyPoints[editor_pointSelected] = spq;
+		editor_entity.calculateColliderBounds();
+		return;
+	}
+
 	if (editor_entity != undefined) {
 		if (editor_entity.homeX != undefined) {
 			[editor_entity.homeX, editor_entity.homeY] = spq;
@@ -1153,11 +1190,13 @@ function handleMouseMove_custom() {
 		if (editor_entity.x != undefined && !button_alt) {
 			[editor_entity.x, editor_entity.y] = spq;
 		}
-		return;
-	}
 
-	if (editor_pointSelected) {
-		[editor_pointSelected[0], editor_pointSelected[1]] = spq;
+		//this boolean is a mess but it basically accounts for editing positions of collision lines, triggers, and portals, while excluding other possible cases
+		if (editor_entity.line != undefined && editor_entity.type != undefined && editor_entity.type != "collision") {
+			var p = editor_entity.line[editor_entity.index];
+			[p[0], p[1]] = spq;
+		}
+		return;
 	}
 
 	cursor.pastPoint = [cursor.x, cursor.y];

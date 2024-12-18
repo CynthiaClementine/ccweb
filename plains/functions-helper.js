@@ -176,66 +176,72 @@ function randomSeeded(min, max) {
 function readWorldFile() {
 	var fileText;
 	// fetch('worlds.txt').then(response => response.text()).then(text => {
-		var text = worlds;
-		fileText = text.split("\n");
-		var appendWorld;
-		var appendMesh;
-		fileText.forEach(l => {
-			//make sure line isn't a comment
-			if (l.slice(0, 2) == "//") {
-				return;
-			}
-			//split each line into arguments to determine what to do
-			var splitTag = l.split("~");
+	var text = worlds;
+	fileText = text.split("\n");
+	var appendWorld;
+	var appendMesh;
+	var freeMode = false;
 
-			//only do if the tag is real
-			if (splitTag.length < 2) {
-				return;
-			}
-
-			//creating different types of objects
-			switch (splitTag[0]) {
-				case "WORLD":
-					//world creation
-
-					//if there's a previous world, make sure that world's tree gets generated
-					if (appendWorld != undefined) {
-						//if a mesh is in use, append it
-						if (appendMesh != undefined) {
-							appendWorld.meshes.push(appendMesh);
-						}
-						appendWorld.generateBinTree();
-					}
-
-					appendWorld = new World(splitTag[1], splitTag[2]);
-					world_listing.push(appendWorld);
-
-					//create mesh for base objects
-					appendMesh = new Mesh(`_baseObjs_`);
-					break;
-				case "MESH":
-					//if a mesh already exists, append that
-					if (appendMesh != undefined) {
-						appendWorld.meshes.push(appendMesh);
-					}
-					//create new mesh object
-					appendMesh = new Mesh(splitTag[1]);
-					break;
-				case "FREE":
-					//switch to free object mode
-					break;
-				default:
-					appendMesh.objects.push(data_createObject(splitTag));
-					break;
-			}
-		});
-		//if a mesh is in use, append it
+	//quick function for appending a mesh if it's in use
+	let pushMesh = () => {
 		if (appendMesh != undefined) {
 			appendWorld.meshes.push(appendMesh);
 		}
+	}
 
-		appendWorld.generateBinTree();
-		loading_world = world_listing[0];
+	fileText.forEach(l => {
+		//make sure line isn't a comment
+		if (l.slice(0, 2) == "//") {
+			return;
+		}
+		//split each line into arguments to determine what to do
+		var splitTag = l.split("~");
+
+		//only do if the tag is real
+		if (splitTag.length < 2) {
+			return;
+		}
+
+		//creating different types of objects
+		switch (splitTag[0]) {
+			case "WORLD":
+				//world creation
+
+				//if there's a previous world, make sure that world's tree gets generated
+				if (appendWorld != undefined) {
+					pushMesh();
+					appendWorld.generateBinTree();
+				}
+
+				appendWorld = new World(splitTag[1], splitTag[2]);
+				freeMode = false;
+				world_listing.push(appendWorld);
+
+				//create mesh for base objects
+				appendMesh = new Mesh(`_baseObjs_`);
+				break;
+			case "MESH":
+				pushMesh();
+				//create new mesh object
+				appendMesh = new Mesh(splitTag[1]);
+				break;
+			case "FREE":
+				//switch to free object mode
+				pushMesh();
+				freeMode = true;
+				break;
+			default:
+				(freeMode ? appendWorld.entities : appendMesh.objects).push(data_createObject(splitTag));
+				break;
+		}
+	});
+	//if a mesh is in use, append it
+	if (appendMesh != undefined) {
+		appendWorld.meshes.push(appendMesh);
+	}
+
+	appendWorld.generateBinTree();
+	loading_world = world_listing[0];
 	// });
 }
 

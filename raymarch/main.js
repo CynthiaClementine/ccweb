@@ -105,7 +105,7 @@ function draw() {
 				xDir[1] * xMult + yDir[1] * yMult + zDir[1], 
 				xDir[2] * xMult + yDir[2] * yMult + zDir[2]
 			]
-			magnitude = Math.sqrt(trueDir[0] * trueDir[0] + trueDir[1] * trueDir[1] + trueDir[2] * trueDir[2]);
+			magnitude = Math.hypot(trueDir[0], trueDir[1], trueDir[2]);
 			trueDir[0] /= magnitude;
 			trueDir[1] /= magnitude;
 			trueDir[2] /= magnitude;

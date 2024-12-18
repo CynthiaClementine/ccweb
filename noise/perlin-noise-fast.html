@@ -1,93 +1,90 @@
 <html>
-    <head>
-        <style>
-            body {
-                background-color: slateblue;
-            }
+	<head>
+		<style>
+			body {
+				background-color: slateblue;
+			}
 
-            #canv {
-                margin: auto;
-                text-align: center;
-                display: block;
-            }
+			#canv {
+				margin: auto;
+				text-align: center;
+				display: block;
+			}
 
-            #explanText {
-                margin: auto;
-                text-align: center;
-            }
+			#explanText {
+				margin: auto;
+				text-align: center;
+			}
 
 
-        </style>
-        <script>
-            window.onload = setup;
+		</style>
+		<script>
+			window.onload = setup;
 
-            var canvas;
+			var canvas;
 			var ctx;
 			//final array
 			var dataLayout = [];
 			
 			//helper arrays
-			var pRandArray = [];
-			var vectorTable = [];
-			var sVTable = [];
-			
-			var vTableSize = 32;
-			var sVTableSize = 10;
+			var octaveArr1 = [];
+			var octaveArr2 = [];
+			var octaveArr3 = [];
+			var octaveSizes = [32, 17, 21];
 			var seed = 0.281;
-			var pRASize = vTableSize * vTableSize;
 
-            var noiseWidth;
-            var noiseHeight;
-            var nScale = 5.5;
+			var noiseWidth;
+			var noiseHeight;
+			var nScale = 5.5;
 
-            var pixelSize = 4;
-            var time = 0;
+			var pixelSize = 4;
+			var time = 0;
 			var frameTime = 30;
 
-            let redraw;
+			let redraw;
 
-            function setup() {
-                canvas = document.getElementById("canv");
-                ctx = canvas.getContext("2d");
+			function setup() {
+				canvas = document.getElementById("canv");
+				ctx = canvas.getContext("2d");
 
-                noiseWidth = Math.ceil(canvas.width / pixelSize);
+				noiseWidth = Math.ceil(canvas.width / pixelSize);
 				noiseHeight = Math.ceil(canvas.height / pixelSize);
 				
 				generatePRandArray(seed);
 				generateVectorTable(vTableSize, vectorTable);
-                generateArray();
-                generateNoiseValues(0, 0, nScale, dataLayout);
-                render();
-                redraw = setInterval(iterate, frameTime);
-            }
+				generateArray();
+				generateNoiseValues(0, 0, nScale, dataLayout);
+				render();
+				redraw = setInterval(iterate, frameTime);
+			}
 
-            function render() {
+			function render() {
 				ctx.globalAlpha = 1;
 				ctx.fillStyle = "hsl(270, 90%, 40%)";
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
 				
-                //two for loops for two dimensions
-                for (var y=0;y<noiseHeight;y++) {
-                    for (var x=0;x<noiseWidth;x++) {
-						var alpha = dataLayout[y][x];
-						ctx.globalAlpha = alpha;
+				//two for loops for two dimensions
+				var x, y;
+				for (y=0; y<noiseHeight; y++) {
+					for (x=0; x<noiseWidth; x++) {
+						ctx.globalAlpha = dataLayout[y][x];
 						ctx.fillStyle = "#FFFFFF";
 						ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-                    }
-                }
-            }
+					}
+				}
+			}
 
-            function iterate() {
-                //iterate gives the appearance of movement by removing the first row and adding another row to the end.
-                //deleting first row
-                dataLayout.splice(0, 1);
+			function iterate() {
+				//iterate gives the appearance of movement by removing the first row and adding another row to the end.
+				//deleting first row
+				dataLayout.splice(0, 1);
 				dataLayout.push([]);
 				
 				generateNoiseRow(0, time + noiseHeight);
-                render();
+				render();
 
-                //time is so that the noise increments value
-            	time += 1;
+				//time is so that the noise increments value
+				time += 1;
 			}
 			
 			function generateNoiseValues(startX, startY, scale, storeArray) {
@@ -97,42 +94,28 @@
 					}
 				}
 			}
-            
-            function generatePRandArray(seedBetween0And1) {
-                //generates a pseudo-random array for the vector table
-                pRandArray = [];
-                var x = seedBetween0And1;
-                for (var u=0;u<pRASize;u++) {
-                    //uses a logistic function with a high r value to get a pseudo-random result
-                    x = x * 3.947 * (1-x);
-                    //floor and multiply by 255 to get number between 0 and 255
-                    pRandArray.push(Math.floor(x * 255));
-                }
-			}
 			
-			function generateVectorTable(size, toPushTo) {
+			function generatePerlinTable(size, toPushTo) {
 				for (var f=0;f<size;f++) {
 					//create empty row
 					toPushTo.push([]);
 					for (var g=0;g<size;g++) {
-						//convert value from pRandArray to vector, then push vector into table
-						var arrayRead = g + (f * size);
-						var tempVector = numToVector(pRandArray[arrayRead]);
-						toPushTo[f].push(tempVector);
+						toPushTo[f].push(random(-1, 1));
 					}
 				}
+			}
 
+			function random(lowerBound, upperBound) {
+				//uses a logistic function with a high r value to get a pseudo-random result
+				seed = seed * 3.947 * (1 - seed);
+				return (lowerBound + seed * (upperBound - lowerBound));
 			}
 			
 			function generateArray() {
-                //create all rows
+				//create all rows
 				for (var row=0;row<noiseHeight;row++) {
 					//create row
 					dataLayout.push([]);
-					//append row with 0s
-					for (var column=0;column<noiseWidth;column++) {
-						dataLayout[row].push(0);
-					}
 				}
 			}
 
@@ -143,68 +126,27 @@
 			}
 
 			//main generator
-            function generateValue(x, y) {
-                //account for scaling
-                x = x * pixelSize * 0.25 / nScale;
-                y = y * pixelSize * 0.25 / nScale;
+			function generateValue(x, y, octaveArr, octaveScale) {
+				//account for scaling
+				x = x * pixelSize / octaveScale;
+				y = y * pixelSize / octaveScale;
 
-                //now that we have the requested x and y, we can generate perlin noise from it
-                //getting the square that the (x, y) coordinate is in
-                //modulate by the size of the vector array to avoid computational issues
-                var xSquare = Math.floor(x) % (vTableSize - 1);
-                var ySquare = Math.floor(y) % (vTableSize - 1);
-                //find the coordinate position in square (for distance vectors)
-                var xPart = 1 - x % 1;
-				var yPart = 1 - y % 1;
+				var xSquare = (x << 1 >> 1) % octaveArr[0].length;
+				var xSquare2 = (xSquare + 1) % octaveArr[0].length;
+				var ySquare = (y << 1 >> 1) % octaveArr.length;
+				var ySquare2 = (ySquare + 1) % octaveArr.length;
+				//find the coordinate position in square
+				var xPart = x % 1;
+				var yPart = y % 1;
 
-				//storing faded x/y parts for interpolation later
-				var xPF = fade(x % 1);
-				var yPF = fade(y % 1);
-
-				//get distance vectors in xy form
-				var d1 = [xPart, yPart];
-				var d2 = [1 - xPart, yPart];
-				var d3 = [1 - xPart, 1 - yPart];
-				var d4 = [xPart, 1 - yPart];
-
-				//get grid vectors in xy form, modulate by vTableSize when adding just in case
-				var mV = vTableSize - 1;
-				var g1 = vectorTable[ySquare		 ][xSquare		   ];
-				var g2 = vectorTable[ySquare		 ][(xSquare+1) % mV];
-				var g3 = vectorTable[(ySquare+1) % mV][(xSquare+1) % mV];
-				var g4 = vectorTable[(ySquare+1) % mV][xSquare		   ];
-
-				//take dot product of all 4 vectors
-				var dot1 = dotProduct(d1[0], d1[1], g1[0], g1[1]);
-				var dot2 = dotProduct(d2[0], d2[1], g2[0], g2[1]);
-				var dot3 = dotProduct(d3[0], d3[1], g3[0], g3[1]);
-				var dot4 = dotProduct(d4[0], d4[1], g4[0], g4[1]);
+				//find the values we're interpolating between
+				var n1 = octaveArr[xSquare][ySquare];
+				var n2 = octaveArr[xSquare2][ySquare];
+				var n3 = octaveArr[xSquare][ySquare2];
+				var n4 = octaveArr[xSquare2][ySquare2];
 				
-				//now that we have all 4 dot products, they need to be interpolated
-
-				//first interpolating two x components
-				var xInter1 = linterp(dot1, dot2, xPF);
-				var xInter2 = linterp(dot4, dot3, xPF);
-
-				//now y component
-				var v = linterp(xInter1, xInter2, yPF);
-
-				//now is a good time to change it from [-1 > 1] to [0 > 1]
-				v = (v + 1) / 2	
-				//returning final value, fades one more time for clarity
-				return v;
-			}
-			
-			//helper functions
-			function dotProduct(x1, y1, x2, y2) {
-				//dotProduct may seem wasteful in line space, but it makes the code easier to read
-				var dotProduct = (x1 * x2) + (y1 * y2);
-				return dotProduct;
-			}
-
-			//fade is similar to dotProduct, it's just easier to write "fade()" than it is to write this long equation
-			function fade(v) {
-				return ((6 * (v * v * v * v * v)) - (15 * (v * v * v * v)) + (10 * (v * v * v)));
+				//final value is between all 4 values, faded for clarity
+				return faderp(faderp(n1, n2, xPart), faderp(n3, n4, xPart), yPart);
 			}
 
 			//linear interpolation function
@@ -212,32 +154,18 @@
 				return a + (fractionVal * (b - a));
 			}
 
-			function numToVector(inputNum) {
-				//turn angle into a number between 0 and 15
-				var angle = inputNum % 16;
-				//turn angle into number between 0 and tau, for amount of radians
-				angle = (angle / 16) * (Math.PI * 2);
-				//1/16 is added to the magnitude before dividing so that the magnitude is never 0
-				var magni;
-				if (inputNum > 127) {
-					magni = 0.5;
-				} else {
-					magni = -0.5;
-				}
-
-				//after getting angle and magnitude, vectors are converted into [xy] pair for easier access
-				var xComp = magni * Math.sin(angle);
-				var yComp = magni * Math.cos(angle);
- 				return [xComp, yComp];
+			//interpolates using the fade function
+			function faderp(a, b, fractionVal) {
+				return linterp(a, b, (6 * v * v * v * v * v) - (15 * v * v * v * v) + (10 * v * v * v));
 			}
-        </script>
-    </head>
-    <body>
-        <canvas id="canv" width="640" height="480"></canvas><br>
-        <p id="explanText">
-            <strong>How it works:</strong> <br>
+		</script>
+	</head>
+	<body>
+		<canvas id="canv" width="640" height="480"></canvas><br>
+		<p id="explanText">
+			<strong>How it works:</strong> <br>
 			This works the same way as my original perlin noise generator, but with a few small changes.
-			Instead of vectors, 
-        </p>
-    </body>
+			Instead of vectors, an array of values is used.
+		</p>
+	</body>
 </html>

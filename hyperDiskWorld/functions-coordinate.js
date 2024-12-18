@@ -14,7 +14,7 @@ so there's a bunch of tricks used to convert between projection and actual coord
 
 INDEX
 circleFrom3Points(xyP1, xyP2, xyP3);
-intersectionOfTwoCircles(circleParams1, circleParams2);
+circleCircleIntersect(circleParams1, circleParams2);
 
 */
 
@@ -22,7 +22,7 @@ intersectionOfTwoCircles(circleParams1, circleParams2);
 
 
 
-function circleFrom3Points(xyP1, xyP2, xyP3) {3
+function circleFrom3Points(xyP1, xyP2, xyP3) {
 	var [x1, y1] = xyP1;
 	var [x2, y2] = xyP2;
 	var [x3, y3] = xyP3;

@@ -50,6 +50,8 @@ var player_noclipMultiplier = 10;
 var world_time = 0;
 let world_listing = [];
 var world_minDist = 0.01;
+var world_baseLight = 0.4;
+var world_sunVec = polToCart(1.2, 0.6, 1);
 
 var render_crosshairSize = 3;
 var render_crosshairDivide = 6;

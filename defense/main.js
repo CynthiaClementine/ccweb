@@ -43,6 +43,10 @@ var data_persist = {
 var dualAnimationTime = 60;
 var dualTimer = 0;
 
+function fts(frames) {
+	return (1 / 60) * frames;
+}
+
 
 var player = new Player(0, 0);
 var player2 = new Player(0, 0);
@@ -63,7 +67,7 @@ var game_time = 0;
 
 /* Level specifications act like this:
 	{
-		ticksPerBeat: the number of ticks in between each projectile hitting the player
+		timePerBeat: the time in between each projectile hitting the player
 		bulletSpeed?: the speed at which projectiles travel. If not specified, it is assumed to allow 50px between projectiles
 		maxDist?: the maximum distance an orange can be away from the player. Also the distance oranges spawn at
 
@@ -89,13 +93,13 @@ var level_specifications = [
 		//level 0 is used for the free state
 		bulletSpeed: 1.5,
 		maxDist: 280,
-		ticksPerBeat: 1e1001,
+		timePerBeat: 1e1001,
 		spinChance: 0.5,
 	}, {
 		//level 1
 		bulletSpeed: 1,
 		maxDist: 290,
-		ticksPerBeat: 50,
+		timePerBeat: fts(50),
 		spinProfile: 0b0000_0000_0000_0001,
 		length: 16,
 		bgFunc: () => {
@@ -104,25 +108,25 @@ var level_specifications = [
 			rotateStarSphere(-starTracker);
 		},
 	}, {
-		ticksPerBeat: 45,
+		timePerBeat: fts(45),
 		spinChance: 0.25,
 		skip: true
 	}, {
-		ticksPerBeat: 40,
+		timePerBeat: fts(40),
 		spinChance: 0.35
 	}, {
-		ticksPerBeat: 35,
+		timePerBeat: fts(35),
 		spinChance: 0.425,
 		skip: true
 	}, {
 		//level 5
-		ticksPerBeat: 32,
+		timePerBeat: fts(32),
 		music: `outskirts`,
 		spinChance: 0.5,
 		skip: true
 	}, {
 		bulletSpeed: 2.5,
-		ticksPerBeat: 28,
+		timePerBeat: fts(28),
 		spinChance: 0.6,
 		bgFunc: () => {
 			level_asyncFuncs[1] = window.setInterval(() => {
@@ -134,7 +138,7 @@ var level_specifications = [
 	}, {
 		bulletSpeed: 0.3,
 		maxDist: 100,
-		ticksPerBeat: 28,
+		timePerBeat: fts(28),
 		spinChance: 0.75,
 		bgFunc: () => {
 			level_asyncFuncs[0] = window.setInterval(() => {
@@ -146,13 +150,13 @@ var level_specifications = [
 			}, 16);
 		}
 	}, {
-		ticksPerBeat: 20,
+		timePerBeat: fts(20),
 		spinChance: 1,
 		skip: true
 	}, {
 		bulletSpeed: 0.75,
 		maxDist: 90,
-		ticksPerBeat: 19,
+		timePerBeat: fts(19),
 		spinChance: 1,
 		length: 32,
 		bgFunc: () => {
@@ -168,34 +172,34 @@ var level_specifications = [
 		}
 	}, {
 		//level 10 - the real fun begins
-		ticksPerBeat: 100,
+		timePerBeat: fts(100),
 		dual: true,
 		spinProfile: 0b0000_1111_0000_1111
 	}, {
-		ticksPerBeat: 90,
+		timePerBeat: fts(90),
 	}, {
-		ticksPerBeat: 75,
+		timePerBeat: fts(75),
 		skip: true
 	}, {
-		ticksPerBeat: 60,
+		timePerBeat: fts(60),
 		spinChance: 0.2,
 	}, {
-		ticksPerBeat: 50,
+		timePerBeat: fts(50),
 		spinChance: 0.4,
 		music: ""
 	}, {
-		ticksPerBeat: 45,
+		timePerBeat: fts(45),
 		skip: true,
 		spinChance: 1,
 		length: 32,
 	}, {
 		bulletSpeed: 1,
-		ticksPerBeat: 42,
+		timePerBeat: fts(42),
 		spinChance: 0.9,
 		length: 32,
 	}, {
 		//final infinite level
-		ticksPerBeat: 40,
+		timePerBeat: fts(40),
 		spinChance: 1,
 		length: 1e1001
 	}
@@ -395,7 +399,7 @@ function doSwitchState() {
 		player2.totalBlocks = 0;
 
 		//fill in missing parameters
-		nextLSpecs.bulletSpeed = nextLSpecs.bulletSpeed ?? 50 / nextLSpecs.ticksPerBeat;
+		nextLSpecs.bulletSpeed = nextLSpecs.bulletSpeed ?? 50 / nextLSpecs.timePerBeat;
 		nextLSpecs.maxDist = nextLSpecs.maxDist ?? 290 / (1 + (game_systems.length == 2));
 		if (nextLSpecs.music == undefined) {
 			nextLSpecs.length = nextLSpecs.length ?? level_length;
@@ -610,7 +614,7 @@ function handleKeyPress(a) {
 			var bpm = Math.round(3600 / free_tpb);
 			bpm = clamp(bpm + boolToSigned(a.code == "Equal"), 0, 400);
 			free_tpb = (bpm == 0) ? 1e1001 : 3600 / bpm;
-			level_specifications[0].ticksPerBeat = free_tpb;
+			level_specifications[0].timePerBeat = free_tpb;
 		}
 		
 	}
@@ -626,7 +630,7 @@ function handleKeyPress(a) {
 		var bpm = (ft.length - 1) / ((ft[ft.length-1] - ft[0]) / 6E4);
 		bpm = Math.round(bpm);
 		free_tpb = (bpm == 0) ? 1e1001 : 3600 / bpm;
-		level_specifications[0].ticksPerBeat = free_tpb;
+		level_specifications[0].timePerBeat = free_tpb;
 	}
 
 
