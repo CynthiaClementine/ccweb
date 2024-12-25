@@ -19,7 +19,7 @@ var data = {
 		path: `IMG_6139.jpg`,
 		title: `lamp and bush`,
 		info: ``
-	}, "47": {
+	}, "forty-seven": {	//can't be a number or javascript thinks it's an array index
 		path: `IMG_6145.jpg`,
 		title: `47`,
 		info: `and they were. friends (:`
