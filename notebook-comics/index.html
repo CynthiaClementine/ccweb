@@ -1,0 +1,53 @@
+<html>
+	<head>
+		<!--
+		Copyright Cynthia Clementine
+		October-20-2021
+		-->
+		<title>Notebook comics</title>
+		<meta charset="UTF-8">
+		<style>
+			body {
+				background-color: slateblue;
+				font-family: Arial, Helvetica, sans-serif;
+				font-size: 20px;
+			}
+
+			
+
+			#main {
+				text-align: center;
+				margin: auto;
+			}
+
+			#main a:link {
+				color: #49EEEE;
+			}
+			#main a:visited {
+				color: #022B3A;
+			}
+		</style>
+		<script src="data.js"></script>
+		<script type="text/javascript">
+			window.onload = setup;
+
+			function setup() {
+				var keys = Object.keys(data);
+				var finalHTML = ``;
+				keys.forEach(k => {
+					finalHTML += `<a href="view.html#${k}">${data[k].title}</a><br>`;
+				});
+
+				dat.innerHTML = finalHTML;
+			}
+		</script>
+	</head>
+	<body>
+		<div id="main">
+			<h1 id="titleArea">All my notebook comics</h1>
+			<p id="dat">
+				this is where the comics would go. if the page wwas working properly
+			</p>
+		</div>
+	</body>
+</html>

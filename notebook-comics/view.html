@@ -1,0 +1,75 @@
+<html>
+	<head>
+		<!--
+		Copyright Cynthia Clementine
+		October-20-2021
+		-->
+		<title>Notebook comics - [unknown]</title>
+		<meta charset="UTF-8">
+		<style>
+			body {
+				background-color: slateblue;
+				font-family: Arial, Helvetica, sans-serif;
+			}
+
+			#main {
+				text-align: center;
+				margin: auto;
+			}
+
+			#cardImg {
+				border-style: double;
+				border-width: 8px;
+				border-color: #222;
+			}
+
+			a:link {
+				color: #49EEEE;
+			}
+			a:visited {
+				color: #022B3A;
+			}
+		</style>
+		<script src="data.js"></script>
+		<script type="text/javascript">
+			window.onload = setup;
+
+			function setup() {
+				//get card ID from the hash code
+				var id = location.hash.slice(1);
+				if (id.length < 1) {
+					document.getElementById("errorSpot").innerHTML = `invalid reference hash ):`;
+					return;
+				}
+
+				var element = data[id];
+
+				//make sure self has actually found a card
+				if (element == undefined) {
+					document.getElementById("errorSpot").innerHTML = `angery`;
+					return;
+				}
+
+				//title
+				document.getElementById("titleArea").innerHTML = element.title;
+				document.title = `Notebook comics - ${element.title}`;
+
+				//image
+				document.getElementById("cardImg").src = element.path;
+				document.getElementById("cardImg").title = element.info;
+				document.getElementById("cardImg").style.maxHeight = window.innerHeight * 0.8;
+				document.getElementById("errorSpot").innerHTML = ``;
+			}
+		</script>
+	</head>
+	<body>
+		<div id="main">
+			<h1 id="titleArea">[Comic Title]</h1>
+			<img id="cardImg">
+			<p id="cardDat">
+				<span id="errorSpot">[CODE NOT WORKING]</span>
+			</p>
+			<a href="index.html">back</a>
+		</div>
+	</body>
+</html>
