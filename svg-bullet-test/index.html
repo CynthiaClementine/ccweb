@@ -1,0 +1,137 @@
+<!doctype html>
+<!-- Copyright Cynthia Clementine
+Jan-24-2025 -->
+<html>
+    <head>
+        <title>wow</title>
+        <meta charset="utf-8">
+        <link rel='icon' href='favicon.png' type='image/png'/>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --appH: 640;
+                --appW: 480;
+
+                --uilines: #BBCCE6;
+                --colorUIDark: #363636;
+                --colorUIMid: #555559;
+            }
+
+            body {
+                background-color: slateblue;
+                overflow: hidden;
+                position: fixed;
+            }
+            #base {
+                position: absolute;
+                margin-top: -10px;
+                margin-left: -10px;
+                stroke-linejoin: round;
+            }
+            #convos {
+                display: block;
+                position: absolute;
+            }
+
+            .text {
+                cursor: pointer;
+                font: 15px Ubuntu; 
+                fill: var(--uilines);
+                /* dominant-baseline: middle; vscode doesn't like this property for some reason*/
+                text-align: left;
+                user-select: none;
+            }
+
+
+            #help_container {
+                z-index: 2;
+                width: 50%;
+                margin: auto;
+                margin-left: 25%;
+                text-align: center;
+                position: absolute;
+
+                background-color: var(--colorUIDark);
+                border: 2px solid var(--uilines);
+
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="putPot">
+        </div>
+        <!--canvas so ctx is accessible, in case-->
+        <canvas id="convos" width="400" height="400"></canvas>
+
+        <!--  -->
+
+        <!-- <div id="outside_container" width="90%" height="90%"> -->
+        <svg id="base" xmlns="http://www.w3.org/2000/svg" width="0" height="0" viewBox="0 0 660 500">
+            <defs id="globalDefs">
+                <!-- keeping this as an example -->
+                <foreignObject id="player" x="-20" y="-40" width="40" height="80">
+                    <object type="image/svg+xml" data="img/skonk-1.svg" class="logo"></object>
+                </foreignObject>
+
+                <foreignObject id="bullet_red" x="-10" y="-10" width="20" height="20">
+                    <object type="image/svg+xml" data="img/bullet-red.svg" class="logo"></object>
+                </foreignObject>
+                <foreignObject id="bullet_blue" x="-10" y="-10" width="20" height="20">
+                    <object type="image/svg+xml" data="img/bullet-blue.svg" class="logo"></object>
+                </foreignObject>
+                
+            </defs>
+
+
+            <!-- famously god said 640x480 -->
+            <svg id="workspace_container" x="10" y="10" width="640" height="480" overflow="invisible">
+                <rect id="workspace_background" x="0" y="0" width="640" height="480" fill="#000000"/>
+                
+                <!--where sprites go-->
+                <g id="workspace"></g>
+                <rect id="workspace_foreground" x="0" y="0" width="640" height="480" fill="#FFFFFF" fill-opacity="0"/>
+
+                <g id="pause_menu">
+
+                </g>
+            </svg>
+            <rect id="workspace_border" x="10" y="10" width="640" height="480" fill="none" stroke="var(--uilines)" stroke-width="2"/>
+            <text id="workspace_zoomText" class="text" paint-order="stroke" stroke-width="2" stroke="#000000" text-anchor="end" x="640" y="30">hi how are you</text>
+        </div>
+
+
+        <!--The help section-->
+        <div id="help_container">
+            <p id="help_generic" class="textHelp">
+                This is the help section. Hopefully, if you need to do something, this text area will help you accomplish that. 
+                Contained here is information about the program, as well as preferences to change.
+            </p>
+            <p id="help_workspace">
+            </p>
+            <p id="help_timeline">
+            </p>
+            <p id="help_workspace">
+            </p>
+
+
+            <p id="help_pencil">
+                The pencil tool allows you to draw
+            </p>
+        </div>
+    </body>
+
+    <!--common code-->
+    <script src="../common/functions-math.js"></script>
+    <script src="../common/functions-DOMnode.js"></script>
+    <script src="../common/functions-coordinate.js"></script>
+    <script src="../common/collision-2d.js"></script>
+    <script src="../common/functions-2dVector.js"></script>
+    
+    <!--umcommon code-->
+    <script src="functions-helper.js"></script>
+    <script src="objects.js"></script>
+    <script src="main.js"></script>
+</html>
