@@ -8,8 +8,17 @@ Jan-24-2025 -->
         <link rel='icon' href='favicon.png' type='image/png'/>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
         <style>
+            @font-face {
+                font-family: 'Noto Serif';
+                font-style: normal;
+                font-weight: 400;
+                font-stretch: 100%;
+                font-display: swap;
+                src: url(notoserif.woff) format('woff');
+                unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+            }
+
             :root {
                 --appH: 640;
                 --appW: 480;
@@ -36,16 +45,41 @@ Jan-24-2025 -->
             }
 
             .text {
-                cursor: pointer;
-                font: 15px Ubuntu; 
+                cursor: default;
+                font: 22px Noto Serif;
+                paint-order: stroke;
                 fill: var(--uilines);
-                /* dominant-baseline: middle; vscode doesn't like this property for some reason*/
+                stroke: #000000;
+                dominant-baseline: middle; /*vscode doesn't like this property for some reason*/
                 text-align: left;
                 user-select: none;
             }
 
+            .small {
+                font: 15px Noto Serif;
+            }
 
-            #help_container {
+            .medium {
+                font: 35px Noto Serif;
+                stroke-width: 2px;
+            }
+
+            .large {
+                font: 50px Noto Serif;
+                stroke-width: 3px;
+            }
+
+            .selectable {
+                cursor: pointer;
+            }
+
+            #readout_health {
+                stroke: #400;
+                fill: #c00;
+            }
+
+
+            /* #help_container {
                 z-index: 2;
                 width: 50%;
                 margin: auto;
@@ -57,7 +91,7 @@ Jan-24-2025 -->
                 border: 2px solid var(--uilines);
 
                 display: none;
-            }
+            } */
         </style>
     </head>
     <body>
@@ -71,56 +105,140 @@ Jan-24-2025 -->
         <!-- <div id="outside_container" width="90%" height="90%"> -->
         <svg id="base" xmlns="http://www.w3.org/2000/svg" width="0" height="0" viewBox="0 0 660 500">
             <defs id="globalDefs">
-                <!-- keeping this as an example -->
-                <foreignObject id="player" x="-20" y="-40" width="40" height="80">
+                <foreignObject id="player" x="-10" y="-20" width="20" height="40">
                     <object type="image/svg+xml" data="img/skonk-1.svg" class="logo"></object>
                 </foreignObject>
 
-                <foreignObject id="bullet_red" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/bullet-red.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="bullet_blue" x="-10" y="-10" width="20" height="20">
+
+                <filter id="filter_red">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="0 0 0 0 1
+                              0 -1 0 0 1
+                              0 0 -1 0 1
+                              0 0 0 1 0"/>
+                </filter>
+                <filter id="filter_orange">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="0 0 0 0 1
+                              0 -0.5 0 0 1
+                              0 0 -1 0 1
+                              0 0 0 1 0"/>
+                </filter>
+                <filter id="filter_yellow">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="0 0 0 0 1
+                              0 0 0 0 1
+                              0 0 -1 0 1
+                              0 0 0 1 0"/>
+                </filter>
+                <filter id="filter_green">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="-1 0 0 0 1
+                              0 0 0 0 1
+                              0 0 -1 0 1
+                              0 0 0 1 0"/>
+                </filter>
+                <filter id="filter_blue">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="-1 0 0 0 1
+                              0 -1 0 0 1
+                              0 0 0 0 1
+                              0 0 0 1 0"/>
+                </filter>
+                <filter id="filter_purple">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="-0.2 0 0 0 1
+                              0 -1 0 0 1
+                              0 0 -0.2 0 1
+                              0 0 0 1 0"/>
+                </filter>
+
+                <!-- bullets -->
+                <foreignObject id="bullet_shield_blue" x="-10" y="-10" width="20" height="20">
                     <object type="image/svg+xml" data="img/bullet-blue.svg" class="logo"></object>
                 </foreignObject>
-                
+                <svg id="bullet_circle">
+                    <circle cx="1" cy="1" r="1" fill="#FFFFFF" fill-opacity="0.5"/>
+                    <circle cx="1" cy="1" r="0.7" fill="#000000"/>
+                </svg>
+
+                <foreignObject id="bullet_circle_r" x="-1" y="-1" width="2" height="2">
+                    <!-- I can't just use a use tag because foreignObject doesn't know use tags exist.
+                     The solution is this strange nested thing -->
+                    <svg><use href="#bullet_circle" filter="url(#filter_red)"/></svg>
+                </foreignObject>
+                <foreignObject id="bullet_circle_o" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_orange)"/></svg>
+                </foreignObject>
+                <foreignObject id="bullet_circle_y" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_yellow)"/></svg>
+                </foreignObject>
+                <foreignObject id="bullet_circle_g" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_green)"/></svg>
+                </foreignObject>
+                <foreignObject id="bullet_circle_b" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_blue)"/></svg>
+                </foreignObject>
+                <foreignObject id="bullet_circle_p" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_purple)"/></svg>
+                </foreignObject>
+
+
+
+
+
+
+
+
+
+
+
+
+                <!-- forest creatures -->
+                <foreignObject id="forest_woody" x="-10" y="-10" width="20" height="20">
+                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
+                </foreignObject>
             </defs>
 
 
             <!-- famously god said 640x480 -->
             <svg id="workspace_container" x="10" y="10" width="640" height="480" overflow="invisible">
                 <rect id="workspace_background" x="0" y="0" width="640" height="480" fill="#000000"/>
-                
+
                 <!--where sprites go-->
                 <g id="workspace"></g>
+
+                <g id="game_ui">
+                    <rect x="480" y="0" width="160" height="480" fill="#888"/>
+
+                    <text x="490" y="20" class="text">score</text>
+                    <text id="readout_score" x="490" y="50" class="text medium">0000000</text>
+
+                    <text x="490" y="90" class="text">tension</text>
+                    <text id="readout_tens" x="490" y="120" class="text medium">0000000</text>
+
+                    <text id="readout_debug1" x="635" y="445" class="text" text-anchor="end">0000000</text>
+                    <text id="readout_debug2" x="635" y="467.5" class="text" text-anchor="end">0000000</text>
+
+                    <text id="readout_health" x="560" y="340" class="text medium" text-anchor="middle">3</text>
+                </g>
                 <rect id="workspace_foreground" x="0" y="0" width="640" height="480" fill="#FFFFFF" fill-opacity="0"/>
 
-                <g id="pause_menu">
+                <g id="menu_pause">
 
+                </g>
+
+                <g id="menu_main">
+                    <rect x="0" y="0" width="640" height="480" fill="#882288"/>
+                    <text x="320" y="100" class="text large" text-anchor="middle">This is the main m;enu</text>
+
+                    <text x="10" y="300" class="text medium selectable" text-anchor="start" onclick="start()">start</text>
+                    <text x="10" y="337" class="text medium selectable" text-anchor="start">stage select</text>
+                    <text x="10" y="380" class="text medium selectable" text-anchor="start">help</text>
                 </g>
             </svg>
             <rect id="workspace_border" x="10" y="10" width="640" height="480" fill="none" stroke="var(--uilines)" stroke-width="2"/>
-            <text id="workspace_zoomText" class="text" paint-order="stroke" stroke-width="2" stroke="#000000" text-anchor="end" x="640" y="30">hi how are you</text>
-        </div>
-
-
-        <!--The help section-->
-        <div id="help_container">
-            <p id="help_generic" class="textHelp">
-                This is the help section. Hopefully, if you need to do something, this text area will help you accomplish that. 
-                Contained here is information about the program, as well as preferences to change.
-            </p>
-            <p id="help_workspace">
-            </p>
-            <p id="help_timeline">
-            </p>
-            <p id="help_workspace">
-            </p>
-
-
-            <p id="help_pencil">
-                The pencil tool allows you to draw
-            </p>
-        </div>
+        </svg>
     </body>
 
     <!--common code-->
@@ -129,7 +247,7 @@ Jan-24-2025 -->
     <script src="../common/functions-coordinate.js"></script>
     <script src="../common/collision-2d.js"></script>
     <script src="../common/functions-2dVector.js"></script>
-    
+
     <!--umcommon code-->
     <script src="functions-helper.js"></script>
     <script src="objects.js"></script>
