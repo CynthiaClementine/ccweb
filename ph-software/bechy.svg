@@ -1,0 +1,734 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="none" x="0px" y="0px" width="640px" height="580px" viewBox="0 0 640 580">
+<defs>
+<g id="Layer5_0_FILL">
+<path fill="#836183" stroke="none" d="
+M 36.65 73.6
+L 36.65 565.2 625.25 573.95 637.8 34.25 36.65 73.6 Z"/>
+</g>
+
+<g id="Layer4_0_FILL">
+<path fill="#666666" stroke="none" d="
+M 266.1 365.95
+L 218 334.4 159.9 422.45 187.3 440.55 224.15 384.7 245.1 398.55 266.1 365.95
+M 517.65 320.25
+L 509.45 320.25 509.45 485.7 610.3 485.7 610.3 320.25 517.65 320.25
+M 416.2 381.05
+L 416.2 391.45 416.9 391.45 473.35 391.45 473.35 206.4 297.2 206.4 297.2 274.45 416.2 381.05
+M 475.4 170.35
+L 475.55 101.3 404.75 96.85 404.75 170.2 475.4 170.35 Z"/>
+</g>
+
+<g id="Layer3_0_FILL">
+<path fill="#333333" stroke="none" d="
+M 641.45 580
+L 641.45 0 -0.05 0 -0.05 580 641.45 580
+M 572.55 41.75
+L 607.35 41.75 607.3 117.2 535 117.2 535 179.7 607.25 179.7 606.95 561.8 538.45 561.8 538.45 562.5 533.15 562.5 533.15 561.8 36.65 561.8 36.65 463.35 33.45 463.35 33.45 454 36.65 454 36.65 169.75 404.5 169.9 405.05 169.85 475.65 170.25 475.4 75.15 572.55 75.15 572.55 41.75
+M 538.45 561.8
+L 538.45 546.5 533.15 546.5 533.15 561.8 533.15 562.5 538.45 562.5 538.45 561.8
+M 36.65 454
+L 33.45 454 33.45 463.35 36.65 463.35 49.35 463.35 49.35 454 36.65 454
+M 473.35 546.4
+L 473.35 556.8 478.65 556.8 478.65 546.4 473.35 546.4
+M 413.55 546.4
+L 413.55 556.8 418.85 556.8 418.85 546.4 413.55 546.4
+M 353.75 546.4
+L 353.75 556.8 359.05 556.8 359.05 546.4 353.75 546.4
+M 143.45 458.8
+L 148.9 462.3 154.2 454.1 148.75 450.6 143.45 458.8
+M 299.25 538.4
+L 293.95 538.4 293.95 556.8 299.25 556.8 299.25 538.4
+M 187.15 538.4
+L 181.85 538.4 181.85 556.8 187.15 556.8 187.15 538.4
+M 181.85 518.9
+L 181.85 529.8 187.15 529.8 187.15 518.9 181.85 518.9
+M 167.6 432.7
+L 162.15 429.2 152.1 444.7 157.55 448.2 167.6 432.7
+M 146.95 385.55
+L 143.75 390.5 152.75 396.35 156 391.45 146.95 385.55
+M 212.05 339.65
+L 216.4 333.05 218.3 330.2 214.25 327.55 200.85 318.85 194.7 328.4 212.05 339.65
+M 417.2 386.45
+L 417.2 271.05 242.9 271.05 214.25 327.55 218.3 330.2 216.4 333.05 297.6 386.45 417.2 386.45 Z"/>
+</g>
+
+<g id="Layer2_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M 356 480.55
+L 356 494.65
+Q 375.0734375 503.4130859375 416.4 503.25
+L 475 503.25 475 496.35 416.9 496.3 416.9 480.55 356 480.55
+M 417.5 455.85
+L 474.45 455.85 474.45 441.8 417.5 441.8 417.5 455.85
+M 211 341.55
+L 192.4 329.3 154.05 387.75 172.65 400 211 341.55 Z"/>
+</g>
+
+<g id="donut_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M -0.05 -9.25
+Q -3.95 -9.25 -6.7 -6.65 -9.3 -3.9 -9.3 0 -9.3 3.9 -6.7 6.5 -3.95 9.25 -0.05 9.25 3.85 9.25 6.45 6.5 9.2 3.9 9.2 0 9.2 -3.9 6.45 -6.65 3.85 -9.25 -0.05 -9.25
+M 0.2 -3.45
+Q 1.65 -3.45 2.6 -2.45 3.65 -1.45 3.65 0 3.65 1.45 2.6 2.4 1.65 3.45 0.2 3.45 -1.25 3.45 -2.25 2.4 -3.25 1.45 -3.25 0 -3.25 -1.45 -2.25 -2.45 -1.25 -3.45 0.2 -3.45 Z"/>
+</g>
+
+<g id="standard_table_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M 7.9 13.1
+L 7.9 -13.2 -7.9 -13.2 -7.9 13.1 7.9 13.1 Z"/>
+</g>
+
+<g id="standard_round_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M 13.45 -5.55
+Q 11.15 -7.9 7.9 -7.9
+L -7.9 -7.9
+Q -11.15 -7.9 -13.5 -5.55 -15.8 -3.25 -15.8 0 -15.8 3.25 -13.5 5.6 -11.15 7.9 -7.9 7.9
+L 7.9 7.9
+Q 11.15 7.9 13.45 5.6 15.8 3.25 15.8 0 15.8 -3.25 13.45 -5.55 Z"/>
+</g>
+
+<g id="donut_piece_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M 5.9 -4.2
+L -6.2 -2.4
+Q -5.991015625 -0.0021484375 -6.35 2.4
+L 5.75 4.25
+Q 6.6662109375 0.02734375 5.9 -4.2 Z"/>
+</g>
+
+<g id="standard_round_truncated_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M -7.9 6.3
+Q -7.9 9.55 -5.6 11.85 -3.25 14.2 0 14.2 3.25 14.2 5.55 11.85 7.9 9.55 7.9 6.3
+L 7.9 -14.2 -7.9 -14.2 -7.9 6.3 Z"/>
+</g>
+
+<g id="FL_2p_table_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M -2.1 -7.05
+Q -5.05 -7.05 -7.1 -5 -9.15 -2.95 -9.15 0 -9.15 2.95 -7.1 5 -5.05 7.05 -2.1 7.05
+L 2.1 7.05
+Q 5.05 7.05 7.1 5 9.15 2.95 9.15 0 9.15 -2.95 7.1 -5 5.05 -7.05 2.1 -7.05
+L -2.1 -7.05 Z"/>
+</g>
+
+<g id="donut_couch_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M 5.35 -7.9
+Q -0.8 -6.95 -6.55 -4.8 -6 -0.1 -6.45 4.7 -0.95 7 5.35 7.9 7.85 -0.25 5.35 -7.9 Z"/>
+</g>
+
+<g id="cove_couch_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M 16.45 -2.65
+L -16.5 -2.8 -9.15 9.45 9.15 9.5 16.45 -2.65
+M 16.45 -2.65
+L 15.55 -9.6 -15.6 -9.6 -16.5 -2.8 16.45 -2.65 Z"/>
+</g>
+
+<g id="cove_table_0_Layer0_0_FILL">
+<path fill="#CCCCCC" stroke="none" d="
+M -0.65 -10.6
+Q -5 -10.6 -8.1 -7.5 -11.2 -4.4 -11.2 -0.05 -11.2 4.3 -8.1 7.4 -5 10.5 -0.65 10.5
+L 11.1 10.5 11.1 -10.6 -0.65 -10.6 Z"/>
+</g>
+
+<path id="Layer4_0_1_STROKES" stroke="#000000" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 535 179.7
+L 517.65 179.7 517.65 210.5 524.7 212.9
+M 475.55 101.3
+L 404.75 96.85 404.75 170.2 475.4 170.35 475.55 101.3 Z
+M 416.9 391.45
+L 416.2 391.45 416.2 381.05 297.2 274.45 297.2 276.05
+M 297.2 274.45
+L 297.2 206.4 473.35 206.4 473.35 391.45 416.9 391.45 416.95 441.25 475 441.25 475 459.05
+M 537.85 217.35
+L 541.95 218.75 541.95 249.4 607.2 249.4
+M 517.65 320.25
+L 517.65 289.55 524.7 286.775
+M 537.85 281.625
+L 541.95 280.025 541.95 249.4
+M 517.65 320.25
+L 610.3 320.25 610.3 485.7 509.45 485.7 509.45 320.25 517.65 320.25 Z
+M 245.1 398.55
+L 224.15 384.7 187.3 440.55 159.9 422.45 218 334.4 266.1 365.95 245.1 398.55 208.3 454.3
+M 298.85 383.9
+L 287.35 454.1 293.65 460.2
+M 416.95 459.05
+L 416.95 441.25
+M 416.95 478.55
+L 416.95 496.35 475 496.35 475 478.55
+M 355.6 454.25
+L 355.6 384.9"/>
+
+<path id="Layer3_0_1_STROKES" stroke="#000000" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 405.05 169.85
+L 475.65 170.25 475.4 75.15 572.55 75.15 572.55 41.75 607.35 41.75 607.3 117.2 535 117.2 535 179.7 607.25 179.7 606.95 561.8 538.45 561.8 538.45 562.5 533.15 562.5 533.15 561.8 36.65 561.8 36.65 463.35 33.45 463.35 33.45 454 36.65 454 36.65 169.75 404.525 169.925
+M 216.4 333.075
+L 297.6 386.45 417.2 386.45 417.2 271.05 242.9 271.05 214.25 327.575 218.3 330.2 216.4 333.075 212.05 339.65 194.7 328.4 200.85 318.85 214.25 327.575
+M 146.95 385.55
+L 156 391.45 152.75 396.35 143.75 390.5 146.95 385.55 Z
+M 152.1 444.7
+L 162.15 429.2 167.6 432.7 157.55 448.2 152.1 444.7 Z
+M 181.85 518.9
+L 187.15 518.9 187.15 529.8 181.85 529.8 181.85 518.9 Z
+M 181.85 538.4
+L 187.15 538.4 187.15 556.8 181.85 556.8 181.85 538.4 Z
+M 293.95 538.4
+L 299.25 538.4 299.25 556.8 293.95 556.8 293.95 538.4 Z
+M 143.45 458.8
+L 148.75 450.6 154.2 454.1 148.9 462.3 143.45 458.8 Z
+M 36.65 454
+L 49.35 454 49.35 463.35 36.65 463.35
+M 533.15 561.8
+L 533.15 546.5 538.45 546.5 538.45 561.8
+M 353.75 546.4
+L 359.05 546.4 359.05 556.8 353.75 556.8 353.75 546.4 Z
+M 413.55 546.4
+L 418.85 546.4 418.85 556.8 413.55 556.8 413.55 546.4 Z
+M 473.35 546.4
+L 478.65 546.4 478.65 556.8 473.35 556.8 473.35 546.4 Z
+M -0.05 0
+L 641.45 0 641.45 580 -0.05 580 -0.05 0 Z"/>
+
+<path id="Layer2_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 603.35 47.25
+L 577 47.25
+M 603.35 57.65
+L 577 57.65
+M 577 52.45
+L 603.35 52.45
+M 577 73.25
+L 603.35 73.25
+M 603.35 68.05
+L 577 68.05
+M 577 62.85
+L 603.35 62.85
+M 244.1 263.4
+L 244.1 207.2 278.9 207.2
+M 192.4 329.3
+L 211 341.55 172.65 400 154.05 387.75 192.4 329.3 Z
+M 288.5 454.9
+L 321.25 454.9
+M 212.65 405.95
+L 230.2 417.55
+M 233.1 413.05
+L 215.55 401.55
+M 224.55 426.1
+L 207 414.55
+M 204.15 418.9
+L 221.65 430.5
+M 209.8 410.25
+L 227.35 421.8
+M 218.4 397.25
+L 235.95 408.75
+M 207.5 452.2
+L 189.85 440.65
+M 218.85 434.8
+L 201.3 423.25
+M 198.4 427.65
+L 216 439.15
+M 213.1 443.5
+L 195.6 431.95
+M 192.7 436.35
+L 210.25 447.95
+M 223.85 553.65
+L 255.6 553.65
+M 522.1 485.7
+L 523.35 492.55
+M 526.275 508.65
+L 533.15 546.5
+M 416.95 455.85
+L 417.5 455.85 417.5 441.8 474.45 441.8 474.45 455.85 475 455.85
+M 417.5 455.85
+L 474.45 455.85
+M 356 480.55
+L 356 494.65
+Q 375.0734375 503.4130859375 416.4 503.25
+L 475 503.25 475 496.35 416.9 496.3 416.9 480.55 356 480.55 Z
+M 337.05 454.9
+L 373.3 454.9
+M 390.05 454.9
+L 416.95 454.9
+M 224.1 388.5
+L 241.6 400.1
+M 238.8 404.4
+L 221.25 392.9"/>
+
+<path id="Layer2_0_2_STROKES" stroke="#000000" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 571.6 198.8
+Q 571.5 198.85 571.45 198.95 570.95 199.45 570.55 200.25 570.2 200.9 569.7 202.4 569.15 203.5 569.7 204.15 570.25 204.6 571.45 204.15 572.3 203.7 572.9 202.85 573.5 201.95 573.55 201.05 573.85 200.05 573.3 199.55 572.95 198.85 571.6 198.8 571.75 198.65 571.95 198.55
+M 566.55 208.55
+Q 570.85 208.35 576.8 207.65
+L 572.3 217.9
+Q 570.3 213.5 567.8 209.3
+M 571.75 280.55
+Q 571.05 281.45 571.05 282.55 571.05 283.4 571.45 283.8 571.95 284.15 572.7 284.15 575.5 284.15 577.2 282.8 577.95 281.7 577.8 281.05 577.75 280.75 577.4 280.45 576.95 280.1 576.7 279.9 575.8 279.3 575 279.05 573.4 279 572.2 280.05 571.95 280.3 571.75 280.55 572.15 278.9 573.95 278.9 574.45 278.9 575 279.05
+M 574.55 288.15
+Q 573.85 288.75 573.25 289.4 574.45 289.65 574.55 289.7 575.55 289.95 576.2 290.55 577.75 291.7 578.7 294.8 578.95 295.65 578.7 296.05
+L 577.95 296.4
+Q 574.5 297.6 571.45 297.4 570.5 297.4 570.2 296.9 569.85 296.6 570.05 295.55 570.85 292 573.25 289.4 573 289.35 572.7 289.3"/>
+
+<path id="donut_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M 9.2 0
+Q 9.2 3.9 6.45 6.5 3.85 9.25 -0.05 9.25 -3.95 9.25 -6.7 6.5 -9.3 3.9 -9.3 0 -9.3 -3.9 -6.7 -6.65 -3.95 -9.25 -0.05 -9.25 3.85 -9.25 6.45 -6.65 9.2 -3.9 9.2 0 Z
+M 3.65 0
+Q 3.65 1.45 2.6 2.4 1.65 3.45 0.2 3.45 -1.25 3.45 -2.25 2.4 -3.25 1.45 -3.25 0 -3.25 -1.45 -2.25 -2.45 -1.25 -3.45 0.2 -3.45 1.65 -3.45 2.6 -2.45 3.65 -1.45 3.65 0 Z"/>
+
+<path id="standard_table_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M 7.9 -13.2
+L 7.9 13.1 -7.9 13.1 -7.9 -13.2 7.9 -13.2 Z"/>
+
+<path id="standard_round_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -15.8 0
+Q -15.8 -3.25 -13.5 -5.55 -11.15 -7.9 -7.9 -7.9
+L 7.9 -7.9
+Q 11.15 -7.9 13.45 -5.55 15.8 -3.25 15.8 0 15.8 3.25 13.45 5.6 11.15 7.9 7.9 7.9
+L -7.9 7.9
+Q -11.15 7.9 -13.5 5.6 -15.8 3.25 -15.8 0 Z"/>
+
+<path id="donut_piece_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -6.2 -2.4
+Q -5.991015625 -0.0021484375 -6.35 2.4
+L 5.75 4.25
+Q 6.6662109375 0.02734375 5.9 -4.2
+L -6.2 -2.4 Z"/>
+
+<path id="standard_round_truncated_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="butt" fill="none" d="
+M -7.9 -14.2
+L 7.9 -14.2 7.9 6.3
+Q 7.9 9.55 5.55 11.85 3.25 14.2 0 14.2 -3.25 14.2 -5.6 11.85 -7.9 9.55 -7.9 6.3
+L -7.9 -14.2 Z"/>
+
+<path id="FL_2p_table_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M 9.15 0
+Q 9.15 2.95 7.1 5 5.05 7.05 2.1 7.05
+L -2.1 7.05
+Q -5.05 7.05 -7.1 5 -9.15 2.95 -9.15 0 -9.15 -2.95 -7.1 -5 -5.05 -7.05 -2.1 -7.05
+L 2.1 -7.05
+Q 5.05 -7.05 7.1 -5 9.15 -2.95 9.15 0 Z"/>
+
+<path id="donut_couch_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -6.45 4.7
+Q -0.95 7 5.35 7.9 7.85 -0.25 5.35 -7.9 -0.8 -6.95 -6.55 -4.8 -6 -0.1 -6.45 4.7 Z"/>
+
+<path id="cove_couch_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -16.5 -2.8
+L -15.6 -9.6 15.55 -9.6 16.45 -2.65 9.15 9.5 -9.15 9.45 -16.5 -2.8 16.45 -2.65"/>
+
+<path id="cove_table_0_Layer0_0_1_STROKES" stroke="#000000" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+M -0.65 -10.6
+L 11.1 -10.6 11.1 10.5 -0.65 10.5
+Q -5 10.5 -8.1 7.4 -11.2 4.3 -11.2 -0.05 -11.2 -4.4 -8.1 -7.5 -5 -10.6 -0.65 -10.6 Z"/>
+</defs>
+
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#Layer5_0_FILL"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#Layer4_0_FILL"/>
+
+<use xlink:href="#Layer4_0_1_STROKES"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#Layer3_0_FILL"/>
+
+<use xlink:href="#Layer3_0_1_STROKES"/>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#Layer2_0_FILL"/>
+
+<use xlink:href="#Layer2_0_1_STROKES"/>
+
+<use xlink:href="#Layer2_0_2_STROKES"/>
+</g>
+
+<g transform="matrix( 0.992584228515625, -0.121551513671875, 0.121551513671875, 0.992584228515625, 77.2,511.35) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 154.4,536.25) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 159.9,185.1) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 144.1,185.1) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 73.55,339.4) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 73.55,365.7) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 190.95,507.6) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 159.9,211.4) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 144.1,211.4) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 159.9,237.7) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 144.1,237.7) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 90.3,184.85) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 74.5,184.85) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 90.3,211.15) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 74.5,211.15) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 90.3,237.45) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 74.5,237.45) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 136.25,296.3) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 136.25,280.5) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 109.95,296.3) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 109.95,280.5) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 83.65,296.3) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 83.65,280.5) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 218.9,221.7) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 218.9,248) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, -1, 1, 0, 324.4,421.75) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_round_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_round_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, -1, 1, 0, 387.7,421.75) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_round_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_round_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, -1, 1, 0, 268.85,239.5) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_round_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_round_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -1, 0, 0, -1, 569.2,524.05) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_round_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_round_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0.0867462158203125, -0.99615478515625, 0.99615478515625, 0.0867462158203125, 79.45,486.9) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_piece_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_piece_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.2330322265625, -0.97235107421875, 0.97235107421875, -0.2330322265625, 72.3,487.35) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_piece_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_piece_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.8069305419921875, 0.5904388427734375, -0.5904388427734375, -0.8069305419921875, 58.6,526.1) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_piece_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_piece_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.57843017578125, 0.815521240234375, -0.815521240234375, -0.57843017578125, 63.6,531.2) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_piece_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_piece_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 446.75,407) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_round_truncated_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_round_truncated_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.16033935546875, 0.987060546875, -0.987060546875, -0.16033935546875, 279.5,405.6) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#standard_round_truncated_0_Layer0_0_FILL"/>
+
+<use xlink:href="#standard_round_truncated_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 325.65,549.75) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#FL_2p_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#FL_2p_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 387.65,549.75) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#FL_2p_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#FL_2p_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 445.65,549.75) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#FL_2p_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#FL_2p_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 507.65,549.75) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#FL_2p_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#FL_2p_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.6498260498046875, -0.760040283203125, 0.760040283203125, -0.6498260498046875, 63.15,492.15) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.9451141357421875, -0.3265380859375, 0.3265380859375, -0.9451141357421875, 55.55,503.2) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.980072021484375, 0.1982269287109375, -0.1982269287109375, -0.980072021484375, 54.55,516.6) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( -0.1533050537109375, 0.9880828857421875, -0.9880828857421875, -0.1533050537109375, 73.2,534.95) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0.3807373046875, 0.924560546875, -0.924560546875, 0.3807373046875, 86.5,533.3) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#donut_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#donut_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 1, 0, 0, 1, 239.7,516.5) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#cove_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#cove_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, -1, 1, 0, 214.95,540.45) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#cove_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#cove_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, -1, -1, 0, 264.6,540.45) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#cove_couch_0_Layer0_0_FILL"/>
+
+<use xlink:href="#cove_couch_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+
+<g transform="matrix( 0, 1, -1, 0, 239.65,541.6) ">
+<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+<use xlink:href="#cove_table_0_Layer0_0_FILL"/>
+
+<use xlink:href="#cove_table_0_Layer0_0_1_STROKES"/>
+</g>
+</g>
+</svg>

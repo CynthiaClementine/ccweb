@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- Copyright Cynthia Clementine
+Mar-9-2025 -->
+<html>
+    <head>
+        <title>beacon? I hardly know 'en!</title>
+        <meta charset="utf-8">
+        <!-- <link rel='icon' href='favicon.png' type='image/png'/> -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <style>
+            body {
+                background-color: slateblue;
+                overflow: hidden;
+                position: fixed;
+            }
+            #base {
+                position: absolute;
+                margin-top: -10px;
+                margin-left: -10px;
+                stroke-linejoin: round;
+            }
+            #convos {
+                display: block;
+                position: absolute;
+            }
+
+            .text {
+                cursor: default;
+                font: 22px Noto Serif;
+                paint-order: stroke;
+                fill: var(--uilines);
+                stroke: #000000;
+                dominant-baseline: middle; /*vscode doesn't like this property for some reason*/
+                text-align: left;
+                user-select: none;
+            }
+
+            .small {
+                font: 15px Noto Serif;
+            }
+        </style>
+    </head>
+    <body>
+		<embed id="bechtel_map" src="bechy.svg"/>
+        <!-- <div id="outside_container" width="90%" height="90%"> -->
+        <svg id="base" xmlns="http://www.w3.org/2000/svg" width="0" height="0" viewBox="0 0 660 500">
+            <defs id="globalDefs">
+            </defs>
+
+            <svg id="workspace_container" x="10" y="10" width="640" height="480" overflow="invisible">
+                <rect id="workspace_background" x="0" y="0" width="640" height="480" fill="#000000"/>
+
+                <!--where sprites go-->
+                <g id="bege">
+					
+				</g>
+                <g id="beacons"></g>
+                <g id="overlay"></g>
+
+                <g id="debug"></g>
+            </svg>
+            <rect id="workspace_border" x="10" y="10" width="640" height="480" fill="none" stroke="var(--uilines)" stroke-width="2"/>
+        </svg>
+    </body>
+
+    <!--umcommon code-->
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="client.js"></script>
+</html>
