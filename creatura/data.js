@@ -99,7 +99,7 @@ var conversations = {
 		`>return startConversation("gothic-morph");`
 	],
 	"gothic-morph": [
-		`>return wait(2000);`,
+		`>conversingWith.tex = textures["gothic-page"]; return wait(3);`,
 		`>return startConversation("get-page");`
 	]
 };

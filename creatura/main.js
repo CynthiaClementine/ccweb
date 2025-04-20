@@ -172,11 +172,16 @@ function handleKeyDown(e) {
 			var lookPos = polToXY(player.x, player.z, player.theta + Math.PI / 2, 1);
 			var cell = [Math.floor(lookPos[0]), Math.floor(lookPos[1])];
 			console.log(JSON.stringify(cell));
-			try {
-				world_map[cell[1]][cell[0]].entities[0].interact();
-			} catch (er) {
-				//probably outside map bounds. tbh it doesn't matter that much
+			if (!world_map[cell[1]]) {
+				return;
 			}
+			if (!world_map[cell[1]][cell[0]]) {
+				return;
+			}
+			if (!world_map[cell[1]][cell[0]].entities[0]) {
+				return;
+			}
+			world_map[cell[1]][cell[0]].entities[0].interact(false);
 			break;
 	}
 }

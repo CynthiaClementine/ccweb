@@ -144,7 +144,7 @@ class Creatura {
 
 	}
 
-	interact() {
+	interact(commandable) {
 		//start conversation
 		if (conversingWith == undefined) {
 			console.log(`awawa`);
@@ -155,6 +155,10 @@ class Creatura {
 
 		if (conversingWith == this) {
 			//increment line, if able
+			if (this.convoObj[this.convoLine][0] == '>' && !commandable) {
+				return;
+			}
+
 			this.convoLine += 1;
 			if (this.convoLine >= this.convoObj.length) {
 				this.uninteract();
@@ -242,7 +246,7 @@ class Creatura {
 			if (this.convoObj[this.convoLine][0] == `>`) {
 				var result = eval(`(() => {${this.convoObj[this.convoLine].slice(1)}})()`);
 				if (result) {
-					this.interact();
+					this.interact(true);
 				}
 			}
 		}
