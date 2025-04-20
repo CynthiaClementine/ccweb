@@ -6,8 +6,99 @@ window.onmouseup = handleMouseUp;
 document.onkeydown = handleKeyDown;
 document.onkeyup = handleKeyUp;
 
-function setup() {
+document.addEventListener('pointerlockchange', handleCursorLockChange, false);
+document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
 
+var animation;
+
+var color_walls_basic = "#4eed83";
+var color_walls_glass = "#d7a8f9";
+var color_ground = "#98df7e";
+var color_sky_low = "#81d2ed";
+var color_sky_mid = "#62b9d6";
+var color_sky_high = "#447a8c";
+
+var camera_scale = 600;
+var cursorLock = false;
+var clipPlaneZ = 0.05;
+var player = new Player(4, 1, 4);
+
+var time = 0;
+var maxDelta = 25;
+
+var scrollMult = -0.005;
+
+//game world vars
+var drawDistance = 24;
+var wallThickness = 0.08;
+var conversingWith = undefined;
+
+var world_map = [];
+
+function setup() {
+	animation = window.requestAnimationFrame(main);
+	canvas = document.getElementById("cabin");
+	ctx = canvas.getContext("2d");
+
+	//cursor lock chicanery
+	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+
+	canvas.onclick = () => {
+		canvas.requestPointerLock();
+	}
+
+	createMap(world_map_walls, world_map_entities);
+	handleResize();
+}
+
+function main() {
+	var newTime = performance.now();
+	//can't take more than 25ms
+	var dt = Math.min(newTime - time, maxDelta) / 1000;
+	time = newTime;
+	//tick everything
+	player.tick(dt);
+	world_map.forEach(line => {
+		line.forEach(cell => {
+			if (cell.entities) {
+				cell.entities.forEach(e => {
+					e.tick(dt);
+				});
+			}
+		});
+	});
+
+	//draw everything
+	drawSky();
+	drawGround();
+	drawWorld();
+
+	ctx.fillStyle = "#000";
+	ctx.fillRect(-2, -2, 4, 4);
+
+	animation = window.requestAnimationFrame(main);
+}
+
+//turn the separate walls + entities into one data structure that it's easier to work with
+//much harder for human read/write though.
+function createMap(wallData, entData) {
+	world_map = [];
+	var width = (wallData[0].length - 4) / 2;
+	var height = (wallData.length - 3) / 2;
+	var wc;
+	for (var y=0; y<height; y++) {
+		world_map.push([]);
+		for (var x=0; x<width; x++) {
+			wc = [x * 2 + 1, y * 2 + 1];
+			world_map[y][x] = new C(wallData[wc[1]][wc[0] - 1], wallData[wc[1] - 1][wc[0]], wallData[wc[1]][wc[0] + 1], wallData[wc[1] + 1][wc[0]], []);
+		}
+	}
+
+	entData.forEach(e => {
+		var coords = [Math.floor(e.x), Math.floor(e.z)];
+		world_map[coords[1]][coords[0]].entities.push(e);
+	});
 }
 
 function handleResize() {
@@ -20,25 +111,72 @@ function handleResize() {
 
 	canvas.width = Math.floor(spaceW);
 	canvas.height = Math.floor(spaceH);
+
+	fixResize();
+}
+
+function fixResize() {
+	camera_scale = canvas.width * (600 / 640);
+
+	//drawing properties
 	var scaling = canvas.width / 640;
-	ctx.setTransform(scaling, 0, 0, scaling, 0, 0);
-	ctx.translate(320, 240);
+	ctx.translate(canvas.width / 2, canvas.height / 2);
 	ctx.lineCap = "round";
 	ctx.textBaseline = "middle";
 }
 
-function handleMouseDown() {
+function handleMouseDown(e) {
 
 }
 
-function handleMouseUp() {
-
+function handleMouseMove(e) {
+	if (!cursorLock) {
+		return;
+	}
+	player.theta += e.movementX * scrollMult;
+	player.phi = clamp(player.phi - e.movementY * scrollMult, -Math.PI / 2, Math.PI / 2);
 }
 
-function handleKeyDown() {
-
+function handleMouseUp(e) {
 }
 
-function handleKeyUp() {
+function handleKeyDown(e) {
+	switch (e.code) {
+		case `KeyA`:
+			player.ax = -player.accelPower;
+			break;
+		case `KeyD`:
+			player.ax = player.accelPower;
+			break;
+		case `KeyW`:
+			player.az = player.accelPower;
+			break;
+		case `KeyS`:
+			player.az = -player.accelPower;
+			break;
+	}
+}
 
+function handleKeyUp(e) {
+	switch (e.code) {
+		case `KeyA`:
+			player.ax = Math.max(0, player.ax);
+			break;
+		case `KeyD`:
+			player.ax = Math.min(0, player.ax);
+			break;
+		case `KeyW`:
+			player.az = Math.min(0, player.az);
+			break;
+		case `KeyS`:
+			player.az = Math.max(0, player.az);
+			break;
+		case `Space`:
+			player.dy = player.jumpPower;
+			break;
+	}
+}
+
+function handleCursorLockChange() {
+	cursorLock = (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas);
 }
