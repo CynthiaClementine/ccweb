@@ -209,26 +209,23 @@ class Creatura {
 		targetHeight = Math.min(magnitude(diff) / perc, canvas.width * 2);
 
 		this.tex.beDrawn(...midPos, targetHeight);
-
-		if (conversingWith == this) {
-			if (this.convoObj[this.convoLine][0] == `|`) {
-				ctx.globalAlpha = 0.5;
-				ctx.fillStyle = "#B8D";
-				ctx.fillRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
-				ctx.globalAlpha = 1;
-				drawText(0, 0, `${canvas.height / 20}px Ubuntu`, this.convoObj[this.convoLine].slice(1), "#000", "#FFD", "center");
-				return;
-			}
-
-			if (this.convoObj[this.convoLine][0] != `>`) {
-				drawText(0, 0, `${canvas.height / 20}px Ubuntu`, this.convoObj[this.convoLine], "#000", "#FFD", "center");
-			}
-		}
-
-		
-
 		// drawWorldDot(feetPos, "#F00");
 		// drawWorldDot(headPos, "#F00");
+	}
+
+	drawConversation() {
+		if (this.convoObj[this.convoLine][0] == `|`) {
+			ctx.globalAlpha = 0.5;
+			ctx.fillStyle = "#000";
+			ctx.fillRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+			ctx.globalAlpha = 1;
+			drawText(0, 0, `${canvas.height / 20}px Ubuntu`, this.convoObj[this.convoLine].slice(1), "#000", "#FF8", "center");
+			return;
+		}
+
+		if (this.convoObj[this.convoLine][0] != `>`) {
+			drawText(0, 0, `${canvas.height / 20}px Ubuntu`, this.convoObj[this.convoLine], "#000", "#FFD", "center");
+		}
 	}
 
 	conversePos() {

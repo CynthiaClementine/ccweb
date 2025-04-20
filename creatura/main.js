@@ -75,8 +75,13 @@ function main() {
 	drawGround();
 	drawWorld();
 
-	ctx.fillStyle = "#000";
-	ctx.fillRect(-2, -2, 4, 4);
+	//reticle
+	if (conversingWith) {
+		conversingWith.drawConversation();
+	} else {
+		ctx.fillStyle = "#000";
+		ctx.fillRect(-2, -2, 4, 4);
+	}
 
 	if (player.dx == 0 && player.dy == 0) {
 		drawText(0, 0, `${Math.floor(canvas.height / 40)}px Ubuntu`, `Use WASD to move and E to interact.`, "#000", "#FFF", "center");

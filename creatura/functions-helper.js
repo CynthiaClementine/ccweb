@@ -277,6 +277,8 @@ function wait(ms) {
 }
 
 function startConversation(convoID) {
+	player.dx = 0.01;
+	player.dz = 0.01;
 	var cw = conversingWith;
 	cw.convoObj = conversations[convoID];
 	cw.convoTime = 0;
