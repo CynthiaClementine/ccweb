@@ -59,6 +59,8 @@ function drawCell(drawCell, pCell) {
 	ctx.globalAlpha = Math.min(1, 2 * (1 - ((Math.abs(offsetX) + Math.abs(offsetZ)) / drawDistance)));
 	
 	if (offsetX == 0 && offsetZ == 0) {
+		//floor + entities
+		drawCellWalls(drawCell, false, false, false, false);
 		drawCellEntities(drawCell);
 	}
 	
@@ -128,16 +130,36 @@ function drawCellWalls(cell, left, up, right, down) {
 		drawCellWall(cellObj.down, [bc[2], bc[3], bc[7], bc[6]]);
 		// console.log(`drawing ${cell[0]} ${cell[1]} down`);
 	}
+
+	//also draw the floor. I guess
+	drawCellWall(cellObj.floor, [bc[0], bc[1], bc[2], bc[3]]);
 }
 
-function drawCellWall(wallID, cornerCoords) {
+function drawCellWall(wallID, cc) {
 	switch (wallID) {
 		case 'x':
-			drawWorldPoly(cornerCoords, color_walls_basic);
+			drawWorldPoly(cc, color_walls_basic);
+			break;
+		case 'H':
+			drawWorldPoly(cc, color_walls_house);
+			break;
+		case 'h':
+			drawWorldPoly(cc, color_walls_house);
+			var intersTop = [linterpMulti(cc[0], cc[1], 0.1), linterpMulti(cc[0], cc[1], 0.2), linterpMulti(cc[0], cc[1], 0.35), linterpMulti(cc[0], cc[1], 0.45), 
+				linterpMulti(cc[0], cc[1], 0.55), linterpMulti(cc[0], cc[1], 0.65), linterpMulti(cc[0], cc[1], 0.8), linterpMulti(cc[0], cc[1], 0.9)];
+
+			var intersLow = [linterpMulti(cc[2], cc[3], 0.1), linterpMulti(cc[2], cc[3], 0.2), linterpMulti(cc[2], cc[3], 0.35), linterpMulti(cc[2], cc[3], 0.45), 
+				linterpMulti(cc[2], cc[3], 0.55), linterpMulti(cc[2], cc[3], 0.65), linterpMulti(cc[2], cc[3], 0.8), linterpMulti(cc[2], cc[3], 0.9)];
+			//house wall
+			
+			drawWorldPoly([intersLow[0], intersLow[1], intersTop[1], intersTop[0]], color_walls_house_dark);
+			drawWorldPoly([intersLow[2], intersLow[3], intersTop[3], intersTop[2]], color_walls_house_dark);
+			drawWorldPoly([intersLow[4], intersLow[5], intersTop[5], intersTop[4]], color_walls_house_dark);
+			drawWorldPoly([intersLow[6], intersLow[7], intersTop[7], intersTop[6]], color_walls_house_dark);
 			break;
 		case 'g':
 			ctx.globalAlpha *= 0.5;
-			drawWorldPoly(cornerCoords, color_walls_glass);
+			drawWorldPoly(cc, color_walls_glass);
 			ctx.globalAlpha *= 2;
 			break;
 	}
@@ -174,6 +196,29 @@ function drawPoly(points, color) {
 	}
 	ctx.stroke();
 	ctx.fill();
+}
+
+function drawWorldDot(xyzPos, color) {
+	var sPos = spaceToScreen(...xyzPos);
+	if (sPos) {
+		console.log(`drawing dot at ${JSON.stringify(xyzPos)}`);
+		ctx.fillStyle = color;
+		ctx.fillRect(sPos[0] - 3, sPos[1] - 3, 6, 6);
+	}
+}
+
+function drawText(x, y, font, text, outColor, inColor, align) {
+	ctx.font = font;
+	ctx.strokeStyle = outColor;
+	ctx.fillStyle = inColor;
+	ctx.textAlign = align;
+	ctx.lineJoin = "round";
+
+	// draw an outline, then filled
+	ctx.lineWidth = 5;
+	ctx.strokeText(text, x, y);
+	ctx.lineWidth = 1;
+	ctx.fillText(text, x, y);
 }
 
 function getImage(url) {
@@ -233,10 +278,18 @@ function wait(ms) {
 
 function startConversation(convoID) {
 	var cw = conversingWith;
+	cw.convoObj = conversations[convoID];
 	cw.convoTime = 0;
 	cw.convoLine = 0;
-	cw = convoID = convoID;
 
+	/*
 	//require player to look at their partner
 	var lookPos = cw.conversePos();
+	var angles = cartToPol(lookPos[0] - player.x, lookPos[1] - player.y, lookPos[2] - player.z);
+	var dummy;
+	[player.theta, player.phi, dummy] = angles;
+	console.log(angles);
+	player.theta += Math.PI / 2;
+	player.theta *= -1;
+	player.phi *= -1; */
 }

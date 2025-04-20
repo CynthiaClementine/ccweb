@@ -21,9 +21,16 @@ class Player {
 		this.jumpPower = 4;
 		this.height = 0.6;
 		this.friction = 0.95;
+
+		this.pages = 0;
 	}
 
 	tick(dt) {
+		if (conversingWith) {
+			this.ax = 0;
+			this.az = 0;
+			this.dy = 0;
+		}
 		//theta is changed directly by mouse movements, so thetaLast gives approximate dTheta
 		//use change in direction to change what our velocity should be
 		var dTheta = this.theta - this.thetaLast;
@@ -50,8 +57,6 @@ class Player {
 		//this is wrong. I'm not quite sure why
 		var moveVec = polToXY(0, 0, this.theta, this.dx);
 		moveVec = polToXY(...moveVec, this.theta + Math.PI / 2, this.dz);
-
-		
 
 		this.dy += this.ay * dt;
 		this.y += this.dy * dt;
@@ -86,12 +91,13 @@ class Player {
 class C {
 	//very basic storage class.
 	//plus collision i guess
-	constructor(leftType, upType, rightType, downType, entities) {
+	constructor(leftType, upType, rightType, downType, internal, entities) {
 		this.entities = entities ?? [];
 		this.left = leftType;
 		this.up = upType;
 		this.right = rightType;
 		this.down = downType;
+		this.floor = internal;
 	}
 
 	collide(entity) {
@@ -121,62 +127,138 @@ class Creatura {
 		this.x = x;
 		this.y = 0.1;
 		this.z = z;
+		this.r = 1;
+		this.height = height;
 		this.id = id;
 		this.tex = textureDat;
 		this.time = 0;
 		this.pathFunc = pathFunc ?? ((t) => {return [x, y]});
 		
 		this.conversations = conversationData;
+		this.convoObj = undefined;
+		this.convo = 0;
 		this.convoTime = 0;
 		this.convoLine = 0;
+
+		this.magicNumber = randomBounded(0, 90);
 
 	}
 
 	interact() {
+		//start conversation
+		if (conversingWith == undefined) {
+			console.log(`awawa`);
+			conversingWith = this;
+			startConversation(this.conversations[this.convo]);
+			return;
+		}
 
+		if (conversingWith == this) {
+			//increment line, if able
+			this.convoLine += 1;
+			if (this.convoLine >= this.convoObj.length) {
+				this.uninteract();
+			}
+		}
+	}
+
+	uninteract() {
+		conversingWith = undefined;
+		this.convo = Math.min(this.convo + 1, this.conversations.length - 1);
+		this.convoObj = undefined;
 	}
 
 	beDrawn() {
 		//first figure out how large it should be
-		var feetPos = spaceToScreen(this.x, this.y, this.z);
+		var feetPos = [this.x, this.y, this.z];
 		var midPos = spaceToScreen(this.x, this.y + this.height / 2, this.z);
-		var headPos = spaceToScreen(this.x, this.y + this.height, this.z);
+		var headPos = [this.x, this.y + this.height, this.z];
+		var targetHeight;
 
-		this.tex.beDrawn(x, y, );
+		if (!midPos) {
+			return;
+		}
+
+		//this is so dumb - page case
+		if (this.tex == textures[`pages`]) {
+			if (conversingWith != this) {
+				this.y = 0.4 + 0.3 * Math.sin(2 * this.time + this.magicNumber);
+			}
+			this.tex.frame = +this.id - 1;
+		}
+
+
+		//nonsense to figure out where to draw the creatura. it doesn't even really work.
+		var spine = [feetPos, headPos];
+		spine[0] = spaceToRelative(...spine[0]);
+		spine[1] = spaceToRelative(...spine[1]);
+ 
+		spine = clipToZ0(spine, clipPlaneZ, false);
+		if (spine.length < 2) {
+			return;
+		}
+		var diff = [spine[0][0] - spine[1][0], spine[0][1] - spine[1][1], spine[0][2] - spine[1][2]];
+		var perc = magnitude(diff) / this.height;
+		spine[0] = relativeToScreen(...spine[0]);
+		spine[1] = relativeToScreen(...spine[1]);
+		diff = [spine[0][0] - spine[1][0], spine[0][1] - spine[1][1]];
+		targetHeight = Math.min(magnitude(diff) / perc, canvas.width * 2);
+
+		this.tex.beDrawn(...midPos, targetHeight);
+
+		if (conversingWith == this) {
+			if (this.convoObj[this.convoLine][0] == `|`) {
+				ctx.globalAlpha = 0.5;
+				ctx.fillStyle = "#B8D";
+				ctx.fillRect(-canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+				ctx.globalAlpha = 1;
+				drawText(0, 0, `${canvas.height / 20}px Ubuntu`, this.convoObj[this.convoLine].slice(1), "#000", "#FFD", "center");
+				return;
+			}
+
+			if (this.convoObj[this.convoLine][0] != `>`) {
+				drawText(0, 0, `${canvas.height / 20}px Ubuntu`, this.convoObj[this.convoLine], "#000", "#FFD", "center");
+			}
+		}
+
+		
+
+		// drawWorldDot(feetPos, "#F00");
+		// drawWorldDot(headPos, "#F00");
 	}
 
 	conversePos() {
-		return [this.x, this.y + this.height * 0.6, this.z];
+		return [this.x, this.y + this.height * 0.7, this.z];
 	}
 
-	// handleConversation(dt) {
-	// 	this.converseTime += 
-	// }
-
 	tick(dt) {
+		this.time += dt;
+
 		if (conversingWith == this) {
-			this.texture.passTime(dt);
+			this.tex.passTime(dt);
+			this.convoTime += dt;
+
+			//check for commands
+			if (this.convoObj[this.convoLine][0] == `>`) {
+				var result = eval(`(() => {${this.convoObj[this.convoLine].slice(1)}})()`);
+				if (result) {
+					this.interact();
+				}
+			}
 		}
+
 		//push player away, be pushed away a bit
 		var pVec = [player.x - this.x, player.z - this.z];
 		if (distSquared(...pVec) > this.r * this.r) {
 			return;
 		}
-
+		var m = magnitude(pVec);
+		pVec[0] = (pVec[0] / m) * this.r;
+		pVec[1] = (pVec[1] / m) * this.r;
+		player.x = this.x + pVec[0];
+		player.z = this.z + pVec[1];
 	}
 }
-
-class Page {
-	constructor(x, z, pageID) {
-
-	}
-
-	interact() {
-		//
-		//find and destroy self
-	}
-}
-
 
 
 /*
@@ -210,8 +292,8 @@ class Texture {
 		var xOff = yOff * aspect;
 		//transforming
 		ctx.drawImage(this.sheet, 
-					this.fWidth * this.frames[Math.floor(this.frame)], 0, this.fWidth, this.sheet.height, 
-					x - xOff, y - yOff, size, targetHeight);
+					this.fWidth * (this.frames[Math.floor(this.frame)] - 1), 0, this.fWidth, this.sheet.height, 
+					x - xOff, y - yOff, targetHeight * aspect, targetHeight);
 	}
 
 	reset() {

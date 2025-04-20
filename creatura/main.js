@@ -17,6 +17,8 @@ var color_ground = "#98df7e";
 var color_sky_low = "#81d2ed";
 var color_sky_mid = "#62b9d6";
 var color_sky_high = "#447a8c";
+var color_walls_house = "#bf8f4d";
+var color_walls_house_dark = "#9a723a";
 
 var camera_scale = 600;
 var cursorLock = false;
@@ -32,7 +34,6 @@ var scrollMult = -0.005;
 var drawDistance = 24;
 var wallThickness = 0.08;
 var conversingWith = undefined;
-
 var world_map = [];
 
 function setup() {
@@ -45,7 +46,7 @@ function setup() {
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 
 	canvas.onclick = () => {
-		canvas.requestPointerLock();
+		canvas.requestPointerLock({unadjustedMovement: true});
 	}
 
 	createMap(world_map_walls, world_map_entities);
@@ -77,6 +78,13 @@ function main() {
 	ctx.fillStyle = "#000";
 	ctx.fillRect(-2, -2, 4, 4);
 
+	if (player.dx == 0 && player.dy == 0) {
+		drawText(0, 0, `${Math.floor(canvas.height / 40)}px Ubuntu`, `Use WASD to move and E to interact.`, "#000", "#FFF", "center");
+	}
+	if (player.pages > 0) {
+		drawText(canvas.width * -0.48, canvas.height * -0.45, `${Math.floor(canvas.height / 30)}px Ubuntu`, `${player.pages} / 8`, "#000", "#FFF", "left");
+	}
+
 	animation = window.requestAnimationFrame(main);
 }
 
@@ -87,11 +95,12 @@ function createMap(wallData, entData) {
 	var width = (wallData[0].length - 4) / 2;
 	var height = (wallData.length - 3) / 2;
 	var wc;
-	for (var y=0; y<height; y++) {
+	for (var y=0; y<=height; y++) {
 		world_map.push([]);
 		for (var x=0; x<width; x++) {
 			wc = [x * 2 + 1, y * 2 + 1];
-			world_map[y][x] = new C(wallData[wc[1]][wc[0] - 1], wallData[wc[1] - 1][wc[0]], wallData[wc[1]][wc[0] + 1], wallData[wc[1] + 1][wc[0]], []);
+			world_map[y][x] = new C(wallData[wc[1]][wc[0] - 1], wallData[wc[1] - 1][wc[0]], wallData[wc[1]][wc[0] + 1], wallData[wc[1] + 1][wc[0]],
+				wallData[wc[1]][wc[0]], []);
 		}
 	}
 
@@ -130,7 +139,7 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
-	if (!cursorLock) {
+	if (!cursorLock || conversingWith) {
 		return;
 	}
 	player.theta += e.movementX * scrollMult;
@@ -154,6 +163,21 @@ function handleKeyDown(e) {
 		case `KeyS`:
 			player.az = -player.accelPower;
 			break;
+		case `Space`:
+			if (player.y <= player.height) {
+				player.dy = player.jumpPower;
+			}
+			break;
+		case `KeyE`:
+			var lookPos = polToXY(player.x, player.z, player.theta + Math.PI / 2, 1);
+			var cell = [Math.floor(lookPos[0]), Math.floor(lookPos[1])];
+			console.log(JSON.stringify(cell));
+			try {
+				world_map[cell[1]][cell[0]].entities[0].interact();
+			} catch (er) {
+				//probably outside map bounds. tbh it doesn't matter that much
+			}
+			break;
 	}
 }
 
@@ -170,9 +194,6 @@ function handleKeyUp(e) {
 			break;
 		case `KeyS`:
 			player.az = Math.max(0, player.az);
-			break;
-		case `Space`:
-			player.dy = player.jumpPower;
 			break;
 	}
 }
