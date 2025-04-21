@@ -8,7 +8,7 @@ class Player {
 		this.dy = 0;
 		this.dz = 0;
 		this.ax = 0;
-		this.ay = -7;
+		this.ay = -9;
 		this.az = 0;
 
 		this.thetaLast = 0;
