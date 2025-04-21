@@ -138,7 +138,8 @@ var textures = {
 	"wacker": new Texture(getImage(`img/froge.png`), 270, 9, true, [1, 2]),
 	"gothic": new Texture(getImage(`img/gothic.png`), 210, 12, false, [1, 1, 1, 1, 1, 2, 2, 3, 3]),
 	"gothic-page": new Texture(getImage(`img/gothic-page.png`), 160, 24, false, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36]),
-	"pages": new Texture(getImage(`img/pages.png`), 160, 0, false, [1, 2, 3, 4, 5, 6, 7])
+	"pages": new Texture(getImage(`img/pages.png`), 160, 0, false, [1, 2, 3, 4, 5, 6, 7]),
+	"doll": new Texture(getImage(`img/doll.png`), 180, 0, false, [1])
 };
 
 
