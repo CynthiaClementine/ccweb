@@ -184,7 +184,7 @@ var world_map_entities = [
 	new Creatura(`cat`, 15.5, 9.5, 1, textures[`cat`], [`cat-1`, `cat-2`, `cat-3`]),
 	new Creatura(`tallGuy`, 3.1, 8.1, 2, textures[`tallguy`], [`tallGuy-1`, `tallGuy-2`, `tallGuy-3`, `tallGuy-4`]),
 	new Creatura(`goth`, 2.5, 12.5, 1, textures[`gothic`], [`gothic`, `gothic-morph`]),
-	new Creatura(`doll`, 56.5, 13.5, 1, textures[`doll`], [`doll-1`, `doll-2`, `doll-3`, `doll-4`, `doll-5`]),
+	new Creatura(`doll`, 57.5, 13.5, 0.6, textures[`doll`], [`doll-1`, `doll-2`, `doll-3`, `doll-4`, `doll-5`]),
 
 	new Creatura(`1`, 0.5, 5.5, 0.5, textures[`pages`], [`get-page`]),
 	new Creatura(`2`, 36.5, 1.5, 0.5, textures[`pages`], [`get-page`]),

@@ -97,7 +97,7 @@ function main() {
 //much harder for human read/write though.
 function createMap(wallData, entData) {
 	world_map = [];
-	var width = (wallData[0].length - 4) / 2;
+	var width = (wallData[0].length - 2) / 2;
 	var height = (wallData.length - 3) / 2;
 	var wc;
 	for (var y=0; y<=height; y++) {
