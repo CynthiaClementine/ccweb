@@ -28,6 +28,7 @@ var conversations = {
 		`Collect my pages. Please`,
 	],
 	"wacker-progress": [
+		`>if (player.pages == 8) {return startConversation("wacker-complete");} return true;`,
 		`When you collect them all, we can be friends.`,
 		`There are 8 of them.`,
 		`>return conditionalComplete(player.pages == 8);`
@@ -38,7 +39,7 @@ var conversations = {
 		`I have a confession.`,
 		`I lied. I don't want to be friends.`,
 		`and now I'm sending you to space.`,
-		`>player.ay = 0; player.dy = 0; player.jumpPower = 0;`,
+		`>player.ay = 0; player.dy = 0; player.jumpPower = 0; return true;`,
 		`>window.setInterval(() => {player.y += 0.05;}, 16); return true;`
 	],
 
@@ -67,6 +68,11 @@ var conversations = {
 		`...`,
 		`no. nevermind`
 	],
+	"tallGuy-4": [
+		`I rode an airplane once`,
+		`it was fun`,
+		`maybe I'll ride an airplane again`,
+	],
 
 	"cat-1": [
 		`Once you have an idea,`,
@@ -93,6 +99,28 @@ var conversations = {
 		`And divide by four.`,
 		`wasn't that fun? (:`
 	],
+	"doll-1": [
+		`awawa`,
+	],
+	"doll-2": [
+		`sitting in this corner.`,
+		``,
+		`it is a gift.`,
+		`this one is gracious.`
+	],
+	"doll-3": [
+		`this one thinks.`,
+		`therefore? this one is?`
+	],
+	"doll-4": [
+		`sweep sweep i guess.`,
+		`it's not really my thing.`,
+		`but i hear it's popular.`,
+		`i can talk about popular things.`
+	],
+	"doll-5": [
+		`goobyee~`
+	],
 
 	"gothic": [
 		`your time in this world is limited.`,
@@ -101,7 +129,7 @@ var conversations = {
 	"gothic-morph": [
 		`>conversingWith.tex = textures["gothic-page"]; return wait(3);`,
 		`>return startConversation("get-page");`
-	]
+	],
 };
 
 var textures = {
@@ -153,8 +181,9 @@ var world_map_walls = [
 var world_map_entities = [
 	new Creatura(`wack`, 8.5, 4.5, 0.6, textures[`wacker`], [`wacker`, `wacker-progress`, `wacker-complete`]),
 	new Creatura(`cat`, 15.5, 9.5, 1, textures[`cat`], [`cat-1`, `cat-2`, `cat-3`]),
-	new Creatura(`tallGuy`, 3.1, 8.1, 2, textures[`tallguy`], [`tallGuy-1`, `tallGuy-2`, `tallGuy-3`]),
+	new Creatura(`tallGuy`, 3.1, 8.1, 2, textures[`tallguy`], [`tallGuy-1`, `tallGuy-2`, `tallGuy-3`, `tallGuy-4`]),
 	new Creatura(`goth`, 2.5, 12.5, 1, textures[`gothic`], [`gothic`, `gothic-morph`]),
+	new Creatura(`doll`, 56.5, 13.5, 1, textures[`doll`], [`doll-1`, `doll-2`, `doll-3`, `doll-4`, `doll-5`]),
 
 	new Creatura(`1`, 0.5, 5.5, 0.5, textures[`pages`], [`get-page`]),
 	new Creatura(`2`, 36.5, 1.5, 0.5, textures[`pages`], [`get-page`]),
