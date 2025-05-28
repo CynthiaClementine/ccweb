@@ -140,4 +140,54 @@ var data = {
 		title: `God's name`,
 		info: `it's blinking in panel 5 but I don't think that was communicated well`
 	},
+
+	"time-circle": {
+		path: `IMG_7655.jpg`,
+		title: `time is a flat circle`,
+		info: `I had a terrible time at the boat dock. But with a year to distance myself I thought surely, that this year could be different. I was wrong.`
+	}, "constructive-obstruction": {
+		path: `IMG_7656.jpg`,
+		title: `constructive obstruction`,
+		info: `she's just sliding in the third panel. Not even moving her legs just coasting along the ground`
+	}, "awestruck": {
+		path: `IMG_7657.jpg`,
+		title: `#awestruck`,
+		info: `lore-accurate interactions for everyone`
+	}, "plane-predator": {
+		path: `IMG_7661.jpg`,
+		title: `planes`,
+		info: `sea creatures have the dark part on the top because looking down camoflauges with the floor. So for planes it would be flipped, you're looking up at them camoflauging with the sky`
+	}, "past-self": {
+		path: `IMG_7662.jpg`,
+		title: `Past self`,
+		info: `I worry I'm letting my child self down sometimes`
+	}, "past-self-2": {
+		path: `IMG_7663.jpg`,
+		title: `Passed self`,
+		info: `haha handwriting joke`
+	}, "brainworms": {
+		path: `IMG_7665.jpg`,
+		title: `brainworms.org`,
+		info: `This is how some of you sound.   ..This is also I sound sometimes.`
+	}, "drawing-1": {
+		path: `IMG_7672.jpg`,
+		title: `Untitled Drawing 1`,
+		info: `Rainbolt could probably figure out exactly where it is in real life from this`
+	}, "theft": {
+		path: `IMG_7673.jpg`,
+		title: `theft`,
+		info: `don't worry about the brick wall being shown in the first 3 panels; it was AI-generated there so nobody actually drew it.`
+	}, "boss-chill": {
+		path: `IMG_7674.jpg`,
+		title: `Chilling with my boss`,
+		info: `class solidarity is when the bourgeoisie and the proletariat can talk about the weather. marx said this for suresies`
+	}, "nirvana": {
+		path: `IMG_7675.jpg`,
+		title: `nirvana`,
+		info: `a predictable punchline. Almost like it's a cycle or something`
+	}, "handhold": {
+		path: `IMG_7682.jpg`,
+		title: `handholding`,
+		info: `This was mostly just an excuse to draw hands. I need more practice drawing hands. `
+	},
 }
