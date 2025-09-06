@@ -189,5 +189,93 @@ var data = {
 		path: `IMG_7682.jpg`,
 		title: `handholding`,
 		info: `This was mostly just an excuse to draw hands. I need more practice drawing hands. `
-	},
+	}, "difficulty": {
+		path: `IMG_7740.jpg`,
+		title: `difficulty settings`,
+		info: `After washing dishes for two hours straight once, another person walked over to me and remarked that I did the dishes very quickly. This was surprising to me because the amount of necessary dishes to do had not decreased at all.`
+	}, "opacity": {
+		path: `IMG_7741.jpg`,
+		title: `opacity`,
+		info: `please increase the opacity...`
+	}, "people-drawing": {
+		path: `IMG_7742.jpg`,
+		title: `People at pride`,
+		info: `I didn't intend to go to a pride parade, but one came to my workplace. So that's kind of neat I guess.`
+	}, "murder": {
+		path: `IMG_7795.jpg`,
+		title: `murder`,
+		info: `haha your brain is soo fascinating~ wanna come over later?`
+	}, "brain-horse": {
+		path: `IMG_7845.jpg`,
+		title: `Brain Horse`,
+		info: `a horse's legs can be in multiple places at once. in fact, a horse's legs are often in at least 4 places at once`
+	}, "decibels": {
+		path: `IMG_7846.jpg`,
+		title: `Numbers and such`,
+		info: `decibels are really confusing`
+	}, "changes": {
+		path: `IMG_7847.jpg`,
+		title: `Some things never change.`,
+		info: `This is how it feels whenever someone stands just a little too close to me`
+	}, "framing": {
+		path: `IMG_7870.jpg`,
+		title: `framing`,
+		info: `I actually don't like the people in this one that much but the concept is nice I think. so it makes up for it`
+	}, "veritasium": {
+		path: `IMG_7871.jpg`,
+		title: `D3ric7 V3ri7asium`,
+		info: `I hate that video I hate it I hate it I hate it. Not because the conclusion is necessarily wrong but because the start of that video felt so terribly manipulative that I didn't want to watch any more. Veritasium is just terrible in general. idk`
+	}, "awstruck": {
+		path: `IMG_7872.jpg`,
+		title: `awstruck`,
+		info: `nobody's fallen in ever. I don't know why you would be worried`
+	}, "cia-plant": {
+		path: `IMG_7945.jpg`,
+		title: `My Life As A CIA Plant`,
+		info: `uninteresting uninspired`
+	}, "when-im-gone": {
+		path: `IMG_7946.jpg`,
+		title: `when I'm gone`,
+		info: `they said nothing about when I'm here`
+	}, "scientist": {
+		path: `IMG_7947.jpg`,
+		title: `Scient ist`,
+		info: `this happens basically every other week`
+	}, "library": {
+		path: `IMG_7948.jpg`,
+		title: `library`,
+		info: `any public place, really`
+	}, "content": {
+		path: `IMG_8006.jpg`,
+		title: `Content`,
+		info: `top 10 CRAZY things my roommate did, (number 7 will surprise you)`
+	}, "tic-tac-1": {
+		path: `IMG_8007.jpg`,
+		title: `tic-tac-toe 1`,
+		info: `.sometimes I wish I wasn't on the internet so much. Because I can't help but look at this, now a year after I wrote it, and wonder about some things.`
+	}, "tic-tac-2": {
+		path: `IMG_8008.jpg`,
+		title: `tic-tac-toe 2`,
+		info: `I am often worried.`
+	}, "xkcd": {
+		path: `IMG_8050.jpg`,
+		title: `xkcd graph`,
+		info: `snarky flavor text with pithy statement`
+	}, "dentists": {
+		path: `IMG_8051.jpg`,
+		title: `dentist's`,
+		info: `the last time i went to the dentist's office they got my name wrong even though i both handed them my ID and typed my name in. so`
+	}, "bed-time": {
+		path: `IMG_8133.jpg`,
+		title: `Bed time`,
+		info: `how it feels to try to fall asleep. And then it's two hours later and you can't.`
+	}, "fortune-death": {
+		path: `IMG_8134.jpg`,
+		title: `cw blood`,
+		info: `all the information is on the notebook page`
+	}, "vision": {
+		path: `IMG_8136.jpg`,
+		title: `the vision`,
+		info: `knowing how to program software feels like this`
+	}, 
 }
