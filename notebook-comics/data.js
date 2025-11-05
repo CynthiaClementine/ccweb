@@ -189,7 +189,9 @@ var data = {
 		path: `IMG_7682.jpg`,
 		title: `handholding`,
 		info: `This was mostly just an excuse to draw hands. I need more practice drawing hands. `
-	}, "difficulty": {
+	}, 
+	
+	"difficulty": {
 		path: `IMG_7740.jpg`,
 		title: `difficulty settings`,
 		info: `After washing dishes for two hours straight once, another person walked over to me and remarked that I did the dishes very quickly. This was surprising to me because the amount of necessary dishes to do had not decreased at all.`
