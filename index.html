@@ -129,7 +129,8 @@
                 <a href="seasonalGrid/index.html">Tile World</a> - puzzle solving in a hexagonal tile space. Maybe there's lore? Maybe you're reading too far into it.<h3></h3>
                 <a href="The-ascent.html">The ascent</a> - Mountain climbing with a slight twist<h3></h3>
                 <a href="The-ascent-2/The-ascent-2.html">The ascent 2</a> - Same concept as The Ascent, but with a better map, better movement, crumbling blocks, and jelly squares!<h3></h3>
-                <a href="heaven-ascension/index.html">Heaven's price</a> - a short climbing game I made in 72 hours for ludum dare 49.<h3></h3>
+                <a href="creatura/index.html">Wacker: the 8 pages</a> - a short game I made in 48 hours for Kiln 2025.<h3></h3>
+                <a href="heaven-ascension/index.html">Heaven's price</a> - a short climbing game I made in 72 hours for Ludum Dare 49.<h3></h3>
                 <a href="farm/index.html">Adversarial Farm Game</a> - now you too can experience exponential growth! (Alongside another player.)<h3></h3>
                 <a href="present-finder.html">Present Finder</a> - Find pulsating presents in this wacky 2.5d world<h3></h3>
                 <a href="ball-game/index.html">Ball Game</a> - my first javascript game, made in 2017. It's not very good. The text at the bottom appears to lie as well? But if I were to go back and fix it, I would have to commit to rewriting the entire game from scratch. Now that's an idea...<h3></h3>
@@ -144,7 +145,7 @@
                 <b>Repository Games</b><br>
                 <a href="run-3-clone/index.html">Javascript-based Run 3 remake</a> - it's run 3, running in vanilla js.<h3></h3>
                 <a href="gtteatine/index.html">Get To The End Although There Is No End</a> - traverse a slowly decaying bridge in a water world<h3></h3>
-                <a href="X-O-games/index.html">XO games</a> - a set of board terminal-input games played with Xs and Os<h3></h3>
+                <a href="X-O-games/index.html">XO games</a> - a set of board terminal-input games played with Xs and Os. I never really finished these so they don't work too well.<h3></h3>
                 <a href="simon-says/index.html">Simon Says</a> - it's simon says. Y'know, from among us.<h3></h3>
                 <a href="tetris/index.html">Tetris</a> - it's tetris<h3></h3>
                 <a href="minimal-flappy.html">Flutter poultry</a> - it's flappy bird<h3></h3>
@@ -162,7 +163,7 @@
                 <a href="pain-peko/index.html">Neural Network field coloring</a> - draw points on a field and watch a neural network learn the pattern!<h3></h3>
                 <a href="satellite.html">Simple Satellite Simulation</a> - satellites orbiting a wireframe earth, with some nice graphs to go with<h3></h3>
                 <a href="raymarch/index.html">Ray marching demo</a> - it's ray marching. I can't really get above 5 objects or too much above a 64x48 display, so it doesn't seem like feasable program technology. It's a cool demo though, I think<h3></h3>
-                <a href="plains/index.html">The Desert</a> - 3d world + editor that I abandoned<h3></h3>
+                <a href="plains/index.html">The Desert</a> - 3d world + editor that I abandoned. As of Febuary 2025, it runs much better on chrome than firefox for some strange reason that probably has to do with JIT compiling.<h3></h3>
                 <a href="circle-hover.html">Circle Cursor Hover</a> - hover over the circles as fast as possible to make the numbers go up. My best SR is 14.95<h3></h3>
             </p>
         </div>
@@ -208,9 +209,11 @@
                 <!-- call this Extras instead? -->
                 <b>Other</b><br>
                 <a href="https://youtu.be/BbowtC719IY">Oje Singett</a> - A multi-format video I made about isolation and the internet. It took me a year to make and is approximately 50 minutes long.<br>I'm always a little unsure of how to explain this project, as there are a lot of parts to it, and it's not really like anything else. But at the very least, it's got a bunch of humorous bits. So hopefully you enjoy it!<h3></h3>
+                
                 <a href="https://ring.purduehackers.com/previous?host=clementine.viridian.page">←</a>&nbsp;&nbsp;
                 <a href="https://ring.purduehackers.com">Purdue Hackers Webring</a>&nbsp;&nbsp;
                 <a href="https://ring.purduehackers.com/next?host=clementine.viridian.page">→</a><h3></h3>
+                
                 <a href="notebook-comics/index.html">Notebook comics</a> - a bunch of hand-drawn comics I've made. Unfortunately they're a bit difficult to read.<h3></h3>
             </p>
         </div>
@@ -227,7 +230,7 @@
         /*
         any localstorage should be in a key titled xxxx_data where xxxx is program-specific. Since localstorage is shared site-wide though,
         it's a good idea to keep track of which prefixes have been used. Here are all of them, I believe
-        
+
         animacy
         ext
         flappy
@@ -241,7 +244,7 @@
 
         */
         //calculate amount of localstorage remaining
-        var size = 0; 
+        var size = 0;
         Object.keys(window.localStorage).forEach(d => {
             size += window.localStorage[d].length * 2;
         });
@@ -272,7 +275,7 @@
             for (var r=0; r<document.styleSheets[0].cssRules.length; r++) {
                 if (document.styleSheets[0].cssRules[r].selectorText == ".main") {
                     document.styleSheets[0].cssRules[r].style["font-size"] = "0px";
-                    document.styleSheets[0].cssRules[3].style["text-align"] = "center"; 
+                    document.styleSheets[0].cssRules[3].style["text-align"] = "center";
                     return;
                 }
             }
@@ -282,7 +285,7 @@
             for (var r=0; r<document.styleSheets[0].cssRules.length; r++) {
                 if (document.styleSheets[0].cssRules[r].selectorText == ".main") {
                     document.styleSheets[0].cssRules[r].style["font-size"] = "20px";
-                    document.styleSheets[0].cssRules[3].style["text-align"] = "left"; 
+                    document.styleSheets[0].cssRules[3].style["text-align"] = "left";
                     return;
                 }
             }
