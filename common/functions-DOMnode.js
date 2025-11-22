@@ -15,9 +15,9 @@ var baseNamespace = "http://www.w3.org/2000/svg";
 
 //adds the attributes to the node's attributes
 /**
- * Adds the values to the specified attribute or attributes of a node
- * @param {*} node 
- * @param {Object} attributes 
+ * Increments the values of a the specified attribute or attributes by the specified amount
+ * @param {SVGElement} node 
+ * @param {Object} attributes
  */
  function φAdd(node, attributes) {
 	for (var p in attributes) {
@@ -25,7 +25,13 @@ var baseNamespace = "http://www.w3.org/2000/svg";
 	}
 }
 
-//creates a node with specified attributes. Applies no extra attributes if left blank.
+//
+/**
+ * creates a node with specified attributes. Applies no extra attributes if left blank.
+ * @param {String} nodeType The name of the element node to create
+ * @param {Object|undefined} nodeAttributes a set of HTML attributes to set for the node
+ * @returns {SVGElement} the created node
+ */
 function φCreate(nodeType, nodeAttributes) {
 	var node = document.createElementNS(baseNamespace, nodeType);
 	
@@ -38,7 +44,7 @@ function φCreate(nodeType, nodeAttributes) {
 
 /**
  * Returns the specified attribute or attributes of a node
- * @param {*} node the node to get attributes from
+ * @param {SVGElement} node the node to get attributes from
  * @param {String|Array<String>} attributes the attribute(s) to get
  */
 function φGet(node, attributes) {
@@ -49,6 +55,11 @@ function φGet(node, attributes) {
 	return attributes.map(a => node.getAttribute(a));
 }
 
+/**
+ * sets a series of attributes on a node to certain values
+ * @param {SVGElement} node 
+ * @param {Object} attributes 
+ */
 function φSet(node, attributes) {
 	//change the innerHTML because that's probably what the user wants
 	if (attributes["innerHTML"] != undefined) {
