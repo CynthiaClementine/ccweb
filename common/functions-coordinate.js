@@ -19,6 +19,14 @@ function cartToPol(x, y, z) {
 	return [theta, phi, rad];
 }
 
+function magnitude(vector) {
+	var running = 0;
+	for (var a=0; a<vector.length; a++) {
+		running += vector[a] * vector[a];
+	}
+	return Math.sqrt(running);
+}
+
 //takes in an array of points and clips all the points that have a Z less than 0. Modifies the array in the process
 function clipToZ0(polyPoints, tolerance, invertClipDirection) {
 	//to save time, inverting the clip direction just means inverting all the points, then inverting back
