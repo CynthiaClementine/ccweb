@@ -1,110 +1,3 @@
-
-
-
-
-
-
-
-
-class Timeline {
-	constructor() {
-
-		this.l = {};
-		this.fps = 24;
-		this.layerIDs = [];
-		this.names = {};
-		this.layerDisplayTop = 0;
-		this.onionBounds = [4, 4];
-		this.onionActive = false;
-		
-		//t is the time in frames the timeline is at
-		this.t = 0;
-		//s is the layer selected
-		this.s = 0;
-		this.len = 1;
-	}
-
-	changeFrameTo(frame) {
-		//make sure frame is valid
-		if (frame < 0) {
-			return false;
-		}
-		if (frame > this.len-1) {
-			return false;
-		}
-
-		//changing to the same frame doesn't stop the change from running, but it isn't a frame change 
-		var refreshing = (frame == this.t);
-
-		//move the playhead
-		φSet(timeline_playhead, {'x': frame * (timeline_blockW + 1)});
-		φSet(timeline_playbody, {'x': frame * (timeline_blockW + 1)});
-
-		//first remove all things from the workspace
-		this.makeInvisible();
-
-		this.t = frame;
-
-		this.makeVisible();
-		//alert the tool
-		if (!refreshing && toolCurrent.timeChange) {
-			toolCurrent.timeChange();
-		}
-	}
-
-	frameAt(time, layer) {
-		return this.l[this.layerIDs[layer]][time];
-	}
-
-	setPropertiesForTime(t, propertyObj) {
-		for (var f=this.layerIDs.length-1; f>-1; f--) {
-			φSet(this.l[this.layerIDs[f]][t], propertyObj);
-		}
-	}
-
-	makeInvisible() {
-		var min = Math.max(this.t - (this.onionActive * this.onionBounds[0]), 0);
-		var max = Math.min(this.t + (this.onionActive * this.onionBounds[1]), this.len-1);
-
-		for (var f=min; f<=max; f++) {
-			this.setPropertiesForTime(f, {'display': "none"});
-		}
-	}
-
-	makeVisible() {
-		//if no onion skin just do present and be done
-		if (!this.onionActive) {
-			this.setPropertiesForTime(this.t, {'display': "inline-block", 'filter': undefined, 'opacity': 1});
-			return;
-		}
-		
-		//past onion
-		var maxF = Math.min(this.onionBounds[0]+1, this.t);
-		for (var f=maxF; f>0; f--) {
-			this.setPropertiesForTime(this.t - f, {
-				'display': "inline-block", 
-				'filter': "url(#onionPast)",
-				'opacity': 0.8 * (1 - (f / maxF))
-			});
-		}
-		
-		maxF = Math.min(this.onionBounds[1]+1, this.len - 1 - this.t);
-		//future onion
-		for (var f=maxF; f>0; f--) {
-			this.setPropertiesForTime(this.t + f, {
-				'display': "inline-block", 
-				'filter': "url(#onionFuture)",
-				'opacity': 0.8 * (1 - f / maxF)
-			});
-		}
-		//present
-		this.setPropertiesForTime(this.t, {'display': "inline-block", 'filter': undefined, 'opacity': 1});
-	}
-}
-
-
-
-
 /*
 Here's how these should be used, and why I'm doing it this way:
 
@@ -119,6 +12,7 @@ This is done so I can export the classes easier. When saved, all the js properti
 function curveArrToStr(curveArr) {
 	
 }
+
 function curveStrToArr(curveStr) {
 	var curves = [];
 	var spl = curveStr.split(" ");
@@ -210,37 +104,45 @@ function redrawLoops(loopsArr) {
 	return path.slice(1);
 }
 
-function Fill(pathObj, loops) {
-	//loops are an array of an array of curves
-	if (loops == undefined) {
-		return;
-		//if there are multiple Ms in it, then it's a multi-curve process
-		if (curveStr.match(/M/g).length > 1) {
-			//find each M and use it to create a new curve
-			var mInd = curveStr.indexOf("M", 1);
-			curves.push(curveStrToArr(curveStr.slice(0, mInd - 1)));
-			// curveStr = 
 
-			return curves;
+class Fill {
+	/**
+	 * An object containing a fill SVG
+	 * @param {SVG?} pathObj 
+	 * @param {Curve[][]} loops an array of an array of curves? what?
+	 */
+	constructor(pathObj, loops) {
+		if (!loops) {
+			console.error(pathObj, `cannot create fill with undefined loops!`);
+			return;
+			//if there are multiple Ms in it, then it's a multi-curve process
+			if (curveStr.match(/M/g).length > 1) {
+				//find each M and use it to create a new curve
+				var mInd = curveStr.indexOf("M", 1);
+				curves.push(curveStrToArr(curveStr.slice(0, mInd - 1)));
+				// curveStr = 
+
+				return curves;
+			}
 		}
+
+		this.obj = pathObj;
+		this.loops = loops;
+		this.curves = [].concat(...loops);
+		this.calculateBoundingBox();
 	}
 
-	pathObj.calculateBoundingBox = () => {
+	calculateBoundingBox() {
 		//first redraw, then use that because fills have no edges
-		pathObj.redraw();
-		var bounds = pathObj.getBBox();
-		pathObj.bounding = [bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height];
-		return pathObj.bounding;
+		this.redraw();
+		var bounds = this.obj.getBBox();
+		this.bounding = [bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height];
+		return this.bounding;
 	}
 
-	pathObj.redraw = () => {
-		φSet(pathObj, {'d': redrawLoops(pathObj.loops)});
+	redraw() {
+		φSet(this.obj, {'d': redrawLoops(this.obj.loops)});
 	}
-
-	pathObj.loops = loops;
-	pathObj.curves = [].concat(...loops);
-	pathObj.calculateBoundingBox();
-	return pathObj;
 }
 
 function Spline(pathObj, curves) {
@@ -685,45 +587,3 @@ function Frame(svgObj) {
 
 	return svgObj;
 }
-
-
-
-
-
-
-
-function Symbol(useObj) {
-	/*
-	src - the timeline object ID to pull from
-	frameStart - the frame of the src timeline to start the symbol on
-	frameOffset - the number of frames after the start frame of the current display frame
-	behavior - how the symbol should handle change over time
-		Static - never change from the starting frame
-		Traverse - play the src timeline once, then stop
-		Loop - wrap around to start once finished
-		Bounce - reverse and head to frame 0 after hitting the end
-	*/
-
-
-
-
-	return useObj;
-}
-
-
-// class Symbol extends SVGUseElement {
-// 	constructor() {
-// 		super();
-// 	}
-
-// 	static get observedAttributes() {
-		
-// 		return ["src", "frameStart", "frameOffset", "behavior"];
-// 	}
-
-// 	//only called for the observed attributes
-// 	attributeChangedCallback(attribute, oldVal, newVal) {
-
-// 	}
-// }
-// customElements.define('symbol-bin', Symbol, {extends: 'SVG use'});

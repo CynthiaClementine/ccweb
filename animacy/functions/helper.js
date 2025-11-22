@@ -139,6 +139,10 @@ function clampWorkspace() {
 }
 
 
+/**
+ * Creates and returns a new, fresh UID.
+ * @returns {String}
+ */
 function createUid() {
 	var idLen = 5;
 	var uid = "";
@@ -774,7 +778,7 @@ function timelineShortenTo(newLength, oldLength) {
 		document.getElementById(`label_${k}`).remove();
 	}
 
-	updateTimelineExtender();
+	timeline.updateExtender();
 	setOnionWingLengths();
 	timeline_lenStore = timeline.len;
 
@@ -815,7 +819,7 @@ function timelineLengthenTo(newLength, oldLength) {
 		}));
 	}
 
-	updateTimelineExtender();
+	timeline.updateExtender();
 	setOnionWingLengths();
 	timeline.makeVisible();
 	timeline_lenStore = timeline.len;
@@ -993,10 +997,6 @@ function potraceForTriangle(p1, p2, corner, cornerBuffer, lambMax, lambMin) {
 		linterpMulti(p2, corner, lamb),
 		[p2[0], p2[1]]
 	];
-}
-
-function bezierMerge() {
-
 }
 
 

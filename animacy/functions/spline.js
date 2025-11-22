@@ -3,6 +3,14 @@ A place to put utility functions dealing with splines
 
 INDEX
 
+
+curveCurveIntersect(curve1, curve2, tolerance)
+splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c)
+
+splineToPath2D(splineCurves)
+quantizeCurves(curves)
+quantize(point, quanta)
+quantizeNum(number)
 */
 
 

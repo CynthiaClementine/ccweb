@@ -188,14 +188,27 @@ August-23-2021 -->
         <script src="../common/collision-2d.js"></script>
         
         <!--my app-specific code-->
-        <script src="functions-spline.js"></script>
-        <script src="functions-api.js"></script>
-        <script src="functions-helper.js"></script>
-        <script src="functions-interact.js"></script>
-        <script src="functions-misc.js"></script>
-        <script src="functions-files.js"></script>
+        <script src="functions/spline.js"></script>
+        <script src="functions/api.js"></script>
+        <script src="functions/helper.js"></script>
+        <script src="functions/interact.js"></script>
+        <script src="functions/misc.js"></script>
+        <script src="functions/files.js"></script>
+
         <script src="objects.js"></script>
-        <script src="modes.js"></script>
+        <script src="architecture/symbol.js"></script>
+        <script src="architecture/timeline.js"></script>
+        <script src="architecture/workspace.js"></script>
+
+        <script src="tools/draw.js"></script>
+        <script src="tools/fill.js"></script>
+        <script src="tools/misc.js"></script>
+        <script src="tools/painters.js"></script>
+        <script src="tools/polygonal.js"></script>
+        <script src="tools/text.js"></script>
+
+        <script src="symbol.js"></script>
+        <script src="tests.js"></script>
 		
     </head>
     <body>
@@ -511,10 +524,8 @@ August-23-2021 -->
                     -->
                     <svg id="timeline_blocks_container">
                         <svg id="timeline_clipped" overflow="visible">
-                            <g id="timeline_blocks">
-                            </g>
-                            <g id="timeline_labels">
-                            </g>
+                            <g id="timeline_blocks"></g>
+                            <g id="timeline_labels"></g>
                             <svg id="timeline_onionhead" overflow="visible" stroke-width="2" display="none">
                                 <rect id="onionLeft" width="0" height="11" y="2" fill="none" stroke="var(--colorOnionPast)"/>
                                 <line id="onionLeftExtender" y1="2" y2="13" stroke="var(--colorOnionPast)" stroke-width="4" stroke-linecap="round" cursor="ew-resize" onmousedown="setDownType('onionPullLeft', event)"/>

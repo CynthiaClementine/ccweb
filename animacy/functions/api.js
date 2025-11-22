@@ -258,7 +258,7 @@ function addLayer(name) {
 	layerObj.appendChild(frameObj);
 
 	createTimelineBlocks(layerID, 0, timeline.len-1);
-	updateTimelineExtender();
+	timeline.updateExtender();
 	//update the timeline's visibility
 	timeline.makeVisible();
 	return true;
@@ -294,7 +294,7 @@ function addLayer(name) {
 	timeline.makeVisible();
 
 	//make sure extender length is accurate
-	updateTimelineExtender();
+	timeline.updateExtender();
 }
 
 /**
@@ -351,6 +351,7 @@ function reorderLayer(oldIndex, newIndex) {
  * @param {Number} frame The frame being selected
  */
 function select(layer, frame) {
+	timeline.select(layer, frame);
 	//change the timeline selector while staying in-bounds
 	timeline.s = clamp(layer, 0, timeline.layerIDs.length-1);
 	console.log("changing frame to ", frame);

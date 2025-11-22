@@ -187,7 +187,7 @@ function import_parseTimelineData(timeData) {
 		//update the timeline blocks for that layer
 		createTimelineBlocks(lID, 0, timeline.len-1);
 	});
-	updateTimelineExtender();
+	timeline.updateExtender();
 }
 
 /**
