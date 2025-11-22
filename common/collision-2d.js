@@ -5,10 +5,12 @@ getOrientation(p1, p2, p3)
 circleCircleIntersect(circleParams1, circleParams2)
 lineIntersect(lin1p1, lin1p2, lin2p1, lin2p2)
 lineLineIntersect(l1p1, l1p2, l2p1, l2p2)
+lineLineIntersectInfinite(l1p1, l1p2, l2p1, l2p2)
 lineLineClosestPoints(l1p1, l1p2, l2p1, l2p2)
 inPoly(xyPoint, polyPoints)
 pointLineIntersect(p, linp1, linp2, tolerance)
 pointLineDistance(point, lineP1, lineP2)
+pointDistance(p1, p2)
 lineT(lineP1, lineP2, point)
 pointSegmentDistance(point, lineP1, lineP2)
 
@@ -93,6 +95,18 @@ function lineIntersect(lin1p1, lin1p2, lin2p1, lin2p2) {
 
 //returns the t coordinate of the first line where it intersects with the second line.
 function lineLineIntersect(l1p1, l1p2, l2p1, l2p2) {
+	var result = lineLineIntersectInfinite(l1p1, l1p2, l2p1, l2p2);
+	if (result.length == 0) {
+		//is it faster to create a new empty array here? Or to return the existing one? I'm not sure.
+		return [];
+	}
+	if (result[0] <= 0 || result[0] >= 1 || result[1] <= 0 || result[1] >= 1) {
+		return [];
+	}
+	return result;
+}
+
+function lineLineIntersectInfinite(l1p1, l1p2, l2p1, l2p2) {
 	var det, t1, t2;
 	det = (l1p2[0] - l1p1[0]) * (l2p2[1] - l2p1[1]) - (l2p2[0] - l2p1[0]) * (l1p2[1] - l1p1[1]);
 	//if the determinant is 0, the lines must be parallel and therefore don't intersect at a single point
@@ -102,10 +116,7 @@ function lineLineIntersect(l1p1, l1p2, l2p1, l2p2) {
 
 	t1 = ((l2p2[1] - l2p1[1]) * (l2p2[0] - l1p1[0]) + (l2p1[0] - l2p2[0]) * (l2p2[1] - l1p1[1])) / det;
 	t2 = ((l1p1[1] - l1p2[1]) * (l2p2[0] - l1p1[0]) + (l1p2[0] - l1p1[0]) * (l2p2[1] - l1p1[1])) / det;
-	if (t1 > 0 && t1 < 1 && t2 > 0 && t2 < 1) {
-		return [t1, 1 - t2];
-	}
-	return [];
+	return [t1, 1 - t2];
 }
 
 //returns the two closest points of two lines. If the two lines intersect, the points will be the same. 
@@ -217,6 +228,10 @@ function pointSegmentDistance(point, lineP1, lineP2) {
 
 	//t is between the points
 	return Math.sqrt((point[0] - (lineP1[0] + t * changeX)) ** 2 + (point[1] - (lineP1[1] + t * changeY)) ** 2);
+}
+
+function pointDistance(p1, p2) {
+	return Math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2);
 }
 
 /**
