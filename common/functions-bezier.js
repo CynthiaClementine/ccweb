@@ -302,16 +302,69 @@ function bezierMinMax(p0, c0, c1, p1) {
 	];
 }
 
-//takes in a quadratic bezier curve, and outputs two curves split at a percentage that, when put together, are identical to the original 
-/*
-Here's the dealio
-a bezier curve can be produced by tracing along sets of lines. (De casteljau's algorithm)
-when we split a bezier curve, the tricky part is getting the two in-between control points.
-Those in-between control points are in those lines we trace out, so to split the bezier curve, we run the algorithm 
-and then output the results halfway through basically
-	*/
-function bezierSplit(p0, c0, c1, p1, percentage) {
+
+/**
+ * Merges two cubic bezier curves in the form [p1, c1, c2, p2].
+ * @param {Number[][]} curve1 The array representing the first bezier curve
+ * @param {Number[][]} curve2 The array representing the second bezier curve
+ * @returns {Number[][]|undefined} The array representing the merged curves. If the curves cannot be merged, returns undefined. 
+ */
+function bezierMerge(curve1, curve2) {
+	//make sure the curves touch
+	if (d2_distSquared(curve1[3], curve2[0]) > 1 / quantizeAmount) {
+		console.log(`curves don't touch`);
+		return undefined;
+	}
+
+	//get start and end points
+	var start = curve1[0];
+	var end = curve2[3];
+
+	//find tangent intersection
+	var tanT = lineLineIntersectInfinite(curve1[0], curve1[1], curve2[3], curve2[2])[0];
+	//get rid of all curves >= 180°
+	if (tanT == undefined || tanT < 0) {
+		console.log(`curve bad angle`);
+		return undefined;
+	}
+	var tanEnd = linterpMulti(curve1[0], curve1[1], tanT);
+
+	/*figure out how far along the curve we should go by using the highest point
+	a = percentage on the start->tan point, b = percentage on end->tan point
+	assuming a = b, the highest point is at 3/4 * a, and the area is 0.3 * (2a + 2b - ab)
+	aka: A = 0.3 * (4a - a^2). Wow! A quadratic!
 	
+	the inverse of this is a = (10/6)(1.2 - sqrt(1.44 - 1.2A)) [when 0 < a < 1]
+	but that's for the standard bezier curve, where 0 < A < 1. To figure out what A can be for this specific curve, use the triangle
+	*/
+	var maxArea = polyArea([start, tanEnd, end]);
+	//slightly hacky, I should be using a more reliable area measurement but whatever.
+	var area = 1.05 * polyArea([start, bezierPointFromT(...curve1, 0.5), curve1[3], bezierPointFromT(...curve2, 0.5), end]);
+	var a = 1.666 * (1.2 - Math.sqrt(1.44 - 1.2 * (area / maxArea)));
+
+	//spread operator to avoid reference errors
+	return [[...start], linterpMulti(start, tanEnd, a), linterpMulti(end, tanEnd, a), [...end]];
+}
+
+//
+/**
+ * takes in a quadratic bezier curve, and outputs two curves split at a percentage that, when put together, are identical to the original 
+ * @param {Number[]} p0 The curve start point
+ * @param {Number[]} c0 control point 1
+ * @param {Number[]} c1 control point 2
+ * @param {Number[]} p1 The curve end point
+ * @param {Number} percentage 
+ * @returns 
+ */
+function bezierSplit(p0, c0, c1, p1, percentage) {
+	/*
+	Here's the dealio
+	a bezier curve can be produced by tracing along sets of lines. (De casteljau's algorithm)
+	when we split a bezier curve, the tricky part is getting the two in-between control points.
+	Those in-between control points are in those lines we trace out, so to split the bezier curve, we run the algorithm 
+	and then output the results halfway through basically
+	*/
+
 	var pE = [linterp(p0[0], c0[0], percentage), linterp(p0[1], c0[1], percentage)];
 	var pF = [linterp(c0[0], c1[0], percentage), linterp(c0[1], c1[1], percentage)];
 	var pG = [linterp(c1[0], p1[0], percentage), linterp(c1[1], p1[1], percentage)];
@@ -321,5 +374,5 @@ function bezierSplit(p0, c0, c1, p1, percentage) {
 	var point = [linterp(pH[0], pI[0], percentage), linterp(pH[1], pI[1], percentage)];
 
 	//return the two curves
-	return [[p0, pE, pH, point], [point, pI, pG, p1]];
+	return [[[...p0], pE, pH, [...point]], [point, pI, pG, [...p1]]];
 }
