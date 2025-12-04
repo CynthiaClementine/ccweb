@@ -43,3 +43,33 @@ function drawRoundedRectangle(x, y, width, height, arcRadius) {
 	ctx.lineTo(x, y + arcRadius);
 	ctx.quadraticCurveTo(x, y, x + arcRadius, y);
 }
+
+/**
+ * Draws text. Tries to strike a balance between explicit changable params and leaving properties up to previous state. Most properties can be left undefined, and will therefore inherit context from previous state.
+ * @param {Number} x text x-position
+ * @param {Number} y text y-position
+ * @param {String|undefined} font the font to draw. Example: "40px Times New Roman"
+ * @param {String} text the actual text to draw
+ * @param {String|undefined} strokeColor the hex code of the stroke color. If undefined will not draw a stroke
+ * @param {String|undefined} fillColor the hex code of the fill color. If undefined will not draw a fill
+ * @param {"left"|"center"|"right"|undefined} align the horizontal alignment of the text.
+ */
+function drawText(x, y, font, text, strokeColor, fillColor, align) {
+	ctx.beginPath();
+	if (font) {
+		ctx.font = font;
+	}
+	if (align) {
+		ctx.textAlign = align;
+	}
+	
+	// draw an outline, then filled
+	if (strokeColor) {
+		ctx.strokeStyle = strokeColor;
+		ctx.strokeText(text, x, y);
+	}
+	if (fillColor) {
+		ctx.fillStyle = fillColor;
+		ctx.fillText(text, x, y);
+	}
+}
