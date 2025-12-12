@@ -18,6 +18,19 @@ bezierSplit(p0, c0, c1, p1, percentage)
 
 */
 
+/**
+ * Computes approximate intersection point(s) between two cubic Bézier curves.
+ * @param {Number[]} b1p0 - Start point of the first curve `[x, y]`.
+ * @param {Number[]} b1c0 - First control point of the first curve `[x, y]`.
+ * @param {Number[]} b1c1 - Second control point of the first curve `[x, y]`.
+ * @param {Number[]} b1p1 - End point of the first curve `[x, y]`.
+ * @param {Number[]} b2p0 - Start point of the second curve `[x, y]`.
+ * @param {Number[]} b2c0 - First control point of the second curve `[x, y]`.
+ * @param {Number[]} b2c1 - Second control point of the second curve `[x, y]`.
+ * @param {Number[]} b2p1 - End point of the second curve `[x, y]`.
+ * @param {Number} tolerance - Distance threshold used to stop recursion.
+ * @returns {Number[][]} A list of approximate intersection points as `[x, y]` coordinates.
+ */
 function bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, b2p0, b2c0, b2c1, b2p1, tolerance) {
 	var bounds1 = bezierBounds(b1p0, b1c0, b1c1, b1p1);
 	var bounds2 = bezierBounds(b2p0, b2c0, b2c1, b2p1);
@@ -67,7 +80,17 @@ function bezierBezierIntersect(b1p0, b1c0, b1c1, b1p1, b2p0, b2c0, b2c1, b2p1, t
 
 
 
-//Says whether a line segment and a bezier curve intersect
+/**
+ * Tests whether a line segment intersects a cubic Bézier curve.
+ * @param {Number[]} linp1 - Start point of the line segment `[x, y]`.
+ * @param {Number[]} linp2 - End point of the line segment `[x, y]`.
+ * @param {Number[]} bezp0 - Curve start point `[x, y]`.
+ * @param {Number[]} bezc0 - First control point `[x, y]`.
+ * @param {Number[]} bezc1 - Second control point `[x, y]`.
+ * @param {Number[]} bezp1 - Curve end point `[x, y]`.
+ * @param {Number|undefined} [tolerance=0.04] - Numerical tolerance for intersection tests.
+ * @returns {Boolean} `true` if the line segment and Bézier curve intersect.
+ */
 function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1, tolerance) {
 	tolerance = tolerance ?? 0.04;
 	//rotate the line and curve together so the line is always directly on the +x axis
@@ -96,7 +119,17 @@ function lineBezierIntersect(linp1, linp2, bezp0, bezc0, bezc1, bezp1, tolerance
 	return false;
 }
 
-//t0 and t1 are only for the recursive parts
+/**
+ * Computes approximate intersection point(s) between a line segment and a cubic Bézier curve.
+ * @param {Number[]} linp1 - Start point of the line segment `[x, y]`.
+ * @param {Number[]} linp2 - End point of the line segment `[x, y]`.
+ * @param {Number[]} bezp0 - Curve start point `[x, y]`.
+ * @param {Number[]} bezc0 - First control point `[x, y]`.
+ * @param {Number[]} bezc1 - Second control point `[x, y]`.
+ * @param {Number[]} bezp1 - Curve end point `[x, y]`.
+ * @param {Number} tolerance - Distance threshold used to stop recursion.
+ * @returns {Number[][]} A list of approximate intersection points as `[x, y]` coordinates.
+ */
 function lineBezierIntersect_coords(linp1, linp2, bezp0, bezc0, bezc1, bezp1, tolerance) {
 	//if the gap is small enough, count it
 	if (Math.max(Math.abs(linp1[0] - linp2[0]), Math.abs(linp1[1] - linp2[1])) < tolerance) {
@@ -113,8 +146,16 @@ function lineBezierIntersect_coords(linp1, linp2, bezp0, bezc0, bezc1, bezp1, to
 	return lineBezierIntersect_coords(linp1, half, bezp0, bezc0, bezc1, bezp1, tolerance).concat(lineBezierIntersect_coords(half, linp2, bezp0, bezc0, bezc1, bezp1, tolerance));
 }
 
-//says whether a point intersects the bezier, with some tolerance
-//it's called half tolerance because it's going to be the distance inside the bounding box + the distance outside the bounding box that the point counts
+/**
+ * Tests whether a point intersects a cubic Bézier curve within a tolerance.
+ * @param {Number[]} p1 - The point to test as `[x, y]`.
+ * @param {Number[]} bezp0 - Curve start point `[x, y]`.
+ * @param {Number[]} bezc0 - First control point `[x, y]`.
+ * @param {Number[]} bezc1 - Second control point `[x, y]`.
+ * @param {Number[]} bezp1 - Curve end point `[x, y]`.
+ * @param {Number} halfTolerance - Allowed distance plus or minus the curve bounds.
+ * @returns {Boolean} `true` if the point intersects the curve within tolerance.
+ */
 function pointBezierIntersect(p1, bezp0, bezc0, bezc1, bezp1, halfTolerance) {
 	var bounds = bezierBounds(bezp0, bezc0, bezc1, bezp1);
 	ctx.rect(...bounds[0], bounds[1][0] - bounds[0][0], bounds[1][1] - bounds[0][1]);
@@ -136,6 +177,15 @@ function pointBezierIntersect(p1, bezp0, bezc0, bezc1, bezp1, halfTolerance) {
 			pointBezierIntersect(p1, slices[1][0], slices[1][1], slices[1][2], slices[1][3], halfTolerance);
 }
 
+/**
+ * Tests whether a point lies inside a polygon composed of lines and bezier curves.
+ * @param {Number[]} xyPoint - The point to test as `[x, y]`.
+ * @param {Number[][][]} polyLines - An array of segments describing the polygon path.
+ * Each segment is either:
+ * - 2 points: `[start, end]` for a straight line, or
+ * - 4 points: `[start, c0, c1, end]` for a cubic Bézier curve.
+ * @returns {Boolean} `true` if the point is inside the path, otherwise `false`.
+ */
 function inCurvedPoly(xyPoint, polyLines) {
 	ctx.beginPath();
 	//add to the path
@@ -155,11 +205,23 @@ function inCurvedPoly(xyPoint, polyLines) {
 
 //the bounds of a bezier curve can be found either at the start / end, or where the derivative of x/y is 0 (because that's where turns happen)
 //returns [min x, min y, max x, max y]
+/**
+ * use bezierMinMax instead.
+ */
 function bezierBounds(p0, c0, c1, p1) {
 	return bezierMinMax(p0, c0, c1, p1);
 }
 
-//given the 4 points and a t value, gives the point on the bezier curve that corresponds to that t-value
+/**
+ * given the 4 points and a t value, gives the point on the bezier curve that corresponds to that t-value
+ *
+ * @param {Number[]} p0 - Start point `[x, y]`.
+ * @param {Number[]} c0 - First control point `[x, y]`.
+ * @param {Number[]} c1 - Second control point `[x, y]`.
+ * @param {Number[]} p1 - End point `[x, y]`.
+ * @param {Number} t - Curve parameter, typically in `[0, 1]`.
+ * @returns {Number[]} The point on the curve at `t` as `[x, y]`.
+ */
 function bezierPointFromT(p0, c0, c1, p1, t) {
 	//expanding the formulas for the repeated linear interpolation gives you these
 	return [
@@ -168,7 +230,15 @@ function bezierPointFromT(p0, c0, c1, p1, t) {
 	]
 }
 
-
+/**
+ * Takes in a bezier curve as well as a point, and returns the t-value of that point along the curve.
+ * @param {Number[]} p0 the curve's starting point
+ * @param {Number[]} c0 the curve's first control point
+ * @param {Number[]} c1 the curve's second control point
+ * @param {Number[]} p1 the curve's ending point
+ * @param {Number[]} p the point to test for
+ * @returns {Number} a number between 0 and 1 representing the t-value of the point
+ */
 function bezierTFromPoint(p0, c0, c1, p1, p, tMin, tMax, tError, n) {
 	console.error(`this function is not finished!`);
 	if (n == undefined) {
@@ -205,8 +275,15 @@ function coefficientsForBezier(x0, c0, c1, x1) {
 	return [x1 - x0 + 3*c0 - 3*c1, 3*c1 + 3*x0 - 6*c0, 3*c0 - 3*x0, x0];
 }
 
-//similar algorithm to bezierBounds - test endpoints and spots where the derivative is 0
+/**
+ * Takes in specifications for a quadratic bezier curve, and returns the axis-aligned bounding box.
+ * @param {Number[]} p0 coordinate of the curve's starting point
+ * @param {Number[]} c coordinate of the curve's control point
+ * @param {Number[]} p1 coordinate of the curve's ending point
+ * @returns {Number[]} an array of the form [minX, minY, maxX, maxY]
+*/
 function quadraticBounds(p0, c, p1) {
+	//similar algorithm to bezierBounds - test endpoints and spots where the derivative is 0
 	var xValues = [];
 	var yValues = [];
 	var a, b, t;
@@ -241,12 +318,19 @@ function quadraticPointFromT(p0, c, p1, t) {
 	]
 }
 
-/*the minimum and maximum values can be found, either at the start/end points, or where the curve changes direction.
-The curve changes direction when the derivative of the x or y components hit zero, so this runs the quadratic formula twice
-(once for x and once for y)
-*/
-//TODO: could this be optimized? It seems to check both the x and y of a 0-slope point, when only one dimension should be necessary
+/**
+ * returns 
+ * @param {Number[]} p0 the bezier curve's start point
+ * @param {Number[]} c0 the bezier curve's first control point
+ * @param {Number[]} c1 the bezier curve's second control point
+ * @param {Number[]} p1 the bezier curve's end point
+ * @returns {Number[][]} a 2d array in the form [[minX, minY], [maxX, maxY]] corresponding to the bounding box of the curve
+ */
 function bezierMinMax(p0, c0, c1, p1) {
+	/*the minimum and maximum values can be found, either at the start/end points, or where the curve changes direction.
+	The curve changes direction when the derivative of the x or y components hit zero, so this runs the quadratic formula twice
+	(once for x and once for y)*/
+	//TODO: could this be optimized? It seems to check both the x and y of a 0-slope point, when only one dimension should be necessary
 	var tvalues = [], xvalues = [], yvalues = [],
 		a, b, c, t, t1, t2, b2ac, sqrtb2ac;
 	for (var i=0; i<2; i++) {
@@ -304,10 +388,11 @@ function bezierMinMax(p0, c0, c1, p1) {
 
 
 /**
- * Merges two cubic bezier curves in the form [p1, c1, c2, p2].
+ * Merges two cubic bezier curves in the form `[p1, c1, c2, p2]`.
  * @param {Number[][]} curve1 The array representing the first bezier curve
  * @param {Number[][]} curve2 The array representing the second bezier curve
  * @returns {Number[][]|undefined} The array representing the merged curves. If the curves cannot be merged, returns undefined. 
+ * //TODO: this doesn't quite work. Fix it. This needs to change.
  */
 function bezierMerge(curve1, curve2) {
 	//make sure the curves touch
@@ -346,15 +431,14 @@ function bezierMerge(curve1, curve2) {
 	return [[...start], linterpMulti(start, tanEnd, a), linterpMulti(end, tanEnd, a), [...end]];
 }
 
-//
 /**
  * takes in a quadratic bezier curve, and outputs two curves split at a percentage that, when put together, are identical to the original 
  * @param {Number[]} p0 The curve start point
  * @param {Number[]} c0 control point 1
  * @param {Number[]} c1 control point 2
  * @param {Number[]} p1 The curve end point
- * @param {Number} percentage 
- * @returns 
+ * @param {Number} percentage the percentage along the curve, in terms of t, to split the curve at
+ * @returns {Number[][][]} two cubic bezier curves in the form [c1, c2]
  */
 function bezierSplit(p0, c0, c1, p1, percentage) {
 	/*

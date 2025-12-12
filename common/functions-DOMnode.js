@@ -25,7 +25,6 @@ var baseNamespace = "http://www.w3.org/2000/svg";
 	}
 }
 
-//
 /**
  * creates a node with specified attributes. Applies no extra attributes if left blank.
  * @param {String} nodeType The name of the element node to create
@@ -58,7 +57,7 @@ function φGet(node, attributes) {
 /**
  * sets a series of attributes on a node to certain values
  * @param {SVGElement} node 
- * @param {Object} attributes 
+ * @param {Object} attributes
  */
 function φSet(node, attributes) {
 	//change the innerHTML because that's probably what the user wants
