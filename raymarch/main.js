@@ -1,67 +1,61 @@
 
 window.onload = setup;
+window.onresize = () => {
+	window.clearTimeout(render_sizeTimeout);
+	render_sizeTimeout = window.setTimeout(typeIt, 60);
+};
 window.addEventListener("keydown", handleKeyPress, false);
 window.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener('pointerlockchange', handleCursorLockChange, false);
 document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
 
-
-var bg_min = 30;
-var bg_max = 30;
-
-var canvas;
-var ctx;
-
-var camera_FOV = 1.5;
-var camera_planeOffset = 1;
-var camera;
-
-var color_editor_bg = "#220073";
-var color_editor_border = "#FF00FF";
-
-var controls_cursorLock = false;
-var controls_shiftPressed = false;
-var controls_sensitivity = 0.01;
-
-var editor_active = false;
-
-
-//ray properties
-var ray_maxDist = 9999;
-var ray_minDist = 0.1;
-var ray_maxIters = 1000;
-
-var page_animation;
-
-var render_cornerCoords = [0, 0, 0, 0];
-var render_pixelSize = 10;
-var render_shadowPercent = 0.2;
-
-var world_time = 0;
-
-var loading_world = worldData_start;
-var loading_editor = new Editor();
-
-
-
-
 //setup
 function setup() {
-	canvas = document.getElementById("cancan");
+
+	initiateWorkers();
+	createWorlds();
+	canvas = document.getElementById("artbox");
 	ctx = canvas.getContext("2d");
+	typeIt();
 
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 	canvas.onclick = function() {canvas.requestPointerLock();}
 
-	camera = new Camera(loading_world, loading_world.spawn[0], loading_world.spawn[1], loading_world.spawn[2]);
-	render_cornerCoords = [0, 0, canvas.width, canvas.height];
+	camera = new Camera(loading_world, ...(loading_world.spawn));
+	render_cornerCoords = [0, 0, 480, 480];
+	
+	window.setTimeout(main, 10);
+}
 
-	page_animation = window.requestAnimationFrame(main);
+function initiateWorkers() {
+	for (var e=0; e<worker_num; e++) {
+		worker_pool[e] = new Worker("worker.js");
+		worker_pool[e].onmessage = handleWorkerMsg;
+	}
+}
+
+function typeIt(renderN) {
+	// window.clearTimeout(page_animation);
+	if (renderN) {
+		render_n = renderN;
+	}
+	var width = window.innerWidth;
+	var height = window.innerHeight - 60;
+	var blockSize = Math.min(width / render_n, height / render_n);
+	
+	canvas.width = render_n * blockSize;
+	canvas.height = render_n * blockSize;
+	
+	// page_animation = window.setTimeout(main, 10);
 }
 
 //loop loop loop loop
 function main() {
+	perf_startT = performance.now();
+	
+	
+	
 	world_time += 1;
 	//tick all world objects
 	loading_world = camera.world;
@@ -69,22 +63,59 @@ function main() {
 	loading_world.objects.forEach(o => {
 		o.tick();
 	});
-	draw();
-
+	loading_world.tree.update();
 	
+	worker_pool.forEach(w => {
+		w.postMessage(["updateCamera", camera.world.name, camera.x, camera.y, camera.z, camera.theta, camera.phi]);
+	});
+	
+	draw();
 
 	//editor stuff
 	if (editor_active) {
 		loading_editor.beDrawn();
 	}
 
-	page_animation = window.requestAnimationFrame(main);
+	//end
+	finishMain();
+}
+
+function finishMain() {
+	//first figure out if we can actually finish
+	if (render_linesDrawn < render_n) {
+		return;
+	}
+	
+	//calculate frame time
+	perf_endT = performance.now();
+	var elapsedMS = (perf_endT - perf_startT);
+	perf_log[perf_n] = elapsedMS;
+	perf_n = (perf_n + 1) % perf_len;
+	
+	//log performance
+	var avgElapsedMS = (perf_log.reduce((a, b) => a + b) / perf_len);
+	debugMSPF.innerHTML = avgElapsedMS.toFixed(2);
+	debugMSPF.style = `color: ${(elapsedMS > frameTime * 0.9) ? "#F97" : "#444"}`;
+	
+	//changing display size
+	if (render_n != render_goalN) {
+		typeIt(render_goalN);
+		//ough
+		page_animation = window.setTimeout(main, 70);
+	} else {
+	
+		//regular frame advance
+		page_animation = window.setTimeout(main, Math.max(1, frameTime - elapsedMS));
+	}
+	
 }
 
 function draw() {
 	//draw everything
-	var pixelWidth = (render_cornerCoords[2] - render_cornerCoords[0]) / render_pixelSize;
-	var pixelHeight = (render_cornerCoords[3] - render_cornerCoords[1]) / render_pixelSize;
+	var pixelWidth = render_n;
+	var pixelHeight = render_n;
+	
+	render_linesDrawn = 0;
 
 	var multiple = camera_FOV / pixelWidth;
 
@@ -93,25 +124,49 @@ function draw() {
 	var zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
 	var trueDir;
 	var magnitude;
+	
+	var workerInd = -1;
 
 	for (var x=0; x<pixelWidth; x++) {
-		for (var y=0; y<pixelHeight; y++) {
-			var xMult = multiple * (x - pixelWidth / 2);
-			var yMult = multiple * (y - pixelWidth / 2);
-
-			//create a ray and iterate until complete
-			trueDir = [
-				xDir[0] * xMult + yDir[0] * yMult + zDir[0],
-				xDir[1] * xMult + yDir[1] * yMult + zDir[1], 
-				xDir[2] * xMult + yDir[2] * yMult + zDir[2]
-			]
-			magnitude = Math.hypot(trueDir[0], trueDir[1], trueDir[2]);
-			trueDir[0] /= magnitude;
-			trueDir[1] /= magnitude;
-			trueDir[2] /= magnitude;
-			new Ray(camera.world, camera.x, camera.y, camera.z, trueDir, x, y).iterate(0);
+		workerInd = (workerInd + 1) % (worker_pool.length);
+		if (workerInd < worker_pool.length) {
+			// if (x % 2 == 1) {
+			worker_pool[workerInd].postMessage(["calcLine", multiple, x, pixelWidth, pixelHeight]);
+			// } else {
+			// 	render_linesDrawn += 1;
+			// }
+		} else {
+			//compute in the main thread
+			drawLine(x, calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight));
+			
 		}
 	}
+}
+
+function drawLine(x, colorArr) {
+	if (Math.random() < 0.01) {
+		console.log(x, colorArr);
+	}
+	var blockSize = Math.round(canvas.width / render_n);
+	for (var y=0; y<colorArr.length; y++) {
+		ctx.fillStyle = `rgb(${colorArr[y][0]}, ${colorArr[y][1]}, ${colorArr[y][2]})`;
+		ctx.fillRect(x * blockSize, y * blockSize, blockSize + 0.1, blockSize + 0.1);
+	}
+	render_linesDrawn += 1;
+	finishMain();
+}
+
+function handleWorkerMsg(e) {
+	var data = e.data;
+	switch (data[0]) {
+		case "colorLine":
+			drawLine(data[1], data[2]);
+			break;
+		default:
+			console.error(`not sure what to do with worker messageID ${data[0]}! Full message:`, data);
+			break;
+	}
+	// console.log(e.data);
 }
 
 
@@ -193,7 +248,7 @@ function handleCursorLockChange() {
 
 function handleMouseMove(a) {
 	camera.theta += a.movementX * controls_sensitivity;
-	camera.phi -= a.movementY * controls_sensitivity;
+	camera.phi -= (a.movementY) * controls_sensitivity;
 	if (Math.abs(camera.phi) > Math.PI / 2.02) {
 		if (camera.phi < 0) {
 			camera.phi = Math.PI / -2.01;

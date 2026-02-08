@@ -2,9 +2,13 @@
 
 INDEX
 
+getDistance(x1, y1, z1, x2, y2, z2)
+
+
 
 
 */
+
 
 function getDistance(x1, y1, z1, x2, y2, z2) {
 	return Math.sqrt(((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)) + ((z1 - z2) * (z1 - z2)));
@@ -23,8 +27,31 @@ function doubleToIEEE(f) {
 	return [(new Uint32Array(buf))[0], (new Uint32Array(buf))[1]];
 }
 
+function calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight) {
+	//array of integers, measuring RGB/RGB/RGB/RGB
+	var colors = new Array(pixelHeight);
+	for (var y=0; y<pixelHeight; y++) {
+		var xMult = multiple * (x - pixelWidth / 2);
+		var yMult = multiple * (y - pixelHeight / 2);
+
+		//create a ray and iterate until complete
+		trueDir = [
+			xDir[0] * xMult + yDir[0] * yMult + zDir[0],
+			xDir[1] * xMult + yDir[1] * yMult + zDir[1], 
+			xDir[2] * xMult + yDir[2] * yMult + zDir[2]
+		];
+		magnitude = Math.hypot(trueDir[0], trueDir[1], trueDir[2]);
+		trueDir[0] /= magnitude;
+		trueDir[1] /= magnitude;
+		trueDir[2] /= magnitude;
+		colors[y] = new Ray(camera.world, camera.x, camera.y, camera.z, trueDir).iterate(0);
+	}
+	return colors;
+}
+
 //warning - this function is slower somehow
 function fastSqrt(x) {
+	return Math.sqrt(x);
 	//if x is less than 10, just use the square root - the precision is important for small numbers
 	if (x <= 10 || x > ray_maxDist) {
 		return Math.sqrt(x);
@@ -32,6 +59,10 @@ function fastSqrt(x) {
 
 	//bitshifting is faster than Math.floor
 	return sqrtTable[x << 1 >> 1];
+}
+
+function gridPos(x, y, z) {
+	return [x / tree_minD, y / tree_minD, z / tree_minD];
 }
 
 function performanceTest() {
@@ -85,6 +116,15 @@ function quatToAxisAngle(quat) {
 function quatToCart(quat) {
 
 }
+
+
+
+
+
+
+
+
+
 
 //functions that apply to vectors
 function vAdd(vec1, vec2) {

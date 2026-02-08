@@ -1,8 +1,3 @@
-
-
-
-
-
 //main object contract
 class Scene3dObject {
 	constructor(x, y, z, color) {
@@ -20,8 +15,12 @@ class Scene3dObject {
 		return undefined;
 	}
 
-	giveStringData() {
+	serialize() {
 		return `!!!UNDEFINED!!!`;
+	}
+	
+	deserialize() {
+		return [];
 	}
 }
 
@@ -38,17 +37,22 @@ class Cube extends Scene3dObject {
 		var x = Math.max(0, Math.abs(object.x - this.x) - this.r);
 		var y = Math.max(0, Math.abs(object.y - this.y) - this.r);
 		var z = Math.max(0, Math.abs(object.z - this.z) - this.r);
-		return fastSqrt(x * x + y * y + z * z);
+		return Math.sqrt(x * x + y * y + z * z);
 	}
 
-	giveStringData() {
-		return `CUB~${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
+	serialize() {
+		return `CUBE|${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
+	}
+	
+	deserialize(argStr) {
+		var spl = argStr.split("~").map(a => JSON.parse(a));
+		return spl;
 	}
 }
 
 class Box extends Scene3dObject {
 	constructor(x, y, z, xr, yr, zr, RGBColor) {
-		super(x, y, z, RGBColor)
+		super(x, y, z, RGBColor);
 		this.xr = xr;
 		this.yr = yr;
 		this.zr = zr;
@@ -58,11 +62,11 @@ class Box extends Scene3dObject {
 		var x = Math.max(0, Math.abs(object.x - this.x) - this.xr);
 		var y = Math.max(0, Math.abs(object.y - this.y) - this.yr);
 		var z = Math.max(0, Math.abs(object.z - this.z) - this.zr);
-		return fastSqrt(x * x + y * y + z * z);
+		return Math.sqrt(x * x + y * y + z * z);
 	}
 
-	giveStringData() {
-		return `BOX~${this.x}~${this.y}~${this.z}~${this.r}~${this.xr}~${this.yr}~${this.zr}~[${this.color}]`;
+	serialize() {
+		return `BOX|${this.x}~${this.y}~${this.z}~${this.xr}~${this.yr}~${this.zr}~[${this.color}]`;
 	}
 }
 
@@ -78,7 +82,11 @@ class Cylinder extends Scene3dObject {
 		var relY = Math.abs(object.y - this.y);
 		var relZ = Math.abs(object.z - this.z);
 		relY -= clamp(relY, 0, this.h);
-		return fastSqrt(relX * relX + relY * relY + relZ * relZ) - this.r;
+		return Math.sqrt(relX * relX + relY * relY + relZ * relZ) - this.r;
+	}
+	
+	serialize() {
+		return `CYLINDER|${this.x}~${this.y}~${this.z}~${this.r}~${this.h}~[${this.color}]`;
 	}
 }
 
@@ -88,8 +96,8 @@ class Portal extends Cylinder {
 		this.newWorld = newWorldSTRING;
 		this.rayTolerance = 2;
 		var self = this;
-		window.setTimeout(() => {
-			self.newWorld = eval(`worldData_${self.newWorld}`);
+		setTimeout(() => {
+			self.newWorld = worlds[self.newWorld];
 		}, 5);
 	}
 
@@ -104,7 +112,7 @@ class Portal extends Cylinder {
 		var trueDist = super.distanceTo(object);
 		//if the distance is small enough, transport ray to the other world
 		if (trueDist < this.rayTolerance) {
-			object.world = this.newWorld;
+			// object.world = this.newWorld;
 			//if it's a ray
 			if (object.color != undefined) {
 				//if it hasn't been hit, make it the color of the new world background
@@ -114,6 +122,10 @@ class Portal extends Cylinder {
 			}
 		}
 		return trueDist * 0.95;
+	}
+	
+	serialize() {
+		return `PORTAL|${this.x}~${this.y}~${this.z}~${this.newWorld.name}`;
 	}
 }
 
@@ -129,7 +141,11 @@ class Ring extends Scene3dObject {
 		var distY = Math.abs(object.y - this.y);
 		var distZ = Math.abs(object.z - this.z);
 		var q = [Math.sqrt(distX * distX + distZ * distZ) - this.r];
-		return fastSqrt(q[0] * q[0] + distY * distY) - this.ringR;
+		return Math.sqrt(q[0] * q[0] + distY * distY) - this.ringR;
+	}
+	
+	serialize() {
+		return `RING|${this.x}~${this.y}~${this.z}~${this.r}~${this.ringR}~[${this.color}]`;
 	}
 }
 
@@ -148,10 +164,10 @@ class Sphere extends Scene3dObject {
 		relY = Math.abs(object.y - this.y);
 		relZ = Math.abs(object.z - this.z);
 
-		return fastSqrt((relX * relX) + (relY * relY) + (relZ * relZ)) - this.r;
+		return Math.sqrt((relX * relX) + (relY * relY) + (relZ * relZ)) - this.r;
 	}
 
-	giveStringData() {
-		return `SPH~${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
+	serialize() {
+		return `SPHERE|${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
 	}
 }

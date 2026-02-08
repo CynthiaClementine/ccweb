@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>2D Raymarching Debug View</title>
+<style>
+body {
+	margin: 0;
+	background: #111;
+	color: #ddd;
+	font-family: monospace;
+}
+canvas {
+	display: block;
+	margin: 0 auto;
+	background: #181818;
+}
+</style>
+</head>
+<body>
+
+<canvas id="canvas" width="800" height="600"></canvas>
+<script src="../common/functions-math.js"></script>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+
+let rayOrigin = { x: 150, y: 300 };
+let rayAngle = 0;
+var numRays = 1;
+
+var color_point = "#888";
+var color_grey = "#AAA";
+var color_hit = "#F55";
+var color_beam = "#5F5";
+
+var octree_minD = 10;
+
+function clamp(num, min, max) {
+	return num <= min ? min : num >= max ? max : num;
+}
+
+// -----------------------------
+// Signed Distance Functions
+// -----------------------------
+
+
+function estimate(p) {
+	var minObj = undefined;
+	var minD = 1e1001;
+	
+	objects.forEach(o => {
+		var d = o.distanceTo(p);
+		if (d < minD) {
+			minD = d;
+			minObj = o;
+		}
+	});
+	
+	return [minD, minObj];
+}
+
+class Scene3dObject {
+	constructor(x, y, RGBColor) {
+		this.x = x;
+		this.y = y;
+		this.color = RGBColor;
+	}
+}
+
+class Box extends Scene3dObject {
+	constructor(x, y, w, h, RGBColor) {
+		super(x, y, RGBColor);
+		this.w = w;
+		this.h = h;
+	}
+
+	distanceTo(object) {
+		var relX = Math.abs(object.x - this.x) - this.w;
+		var relY = Math.abs(object.y - this.y) - this.h;
+		return Math.min(Math.max(relX, relY), 0) + Math.hypot(Math.max(relX, 0), Math.max(relY, 0));
+	}
+}
+
+class Circle extends Scene3dObject {
+	constructor(x, y, r, RGBColor) {
+		super(x, y, RGBColor);
+		this.r = r;
+	}
+
+	distanceTo(object) {
+		var relX = (object.x - this.x);
+		var relY = (object.y - this.y);
+		return Math.sqrt(relX * relX + relY * relY) - this.r;
+	}
+}
+
+
+// -----------------------------
+// Raymarching
+// -----------------------------
+
+function raymarch(origin, angle, debug) {
+	const MAX_STEPS = 40;
+	const MAX_DIST = 1000;
+	const EPSILON = 0.5;
+	var hit = false;
+
+	let p = { ...origin };
+	let totalDist = 0;
+
+	ctx.strokeStyle = color_grey;
+	ctx.lineWidth = 1;
+
+	for (let i = 0; i < MAX_STEPS; i++) {
+		//rigorous solution
+		// const [d, mat] = estimate(p);
+		
+		//grid solution
+		const [d, mat] = grid.estimate(p, debug);
+		
+		
+
+		// Draw distance estimate circle
+		ctx.beginPath();
+		ctx.globalAlpha = 1;
+		ctx.arc(p.x, p.y, Math.abs(d), 0, Math.PI * 2);
+		ctx.strokeStyle = color_grey;
+		ctx.stroke();
+		ctx.globalAlpha = 1;
+
+		if (d < EPSILON) {
+			// Hit
+			hit = true;
+			ctx.fillStyle = mat.color;
+			ctx.beginPath();
+			ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+			ctx.fill();
+			break;
+		}
+
+		if (totalDist > MAX_DIST) break;
+
+		// Advance ray
+		p.x += Math.cos(angle) * d;
+		p.y += Math.sin(angle) * d;
+		
+		ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+		totalDist += d;
+	}
+
+	// Draw ray direction
+	if (true) {
+		ctx.strokeStyle = color_beam;
+		ctx.beginPath();
+		ctx.moveTo(origin.x, origin.y);
+		ctx.lineTo(p.x, p.y);
+		ctx.stroke();
+	
+	}
+}
+
+// -----------------------------
+// Rendering
+// -----------------------------
+
+var objects = [
+	new Box(400, 150, 60, 40, "#F00"),
+	new Circle(500, 300, 80, "#0FF")
+];
+var grid;
+
+function drawScene() {
+	ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+	// Draw shapes
+	ctx.strokeStyle = "#ffffff";
+	ctx.lineWidth = 2;
+	
+	objects.forEach(o => {
+		if (o.constructor.name == "Circle") {
+			//circles
+			ctx.beginPath();
+			ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+			ctx.stroke();
+		} else {
+			//boxes
+			ctx.strokeRect(o.x - o.w, o.y - o.h, o.w * 2, o.h * 2);
+		}
+	});
+
+	// Ray origin
+	ctx.fillStyle = color_point;
+	ctx.beginPath();
+	ctx.arc(rayOrigin.x, rayOrigin.y, 5, 0, Math.PI * 2);
+	ctx.fill();
+	
+	var spread = 0.5;
+
+	for (var a=-1; a<1; a+=2/numRays) {
+		ctx.fillStyle = color_point;
+		raymarch(rayOrigin, rayAngle + a * spread);
+	}
+	
+	if (grid) {
+		grid.sets.forEach(s => {
+			s.draw();
+		});
+	}
+}
+
+// -----------------------------
+// Interaction
+// -----------------------------
+
+window.addEventListener("mousemove", e => {
+	const rect = canvas.getBoundingClientRect();
+	const mx = e.clientX - rect.left;
+	const my = e.clientY - rect.top;
+	rayAngle = Math.atan2(my - rayOrigin.y, mx - rayOrigin.x);
+});
+
+window.addEventListener("click", e => {
+	const rect = canvas.getBoundingClientRect();
+	rayOrigin.x = e.clientX - rect.left;
+	rayOrigin.y = e.clientY - rect.top;
+});
+
+
+
+
+
+
+
+
+
+
+
+class BrickGrid {
+	constructor(world, l, d) {
+		this.l = l;
+		this.x = 0;
+		this.y = 0;
+		this.z = 0;
+		this.d = d;
+		this.world = world;
+		
+		this.estimObjs = [];
+	}
+	
+	draw() {
+		ctx.globalAlpha = 0.4;
+		var awagh = ((this.l - 1) * this.d / 2);
+		this.minCoords = [this.x - awagh, this.y - awagh, this.z- awagh];
+		for (var x=0; x<this.l; x++) {
+			for (var y=0; y<this.l; y++) {
+				ctx.beginPath();
+				ctx.strokeStyle = this.estimObjs[x][y].color;
+				ctx.rect(this.minCoords[0] + this.d * x - 2, this.minCoords[1] + this.d * y - 2, 5, 5);
+				ctx.stroke();
+			}
+		}
+		ctx.globalAlpha = 1;
+	}
+	
+	generate() {
+		var awagh = ((this.l - 1) * this.d / 2);
+		this.minCoords = [this.x - awagh, this.y - awagh, this.z- awagh];
+		this.estimObjs = [];
+		for (var x=0; x<this.l; x++) {
+			this.generateX(this.minCoords, x);
+		}
+	}
+	
+	generateX(minCoords, x) {
+		this.estimObjs[x] = [];
+		for (var y=0; y<this.l; y++) {
+			this.generateY(minCoords, x, y);
+		}
+	}
+	
+	generateY(minCoords, x, y) {
+		this.estimObjs[x][y] = estimate({
+			x: minCoords[0] + this.d * x, 
+			y: minCoords[1] + this.d * y
+		})[1];
+	}
+	
+	update() {
+		//if the player is more than d/2 away from the center point, it's time to shift center points
+		var cVec = this.calcGridCoords(rayOrigin.x, rayOrigin.y);
+		//move towards player
+		this.shift(Math.round(cVec[0]), Math.round(cVec[1]));
+	}
+	
+	shift(xBlocks, yBlocks) {
+		//don't bother if we don't need to move
+		if (!(xBlocks || yBlocks)) {
+			return;
+		}
+		console.log(`grid with d=${this.d} shifting by ${xBlocks} ${yBlocks}`);
+
+		
+	
+		var maxBlock = this.l - 1;
+		var range = ((this.l - 1) * this.d) / 2;
+		var cornerCoords = [this.x - range, this.y - range];
+		
+		//a bit confusing. But I can put the coordinate updates first because generation only depends on cornercoords
+		this.x += xBlocks * this.d;
+		this.y += yBlocks * this.d;
+		
+		if (xBlocks) {
+			while (xBlocks > 0) {
+				cornerCoords[0] += this.d;
+				this.estimObjs.splice(0, 1);
+				this.generateX(cornerCoords, maxBlock);
+				xBlocks -= 1;
+			}
+			while (xBlocks < 0) {
+				cornerCoords[0] -= this.d;
+				this.estimObjs.splice(0, 0, []);
+				this.generateX(cornerCoords, 0);
+				this.estimObjs.pop();
+				xBlocks += 1;
+			}
+		}
+		
+		if (yBlocks) {
+			while (yBlocks > 0) {
+				cornerCoords[1] += this.d;
+				for (var x=0; x<this.l; x++) {
+					this.estimObjs[x].splice(0, 1);
+					this.generateY(cornerCoords, x, maxBlock);
+				}
+				yBlocks -= 1;
+			}
+			while (yBlocks < 0) {
+				cornerCoords[1] -= this.d;
+				for (var x=0; x<this.l; x++) {
+					this.estimObjs[x].splice(0, 0, undefined);
+					this.generateY(cornerCoords, x, 0);
+					this.estimObjs[x].pop();
+				}
+				yBlocks += 1;
+			}
+		}
+	}
+	
+	calcGridCoords(x, y) {
+		return [
+			(x - this.x) / this.d,
+			(y - this.y) / this.d
+		];
+	}
+	
+	estimate(obj) {
+		var q = this.calcGridCoords(obj.x, obj.y);
+		if (Number.isNaN(q[0])) {
+			console.error(`NAN IN ESTIMATE`);
+			return [this.d, this.estimObjs[0][0]];
+		}
+		var halfsies = (this.l - 1) / 2;
+		q[0] = halfsies + clamp(q[0], -halfsies, halfsies);
+		q[1] = halfsies + clamp(q[1], -halfsies, halfsies);
+		// console.log(JSON.stringify(q));
+		
+		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
+		var material = this.estimObjs[Math.round(q[0])][Math.round(q[1])];
+		return [material.distanceTo(obj), material];
+	}
+}
+
+//a series of exponentially larger BrickGrids that cover the world
+class BrickMap {
+	constructor(world, maxRange) {
+		this.world = world;
+		this.numSets = Math.ceil(Math.log2(maxRange / octree_minD));
+		this.trueMinD = undefined;
+		//number of points in each grid axis
+		this.l = 31;
+		this.sets = [];
+	}
+	
+	estimate(obj, debug) {
+		//figure out which BrickGrid the ray is in
+		var brickDist = [
+			(obj.x - this.sets[0].x) / octree_minD,
+			(obj.y - this.sets[0].y) / octree_minD
+		];
+		var maxBrickDist = Math.max(Math.abs(brickDist[0]), Math.abs(brickDist[1]));
+		
+		var level = Math.ceil(Math.log2(maxBrickDist / this.l)) + 1;
+		if (level < 0) {
+			level = 0;
+		}
+		
+		if (debug) {
+			console.log(JSON.stringify(brickDist), maxBrickDist, level);
+		}
+		
+		if (Number.isNaN(level)) {
+			console.error(`uh oh!`, obj.x, maxBrickDist, (maxBrickDist / (this.l * octree_minD)));
+			return;
+		}
+		if (!this.sets[level]) {
+			// console.log(`cannot find brickmap level ${level}! Using ${this.sets.length - 1}`);
+			level = this.sets.length - 1;
+		}
+		// console.log(`passing off to level ${level}, d=${this.sets[level].d}`);
+		return this.sets[level].estimate(obj);
+	}
+	
+	generate(n) {
+		//create all BrickGrids
+		this.sets = [];
+		var max = Math.min(this.numSets, n);
+		for (var a=0; a<max; a++) {
+			this.sets.push(new BrickGrid(this.world, this.l, octree_minD * (2 ** a)));
+			this.sets[this.sets.length-1].generate();
+		}
+		this.trueMinD = this.sets[0].d;
+	}
+	
+	update() {
+		this.sets.forEach(s => {
+			s.update();
+		});
+	}
+}
+
+
+
+
+function setup() {
+	grid = new BrickMap(objects, 1500);
+	grid.generate(3);
+	window.setInterval(() => {
+		grid.update();
+		drawScene();
+	}, 20);
+	
+	drawScene();
+}
+
+window.onload = setup;
+</script>
+
+</body>
+</html>
