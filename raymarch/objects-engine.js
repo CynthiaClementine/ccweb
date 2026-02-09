@@ -155,7 +155,7 @@ class Ray {
 			this.color[2] = distObj.color[2];
 			dist = ray_minDist * 2;
 			this.hit = true;
-			var lightDot = 
+			// var lightDot = 
 			this.dPos = this.world.sunVector;
 		}
 

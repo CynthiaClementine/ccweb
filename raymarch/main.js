@@ -103,7 +103,6 @@ function finishMain() {
 		//ough
 		page_animation = window.setTimeout(main, 70);
 	} else {
-	
 		//regular frame advance
 		page_animation = window.setTimeout(main, Math.max(1, frameTime - elapsedMS));
 	}
@@ -129,6 +128,7 @@ function draw() {
 
 	for (var x=0; x<pixelWidth; x++) {
 		workerInd = (workerInd + 1) % (worker_pool.length);
+		// workerInd = 10;
 		if (workerInd < worker_pool.length) {
 			// if (x % 2 == 1) {
 			worker_pool[workerInd].postMessage(["calcLine", multiple, x, pixelWidth, pixelHeight]);
@@ -144,12 +144,10 @@ function draw() {
 }
 
 function drawLine(x, colorArr) {
-	if (Math.random() < 0.01) {
-		console.log(x, colorArr);
-	}
 	var blockSize = Math.round(canvas.width / render_n);
 	for (var y=0; y<colorArr.length; y++) {
 		ctx.fillStyle = `rgb(${colorArr[y][0]}, ${colorArr[y][1]}, ${colorArr[y][2]})`;
+		// ctx.fillStyle = "#FFF";
 		ctx.fillRect(x * blockSize, y * blockSize, blockSize + 0.1, blockSize + 0.1);
 	}
 	render_linesDrawn += 1;

@@ -1,7 +1,7 @@
 var canvas;
 var ctx;
 
-var frameTime = 1000 / 5;
+var frameTime = 1000 / 60;
 
 var camera_FOV = 1.5;
 var camera_planeOffset = 1;
@@ -33,8 +33,8 @@ var page_animation;
 
 var render_cornerCoords = [0, 0, 0, 0];
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_goalN = render_n;
 var render_n = 60;
+var render_goalN = render_n;
 var render_shadowPercent = 0.2;
 var render_linesDrawn = 0;
 var render_sizeTimeout = 60;
