@@ -22,6 +22,9 @@ var perf_n = 0;
 var perf_startT = 0;
 var perf_endT = 0;
 
+var player_stepHeight = 2;
+var player_width = 5;
+
 
 //ray properties
 var ray_maxDist = 9999;
@@ -33,7 +36,7 @@ var page_animation;
 
 var render_cornerCoords = [0, 0, 0, 0];
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 60;
+var render_n = 120;
 var render_goalN = render_n;
 var render_shadowPercent = 0.2;
 var render_linesDrawn = 0;

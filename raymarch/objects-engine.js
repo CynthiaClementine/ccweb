@@ -27,7 +27,7 @@ class Camera {
 		this.onGround = false;
 
 		this.height = 10;
-		this.width = 5;
+		this.width = player_width;
 
 		this.theta = 0;
 		this.phi = 0;
@@ -49,7 +49,7 @@ class Camera {
 		}
 
 		//gravity
-		this.dy += this.gravity;
+		this.dy -= this.gravity;
 		if (Math.abs(this.dy) > this.fallMax) {
 			this.dy = clamp(this.dy, -this.fallMax, this.fallMax);
 		}
@@ -64,47 +64,80 @@ class Camera {
 	}
 
 	updatePosition() {
-		//handling position
-		var speedMultiplier = 1 + controls_shiftPressed * (1 + editor_active * 7);
-		var lookRay, toAdd, absMag;
+		/* movement follows a simple 3-part plan
+		1. cast ray upwards from self's feet
+		2. try to move ray in the sideways directions, to whatever varying success
+		3. move ray downwards
+		
+		This makes sure that the movement is always valid, because there has to be an unobstructed path 
+		between the previous position and the new position.
+		It also allows the player to step up slopes.
+		 */
 
-		var polars = [
-			[this.theta + (Math.PI / 2), 0],
-			[0, -Math.PI / 2],
-			[this.theta, 0]
-		]
+		//before any raycasts, housekeeping
+		var speedMultiplier = 1 + controls_shiftPressed * (1 + editor_active * 7);
+		var feetCoords = [this.x, this.y - this.height + 1, this.z];
+		var axisVecs = [
+			polToCart(this.theta + (Math.PI / 2), 0, 1),
+			[0, 1, 0],
+			polToCart(this.theta, 0, 1)
+		];
 		var dVec = [this.dx * speedMultiplier, this.dy, this.dz * speedMultiplier];
-		//handle all 3 axes separately so if one fails they can still happen
+		
+		
+		//go up
+		var lookRay = new Ray_Tracking(this.world, ...feetCoords, [0, 1, 0], player_stepHeight);
+		lookRay.iterate(0);
+		feetCoords[1] += lookRay.distance;
+		
+		//sideways
 		for (var i=0; i<3; i++) {
-			absMag = Math.abs(dVec[i]);
-			if (absMag > this.dMin) {
-				toAdd = polToCart(polars[i][0], polars[i][1], dVec[i]);
-				//cast ray sideways
-				lookRay = new Ray_Tracking(this.world, this.x, this.y, this.z, [toAdd[0] / absMag, toAdd[1] / absMag, toAdd[2] / absMag]);
-				lookRay.iterate(0);
-				//if the ray's gone far enough, then move there
-				if (lookRay.distance > this.width + absMag) {
-					//doesn't need a y because phi is always 0
-					this.x += toAdd[0];
-					this.y += toAdd[1];
-					this.z += toAdd[2];
-				} else {
-					dVec[i] = 0;
-					if (i == 1) {
-						this.onGround = true;
-					}
+			if (!this.tryMovementOnAxis(feetCoords, axisVecs[i], dVec[i])) {
+				dVec[i] = 0;
+				if (i == 1) {
+					this.onGround = true;
 				}
 			}
 		}
-
+		
+		//go back down. Hacky solution with the +1 but it works
+		var lookRay = new Ray_Tracking(this.world, ...feetCoords, [0, -1, 0], (player_stepHeight + 1));
+		lookRay.iterate(0);
+		feetCoords[1] -= lookRay.distance;
+		
+		
+		//update real coordinates
 		dVec[0] /= speedMultiplier;
-		dVec[1] /= speedMultiplier;
+		dVec[2] /= speedMultiplier;
+		[this.x, this.y, this.z] = [feetCoords[0], feetCoords[1] + this.height, feetCoords[2]];
 		[this.dx, this.dy, this.dz] = dVec;
+	}
+	
+	tryMovementOnAxis(pos, axisVec, distance) {
+		if (distance < 0) {
+			axisVec = [-axisVec[0], -axisVec[1], -axisVec[2]];
+			distance = -distance;
+		}
+		if (distance > this.dMin) {
+			//cast ray sideways
+			var lookRay = new Ray_Tracking(this.world, pos[0], pos[1], pos[2], axisVec, this.width + distance + 1);
+			lookRay.iterate(0);
+			//if the ray's gone far enough, then move there
+			if (lookRay.distance > this.width + distance) {
+				//doesn't need a y because phi is always 0
+				pos[0] += axisVec[0] * distance;
+				pos[1] += axisVec[1] * distance;
+				pos[2] += axisVec[2] * distance;
+				return true;
+			} else {
+				return false;
+			}
+		}
 	}
 
 	jump() {
 		if (true || this.onGround) {
-			this.dy = -this.jumpSpeed;
+			this.dy = this.jumpSpeed;
 			this.onGround = false;
 		}
 	}
@@ -129,7 +162,7 @@ class Ray {
 		this.z = z;
 		this.color = world.getBgColor();
 		this.dPos = dPos;
-		this.hit = false;
+		this.hit = 0;
 	}
 
 	iterate(num) {
@@ -143,19 +176,19 @@ class Ray {
 
 		//if distance is out of dist bounds
 		if (dist < ray_minDist) {
-			if (this.hit) {
+			if (this.hit > 1) {
 				//draw self as a shadow
 				this.shadow();
 				return this.color;
 			}
-			//if not hit,
 			//color self according to hit object, and change direction
-			this.color[0] = distObj.color[0];
-			this.color[1] = distObj.color[1];
-			this.color[2] = distObj.color[2];
-			dist = ray_minDist * 2;
-			this.hit = true;
-			// var lightDot = 
+			if (!this.hit) {
+				this.color[0] = distObj.color[0];
+				this.color[1] = distObj.color[1];
+				this.color[2] = distObj.color[2];
+			}
+			dist = ray_minDist * 1.5;
+			this.hit += 1;
 			this.dPos = this.world.sunVector;
 		}
 
@@ -187,14 +220,21 @@ class Ray_Tracking {
 	* a Tracking Ray is a ray that just calculates the distance to the nearest object in a given direction.
 	* Once it hits something, it returns the total distance traveled.
 	* Tracking Rays also keep track of which object they've hit.
+	* @param {World} world the world the ray's in
+	* @param {Number} x starting x coordinate
+	* @param {Number} y starting y coordinate
+	* @param {Number} z starting z coordinate
+	* @param {Number[]} dPos the direction vector to travel in
+	* @param {Number} maxDist the maximum distance to travel before stopping
 	*/
-	constructor(world, x, y, z, dPos) {
+	constructor(world, x, y, z, dPos, maxDist) {
 		this.world = world;
 		this.x = x;
 		this.y = y;
 		this.z = z;
 		this.dPos = dPos;
 		this.distance = 0;
+		this.distCap = maxDist ?? ray_maxDist;
 		this.object = undefined;
 	}
 
@@ -204,26 +244,27 @@ class Ray_Tracking {
 		}
 		
 		//get distance
-		var dist = ray_maxDist+1;
-		var distObj = undefined;
-		
-		[dist, distObj] = this.world.tree.estimate(this);
+		var [dist, distObj] = this.world.tree.estimate(this);
+		dist *= ray_safetyMult;
 
 		//if distance is out of dist bounds
 		if (dist < ray_minDist) {
 			this.object = distObj;
 			return this.distance;
 		}
-
-		if (dist > ray_maxDist) {
-			return (this.distance + dist);
-		}
-		dist *= ray_safetyMult;
+		
+		dist = Math.min(dist, this.distCap - this.distance);
+		
 		//move distance
 		this.x += this.dPos[0] * dist;
 		this.y += this.dPos[1] * dist;
 		this.z += this.dPos[2] * dist;
 		this.distance += dist;
+		
+		//if we've reached the cap, return
+		if (this.distance >= this.distCap) {
+			return this.distCap;
+		}
 
 		return this.iterate(num+1);
 	}
@@ -608,7 +649,6 @@ class BrickGrid {
 		q[0] = halfsies + clamp(q[0], -halfsies, halfsies);
 		q[1] = halfsies + clamp(q[1], -halfsies, halfsies);
 		q[2] = halfsies + clamp(q[2], -halfsies, halfsies);
-		// console.log(JSON.stringify(q));
 		
 		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
 		var material = this.estimObjs[Math.round(q[0])][Math.round(q[1])][Math.round(q[2])];

@@ -145,8 +145,8 @@ function draw() {
 
 function drawLine(x, colorArr) {
 	var blockSize = Math.round(canvas.width / render_n);
-	for (var y=0; y<colorArr.length; y++) {
-		ctx.fillStyle = `rgb(${colorArr[y][0]}, ${colorArr[y][1]}, ${colorArr[y][2]})`;
+	for (var y=0; y<render_n; y++) {
+		ctx.fillStyle = `rgb(${colorArr[3*y]}, ${colorArr[3*y+1]}, ${colorArr[3*y+2]})`;
 		// ctx.fillStyle = "#FFF";
 		ctx.fillRect(x * blockSize, y * blockSize, blockSize + 0.1, blockSize + 0.1);
 	}

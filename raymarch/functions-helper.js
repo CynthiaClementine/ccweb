@@ -29,7 +29,7 @@ function doubleToIEEE(f) {
 
 function calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight) {
 	//array of integers, measuring RGB/RGB/RGB/RGB
-	var colors = new Array(pixelHeight);
+	var colors = new Uint8Array(pixelHeight * 3);
 	for (var y=0; y<pixelHeight; y++) {
 		var xMult = multiple * (x - pixelWidth / 2);
 		var yMult = multiple * (y - pixelHeight / 2);
@@ -44,7 +44,10 @@ function calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight) {
 		trueDir[0] /= magnitude;
 		trueDir[1] /= magnitude;
 		trueDir[2] /= magnitude;
-		colors[y] = new Ray(camera.world, camera.x, camera.y, camera.z, trueDir).iterate(0);
+		var c = new Ray(camera.world, camera.x, camera.y, camera.z, trueDir).iterate(0);
+		colors[3*y] = c[0];
+		colors[3*y+1] = c[1];
+		colors[3*y+2] = c[2];
 	}
 	return colors;
 }
