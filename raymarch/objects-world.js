@@ -1,19 +1,27 @@
 //main object contract
 class Scene3dObject {
-	constructor(x, y, z, color) {
-		this.x = x;
-		this.y = y;
-		this.z = z;
+	constructor(pos, color) {
+		this.pos = pos;
 		this.color = color;
 	}
 
 	tick() {
 
 	}
-
-	distanceTo(object) {
-		return undefined;
+	
+	distanceToPos(pos) {
+		return -1;
 	}
+
+	/**
+	* gets the distance to a given object. Can also generate side effects.
+	* @param {Object} object the object to check against
+	*/
+	distanceToObj(object) {
+		return this.distanceToPos(object.pos);
+	}
+	
+	
 
 	serialize() {
 		return `!!!UNDEFINED!!!`;
@@ -28,17 +36,19 @@ class Scene3dObject {
 
 //cube, standard object
 class Cube extends Scene3dObject {
-	constructor(x, y, z, r, RGBColor) {
-		super(x, y, z, RGBColor);
+	constructor(pos, r, RGBColor) {
+		super(pos, RGBColor);
 		this.r = r;
 	}
-
-	distanceTo(object) {
-		var x = Math.max(0, Math.abs(object.x - this.x) - this.r);
-		var y = Math.max(0, Math.abs(object.y - this.y) - this.r);
-		var z = Math.max(0, Math.abs(object.z - this.z) - this.r);
+	
+	distanceToPos(pos) {
+		var x = Math.max(0, Math.abs(pos[0] - this.pos[0]) - this.r);
+		var y = Math.max(0, Math.abs(pos[1] - this.pos[1]) - this.r);
+		var z = Math.max(0, Math.abs(pos[2] - this.pos[2]) - this.r);
 		return Math.sqrt(x * x + y * y + z * z);
 	}
+	
+	
 
 	serialize() {
 		return `CUBE|${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
@@ -51,17 +61,17 @@ class Cube extends Scene3dObject {
 }
 
 class Box extends Scene3dObject {
-	constructor(x, y, z, xr, yr, zr, RGBColor) {
-		super(x, y, z, RGBColor);
+	constructor(pos, xr, yr, zr, RGBColor) {
+		super(pos, RGBColor);
 		this.xr = xr;
 		this.yr = yr;
 		this.zr = zr;
 	}
 
-	distanceTo(object) {
-		var x = Math.max(0, Math.abs(object.x - this.x) - this.xr);
-		var y = Math.max(0, Math.abs(object.y - this.y) - this.yr);
-		var z = Math.max(0, Math.abs(object.z - this.z) - this.zr);
+	distanceToPos(pos) {
+		var x = Math.max(0, Math.abs(pos[0] - this.pos[0]) - this.xr);
+		var y = Math.max(0, Math.abs(pos[1] - this.pos[1]) - this.yr);
+		var z = Math.max(0, Math.abs(pos[2] - this.pos[2]) - this.zr);
 		return Math.sqrt(x * x + y * y + z * z);
 	}
 
@@ -71,16 +81,16 @@ class Box extends Scene3dObject {
 }
 
 class Cylinder extends Scene3dObject {
-	constructor(x, y, z, r, h, RGBColor) {
-		super(x, y, z, RGBColor);
+	constructor(pos, r, h, RGBColor) {
+		super(pos, RGBColor);
 		this.r = r;
 		this.h = h;
 	}
 
-	distanceTo(object) {
-		var relX = Math.abs(object.x - this.x);
-		var relY = Math.abs(object.y - this.y);
-		var relZ = Math.abs(object.z - this.z);
+	distanceToPos(pos) {
+		var relX = Math.abs(pos[0] - this.pos[0]);
+		var relY = Math.abs(pos[1] - this.pos[1]);
+		var relZ = Math.abs(pos[2] - this.pos[2]);
 		relY -= clamp(relY, 0, this.h);
 		return Math.sqrt(relX * relX + relY * relY + relZ * relZ) - this.r;
 	}
@@ -90,9 +100,13 @@ class Cylinder extends Scene3dObject {
 	}
 }
 
+class Pipe extends Scene3dObject {
+
+}
+
 class Portal extends Cylinder {
-	constructor(x, y, z, newWorldSTRING) {
-		super(x, y, z, 50, 50, [255, 255, 255]);
+	constructor(pos, newWorldSTRING) {
+		super(pos, 50, 50, [255, 255, 255]);
 		this.newWorld = newWorldSTRING;
 		this.rayTolerance = 2;
 		var self = this;
@@ -108,8 +122,8 @@ class Portal extends Cylinder {
 		}
 	}
 
-	distanceTo(object) {
-		var trueDist = super.distanceTo(object);
+	distanceToObj(object) {
+		var trueDist = super.distanceToPos(object.pos);
 		//if the distance is small enough, transport ray to the other world
 		if (trueDist < this.rayTolerance) {
 			// object.world = this.newWorld;
@@ -121,7 +135,7 @@ class Portal extends Cylinder {
 				}
 			}
 		}
-		return trueDist * 0.95;
+		return trueDist + 3;
 	}
 	
 	serialize() {
@@ -130,16 +144,16 @@ class Portal extends Cylinder {
 }
 
 class Ring extends Scene3dObject {
-	constructor(x, y, z, r, ringR, RGBColor) {
-		super(x, y, z, RGBColor);
+	constructor(pos, r, ringR, RGBColor) {
+		super(pos, RGBColor);
 		this.r = r;
 		this.ringR = ringR;
 	}
 
-	distanceTo(object) {
-		var distX = Math.abs(object.x - this.x);
-		var distY = Math.abs(object.y - this.y);
-		var distZ = Math.abs(object.z - this.z);
+	distanceToPos(pos) {
+		var distX = Math.abs(pos[0] - this.pos[0]);
+		var distY = Math.abs(pos[1] - this.pos[1]);
+		var distZ = Math.abs(pos[2] - this.pos[2]);
 		var q = [Math.sqrt(distX * distX + distZ * distZ) - this.r];
 		return Math.sqrt(q[0] * q[0] + distY * distY) - this.ringR;
 	}
@@ -150,24 +164,66 @@ class Ring extends Scene3dObject {
 }
 
 class Sphere extends Scene3dObject {
-	constructor(x, y, z, r, RGBColor) {
-		super(x, y, z, RGBColor)
+	constructor(pos, r, RGBColor) {
+		super(pos, RGBColor)
 		this.r = r;
 
 		this.color = RGBColor;
 	}
 
-	distanceTo(object) {
+	distanceToPos(pos) {
 		//get relative distance
 		var relX, relY, relZ;
-		relX = Math.abs(object.x - this.x);
-		relY = Math.abs(object.y - this.y);
-		relZ = Math.abs(object.z - this.z);
+		relX = Math.abs(pos[0] - this.pos[0]);
+		relY = Math.abs(pos[1] - this.pos[1]);
+		relZ = Math.abs(pos[2] - this.pos[2]);
 
 		return Math.sqrt((relX * relX) + (relY * relY) + (relZ * relZ)) - this.r;
 	}
 
 	serialize() {
 		return `SPHERE|${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
+	}
+}
+
+class Oval extends Scene3dObject {
+	constructor(pos, xr, yr, zr, RGBColor) {
+		super(pos, RGBColor)
+		this.xr = xr;
+		this.yr = yr;
+		this.zr = zr;
+
+		this.color = RGBColor;
+	}
+	
+	distanceToPos(pos) {
+		var relX, relY, relZ;
+		relX = Math.abs(pos[0] - this.pos[0]) / this.rx;
+		relY = Math.abs(pos[1] - this.pos[1]) / this.ry;
+		relZ = Math.abs(pos[2] - this.pos[2]) / this.rz;
+		return Math.sqrt((relX * relX) + (relY * relY) + (relZ * relZ)) - 1;
+	}
+}
+
+class Line extends Scene3dObject {
+	constructor(pos1, pos2, radius, RGBColor) {
+		super(pos1, RGBColor);
+		this.posEnd = pos2;
+		var lv = [pos1[0] - pos2[0], pos1[1] - pos2[1], pos1[2] - pos2[2]];
+		this.lineVec = lv;
+		this.lineDot = dot(lv, lv);
+		this.r = radius;
+	}
+	
+	distanceToPos(pos) {
+		//lambda = clamp((P-A)•(B-A)/(B-A)•(B-A), 0, 1)
+		//then closest = linterp(A, B, lambda)
+		//dist = dist to closest
+		
+		var apVec = [pos[0] - this.pos[0], pos[1] - this.pos[1], pos[2] - this.pos[2]];
+		var l = clamp(dot(apVec, this.lineVec) / this.lineDot, 0, 1);
+		
+		return (getDistance(pos[0], pos[1], pos[2], 
+				linterp(this.pos[0], this.posEnd[0], l), linterp(this.pos[1], this.posEnd[1], l), linterp(this.pos[2], this.posEnd[2], l)) - this.r);
 	}
 }

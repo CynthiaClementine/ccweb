@@ -16,6 +16,8 @@ var cxDir = [0, 0, 0];
 var cyDir = [0, 0, 0];
 var czDir = [0, 0, 0];
 
+var threadID = -1;
+
 function run(package) {
 	var data = package.data;
 	
@@ -29,6 +31,10 @@ function run(package) {
 			break;
 		case "test":
 			runTest(data.slice(1));
+			break;
+		case "ID":
+			threadID = data[1];
+			postMessage(["ready", threadID]);
 			break;
 	}
 }
@@ -65,3 +71,5 @@ function drawAndPostLine(data) {
 }
 
 onmessage = run;
+
+postMessage(["ready", threadID]);

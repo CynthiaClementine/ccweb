@@ -11,7 +11,21 @@ getDistance(x1, y1, z1, x2, y2, z2)
 
 
 function getDistance(x1, y1, z1, x2, y2, z2) {
-	return Math.sqrt(((x1 - x2) * (x1 - x2)) + ((y1 - y2) * (y1 - y2)) + ((z1 - z2) * (z1 - z2)));
+	var dx = x1 - x2;
+	var dy = y1 - y2;
+	var dz = z1 - z2;
+	return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function getDistancePos(pos1, pos2) {
+	var dx = pos1[0] - pos2[0];
+	var dy = pos1[1] - pos2[1];
+	var dz = pos1[2] - pos2[2];
+	return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function dot(a, b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 //does square root, but faster
@@ -44,7 +58,7 @@ function calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight) {
 		trueDir[0] /= magnitude;
 		trueDir[1] /= magnitude;
 		trueDir[2] /= magnitude;
-		var c = new Ray(camera.world, camera.x, camera.y, camera.z, trueDir).iterate(0);
+		var c = new Ray(camera.world, camera.pos, trueDir).iterate(0);
 		colors[3*y] = c[0];
 		colors[3*y+1] = c[1];
 		colors[3*y+2] = c[2];
@@ -163,4 +177,14 @@ function vSub(vec1, vec2) {
 		newVec[n] = vec1[n] - vec2[n];
 	}
 	return newVec;
+}
+
+function prand(min, max) {
+	rand_seed |= 0;
+	rand_seed = rand_seed + 0x9e3779b9 | 0;
+	let t = rand_seed ^ rand_seed >>> 16;
+	t = Math.imul(t, 0x21f0aaad);
+	t = t ^ t >>> 15;
+	t = Math.imul(t, 0x735a2d97);
+	return min + (((t = t ^ t >>> 15) >>> 0) / 4294967296) * (max - min);
 }

@@ -51,16 +51,18 @@ function clamp(num, min, max) {
 function estimate(p) {
 	var minObj = undefined;
 	var minD = 1e1001;
+	var minInd = -1;
 	
-	objects.forEach(o => {
-		var d = o.distanceTo(p);
+	for (var i=0; i<objects.length; i++) {
+		var d = objects[i].distanceTo(p);
 		if (d < minD) {
 			minD = d;
-			minObj = o;
+			minObj = objects[i];
+			minInd = i;
 		}
-	});
+	}
 	
-	return [minD, minObj];
+	return [minD, minObj, minInd];
 }
 
 class Scene3dObject {
@@ -169,7 +171,9 @@ function raymarch(origin, angle, debug) {
 
 var objects = [
 	new Box(400, 150, 60, 40, "#F00"),
-	new Circle(500, 300, 80, "#0FF")
+	new Box(100, 400, 20, 50, "#00F"),
+	new Circle(400, 100, 60, "#0FF"),
+	new Circle(500, 300, 80, "#FFF"),
 ];
 var grid;
 
@@ -248,17 +252,17 @@ class BrickGrid {
 		this.d = d;
 		this.world = world;
 		
-		this.estimObjs = [];
+		this.estimInds = new Array(this.l);
 	}
 	
 	draw() {
 		ctx.globalAlpha = 0.4;
 		var awagh = ((this.l - 1) * this.d / 2);
-		this.minCoords = [this.x - awagh, this.y - awagh, this.z- awagh];
+		this.minCoords = [this.x - awagh, this.y - awagh, this.z - awagh];
 		for (var x=0; x<this.l; x++) {
 			for (var y=0; y<this.l; y++) {
 				ctx.beginPath();
-				ctx.strokeStyle = this.estimObjs[x][y].color;
+				ctx.strokeStyle = objects[this.estimInds[x][y]].color;
 				ctx.rect(this.minCoords[0] + this.d * x - 2, this.minCoords[1] + this.d * y - 2, 5, 5);
 				ctx.stroke();
 			}
@@ -269,24 +273,24 @@ class BrickGrid {
 	generate() {
 		var awagh = ((this.l - 1) * this.d / 2);
 		this.minCoords = [this.x - awagh, this.y - awagh, this.z- awagh];
-		this.estimObjs = [];
+		this.estimInds = [];
 		for (var x=0; x<this.l; x++) {
 			this.generateX(this.minCoords, x);
 		}
 	}
 	
 	generateX(minCoords, x) {
-		this.estimObjs[x] = [];
+		this.estimInds[x] = [];
 		for (var y=0; y<this.l; y++) {
 			this.generateY(minCoords, x, y);
 		}
 	}
 	
 	generateY(minCoords, x, y) {
-		this.estimObjs[x][y] = estimate({
+		this.estimInds[x][y] = estimate({
 			x: minCoords[0] + this.d * x, 
 			y: minCoords[1] + this.d * y
-		})[1];
+		})[2];
 	}
 	
 	update() {
@@ -316,15 +320,15 @@ class BrickGrid {
 		if (xBlocks) {
 			while (xBlocks > 0) {
 				cornerCoords[0] += this.d;
-				this.estimObjs.splice(0, 1);
+				this.estimInds.splice(0, 1);
 				this.generateX(cornerCoords, maxBlock);
 				xBlocks -= 1;
 			}
 			while (xBlocks < 0) {
 				cornerCoords[0] -= this.d;
-				this.estimObjs.splice(0, 0, []);
+				this.estimInds.splice(0, 0, []);
 				this.generateX(cornerCoords, 0);
-				this.estimObjs.pop();
+				this.estimInds.pop();
 				xBlocks += 1;
 			}
 		}
@@ -333,7 +337,7 @@ class BrickGrid {
 			while (yBlocks > 0) {
 				cornerCoords[1] += this.d;
 				for (var x=0; x<this.l; x++) {
-					this.estimObjs[x].splice(0, 1);
+					this.estimInds[x].splice(0, 1);
 					this.generateY(cornerCoords, x, maxBlock);
 				}
 				yBlocks -= 1;
@@ -341,9 +345,9 @@ class BrickGrid {
 			while (yBlocks < 0) {
 				cornerCoords[1] -= this.d;
 				for (var x=0; x<this.l; x++) {
-					this.estimObjs[x].splice(0, 0, undefined);
+					this.estimInds[x].splice(0, 0, undefined);
 					this.generateY(cornerCoords, x, 0);
-					this.estimObjs[x].pop();
+					this.estimInds[x].pop();
 				}
 				yBlocks += 1;
 			}
@@ -361,7 +365,7 @@ class BrickGrid {
 		var q = this.calcGridCoords(obj.x, obj.y);
 		if (Number.isNaN(q[0])) {
 			console.error(`NAN IN ESTIMATE`);
-			return [this.d, this.estimObjs[0][0]];
+			return [this.d, objects[this.estimInds[0][0]]];
 		}
 		var halfsies = (this.l - 1) / 2;
 		q[0] = halfsies + clamp(q[0], -halfsies, halfsies);
@@ -369,7 +373,8 @@ class BrickGrid {
 		// console.log(JSON.stringify(q));
 		
 		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
-		var material = this.estimObjs[Math.round(q[0])][Math.round(q[1])];
+		console.log()
+		var material = objects[this.estimInds[Math.round(q[0])][Math.round(q[1])]];
 		return [material.distanceTo(obj), material];
 	}
 }
