@@ -150,13 +150,17 @@ class Ray {
 		this.world = world;
 		this.pos = new Float32Array(pos);
 		this.color = world.getBgColor();
-		this.dPos = new Float32Array(dPos);
+		this.dPos = dPos;
 		this.hit = 0;
+		this.iters = 0;
+		this.dist = 0;
+		this.hitDist = 0;
 	}
 
-	iterate(num) {
-		while (num < ray_maxIters) {
-			if (num > ray_maxIters) {
+	iterate() {
+		while (this.iters < ray_maxIters) {
+			if (this.dist > ray_maxDist) {
+				this.world.postEffects(this);
 				return this.color;
 			}
 	
@@ -169,31 +173,30 @@ class Ray {
 				if (this.hit > 1) {
 					//draw self as a shadow
 					this.shadow();
+					this.world.postEffects(this);
 					return this.color;
 				}
 				//color self according to hit object, and change direction
 				if (!this.hit) {
-					this.color[0] = distObj.color[0];
-					this.color[1] = distObj.color[1];
-					this.color[2] = distObj.color[2];
+					distObj.applyHitEffect(this);
+					this.hitDist = this.dist;
 				}
 				dist = ray_minDist * 1.5;
 				this.hit += 1;
-				this.dPos = this.world.sunVector;
+				this.dPos[0] = this.world.sunVector[0];
+				this.dPos[1] = this.world.sunVector[1];
+				this.dPos[2] = this.world.sunVector[2];
 			}
-	
-			if (dist > ray_maxDist) {
-				return this.color;
-			}
-	
-			//apply world effects
-			this.world.effects(this, distObj);
+
 			//move distance
 			this.pos[0] += this.dPos[0] * dist;
 			this.pos[1] += this.dPos[1] * dist;
 			this.pos[2] += this.dPos[2] * dist;
-			num += 1;
+			this.dist += dist;
+			this.world.preEffects(this);
+			this.iters += 1;
 		}
+		this.world.postEffects(this);
 		return this.color;
 	}
 	
@@ -260,199 +263,37 @@ class Ray_Tracking {
 
 
 //test version of the BrickGrid class that uses indeces instead of references. I think it's slower.
-class BrickGridInd {
+//     BrickGrid			24-73ms, uses 24mb
+//with BrickGridInd:		22-70ms, uses 3mb
+//with BrickGridTor:		
+class BrickGridTor {
 	constructor(world, l, d) {
 		this.l = l;
+		this.l2 = l*l;
 		this.pos = Pos(0, 0, 0);
-		this.d = d;
-		this.world = world;
-		this.estimInds = new Array(this.l);
-	}
-	
-	generate() {
-		var awagh = ((this.l - 1) * this.d / 2);
-		this.minCoords = [this.pos[0] - awagh, this.pos[1] - awagh, this.pos[2]- awagh];
-		for (var x=0; x<this.l; x++) {
-			this.generateX(this.minCoords, x);
-		}
-	}
-	
-	generateX(minCoords, x) {
-		this.estimInds[x] = new Array(this.l);
-		for (var y=0; y<this.l; y++) {
-			this.generateY(minCoords, x, y);
-		}
-	}
-	
-	generateY(minCoords, x, y) {
-		this.estimInds[x][y] = new Uint8Array(this.l);
-		for (var z=0; z<this.l; z++) {
-			this.generateZ(minCoords, x, y, z);
-		}
-	}
-	
-	generateZ(minCoords, x, y, z) {
-		// console.log(`testing ${x} ${y} ${z} -> ${minCoords[0] + this.d * x} ${minCoords[1] + this.d * y} ${minCoords[2] + this.d * z}`)
-		this.estimInds[x][y][z] = this.world.estimatePos(Pos(minCoords[0] + x*this.d, minCoords[1] + y*this.d, minCoords[2] + z*this.d))[1];
-	}
-	
-	update() {
-		//if the player is more than d/2 away from the center point, it's time to shift center points
-		var targetL = Math.floor(this.l / 2);
-		var cVec = this.calcGridCoords(camera.pos);
-		//move towards player
-		// if (cVec[0] != targetL || cVec[1] != targetL || cVec[2] != targetL) {
-		// 	console.log(`grid with d=${this.d} shifting to ${cVec[0] - targetL}, ${cVec[1] - targetL}, ${cVec[2] - targetL}`);
-		// }
-		this.shift(cVec[0] - targetL, cVec[1] - targetL, cVec[2] - targetL);
-	}
-	
-	shift(xBlocks, yBlocks, zBlocks) {
-		//don't bother if we don't need to move
-		if (!(xBlocks || yBlocks || zBlocks)) {
-			return;
-		}
-		// console.log(`grid with d=${this.d} shifting by ${xBlocks} ${yBlocks} ${zBlocks}`);
-
-		var maxBlock = this.l - 1;
-		var range = ((this.l - 1) * this.d) / 2;
-		var cornerCoords = [this.pos[0] - range, this.pos[1] - range, this.pos[2] - range];
-		
-		//a bit confusing. But I can put the coordinate updates first because generation only depends on cornercoords
-		this.pos[0] += xBlocks * this.d;
-		this.pos[1] += yBlocks * this.d;
-		this.pos[2] += zBlocks * this.d;
-		
-		if (xBlocks) {
-			if (xBlocks > 0) {
-				cornerCoords[0] += this.d;
-				this.estimInds.splice(0, xBlocks);
-				for (var x=0; x<xBlocks; x++) {
-					this.generateX(cornerCoords, maxBlock - x);
-				}
-				xBlocks = 0;
-			}
-			while (xBlocks < 0) {
-				cornerCoords[0] -= this.d;
-				this.estimInds.splice(0, 0, new Array(this.l));
-				this.generateX(cornerCoords, 0);
-				this.estimInds.pop();
-				xBlocks += 1;
-			}
-		}
-		
-		if (yBlocks) {
-			while (yBlocks > 0) {
-				cornerCoords[1] += this.d;
-				for (var x=0; x<this.l; x++) {
-					this.estimInds[x].splice(0, 1);
-					this.generateY(cornerCoords, x, maxBlock);
-				}
-				yBlocks -= 1;
-			}
-			while (yBlocks < 0) {
-				cornerCoords[1] -= this.d;
-				for (var x=0; x<this.l; x++) {
-					this.estimInds[x].splice(0, 0, new Array(this.l));
-					this.generateY(cornerCoords, x, 0);
-					this.estimInds[x].pop();
-				}
-				yBlocks += 1;
-			}
-		}
-		
-		if (zBlocks) {
-			if (zBlocks > 0) {
-				cornerCoords[2] += this.d * zBlocks;
-				for (var x=0; x<this.l; x++) {
-					for (var y=0; y<this.l; y++) {
-						this.estimInds[x][y].set(this.estimInds[x][y].slice(zBlocks));
-						for (var i=0; i<zBlocks; i++) {
-							this.generateZ(cornerCoords, x, y, maxBlock - i);
-						}
-					}
-				}
-				zBlocks = 0;
-			}
-			if (zBlocks < 0) {
-				zBlocks = -zBlocks;
-				cornerCoords[2] -= this.d * zBlocks;
-			
-				for (var x=0; x<this.l; x++) {
-					for (var y=0; y<this.l; y++) {
-						this.estimInds[x][y].set(this.estimInds[x][y].slice(0, this.estimInds[x][y].length-zBlocks), zBlocks);
-						for (var z=0; z<zBlocks; z++) {
-							this.generateZ(cornerCoords, x, y, z);
-						}
-					}
-				}
-				zBlocks = 0;
-			}
-		}
-		
-	}
-	
-	calcGridCoords(x, y, z) {
-		var q = new Uint8ClampedArray(3);
-		var l1 = this.l - 1;
-		var halfsies = l1 / 2;
-		q[0] = Math.min(((x - this.pos[0]) / this.d) + halfsies, l1) + 0.5;
-		q[1] = Math.min(((y - this.pos[1]) / this.d) + halfsies, l1) + 0.5;
-		q[2] = Math.min(((z - this.pos[2]) / this.d) + halfsies, l1) + 0.5;
-		return q;
-		
-	}
-	
-	estimate(obj) {
-		var q = this.calcGridCoords(obj.pos);
-		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
-		var material = this.world.objects[this.estimInds[q[0]][q[1]][q[2]]];
-		var g = material.distanceToObj(obj);
-		return [g, material];
-	}
-}
-
-
-/**
- * Here's the idea behind the BrickGrid:
- Raymarching is slow. It's faster than raytracing, but it's still extremely slow because each ray has to do 
- N distance estimates per step, with M steps, at a resolution of w*h rays per frame. This is a lot of computation when every distance estimate
- generally involves a square root of some sort. It would be way better if we had some way to do fewer distance estimates.
- Enter: The BrickGrid.
- By partitioning a space into a grid, and estimating the one object closest at every point on that grid, 
- we have fewer distance estimates (we only have to check against one object per measurement).
- */
-class BrickGrid {
-	constructor(world, l, d) {
-		this.l = l;
-		this.pos = Pos(0, 0, 0);
+		this.minPos = Pos(this.pos[0] - awagh, this.pos[1] - awagh, this.pos[2]- awagh);
 		this.d = d;
 		this.world = world;
 		
 		this.generated = false;
-		this.estimObjs = [];
+		this.estimInds = new U8Arr(l*l*l);
+		this.indOffset = new U8Arr([0, 0, 0]);
 	}
 	
 	generate() {
-		console.log(`HELO I AM GENERATING YES`, this.d, this.l, this.world, this.pos);
-		var awagh = ((this.l - 1) * this.d / 2);
-		this.minCoords = Pos(this.pos[0] - awagh, this.pos[1] - awagh, this.pos[2]- awagh);
-		this.estimObjs = [];
 		for (var x=0; x<this.l; x++) {
-			this.generateX(this.minCoords, x);
+			this.generateX(this.minPos, x);
 		}
 		this.generated = true;
 	}
 	
 	generateX(minCoords, x) {
-		this.estimObjs[x] = [];
 		for (var y=0; y<this.l; y++) {
 			this.generateY(minCoords, x, y);
 		}
 	}
 	
 	generateY(minCoords, x, y) {
-		this.estimObjs[x][y] = [];
 		for (var z=0; z<this.l; z++) {
 			this.generateZ(minCoords, x, y, z);
 		}
@@ -465,7 +306,7 @@ class BrickGrid {
 			console.error("AAAAA", Pos(minCoords[0] + x*this.d, minCoords[1] + y*this.d, minCoords[2] + z*this.d));
 		}
 		// console.log(i);
-		this.estimObjs[x][y][z] = this.world.objects[i];
+		this.estimInds[x*this.l2 + y*this.l + z] = i;
 	}
 	
 	update() {
@@ -494,15 +335,15 @@ class BrickGrid {
 		if (xBlocks) {
 			while (xBlocks > 0) {
 				cornerCoords[0] += this.d;
-				this.estimObjs.splice(0, 1);
+				this.estimInds.splice(0, 1);
 				this.generateX(cornerCoords, maxBlock);
 				xBlocks -= 1;
 			}
 			while (xBlocks < 0) {
 				cornerCoords[0] -= this.d;
-				this.estimObjs.splice(0, 0, []);
+				this.estimInds.splice(0, 0, []);
 				this.generateX(cornerCoords, 0);
-				this.estimObjs.pop();
+				this.estimInds.pop();
 				xBlocks += 1;
 			}
 		}
@@ -511,7 +352,7 @@ class BrickGrid {
 			while (yBlocks > 0) {
 				cornerCoords[1] += this.d;
 				for (var x=0; x<this.l; x++) {
-					this.estimObjs[x].splice(0, 1);
+					this.estimInds[x].splice(0, 1);
 					this.generateY(cornerCoords, x, maxBlock);
 				}
 				yBlocks -= 1;
@@ -519,9 +360,9 @@ class BrickGrid {
 			while (yBlocks < 0) {
 				cornerCoords[1] -= this.d;
 				for (var x=0; x<this.l; x++) {
-					this.estimObjs[x].splice(0, 0, []);
+					this.estimInds[x].splice(0, 0, []);
 					this.generateY(cornerCoords, x, 0);
-					this.estimObjs[x].pop();
+					this.estimInds[x].pop();
 				}
 				yBlocks += 1;
 			}
@@ -532,7 +373,7 @@ class BrickGrid {
 				cornerCoords[2] += this.d;
 				for (var x=0; x<this.l; x++) {
 					for (var y=0; y<this.l; y++) {
-						this.estimObjs[x][y].splice(0, 1);
+						this.estimInds[x][y].set(this.estimInds[x][y].slice(1));
 						this.generateZ(cornerCoords, x, y, maxBlock);
 					}
 				}
@@ -542,15 +383,14 @@ class BrickGrid {
 				cornerCoords[2] -= this.d;
 				for (var x=0; x<this.l; x++) {
 					for (var y=0; y<this.l; y++) {
-						this.estimObjs[x][y].splice(0, 0, []);
+						//this.estimInds[x][y].splice(0, 0, []);
+						this.estimInds[x][y].set(this.estimInds[x][y].slice(0, this.estimInds[x][y].length - 1), 1);
 						this.generateZ(cornerCoords, x, y, 0);
-						this.estimObjs[x][y].pop();
 					}
 				}
 				zBlocks += 1;
 			}
 		}
-		
 	}
 	
 	calcGridCoords(pos) {
@@ -561,16 +401,187 @@ class BrickGrid {
 		];
 	}
 	
+	getMaterial(q) {
+		return this.world.objects[this.estimInds[q[0]][q[1]][q[2]]];
+	}
+	
 	estimate(obj) {
 		var q = this.calcGridCoords(obj.pos);
 		var halfsies = (this.l - 1) / 2;
 		// console.log(q);
-		q[0] = halfsies + clamp(q[0], -halfsies, halfsies);
-		q[1] = halfsies + clamp(q[1], -halfsies, halfsies);
-		q[2] = halfsies + clamp(q[2], -halfsies, halfsies);
+		q[0] = Math.round(halfsies + clamp(q[0], -halfsies, halfsies));
+		q[1] = Math.round(halfsies + clamp(q[1], -halfsies, halfsies));
+		q[2] = Math.round(halfsies + clamp(q[2], -halfsies, halfsies));
 		
 		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
-		var material = this.estimObjs[Math.round(q[0])][Math.round(q[1])][Math.round(q[2])];
+		var material = this.getMaterial(q);
+		// console.log(this, material, q);
+		var g = material.distanceToObj(obj);
+		return [g, material];
+	}
+}
+
+
+/**
+ * Here's the idea behind the BrickGrid:
+ Raymarching is slow. It's faster than raytracing, but it's still extremely slow because each ray has to do 
+ N distance estimates per step, with M steps, at a resolution of w*h rays per frame. This is a lot of computation when every distance estimate
+ generally involves a square root of some sort. It would be way better if we had some way to do fewer distance estimates.
+ Enter: The BrickGrid.
+ By partitioning a space into a grid, and estimating the one object closest at every point on that grid, 
+ we have fewer distance estimates (we only have to check against one object per measurement).
+ */
+ class BrickGridInd {
+	constructor(world, l, d) {
+		this.l = l;
+		this.pos = Pos(0, 0, 0);
+		this.d = d;
+		this.world = world;
+		
+		this.generated = false;
+		this.estimInds = [];
+	}
+	
+	generate() {
+		var awagh = ((this.l - 1) * this.d / 2);
+		this.minCoords = Pos(this.pos[0] - awagh, this.pos[1] - awagh, this.pos[2]- awagh);
+		this.estimInds = [];
+		for (var x=0; x<this.l; x++) {
+			this.generateX(this.minCoords, x);
+		}
+		this.generated = true;
+	}
+	
+	generateX(minCoords, x) {
+		this.estimInds[x] = [];
+		for (var y=0; y<this.l; y++) {
+			this.generateY(minCoords, x, y);
+		}
+	}
+	
+	generateY(minCoords, x, y) {
+		this.estimInds[x][y] = new Uint8Array(this.l);
+		for (var z=0; z<this.l; z++) {
+			this.generateZ(minCoords, x, y, z);
+		}
+	}
+	
+	generateZ(minCoords, x, y, z) {
+		// console.log(`testing ${x} ${y} ${z} -> ${minCoords[0] + this.d * x} ${minCoords[1] + this.d * y} ${minCoords[2] + this.d * z}`)
+		var i = this.world.estimatePos(Pos(minCoords[0] + x*this.d, minCoords[1] + y*this.d, minCoords[2] + z*this.d))[1];
+		if (i == -1 && prand(0, 1) < 0.001) {
+			console.error("AAAAA", Pos(minCoords[0] + x*this.d, minCoords[1] + y*this.d, minCoords[2] + z*this.d));
+		}
+		// console.log(i);
+		this.estimInds[x][y][z] = i;
+	}
+	
+	update() {
+		//if the player is more than d/2 away from the center point, it's time to shift center points
+		var cVec = this.calcGridCoords(camera.pos);
+		//move towards player
+		this.shift(Math.round(cVec[0]), Math.round(cVec[1]), Math.round(cVec[2]));
+	}
+	
+	shift(xBlocks, yBlocks, zBlocks) {
+		//don't bother if we don't need to move
+		if (!(xBlocks || yBlocks || zBlocks)) {
+			return;
+		}
+		// console.log(`grid with d=${this.d} shifting by ${xBlocks} ${yBlocks} ${zBlocks}`);
+
+		var maxBlock = this.l - 1;
+		var range = ((this.l - 1) * this.d) / 2;
+		var cornerCoords = [this.pos[0] - range, this.pos[1] - range, this.pos[2] - range];
+		
+		//a bit confusing. But I can put the coordinate updates first because generation only depends on cornercoords
+		this.pos[0] += xBlocks * this.d;
+		this.pos[1] += yBlocks * this.d;
+		this.pos[2] += zBlocks * this.d;
+		
+		if (xBlocks) {
+			while (xBlocks > 0) {
+				cornerCoords[0] += this.d;
+				this.estimInds.splice(0, 1);
+				this.generateX(cornerCoords, maxBlock);
+				xBlocks -= 1;
+			}
+			while (xBlocks < 0) {
+				cornerCoords[0] -= this.d;
+				this.estimInds.splice(0, 0, []);
+				this.generateX(cornerCoords, 0);
+				this.estimInds.pop();
+				xBlocks += 1;
+			}
+		}
+		
+		if (yBlocks) {
+			while (yBlocks > 0) {
+				cornerCoords[1] += this.d;
+				for (var x=0; x<this.l; x++) {
+					this.estimInds[x].splice(0, 1);
+					this.generateY(cornerCoords, x, maxBlock);
+				}
+				yBlocks -= 1;
+			}
+			while (yBlocks < 0) {
+				cornerCoords[1] -= this.d;
+				for (var x=0; x<this.l; x++) {
+					this.estimInds[x].splice(0, 0, []);
+					this.generateY(cornerCoords, x, 0);
+					this.estimInds[x].pop();
+				}
+				yBlocks += 1;
+			}
+		}
+		
+		if (zBlocks) {
+			while (zBlocks > 0) {
+				cornerCoords[2] += this.d;
+				for (var x=0; x<this.l; x++) {
+					for (var y=0; y<this.l; y++) {
+						this.estimInds[x][y].set(this.estimInds[x][y].slice(1));
+						this.generateZ(cornerCoords, x, y, maxBlock);
+					}
+				}
+				zBlocks -= 1;
+			}
+			while (zBlocks < 0) {
+				cornerCoords[2] -= this.d;
+				for (var x=0; x<this.l; x++) {
+					for (var y=0; y<this.l; y++) {
+						//this.estimInds[x][y].splice(0, 0, []);
+						this.estimInds[x][y].set(this.estimInds[x][y].slice(0, this.estimInds[x][y].length - 1), 1);
+						this.generateZ(cornerCoords, x, y, 0);
+					}
+				}
+				zBlocks += 1;
+			}
+		}
+	}
+	
+	calcGridCoords(pos) {
+		return [
+			(pos[0] - this.pos[0]) / this.d,
+			(pos[1] - this.pos[1]) / this.d,
+			(pos[2] - this.pos[2]) / this.d,
+		];
+	}
+	
+	getMaterial(q) {
+		return this.world.objects[this.estimInds[q[0]][q[1]][q[2]]];
+	}
+	
+	estimate(obj) {
+		var q = this.calcGridCoords(obj.pos);
+		var halfsies = (this.l - 1) / 2;
+		// console.log(q);
+		q[0] = Math.round(halfsies + clamp(q[0], -halfsies, halfsies));
+		q[1] = Math.round(halfsies + clamp(q[1], -halfsies, halfsies));
+		q[2] = Math.round(halfsies + clamp(q[2], -halfsies, halfsies));
+		
+		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
+		var material = this.getMaterial(q);
 		// console.log(this, material, q);
 		var g = material.distanceToObj(obj);
 		return [g, material];
@@ -617,7 +628,7 @@ class BrickMap {
 		this.sets = [];
 		var max = Math.min(this.numSetsIdeal, n);
 		for (var a=0; a<max; a++) {
-			this.sets[a] = new BrickGrid(this.world, this.l, tree_minD * (2 ** a));
+			this.sets[a] = new BrickGridInd(this.world, this.l, tree_minD * (2 ** a));
 			this.sets[a].generate();
 		}
 		this.trueMinD = this.sets[0].d;
@@ -627,58 +638,5 @@ class BrickMap {
 		this.sets.forEach(s => {
 			s.update();
 		});
-	}
-}
-
-class World {
-	/**
-	 * Creates a World object
-	 * @param {Function} getBgColor 
-	 * @param {Function} effects 
-	 * @param {Number[]} sunVector 
-	 * @param {Number[]} spawn 
-	 * @param {Scene3dObject[]} objects 
-	 */
-	constructor(name, getBgColor, effects, sunVector, spawn, objects) {
-		this.name = name;
-		this.getBgColor = getBgColor;
-		this.effects = effects;
-		this.sunVector = sunVector;
-		this.spawn = spawn;
-		this.objects = objects;
-		var self = this;
-		worlds[this.name] = self;
-		this.tree = new BrickMap(self, tree_maxD);
-		this.tree.generate(tree_sets);
-		// this.finalize();
-	}
-	
-	//estimate distance at a given point. Returns both distance and the object that gave that distance
-	estimateObj(obj) {
-		var dist = 1e1001;
-		var distObj = undefined;
-		var testDist;
-		this.objects.forEach(o => {
-			testDist = o.distanceToObj(obj);
-			if (testDist < dist) {
-				dist = testDist;
-				distObj = o;
-			}
-		});
-		return [dist, distObj];
-	}
-	
-	estimatePos(pos) {
-		var dist = 1e1001;
-		var distInd = -1;
-		var testDist;
-		for (var i=0; i<this.objects.length; i++) {
-			testDist = this.objects[i].distanceToPos(pos);
-			if (testDist < dist) {
-				dist = testDist;
-				distInd = i;
-			}
-		}
-		return [dist, distInd];
 	}
 }

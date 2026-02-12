@@ -21,6 +21,15 @@ class Scene3dObject {
 		return this.distanceToPos(object.pos);
 	}
 	
+	/**
+	* what to do to rays that hit the object. By default just sets the color of the ray to self
+	* @param {Object} object the object to check against
+	 */
+	applyHitEffect(object) {
+		object.color[0] = this.color[0];
+		object.color[1] = this.color[1];
+		object.color[2] = this.color[2];
+	}
 	
 
 	serialize() {
@@ -51,7 +60,7 @@ class Cube extends Scene3dObject {
 	
 
 	serialize() {
-		return `CUBE|${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
+		return `CUBE|[${this.pos}]~${this.r}~[${this.color}]`;
 	}
 	
 	deserialize(argStr) {
@@ -76,7 +85,7 @@ class Box extends Scene3dObject {
 	}
 
 	serialize() {
-		return `BOX|${this.x}~${this.y}~${this.z}~${this.xr}~${this.yr}~${this.zr}~[${this.color}]`;
+		return `BOX|[${this.pos}]~${this.xr}~${this.yr}~${this.zr}~[${this.color}]`;
 	}
 }
 
@@ -96,7 +105,7 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `CYLINDER|${this.x}~${this.y}~${this.z}~${this.r}~${this.h}~[${this.color}]`;
+		return `CYLINDER|[${this.pos}]~${this.r}~${this.h}~[${this.color}]`;
 	}
 }
 
@@ -139,7 +148,7 @@ class Portal extends Cylinder {
 	}
 	
 	serialize() {
-		return `PORTAL|${this.x}~${this.y}~${this.z}~${this.newWorld.name}`;
+		return `PORTAL|[${this.pos}]~"${this.newWorld.name}"`;
 	}
 }
 
@@ -159,7 +168,7 @@ class Ring extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `RING|${this.x}~${this.y}~${this.z}~${this.r}~${this.ringR}~[${this.color}]`;
+		return `RING|[${this.pos}]~${this.r}~${this.ringR}~[${this.color}]`;
 	}
 }
 
@@ -182,7 +191,7 @@ class Sphere extends Scene3dObject {
 	}
 
 	serialize() {
-		return `SPHERE|${this.x}~${this.y}~${this.z}~${this.r}~[${this.color}]`;
+		return `SPHERE|[${this.pos}]~${this.r}~[${this.color}]`;
 	}
 }
 
@@ -225,5 +234,9 @@ class Line extends Scene3dObject {
 		
 		return (getDistance(pos[0], pos[1], pos[2], 
 				linterp(this.pos[0], this.posEnd[0], l), linterp(this.pos[1], this.posEnd[1], l), linterp(this.pos[2], this.posEnd[2], l)) - this.r);
+	}
+	
+	serialize() {
+		return `LINE|[${this.pos}]~[${this.posEnd}]~${this.r}~[${this.color}]`;
 	}
 }

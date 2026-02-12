@@ -10,6 +10,40 @@ getDistance(x1, y1, z1, x2, y2, z2)
 */
 
 
+function deserialize(str) {
+	var [type, params] = str.split(`|`);
+	var spl = params.split(`~`);
+	var obj;
+	var J = JSON.parse;
+	
+	switch (type) {
+		case `CUBE`:
+			obj = new Cube(Pos(...J(spl[0])), +spl[1], Color(...J(spl[2])));
+			break;
+		case `BOX`:
+			obj = new Box(Pos(...J(spl[0])), +spl[1], +spl[2], +spl[3], Color(...J(spl[4])));
+			break;
+		case `CYLINDER`:
+			obj = new Cylinder(Pos(...J(spl[0])), +spl[1], +spl[2], Color(...J(spl[3])));
+			break;
+			
+		case `PORTAL`:
+			obj = new Portal(Pos(...J(spl[0])), J(spl[1]));
+			break;
+		case `RING`:
+			obj = new Ring(Pos(...J(spl[0])), +spl[1], +spl[2], Color(...J(spl[3])));
+			break;
+		case `SPHERE`:
+			obj = new Sphere(Pos(...J(spl[0])), +spl[1], Color(...J(spl[2])));
+			break;
+		case `LINE`:
+			obj = new Line(Pos(...J(spl[0])), Pos(...J(spl[1])), +spl[2], Color(...J(spl[3])));
+			break;
+	}
+	
+	return obj;
+}
+
 function getDistance(x1, y1, z1, x2, y2, z2) {
 	var dx = x1 - x2;
 	var dy = y1 - y2;
@@ -54,11 +88,15 @@ function calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight) {
 			xDir[1] * xMult + yDir[1] * yMult + zDir[1], 
 			xDir[2] * xMult + yDir[2] * yMult + zDir[2]
 		];
-		magnitude = Math.hypot(trueDir[0], trueDir[1], trueDir[2]);
+		var magnitude = Math.hypot(trueDir[0], trueDir[1], trueDir[2]);
 		trueDir[0] /= magnitude;
 		trueDir[1] /= magnitude;
 		trueDir[2] /= magnitude;
-		var c = new Ray(camera.world, camera.pos, trueDir).iterate(0);
+		// if (camera.pos == 0) {
+		// 	var thrower = [4,4,4];
+		// 	var res = thrower[NaN][0];
+		// }
+		var c = new Ray(camera.world, camera.pos, trueDir).iterate();
 		colors[3*y] = c[0];
 		colors[3*y+1] = c[1];
 		colors[3*y+2] = c[2];
@@ -78,8 +116,8 @@ function fastSqrt(x) {
 	return sqrtTable[x << 1 >> 1];
 }
 
-function gridPos(x, y, z) {
-	return [x / tree_minD, y / tree_minD, z / tree_minD];
+function modulate(x, num) {
+	return (x < 0) ? num + (x % num) : x % num;
 }
 
 function performanceTest() {

@@ -12,7 +12,7 @@ function Pos(x, y, z) {
 	return q;
 }
 function Color(r, g, b) {
-	var q = new Uint8Array(3);
+	var q = new Uint8ClampedArray(3);
 	q[0] = r;
 	q[1] = g;
 	q[2] = b;
@@ -49,9 +49,9 @@ var player_width = 5;
 var rand_seed = 3;
 
 //ray properties
-const ray_maxDist = 9999;
+const ray_maxDist = 3000;
 const ray_minDist = 0.1;
-const ray_maxIters = 1000;
+const ray_maxIters = 500;
 var ray_safetyMult = 0.85;
 
 var page_animation;
@@ -72,6 +72,7 @@ const tree_sets = 6;
 
 var worker_num = 4;
 var worker_pool = [];
+var worker_ready = [];
 
 var worlds = {};
 var loading_world;

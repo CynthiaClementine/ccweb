@@ -11,7 +11,7 @@ importScripts("worlds.js");
 //workers all have a copy of the world state, so they can simulate raycasts
 createWorlds();
 
-var camera = new Camera(loading_world, 0, 0, 0);
+var camera = new Camera(loading_world, Pos(0, 0, 0));
 var cxDir = [0, 0, 0];
 var cyDir = [0, 0, 0];
 var czDir = [0, 0, 0];
@@ -42,7 +42,7 @@ function run(package) {
 function runTest(dataArr) {
 	console.log(`RECIEVED: ${JSON.stringify(dataArr)}`);
 	eval(dataArr[0]);
-	console.log(`CAMERA IS AT: ${camera.x}, ${camera.y}, ${camera.z}`);
+	console.log(`CAMERA IS AT: ${camera.pos}`);
 }
 
 //makes sure the brickMap is up to date
@@ -51,9 +51,9 @@ function updateCamera(data) {
 	[worldStr, x, y, z, theta, phi] = data;
 	//update camera properties
 	camera.world = worlds[worldStr];
-	camera.x = x;
-	camera.y = y;
-	camera.z = z;
+	camera.pos[0] = x;
+	camera.pos[1] = y;
+	camera.pos[2] = z;
 	camera.theta = theta;
 	camera.phi = phi;
 	
@@ -61,7 +61,9 @@ function updateCamera(data) {
 	cyDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
 	czDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
 	
-	loading_world.tree.update();
+	if (!loading_world.tick) {
+		loading_world.tree.update();
+	}
 }
 
 function drawAndPostLine(data) {

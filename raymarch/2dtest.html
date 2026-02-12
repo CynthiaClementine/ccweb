@@ -30,14 +30,14 @@ const HEIGHT = canvas.height;
 
 let rayOrigin = { x: 150, y: 300 };
 let rayAngle = 0;
-var numRays = 1;
+var numRays = 2;
 
 var color_point = "#888";
 var color_grey = "#AAA";
 var color_hit = "#F55";
 var color_beam = "#5F5";
 
-var octree_minD = 10;
+var octree_minD = 6;
 
 function clamp(num, min, max) {
 	return num <= min ? min : num >= max ? max : num;
@@ -171,9 +171,9 @@ function raymarch(origin, angle, debug) {
 
 var objects = [
 	new Box(400, 150, 60, 40, "#F00"),
-	new Box(100, 400, 20, 50, "#00F"),
-	new Circle(400, 100, 60, "#0FF"),
-	new Circle(500, 300, 80, "#FFF"),
+	// new Box(100, 400, 20, 50, "#00F"),
+	// new Circle(400, 100, 60, "#0FF"),
+	// new Circle(500, 300, 80, "#FFF"),
 ];
 var grid;
 
@@ -263,7 +263,7 @@ class BrickGrid {
 			for (var y=0; y<this.l; y++) {
 				ctx.beginPath();
 				ctx.strokeStyle = objects[this.estimInds[x][y]].color;
-				ctx.rect(this.minCoords[0] + this.d * x - 2, this.minCoords[1] + this.d * y - 2, 5, 5);
+				ctx.rect(this.minCoords[0] + this.d * x - (octree_minD / 2), this.minCoords[1] + this.d * y - (octree_minD / 2), octree_minD, octree_minD);
 				ctx.stroke();
 			}
 		}
@@ -386,7 +386,7 @@ class BrickMap {
 		this.numSets = Math.ceil(Math.log2(maxRange / octree_minD));
 		this.trueMinD = undefined;
 		//number of points in each grid axis
-		this.l = 31;
+		this.l = 63;
 		this.sets = [];
 	}
 	
@@ -442,7 +442,7 @@ class BrickMap {
 
 function setup() {
 	grid = new BrickMap(objects, 1500);
-	grid.generate(3);
+	grid.generate(5);
 	window.setInterval(() => {
 		grid.update();
 		drawScene();

@@ -1,9 +1,6 @@
 
 window.onload = setup;
-window.onresize = () => {
-	window.clearTimeout(render_sizeTimeout);
-	render_sizeTimeout = window.setTimeout(typeIt, 60);
-};
+window.onresize = typeIt;
 window.addEventListener("keydown", handleKeyPress, false);
 window.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener('pointerlockchange', handleCursorLockChange, false);
@@ -35,14 +32,11 @@ function initiateWorkers() {
 		worker_pool[e] = new Worker("worker.js");
 		worker_pool[e].onmessage = handleWorkerMsg;
 		worker_pool[e].postMessage(["ID", e]);
+		worker_ready[e] = false;
 	}
 }
 
 function typeIt(renderN) {
-	// window.clearTimeout(page_animation);
-	if (renderN) {
-		render_n = renderN;
-	}
 	var width = window.innerWidth;
 	var height = window.innerHeight - 60;
 	var blockSize = Math.min(width / render_n, height / render_n);
@@ -56,9 +50,6 @@ function typeIt(renderN) {
 //loop loop loop loop
 function main() {
 	perf_startT = performance.now();
-	
-	
-	
 	world_time += 1;
 	//tick all world objects
 	loading_world = camera.world;
@@ -66,18 +57,18 @@ function main() {
 	loading_world.objects.forEach(o => {
 		o.tick();
 	});
-	loading_world.tree.update();
+	if (loading_world.tick) {
+		loading_world.tick();
+	} else {
+		//hacky solution for not updating the tree in looping worlds. Fix later
+		loading_world.tree.update();
+	}
 	
 	worker_pool.forEach(w => {
-		w.postMessage(["updateCamera", camera.world.name, camera.x, camera.y, camera.z, camera.theta, camera.phi]);
+		w.postMessage(["updateCamera", camera.world.name, camera.pos[0], camera.pos[1], camera.pos[2], camera.theta, camera.phi]);
 	});
 	
 	draw();
-
-	//editor stuff
-	if (editor_active) {
-		loading_editor.beDrawn();
-	}
 
 	//end
 	finishMain();
@@ -88,6 +79,7 @@ function finishMain() {
 	if (render_linesDrawn < render_n) {
 		return;
 	}
+	render_linesDrawn = 0;
 	
 	drawUI();
 	
@@ -104,7 +96,8 @@ function finishMain() {
 	
 	//changing display size
 	if (render_n != render_goalN) {
-		typeIt(render_goalN);
+		render_n = render_goalN;
+		typeIt();
 		//ough
 		page_animation = window.setTimeout(main, 70);
 	} else {
@@ -119,8 +112,6 @@ function draw() {
 	//draw everything
 	var pixelWidth = render_n;
 	var pixelHeight = render_n;
-	
-	render_linesDrawn = 0;
 
 	var multiple = camera_FOV / pixelWidth;
 
@@ -135,9 +126,11 @@ function draw() {
 	for (var x=0; x<pixelWidth; x++) {
 		workerInd = (workerInd + 1) % (worker_pool.length);
 		// workerInd = 10;
-		if (workerInd < worker_pool.length && worker_pool[workerInd].ready) {
-			// if (x % 2 == 1) {
+		if (worker_num > 0) {
 			worker_pool[workerInd].postMessage(["calcLine", multiple, x, pixelWidth, pixelHeight]);
+			if (worker_ready[workerInd]) {
+			}
+			// if (x % 2 == 1) {
 			// } else {
 			// 	render_linesDrawn += 1;
 			// }
@@ -150,6 +143,7 @@ function draw() {
 }
 
 function drawUI() {
+	return;
 	var cw = canvas.width;
 	var ch = canvas.height;
 	var center = [canvas.width / 2, canvas.height / 2];
@@ -174,15 +168,42 @@ function drawUI() {
 	ctx.globalAlpha = 1;
 }
 
-function drawLine(x, colorArr) {
+function drawLineOLD(x, colorArr) {
 	var blockSize = Math.round(canvas.width / render_n);
 	for (var y=0; y<render_n; y++) {
-		ctx.fillStyle = `rgb(${colorArr[3*y]}, ${colorArr[3*y+1]}, ${colorArr[3*y+2]})`;
+		ctx.fillStyle = `#` + 
+			((1 << 24) | (colorArr[3*y] << 16) | (colorArr[3*y+1] << 8) | colorArr[3*y+2]).toString(16).slice(1);
 		// ctx.fillStyle = "#FFF";
 		ctx.fillRect(x * blockSize, y * blockSize, blockSize + 0.1, blockSize + 0.1);
 	}
 	
+	render_linesDrawn += 1;
+	finishMain();
+}
+
+function drawLine(x, colorArr) {
+	//writing directly to imageData is theoretically faster than changing fillStyle a bunch
+	var blockSize = Math.round(canvas.width / render_n);
+	var imageData = ctx.createImageData(blockSize, canvas.height);
+	var dataBlock = imageData.data;
+	for (var y=0; y<render_n; y++) {
+		var r = colorArr[3*y];
+		var g = colorArr[3*y+1];
+		var b = colorArr[3*y+2];
+		
+		for (var yOff=0; yOff<blockSize; yOff++) {
+			var lineInd = 4 * blockSize * (y * blockSize + yOff);
+			for (var xOff=0; xOff<blockSize; xOff++) {
+				var pixelInd = lineInd + (4 * xOff);
+				dataBlock[pixelInd] = r;
+				dataBlock[pixelInd+1] = g;
+				dataBlock[pixelInd+2] = b;
+				dataBlock[pixelInd+3] = 255;
+			}
+		}
+	}
 	
+	ctx.putImageData(imageData, x * blockSize, 0);
 	render_linesDrawn += 1;
 	finishMain();
 }
@@ -195,7 +216,7 @@ function handleWorkerMsg(e) {
 			break;
 		case "ready":
 			if (data[1] != -1) {
-				worker_pool[data[1]].ready = true;
+				worker_ready[data[1]] = true;
 			}
 			break;
 		default:
@@ -219,7 +240,7 @@ function handleKeyPress(a) {
 		
 		switch (a.code) {
 			case "KeyC":
-				navigator.clipboard.writeText(`${Math.round(camera.x)},${Math.round(camera.y)},${Math.round(camera.z)}`);
+				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
 				break;
 			case "KeyO":
 				// var ray = new Ray_Tracking(loading_world, )
