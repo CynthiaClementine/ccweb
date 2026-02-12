@@ -6,7 +6,7 @@ var autoplayStop;
 
 var color_debug = "#FF00FF";
 
-var color_selectedNode = activeColor_stroke;
+var color_selectedNode;
 var color_stroke = "#000000";
 var color_press = "#777777";
 var color_fill = "#888888";
@@ -16,8 +16,6 @@ var color_objLast = undefined;
 //Here are HTML elements that I'm keeping as a variable so vscode knows they're variables
 //base is the outermost svg element
 var base;
-//workspace elements
-var workspace_container, workspace_background, workspace_permanent, workspace_temporary;
 
 const brush_limits = [1, 100];
 
@@ -105,12 +103,6 @@ var project_fps = 24;
 //the decimal point to quantize to
 var quantizeTo = 1;
 var quantizeAmount = 1 / (10 ** quantizeTo);
-
-
-
-var timeline;
-
-var toolCurrent;
 
 const uidChars = `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZςερτυθιοπασδφγηξκλζχψωβνμ`;
 var uidCount = 0;

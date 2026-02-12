@@ -237,7 +237,7 @@ function Spline(pathObj, curves) {
 
 					//move to workspace
 					for (a=0; a<curveSplits[1]; a++) {
-						workspace_toolTemp.appendChild(φCreate("path", {
+						workspace_temp.appendChild(φCreate("path", {
 							'stroke': "#F0F",
 							'd': `M ${pts[a][0]} ${pts[a][1]} L ${pts[a+1][0]} ${pts[a+1][1]}`
 						}));
@@ -411,7 +411,7 @@ function Frame(svgObj) {
 		for (var y=0; y<svgObj.cubicBins.length; y++) {
 			for (var x=0; x<svgObj.cubicBins[y].length; x++) {
 				if (svgObj.bin(x, y).length > 0) {
-					workspace_toolTemp.appendChild(φCreate("rect", {
+					workspace_temporary.appendChild(φCreate("rect", {
 						'x': x * cubicBinSize,
 						'y': y * cubicBinSize,
 						'width': cubicBinSize,

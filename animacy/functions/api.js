@@ -66,6 +66,18 @@ function changeBrushSize(newSize) {
 	data_persistent.brushSize = clamp(newSize, brush_limits[0], brush_limits[1]);
 }
 
+function changeFramerate(newFPS) {
+	var playing = (autoplay != undefined);
+	if (playing) {
+		toggleTimelinePlayback();
+	}
+	project_fps = newFPS;
+	timeline_fps.innerHTML = `fps: ${newFPS}`;
+	if (playing) {
+		toggleTimelinePlayback();
+	}
+}
+
 /**
  * Gives the object of the current Frame selected. If multiple frames are selected, returns an array of objects.
  */
@@ -150,7 +162,7 @@ function fill(workspaceX, workspaceY) {
 	//first create the new layer object
 	var arrRef = timeline.l[layerID];
 	var oldObj = arrRef[frame];
-	var newObj = frameNode ?? frame_create(createUid(), layerID);
+	var newObj = frameNode ?? frame_create(createUID(), layerID);
 	var frameID = φGet(newObj, 'uid');
 
 	var theBin = document.getElementById(`layer_${layerID}_group`);
@@ -187,7 +199,7 @@ function makeUnKeyframe(layer, frame) {
 	var arrRef = timeline.l[layer];
 	var readObj = arrRef[frame];
 	//if the frame's 0 there's no previous frame and one must be created
-	var writeObj = isFirst ? frame_create(createUid(), layer) : arrRef[frame-1];
+	var writeObj = isFirst ? frame_create(createUID(), layer) : arrRef[frame-1];
 	var writeID = φGet(writeObj, 'uid');
 	var theBin = document.getElementById(`layer_${layer}_group`);
 
@@ -237,8 +249,8 @@ function moveCursorTo(workspaceX, workspaceY) {
  */
 function addLayer(name) {
 	name = name ?? "New Layer";
-	var layerID = createUid();
-	var frameID = createUid();
+	var layerID = createUID();
+	var frameID = createUID();
 
 	//create frame object
 	var frameObj = frame_create(frameID);

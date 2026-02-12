@@ -17,6 +17,7 @@ function runTests() {
 	}
 
 	[
+		test_basic,
 		test_layerAdd,
 		// test_wat,
 		// test_intersects,
@@ -135,7 +136,7 @@ function runTests() {
 	console.log(intersections);
 
 	intersections.forEach(g => {
-		workspace_toolTemp.appendChild(φCreate("circle", {
+		workspace_temp.appendChild(φCreate("circle", {
 			'cx': g[0],
 			'cy': g[1],
 			'r': 1,
@@ -144,6 +145,13 @@ function runTests() {
 		}));
 	}); */
 	// debug_active = true;*/
+}
+
+function test_basicUser() {
+	addLayer("Layer 1");
+	resizeTimeline(undefined, 100);
+	changeAnimationLength(10);
+	updateColorVars();
 }
 
 function test_apple() {

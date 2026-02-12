@@ -24,14 +24,14 @@ class ToolSelects {
 	}
 
 	createOverlay() {
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		//highlight all selected objects
 		this.selected.forEach(s => {
 			var copy = s.cloneNode();
 			φSet(copy, {
 				"class": `select`
 			});
-			workspace_toolTemp.appendChild(copy);
+			workspace_temporary.appendChild(copy);
 		});
 	}
 
@@ -49,14 +49,14 @@ class ToolSelects {
 					frame_removeObject(this.selectedLayers[s], this.selected[s]);
 				}
 			}
-			workspace_toolTemp.innerHTML = "";
+			workspace_temporary.innerHTML = "";
 			this.selected = [];
 			this.selectedLayers = [];
 		}
 	}
 
 	deselect() {
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		while (this.selected.length > 0) {
 			this.deselectOne(0);
 			return;
@@ -87,7 +87,7 @@ class ToolSelects {
 				}
 			}
 
-			if (!button_shift && !Array.from(workspace_toolTemp.children).includes(a.target)) {
+			if (!button_shift && !Array.from(workspace_temporary.children).includes(a.target)) {
 				this.deselect();
 				return;
 			}
@@ -239,7 +239,7 @@ class ToolTransform extends ToolSelects {
 		];
 
 		//append the rectangular outline
-		workspace_toolTemp.appendChild(φCreate("rect", {
+		workspace_temporary.appendChild(φCreate("rect", {
 			'class': `select`,
 			'x': superBounds[0],
 			'y': superBounds[1],
@@ -247,7 +247,7 @@ class ToolTransform extends ToolSelects {
 			'height': superBounds[3] - superBounds[1]
 		}));
 		corners.forEach(c => {
-			workspace_toolTemp.appendChild(φCreate("circle", {
+			workspace_temporary.appendChild(φCreate("circle", {
 				'fill': `var(--colorSelect)`,
 				'r': 2,
 				'cx': c[0],
@@ -379,7 +379,7 @@ class ToolMove extends ToolSelects {
 			for (var d=+(c>0); d<bin[c].length; d++) {
 				if (d == 0 || d == bin[c].length - 1) {
 					//circles for corners
-					workspace_toolTemp.appendChild(φCreate("circle", {
+					workspace_temporary.appendChild(φCreate("circle", {
 						'cx': bin[c][d][0],
 						'cy': bin[c][d][1],
 						'r': 4,
@@ -392,7 +392,7 @@ class ToolMove extends ToolSelects {
 					}));
 				} else {
 					//squares for control points
-					workspace_toolTemp.appendChild(φCreate("rect", {
+					workspace_temporary.appendChild(φCreate("rect", {
 						'x': bin[c][d][0] - 2,
 						'y': bin[c][d][1] - 2,
 						'width': 4,
@@ -441,9 +441,9 @@ class ToolMove extends ToolSelects {
 		//check with selected
 		if (this.selected != undefined) {
 			//loop through temp bin, select individual bit if necessary
-			for (var e=1; e<workspace_toolTemp.children.length; e++) {
-				if (φOver(workspace_toolTemp.children[e])) {
-					this.cdCoords = [+φGet(workspace_toolTemp.children[e], "xC"), +φGet(workspace_toolTemp.children[e], "xD")];
+			for (var e=1; e<workspace_temporary.children.length; e++) {
+				if (φOver(workspace_temporary.children[e])) {
+					this.cdCoords = [+φGet(workspace_temporary.children[e], "xC"), +φGet(workspace_temporary.children[e], "xD")];
 					return;
 				}
 			}
@@ -616,7 +616,7 @@ class ToolMove extends ToolSelects {
 		this.selected = [];
 		this.selectedLayer = undefined;
 
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 	}
 
 	mouseUp(a) {

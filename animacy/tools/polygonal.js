@@ -8,7 +8,7 @@ class ToolDragShape {
 
 	escape() {
 		this.shape = undefined;
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 	}
 
 	mouseDown(a) {
@@ -21,7 +21,7 @@ class ToolDragShape {
 
 			//actual creation
 			this.shape = φCreate(this.type, props);
-			workspace_toolTemp.appendChild(this.shape);
+			workspace_temporary.appendChild(this.shape);
 		}
 	}
 
@@ -90,7 +90,7 @@ class ToolDragShape {
 		var spline = createSpline(this.givePathsFor(x, y, w, h), color_stroke, data_persistent.brushSize);
 		takeAction(() => {frame_addPath(layerObj, spline);}, () => {frame_removePath(layerObj, spline);});
 
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		this.downPos = [];
 		this.shape = undefined;
 	}
@@ -109,7 +109,7 @@ class ToolDragRadial {
 
 	escape() {
 		this.shape = undefined;
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 	}
 
 	givePropertiesFor(x, y, dx, dy) {
@@ -133,7 +133,7 @@ class ToolDragRadial {
 			this.downPos = cursorWorkspacePos();
 			//actual creation
 			this.shape = φCreate(this.type, this.givePropertiesFor(this.downPos[0], this.downPos[1], 0, 0));
-			workspace_toolTemp.appendChild(this.shape);
+			workspace_temporary.appendChild(this.shape);
 		}
 	}
 
@@ -157,7 +157,7 @@ class ToolDragRadial {
 		var spline = createSpline(this.givePathsFor(this.downPos[0], this.downPos[1], coords[0], coords[1]), color_stroke, data_persistent.brushSize);
 		takeAction(() => {frame_addPath(layerObj, spline);}, () => {frame_removePath(layerObj, spline);});
 
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		this.downPos = [];
 		this.shape = undefined;
 	}

@@ -73,6 +73,32 @@ Jan-24-2025 -->
                 cursor: pointer;
             }
 
+            /* sprite size classes */
+            .sprite-10x10 {
+                x: -5;
+                y: -5;
+                width: 10;
+                height: 10;
+            }
+            .sprite-20x20 {
+                x: -10;
+                y: -10;
+                width: 20;
+                height: 20;
+            }
+            .sprite-20x40 {
+                x: -10;
+                y: -20;
+                width: 20;
+                height: 40;
+            }
+            .sprite-40x40 {
+                x: -20;
+                y: -20;
+                width: 40;
+                height: 40;
+            }
+
             #readout_health {
                 stroke: #400;
                 fill: #c00;
@@ -102,50 +128,68 @@ Jan-24-2025 -->
 
         <!--  -->
 
+        <!-- anything that needs to be embedded (is not raw SVG data that already exists in this file) goes in here.
+            On load, these get imported and put into this main document, so that no new network requests have to be made.-->
+        <div id="embeds">
+            <embed id="player" src="img/skonk-1.svg" dims="20x40"/>
+            
+            <!-- bullets -->
+            <embed id="bullet_shield" src="img/bullet-shield.svg" dims="20x20" multicolor="true"/>
+
+            <!-- forest -->
+            <embed id="forest_woody" src="img/forest/woody.svg" dims="20x20"/>
+
+            <embed id="frog-1" src="img/forest/frog-1.svg" dims="20x20"/>
+            <embed id="frog-2" src="img/forest/frog-2.svg" dims="20x20"/>
+            
+            <embed id="mage_throw-1" src="img/forest/mage-throw-1.svg" dims="20x20"/>
+            <embed id="mage_throw-2" src="img/forest/mage-throw-2.svg" dims="20x20"/>
+            <embed id="mage_throw-3" src="img/forest/mage-throw-3.svg" dims="20x20"/>
+            <embed id="mage_throw-4" src="img/forest/mage-throw-4.svg" dims="20x20"/>
+            <embed id="mage_throw-5" src="img/forest/mage-throw-5.svg" dims="20x20"/>
+            <embed id="mage_throw-6" src="img/forest/mage-throw-6.svg" dims="20x20"/>
+            <embed id="mage_throw-7" src="img/forest/mage-throw-7.svg" dims="20x20"/>
+            <embed id="mage_throw-8" src="img/forest/mage-throw-8.svg" dims="20x20"/>
+        </div>
         <!-- <div id="outside_container" width="90%" height="90%"> -->
         <svg id="base" xmlns="http://www.w3.org/2000/svg" width="0" height="0" viewBox="0 0 660 500">
             <defs id="globalDefs">
-                <foreignObject id="player" x="-10" y="-20" width="20" height="40">
-                    <object type="image/svg+xml" data="img/skonk-1.svg" class="logo"></object>
-                </foreignObject>
-
-
-                <filter id="filter_red">
+                <filter id="filter_r">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="0 0 0 0 1
                               0 -1 0 0 1
                               0 0 -1 0 1
                               0 0 0 1 0"/>
                 </filter>
-                <filter id="filter_orange">
+                <filter id="filter_o">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="0 0 0 0 1
                               0 -0.5 0 0 1
                               0 0 -1 0 1
                               0 0 0 1 0"/>
                 </filter>
-                <filter id="filter_yellow">
+                <filter id="filter_y">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="0 0 0 0 1
                               0 0 0 0 1
                               0 0 -1 0 1
                               0 0 0 1 0"/>
                 </filter>
-                <filter id="filter_green">
+                <filter id="filter_g">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="-1 0 0 0 1
                               0 0 0 0 1
                               0 0 -1 0 1
                               0 0 0 1 0"/>
                 </filter>
-                <filter id="filter_blue">
+                <filter id="filter_b">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="-1 0 0 0 1
                               0 -1 0 0 1
                               0 0 0 0 1
                               0 0 0 1 0"/>
                 </filter>
-                <filter id="filter_purple">
+                <filter id="filter_p">
                     <feColorMatrix in="SourceGraphic" type="matrix"
                       values="-0.2 0 0 0 1
                               0 -1 0 0 1
@@ -153,10 +197,22 @@ Jan-24-2025 -->
                               0 0 0 1 0"/>
                 </filter>
 
+                <filter id="filter_kk">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="-0.5 0 0 0 1
+                              0 -0.5 0 0 1
+                              0 0 -0.5 0 1
+                              0 0 0 1 0"/>
+                </filter>
+                <filter id="filter_k">
+                    <feColorMatrix in="SourceGraphic" type="matrix"
+                      values="0 0 0 0 0
+                              0 0 0 0 0
+                              0 0 0 0 0
+                              0 0 0 1 0"/>
+                </filter>
+
                 <!-- bullets -->
-                <foreignObject id="bullet_shield_blue" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/bullet-blue.svg" class="logo"></object>
-                </foreignObject>
                 <svg id="bullet_circle">
                     <circle cx="1" cy="1" r="1" fill="#FFFFFF" fill-opacity="0.7"/>
                     <circle cx="1" cy="1" r="0.6" fill="#000000"/>
@@ -165,70 +221,29 @@ Jan-24-2025 -->
                 <foreignObject id="bullet_circle_r" x="-1" y="-1" width="2" height="2">
                     <!-- I can't just use a use tag because foreignObject doesn't know use tags exist.
                      The solution is this strange nested thing -->
-                    <svg><use href="#bullet_circle" filter="url(#filter_red)"/></svg>
+                    <svg><use href="#bullet_circle" filter="url(#filter_r)"/></svg>
                 </foreignObject>
                 <foreignObject id="bullet_circle_o" x="-1" y="-1" width="2" height="2">
-                    <svg><use href="#bullet_circle" filter="url(#filter_orange)"/></svg>
+                    <svg><use href="#bullet_circle" filter="url(#filter_o)"/></svg>
                 </foreignObject>
                 <foreignObject id="bullet_circle_y" x="-1" y="-1" width="2" height="2">
-                    <svg><use href="#bullet_circle" filter="url(#filter_yellow)"/></svg>
+                    <svg><use href="#bullet_circle" filter="url(#filter_y)"/></svg>
                 </foreignObject>
                 <foreignObject id="bullet_circle_g" x="-1" y="-1" width="2" height="2">
-                    <svg><use href="#bullet_circle" filter="url(#filter_green)"/></svg>
+                    <svg><use href="#bullet_circle" filter="url(#filter_g)"/></svg>
                 </foreignObject>
                 <foreignObject id="bullet_circle_b" x="-1" y="-1" width="2" height="2">
-                    <svg><use href="#bullet_circle" filter="url(#filter_blue)"/></svg>
+                    <svg><use href="#bullet_circle" filter="url(#filter_b)"/></svg>
                 </foreignObject>
                 <foreignObject id="bullet_circle_p" x="-1" y="-1" width="2" height="2">
-                    <svg><use href="#bullet_circle" filter="url(#filter_purple)"/></svg>
+                    <svg><use href="#bullet_circle" filter="url(#filter_p)"/></svg>
                 </foreignObject>
 
-
-
-
-
-
-
-
-
-
-
-
-                <!-- forest creatures -->
-                <foreignObject id="forest_woody" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
+                <foreignObject id="bullet_circle_kk" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_kk)"/></svg>
                 </foreignObject>
-
-                <foreignObject id="forest_frog-1" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/frog-1.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_frog-2" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/frog-2.svg" class="logo"></object>
-                </foreignObject>
-
-                <foreignObject id="forest_mage_throw-1" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-2" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-3" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-4" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-5" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-6" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-7" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
-                </foreignObject>
-                <foreignObject id="forest_mage_throw-8" x="-10" y="-10" width="20" height="20">
-                    <object type="image/svg+xml" data="img/forest/woody.svg" class="logo"></object>
+                <foreignObject id="bullet_circle_k" x="-1" y="-1" width="2" height="2">
+                    <svg><use href="#bullet_circle" filter="url(#filter_k)"/></svg>
                 </foreignObject>
             </defs>
 
@@ -240,6 +255,8 @@ Jan-24-2025 -->
                 <!--where sprites go-->
                 <g id="workspace"></g>
 
+                <g id="workspace_debug"></g>
+                
                 <g id="game_ui">
                     <rect x="480" y="0" width="160" height="480" fill="#888"/>
 
@@ -281,7 +298,9 @@ Jan-24-2025 -->
     <script src="../common/functions-2dVector.js"></script>
 
     <!--umcommon code-->
+    <script src="data.js"></script>
     <script src="functions-helper.js"></script>
     <script src="objects.js"></script>
+    <script src="enemies.js"></script>
     <script src="main.js"></script>
 </html>

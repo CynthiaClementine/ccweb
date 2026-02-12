@@ -46,7 +46,7 @@ class ToolPencil {
 
 	reset() {
 		this.bufferPoints = [];
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		this.selfIntersects = [];
 		this.intersectNap = false;
 	}
@@ -60,7 +60,7 @@ class ToolPencil {
 		}
 
 		this.bufferPoints.push(coords);
-		workspace_toolTemp.appendChild(φCreate('circle', {
+		workspace_temporary.appendChild(φCreate('circle', {
 			'cx': coords[0],
 			'cy': coords[1],
 			'r': data_persistent.brushSize / 2,
@@ -69,7 +69,7 @@ class ToolPencil {
 	}
 
 	mouseDown(a) {
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		//gets the apparent height
 		var box = workspace_background.getBoundingClientRect();
 		//gets the true height

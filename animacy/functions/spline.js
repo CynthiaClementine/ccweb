@@ -72,7 +72,7 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 
 	/*if (c > 5) {
 		var nowColor = `hsl(${c*4}, 80%, ${50 - 0.04 * c}%)`;
-		workspace_toolTemp.appendChild(φCreate("rect", {
+		workspace_temp.appendChild(φCreate("rect", {
 			'x': bounds1[0],
 			'y': bounds1[1],
 			'width': bounds1[2] - bounds1[0],
@@ -81,7 +81,7 @@ function splineSplineIntersect(spline1, spline2, tolerance, curveWidthSet, c) {
 			'stroke-width': 0.1,
 			'fill': "none"
 		}));
-		workspace_toolTemp.appendChild(φCreate("rect", {
+		workspace_temp.appendChild(φCreate("rect", {
 			'x': bounds2[0],
 			'y': bounds2[1],
 			'width': bounds2[2] - bounds2[0],

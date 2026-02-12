@@ -265,7 +265,6 @@ function changeToolTo(toolName) {
 		}
 	}
 
-	var pressColor = "#777777";
 	//first make sure all icons are unpressed
 	var icons = document.getElementsByClassName("toolIcon");
 	for (var i=0; i<icons.length; i++) {
@@ -285,7 +284,7 @@ function changeToolTo(toolName) {
 		"Text": [ToolText, tool_text]
 	}
 
-	workspace_toolTemp.innerHTML = "";
+	workspace_temporary.innerHTML = "";
 	toolCurrent = new table[toolName][0]();
-	φSet(table[toolName][1].children[1], {"fill": pressColor});
+	φSet(table[toolName][1].children[1], {"fill": color_press});
 }

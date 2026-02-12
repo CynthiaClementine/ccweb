@@ -188,6 +188,8 @@ August-23-2021 -->
         <script src="../common/collision-2d.js"></script>
         
         <!--my app-specific code-->
+        <script src="constants.js"></script>
+
         <script src="functions/spline.js"></script>
         <script src="functions/api.js"></script>
         <script src="functions/helper.js"></script>
@@ -196,13 +198,14 @@ August-23-2021 -->
         <script src="functions/files.js"></script>
 
         <script src="objects.js"></script>
+
+        <script src="architecture/workspace.js"></script>
         <script src="architecture/symbol.js"></script>
         <script src="architecture/timeline.js"></script>
-        <script src="architecture/workspace.js"></script>
 
         <script src="tools/draw.js"></script>
-        <script src="tools/fill.js"></script>
         <script src="tools/misc.js"></script>
+        <script src="tools/fill.js"></script>
         <script src="tools/painters.js"></script>
         <script src="tools/polygonal.js"></script>
         <script src="tools/text.js"></script>
@@ -367,7 +370,7 @@ August-23-2021 -->
                 <!--where the permanent drawings go-->
                 <g id="workspace_permanent"></g>
                 <!--where temporary overlays created by tools go-->
-                <g id="workspace_toolTemp"></g>
+                <g id="workspace_temporary"></g>
                 <rect id="workspace_border" width="1000" height="600" fill="none" stroke="var(--uilines)" stroke-width="var(--pxUnits2)"/>
             </svg>
             <text id="workspace_zoomText" class="textTimelineLength" paint-order="stroke" stroke-width="2" stroke="#000000" text-anchor="end" x="1000" y="15">100% scale</text>

@@ -1,4 +1,8 @@
-window.onload = setup;
+window.onload = () => {
+	window.setTimeout(setup, 10);
+}
+setup;
+
 
 //mouse events
 window.onmousedown = handleMouseDown;
@@ -24,22 +28,6 @@ function htest(e) {
 window.onresize = handleResize;
 window.onbeforeunload = handleUnload;
 
-//the storage for interval event during timeline playback 
-var autoplay;
-var autoplayStop;
-
-var color_debug = "#FF00FF";
-
-var color_selectedNode = activeColor_stroke;
-var color_stroke = φGet(activeColor_stroke, "fill");
-var color_fill = φGet(activeColor_fill, "fill");
-var color_stage = φGet(activeColor_stage, "fill");
-var color_objLast = undefined;
-
-var base;
-
-var brush_limits = [1, 100];
-
 var button_alt = false;
 var button_force = false;
 var button_shift = false;
@@ -47,106 +35,23 @@ var button_shift = false;
 var canvas;
 var ctx;
 
-var cubicBinSize = 20;
-
-var data_persistent = {
-	brushSize: 8,
-};
-
-var cursor = {
-	down: false,
-	downType: undefined,
-	x: 0,
-	y: 0,
-}
-
-var debug_active = false;
-
-var editDeltaTracker = 0;
-var editDeltasFuture = [];		//changes required to get to the future (present time)
-var editDeltasPast = [];		//changes required to get to the past
-var editDeltasIDs = [];			//list of IDs for each change. A grouping of identical delta IDs will be treated as one action.
-var editDeltasMax = 100;
-
-var fps_limitMin = 1;
-//I figure 100 is a good max number, you can't really see any individual frame less than 10ms anyways, but 144 divides better so that's the limit
-var fps_limitMax = 144;
-
-var hotkeys = [
-	// ["Key", `function`, `description`],
-	//where Key is "Modifier1 Modifier2 Key.code"
-	//and Modifiers are: Shift Alt Force
-	
-	//tools
-	["KeyC", `changeToolTo("Circle")`, `Circle tool`],
-	["KeyI", `changeToolTo("Eyedrop")`, `Eyedropper tool`],
-	["KeyK", `changeToolTo("Fill")`, `Fill tool`],
-	["KeyN", `changeToolTo("Line")`, `Line tool`],
-	["KeyM", `changeToolTo("Move")`, `Move tool`],
-	["KeyY", `changeToolTo("Pencil")`, `Pencil tool`],
-	["KeyR", `changeToolTo("Rectangle")`, `Rectangle tool`],
-	["KeyJ", `changeToolTo("Transform")`, `Transform tool`],
-
-	//timeline actions
-	["KeyO", `toggleOnionSkin()`, `Toggle onion skin`],
-	["Digit1", `user_keyframe(1)`, `Create blank keyframe`],
-	["Digit2", `user_keyframe(2)`, `Create keyframe from existing`],
-	["Shift Digit1", `user_keyframe(3)`, `Remove keyframe`],
-	
-	["Enter", `toggleTimelinePlayback()`, `Toggle timeline playback`],
-	["Shift Enter", `toggleTimelinePlayback(true)`, `Toggle timeline playback (looping)`],
-	["ArrowLeft", `select(timeline.s, timeline.t - 1)`, `Decrement timeline position`],
-	["ArrowRight", `select(timeline.s, timeline.t + 1)`, `Increment timeline position`],
-	["ArrowUp", `select(timeline.s - 1, timeline.t)`, `Select layer above`],
-	["ArrowDown", `select(timeline.s + 1, timeline.t)`, `Select layer below`],
-	["Force ArrowLeft", `select(timeline.s, 0)`, `Move to timeline start`],
-	["Force ArrowRight", `select(timeline.s, timeline.len - 1)`, `Move to timeline end`],
-
-	//file-wide???
-	["Force KeyZ", `undo()`, `undo`],
-	["Shift Force KeyZ", `redo()`, `redo`],
-];
-
-//tool-specific hotkeys. They're defined here but included in a tool class whenever a tool has them
-var hotkeys_brushSize = [
-	["BracketLeft", `changeBrushSize(data_persistent.brushSize - 1)`, `Decrease brush size`],
-	["BracketRight", `changeBrushSize(data_persistent.brushSize + 1)`, `Increase brush size`],
-];
-var hotkeys_delete = [
-	["Backspace", `toolCurrent.delete()`, `Delete selected object`],
-];
-var hotkeys_polygon = [
-	["Minus", `toolCurrent.changeSides(-1)`, `Decrease number of sides`],
-	["Equal", `toolCurrent.changeSides(1)`, `Increase number of sides`]
-];
+color_selectedNode = activeColor_stroke;
+color_stroke = φGet(activeColor_stroke, "fill");
+color_fill = φGet(activeColor_fill, "fill");
+color_stage = φGet(activeColor_stage, "fill");
 
 var images = [];
 
-var layer_reorderChar = `⥌`; //close second: ⧰
-var layer_reordering;
-
-//the decimal point to quantize to
-var quantizeTo = 1;
-var quantizeAmount = 1 / (10 ** quantizeTo);
-
 var saveData;
 
-var symbolTable = {"0": new Symbol()};
+var symbolTable = {};
 let symbolCurrent;
 
 var textMode = false;
 
-var timer;			// ???????
 var timeline;
 
 var toolCurrent;
-
-var uidChars = `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZςερτυθιοπασδφγηξκλζχψωβνμ`;
-var uidCount = 0;
-
-var workspace_margin = 0.1;
-var workspace_scaleBounds = [0.02, 100];
-
 
 
 
@@ -154,18 +59,15 @@ function setup() {
 	base = document.getElementById("base");
 	canvas = document.getElementById("convos");
 	ctx = canvas.getContext("2d");
-	changeToolTo("Pencil");
 
+	console.log(`awa`);
+	new ASymbol(``, `0`);
 	loadSymbol(`0`);
-
-	addLayer("Layer 1");
-	resizeTimeline(undefined, 100);
-	changeAnimationLength(10);
-	updateColorVars();
+	changeToolTo("Pencil");
 
 	runTests();
 	handleResize();
-	// debug_active = true;
+	debug_active = true;
 }
 
 function handleKeyPress(a) {

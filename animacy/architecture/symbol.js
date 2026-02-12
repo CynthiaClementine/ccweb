@@ -1,12 +1,25 @@
 
 
-//a symbol is a document. Everything goes inside a symbol.
+//
 //Symbols have a timeline and such.
 class ASymbol {
-	constructor(uid) {
-		this.uid = uid;
-		this.workspace = new Workspace();
-		this.timeline = new Timeline();
+	/**
+	 * a symbol is a document. Everything goes inside a symbol. Symbols have their own workspace and timeline.
+	 * Upon creating a symbol, it is automatically loaded into the symbol table. 
+	 * @param {String} name the name of the symbol.
+	 * @param {String|undefined} uidOverride you can put in a custom uid, if necessary
+	 */
+	constructor(name, uidOverride) {
+		this.name = name;
+		this.uid = uidOverride ?? createUID();
+		this.workspace = new Workspace(this.uid);
+		this.timeline = new Timeline(this.uid);
+		//this is its own function so I can reference `this.`
+		this.putInTable();
+	}
+
+	putInTable() {
+		symbolTable[this.uid] = this;
 	}
 
 	/**
@@ -54,17 +67,41 @@ class SymbolWrapper {
  */
 function loadSymbol(symbolID) {
 	//first: unload the last symbol
-	symbolCurrent.workspace.innerHTML = workspace_permanent.innerHTML;
-	workspace_permanent.innerHTML = ``;
+	var symbolPrev = symbolCurrent;
+	if (symbolPrev) {
+		var [ow, ot] = [symbolPrev.workspace, symbolPrev.timeline];
+	}
+
 
 	//load the new symbol
-	if (!symbolID) {
-		symbolID = createUid();
-		symbolTable[symbolID] = new ASymbol();
+	symbolCurrent = symbolID ? symbolTable[symbolID] : new ASymbol();
+	if (!symbolCurrent) {
+		console.error(`there is no current symbol! (trying to load symbol with ID "${symbolID}")`);
+		return;
 	}
-	symbolCurrent = symbolTable[symbolID];
-	loadTimeline(symbolCurrent.timeline);
-	loadWorkspace(symbolCurrent.workspace);
+	var [nw, nt] = [symbolCurrent.workspace, symbolCurrent.timeline];
 
-	return symbolID;
+	//load the timeline - it would be kind of a lot to store all the timeline block data, so we reconstruct it from the timeline object
+
+
+
+	//load the workspace
+	if (symbolPrev) {
+	}
+
+	console.log(symbolCurrent, symbolCurrent.workspace, workspace_permanent);
+	workspace_permanent.replaceWith(nw.perm);
+	workspace_permanent = nw.perm;
+	workspace_temporary.replaceWith(nw.temp);
+	workspace_temporary = nw.temp;
+	workspace_background.replaceWith(nw.bg);
+	workspace_background = nw.bg;
+	console.log(workspace_permanent, workspace_temporary, workspace_background);
+
+	φSet(workspace_border, {
+		width: nw.width,
+		height: nw.height,
+	});
+
+	return symbolCurrent.uid;
 }

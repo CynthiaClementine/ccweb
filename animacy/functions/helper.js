@@ -7,7 +7,6 @@ addLayer(name)
 appendToPath(pathNode, newPts)
 createTimelineBlocks(layerID, startFrame, endFrame)
 
-changeAnimationLength()
 changeFPS_user()
 changeFramerate()
 clampWorkspace()
@@ -49,76 +48,10 @@ function φOver(node) {
 	return (cursor.x >= box.x && cursor.x <= box.x + box.width && cursor.y >= box.y && cursor.y <= box.y + box.height); */
 }
 
+//TODO: unfinished
 function appendToPath(pathNode, newPts) {
 	var currentPath = φGet(pathNode, "d");
 	//figure out whether the new points should go at the start or the end
-}
-
-
-/**
- * Creates timeline blocks on the range [startFrame, endFrame] inclusive
- * @param {String} layerID 
- * @param {Number} startFrame 
- * @param {Number} endFrame 
- */
-function createTimelineBlocks(layerID, startFrame, endFrame) {
-	var layerRef = timeline.l[layerID];
-	var layerGroup = document.getElementById(`layer_${layerID}_group`);
-	var index = timeline.layerIDs.indexOf(layerID);
-
-	//if the layer's text doesn't exist, create it
-	if (document.getElementById(`layer_${layerID}_text`) == undefined) {
-		var textHeight = (index + 0.55) * (timeline_blockH + 1) + timeline_headHeight;
-		timeline_text_container.appendChild(φCreate("text", {
-			'x': -10,
-			'y': textHeight,
-			'id': `layer_${layerID}_text`, 
-			'class': 'textTimeline',
-			'text-anchor': 'end',
-			'innerHTML': timeline.names[layerID],
-			'onclick': `renameLayer("${layerID}")`
-		}));
-		timeline_text_container.appendChild(φCreate("text", {
-			'x': -9.5,
-			'y': textHeight,
-			'id': `layer_${layerID}_udpull`, 
-			'class': 'textTimelineLength',
-			'innerHTML': layer_reorderChar,
-			'cursor': 'ns-resize',
-			'onmousedown': `startReordering("${layerID}")`,
-			'ignoredown': true
-		}));
-	}
-
-	//if the layer's group doesn't exist, create it
-	if (layerGroup == undefined) {
-		layerGroup = φCreate("svg", {
-			'y': index * (timeline_blockH + 1) + timeline_headHeight,
-			'id': `layer_${layerID}_group`,
-			'overflow': 'visible',
-		});
-		timeline_blocks.appendChild(layerGroup);
-	}
-	
-	//put blocks into the timeline
-	var id = φGet(layerRef[startFrame], 'uid');
-
-	for (var a=startFrame; a<=endFrame; a++) {
-		if (layerRef[a] != layerRef[a-1]) {
-			id = φGet(layerRef[a], 'uid');
-		}
-
-		layerGroup.appendChild(φCreate("use", {
-			'x': a * (timeline_blockW + 1),
-			'id': `layer_${layerID}_frame_${a}`,
-			'href': '#' + ((layerRef[a] != layerRef[a-1]) ? `MASTER_layerKey_${id}` : `MASTER_layer_${id}`)
-		}));
-	}
-}
-
-function changeFramerate(newFPS) {
-	timeline.fps = newFPS;
-	timeline_fps.innerHTML = `fps: ${newFPS}`;
 }
 
 function clampWorkspace() {
@@ -143,7 +76,7 @@ function clampWorkspace() {
  * Creates and returns a new, fresh UID.
  * @returns {String}
  */
-function createUid() {
+function createUID() {
 	var idLen = 5;
 	var uid = "";
 
@@ -172,7 +105,7 @@ function cursorTimelinePos() {
 function cursorWorkspacePos() {
 	var box = workspace_background.getBoundingClientRect();
 	var wh = φGet(workspace_background, ['width', 'height']);
-	
+
 	return [(cursor.x - box.x) / box.width * wh[0], (cursor.y - box.y) / box.height * wh[1]];
 }
 
@@ -189,7 +122,7 @@ function createFill(loops, color) {
 		//evenodd allows the loops to be in any order
 		'fill-rule': 'evenodd'
 	});
-	node = Fill(node, loops);
+	node = new Fill(node, loops);
 	node.redraw();
 	return node;
 }
@@ -210,7 +143,7 @@ function createSpline(curves, color, pathWidth) {
 		'stroke-width': pathWidth
 	});
 
-	node = Spline(node, curves);
+	node = new Spline(node, curves);
 	node.redraw();
 
 	return node;
@@ -899,7 +832,7 @@ function frame_create(frameID, layerID) {
 
 //makes a copy of a frame
 function frame_copy(frameNode, layerID) {
-	var newLayer = frame_create(createUid());
+	var newLayer = frame_create(createUID());
 
 	//add all lines + fills to the new layer
 	for (var l=0; l<frameNode.lines.children.length; l++) {

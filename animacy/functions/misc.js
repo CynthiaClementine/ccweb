@@ -8,7 +8,9 @@ updateColorVars();
 
 */
 
+//used for debug, should not ever be used
 function assignRID(node) {
+	console.error(`Do not use this function!`);
 	if (φGet(node, 'id') == undefined) {
 		φSet(node, {'id': `_${uidChars[floor(randomBounded(0, uidChars.length))]}${uidChars[floor(randomBounded(0, uidChars.length))]}`});
 	}
@@ -16,7 +18,7 @@ function assignRID(node) {
 
 
 function markTempPoint(x, y, color) {
-	workspace_toolTemp.appendChild(φCreate("circle", {
+	workspace_temporary.appendChild(φCreate("circle", {
 		'cx': x,
 		'cy': y,
 		'r': 0.1,
@@ -57,7 +59,7 @@ function bezTest(lamb) {
 function drawCubicBins() {
 	var wh = φGet(workspace_background, ["width", "height"])
 	for (var x=0; x<+wh[0]; x+=cubicBinSize) {
-		workspace_toolTemp.appendChild(φCreate("line", {
+		workspace_temporary.appendChild(φCreate("line", {
 			'x1': x,
 			'x2': x,
 			'y1': 0,
@@ -67,7 +69,7 @@ function drawCubicBins() {
 		}));
 	}
 	for (var y=0; y<+wh[1]; y+=cubicBinSize) {
-		workspace_toolTemp.appendChild(φCreate("line", {
+		workspace_temporary.appendChild(φCreate("line", {
 			'x1': 0,
 			'x2': wh[0],
 			'y1': y,

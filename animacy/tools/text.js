@@ -36,7 +36,7 @@ class ToolText {
 		var text = clone.children[0];
 		φSet(clone, {'id': "temp_text"});
 		φSet(text, {'contenteditable': "true"});
-		workspace_toolTemp.appendChild(clone);
+		workspace_temporary.appendChild(clone);
 
 		text.addEventListener("mousedown", () => {
 			textMode = true;
@@ -47,7 +47,7 @@ class ToolText {
 
 		//create vision box
 		var box = element.getBBox();
-		workspace_toolTemp.appendChild(φCreate("rect", {
+		workspace_temporary.appendChild(φCreate("rect", {
 			'x': box.x,
 			'y': box.y,
 			'width': box.width,
@@ -65,7 +65,7 @@ class ToolText {
 		φSet(element, {"innerHTML": document.getElementById("temp_text").innerHTML});
 		φSet(element.children[0], {"contenteditable": "false"});
 		φSet(element, {"display": "inline-block"});
-		workspace_toolTemp.innerHTML = "";
+		workspace_temporary.innerHTML = "";
 		this.elementSelected = undefined;
 	}
 

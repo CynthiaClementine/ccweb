@@ -1,6 +1,7 @@
 
 class Timeline {
-	constructor() {
+	constructor(symbolUID) {
+		this.symbolUID = symbolUID;
 		//depends on the document
 		[this.blockW, this.blockH] = φGet(MASTER_frameBoxPath, ["width", "height"]);
 		this.blockW = +this.blockW;
@@ -146,6 +147,67 @@ class Timeline {
 		});
 		setOnionWingLengths();
 	}
+
+	/**
+	 * Creates timeline blocks on the range [startFrame, endFrame] inclusive
+	 * @param {String} layerID layer to create timeline blocks for 
+	 * @param {Number} startFrame inclusive frame start of range
+	 * @param {Number} endFrame inclusive frame end of range
+	 */
+	createTimelineBlocks(layerID, startFrame, endFrame) {
+		var layerRef = this.l[layerID];
+		var layerGroup = document.getElementById(`layer_${layerID}_group`);
+		var index = this.layerIDs.indexOf(layerID);
+
+		//if the layer's text doesn't exist, create it
+		if (document.getElementById(`layer_${layerID}_text`) == undefined) {
+			var textHeight = (index + 0.55) * (this.blockH + 1) + this.headHeight;
+			timeline_text_container.appendChild(φCreate("text", {
+				'x': -10,
+				'y': textHeight,
+				'id': `layer_${layerID}_text`, 
+				'class': 'textTimeline',
+				'text-anchor': 'end',
+				'innerHTML': this.names[layerID],
+				'onclick': `renameLayer("${layerID}")`
+			}));
+			timeline_text_container.appendChild(φCreate("text", {
+				'x': -9.5,
+				'y': textHeight,
+				'id': `layer_${layerID}_udpull`, 
+				'class': 'textTimelineLength',
+				'innerHTML': layer_reorderChar,
+				'cursor': 'ns-resize',
+				'onmousedown': `startReordering("${layerID}")`,
+				'ignoredown': true
+			}));
+		}
+
+		//if the layer's group doesn't exist, create it
+		if (layerGroup == undefined) {
+			layerGroup = φCreate("svg", {
+				'y': index * (this.blockH + 1) + this.headHeight,
+				'id': `layer_${layerID}_group`,
+				'overflow': 'visible',
+			});
+			timeline_blocks.appendChild(layerGroup);
+		}
+		
+		//put blocks into the timeline
+		var id = φGet(layerRef[startFrame], 'uid');
+
+		for (var a=startFrame; a<=endFrame; a++) {
+			if (layerRef[a] != layerRef[a-1]) {
+				id = φGet(layerRef[a], 'uid');
+			}
+
+			layerGroup.appendChild(φCreate("use", {
+				'x': a * (this.blockW + 1),
+				'id': `layer_${layerID}_frame_${a}`,
+				'href': '#' + ((layerRef[a] != layerRef[a-1]) ? `MASTER_layerKey_${id}` : `MASTER_layer_${id}`)
+			}));
+		}
+	}
 }
 
 /**
@@ -165,7 +227,7 @@ function resizeTimeline(w, h) {
 	var invH = spaceH - h;
 
 	if (w == undefined || h == undefined) {
-		var oldDims = φGet(timeline.background, ["width", "height"]);
+		var oldDims = φGet(timeline_background, ["width", "height"]);
 		w = w ?? oldDims[0];
 		h = h ?? oldDims[1];
 	}
@@ -173,18 +235,18 @@ function resizeTimeline(w, h) {
 	h = +h;
 
 	//these two lines aren't confusing at all I'm sure
-	φSet(timeline.container, {
+	φSet(timeline_container, {
 		'hinv': h,
 		'y': invH
 	});
-	φSet(timeline.background, {
+	φSet(timeline_background, {
 		'width': w,
 		'height': h,
 	});
-	φSet(timeline.edge_detector, {
+	φSet(timeline_edge_detector, {
 		'width': w,
 	});
-	φSet(timeline.playhead, {
+	φSet(timeline_playhead, {
 		'height': h
 	});
 }
