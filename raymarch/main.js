@@ -16,18 +16,26 @@ function setup() {
 	canvas = document.getElementById("artbox");
 	ctx = canvas.getContext("2d");
 	typeIt();
+	updateFOV(camera_FOV, false);
 
 	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
-	canvas.onclick = function() {canvas.requestPointerLock();}
+	canvas.onclick = function() {canvas.requestPointerLock({unadjustedMovement: true});}
 
-	camera = new Camera(loading_world, new Float32Array(loading_world.spawn));
-	render_cornerCoords = [0, 0, 480, 480];
+	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
 	window.setTimeout(main, 10);
 }
 
 function initiateWorkers() {
+	//if there are workers already, kill them
+	if (worker_pool[0]) {
+		for (var e=0; e<worker_pool.length; e++) {
+			worker_pool[e].terminate();
+		}
+	}
+	
+	
 	for (var e=0; e<worker_num; e++) {
 		worker_pool[e] = new Worker("worker.js");
 		worker_pool[e].onmessage = handleWorkerMsg;
@@ -36,7 +44,7 @@ function initiateWorkers() {
 	}
 }
 
-function typeIt(renderN) {
+function typeIt() {
 	var width = window.innerWidth;
 	var height = window.innerHeight - 60;
 	var blockSize = Math.min(width / render_n, height / render_n);
@@ -110,24 +118,20 @@ function finishMain() {
 
 function draw() {
 	//draw everything
-	var pixelWidth = render_n;
-	var pixelHeight = render_n;
-
-	var multiple = camera_FOV / pixelWidth;
+	var pixelsInX = render_n;
+	var pixelsInY = render_n;
 
 	var xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
 	var yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
 	var zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
-	var trueDir;
-	var magnitude;
 	
 	var workerInd = -1;
 
-	for (var x=0; x<pixelWidth; x++) {
+	for (var x=0; x<pixelsInX; x++) {
 		workerInd = (workerInd + 1) % (worker_pool.length);
 		// workerInd = 10;
 		if (worker_num > 0) {
-			worker_pool[workerInd].postMessage(["calcLine", multiple, x, pixelWidth, pixelHeight]);
+			worker_pool[workerInd].postMessage(["calcLine", x, pixelsInX, pixelsInY]);
 			if (worker_ready[workerInd]) {
 			}
 			// if (x % 2 == 1) {
@@ -136,7 +140,7 @@ function draw() {
 			// }
 		} else {
 			//compute in the main thread
-			drawLine(x, calcLine(xDir, yDir, zDir, multiple, x, pixelWidth, pixelHeight));
+			drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
 			
 		}
 	}
@@ -166,19 +170,6 @@ function drawUI() {
 	ctx.lineTo(center[0], center[1] + ch * 0.05);
 	ctx.stroke();
 	ctx.globalAlpha = 1;
-}
-
-function drawLineOLD(x, colorArr) {
-	var blockSize = Math.round(canvas.width / render_n);
-	for (var y=0; y<render_n; y++) {
-		ctx.fillStyle = `#` + 
-			((1 << 24) | (colorArr[3*y] << 16) | (colorArr[3*y+1] << 8) | colorArr[3*y+2]).toString(16).slice(1);
-		// ctx.fillStyle = "#FFF";
-		ctx.fillRect(x * blockSize, y * blockSize, blockSize + 0.1, blockSize + 0.1);
-	}
-	
-	render_linesDrawn += 1;
-	finishMain();
 }
 
 function drawLine(x, colorArr) {
@@ -246,6 +237,9 @@ function handleKeyPress(a) {
 				// var ray = new Ray_Tracking(loading_world, )
 				// console.log(ray.object);
 				break;
+			case "BracketRight":
+				debug_listening = false;
+				break;
 		}
 		return;
 	}
@@ -277,7 +271,7 @@ function handleKeyPress(a) {
 			break;
 		
 		case "BracketRight":
-			debug_listening = !debug_listening;
+			debug_listening = true;
 			break;
 	}
 }
@@ -328,11 +322,6 @@ function handleCursorLockChange() {
 function handleMouseMove(a) {
 	camera.theta += a.movementX * controls_sensitivity;
 	camera.phi -= (a.movementY) * controls_sensitivity;
-	if (Math.abs(camera.phi) > Math.PI / 2.02) {
-		if (camera.phi < 0) {
-			camera.phi = Math.PI / -2.01;
-		} else {
-			camera.phi = Math.PI / 2.01;
-		}
-	}
+	var phiLimit = (camera_projFunc == projectPanini) ? Math.PI * 0.2 : Math.PI * 0.49;
+	camera.phi = clamp(camera.phi, -phiLimit, phiLimit);
 }

@@ -1,22 +1,31 @@
 
-
 //objects that are required for the engine to run
+// class Camera {
+// 	constructor(world, pos) {
+// 		this.world = world;
+// 		this.pos = pos;
+		
+// 		this.theta = 0;
+// 		this.phi = 0;
+// 	}
+// }
+
 class Camera {
 	constructor(world, pos) {
 		this.world = world;
-		//add 0.1 so that the camera doesn't start out aligned on the grid
 		this.pos = pos;
 		this.dPos = Pos(0, 0, 0);
 		this.aPos = Pos(0, 0, 0);
-		this.dMax = 3;
+		this.dMax = 1.5;
 		this.dMin = 0.05;
 
 		this.speed = 0.07;
-		this.jumpSpeed = 2.5;
+		this.jumpSpeed = 3;
 		this.friction = 0.8;
+		this.bounce = 0.3;
 
-		this.gravity = 0.15;
-		this.fallMax = 12;
+		this.gravity = 0.1;
+		this.fallMax = 10;
 		this.onGround = false;
 
 		this.height = 10;
@@ -70,6 +79,7 @@ class Camera {
 		//before any raycasts, housekeeping
 		var speedMultiplier = 1 + controls_shiftPressed * (1 + editor_active * 7);
 		var feetCoords = [this.pos[0], this.pos[1] - this.height + 1, this.pos[2]];
+		var headCoords = [this.pos[0], this.pos[1], this.pos[2]];
 		var axisVecs = [
 			polToCart(this.theta + (Math.PI / 2), 0, 1),
 			[0, 1, 0],
@@ -85,10 +95,20 @@ class Camera {
 		
 		//sideways
 		for (var i=0; i<3; i++) {
-			if (!this.tryMovementOnAxis(feetCoords, axisVecs[i], dVec[i])) {
-				dVec[i] = 0;
+			if (!this.tryMovementOnAxis(feetCoords, axisVecs[i], dVec[i]) || 
+				!this.tryMovementOnAxis(headCoords, axisVecs[i], dVec[i])) {
+				if (Math.abs(dVec[i]) > player_bounceThreshold) {
+					dVec[i] *= -this.bounce;
+				} else {
+					dVec[i] = 0;
+				}
 				if (i == 1) {
 					this.onGround = true;
+				} else {
+					//push away from objects a bit
+					// if (Math.abs(dVec[i]) < 0.1 && dVec[i] != 0) {
+					// 	dVec[i] = 0.1 * (dVec[i] / Math.abs(dVec[i]));
+					// }
 				}
 			}
 		}
@@ -104,6 +124,12 @@ class Camera {
 		dVec[2] /= speedMultiplier;
 		this.pos = Pos(feetCoords[0], feetCoords[1] + this.height, feetCoords[2]);
 		this.dPos = dVec;
+		
+		//align camera to self
+		// camera.world = this.world;
+		// camera.pos = this.pos;
+		// camera.theta = this.theta;
+		// camera.phi = this.phi;
 	}
 	
 	tryMovementOnAxis(pos, axisVec, distance) {
@@ -166,23 +192,24 @@ class Ray {
 	
 			//get distance
 			var [dist, distObj] = this.world.tree.estimate(this);
+			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
+			// distObj = this.world.objects[distObj];
 			dist *= ray_safetyMult;
 	
 			//if distance is out of dist bounds
 			if (dist < ray_minDist) {
-				if (this.hit > 1) {
+				if (this.hit) {
 					//draw self as a shadow
 					this.shadow();
 					this.world.postEffects(this);
 					return this.color;
 				}
+				
 				//color self according to hit object, and change direction
-				if (!this.hit) {
-					distObj.applyHitEffect(this);
-					this.hitDist = this.dist;
-				}
-				dist = ray_minDist * 1.5;
-				this.hit += 1;
+				distObj.applyHitEffect(this);
+				this.hitDist = this.dist;
+				dist = ray_minDist * 2;
+				this.hit = true;
 				this.dPos[0] = this.world.sunVector[0];
 				this.dPos[1] = this.world.sunVector[1];
 				this.dPos[2] = this.world.sunVector[2];
@@ -229,89 +256,241 @@ class Ray_Tracking {
 		this.object = undefined;
 	}
 
-	iterate(num) {
-		if (num > ray_maxIters) {
-			return this.distance;
+	iterate() {
+		var iters = 0;
+		while (iters < ray_maxIters) {
+			//get distance
+			var [dist, distObj] = this.world.tree.estimate(this);
+			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
+			// distObj = this.world.objects[distObj];
+			dist *= ray_safetyMult;
+	
+			//if distance is out of dist bounds
+			if (dist < ray_minDist) {
+				this.object = distObj;
+				return this.distance;
+			}
+			
+			dist = Math.min(dist, this.distCap - this.distance);
+			
+			//move distance
+			this.pos[0] += this.dPos[0] * dist;
+			this.pos[1] += this.dPos[1] * dist;
+			this.pos[2] += this.dPos[2] * dist;
+			this.distance += dist;
+			
+			//if we've reached the cap, return
+			if (this.distance >= this.distCap) {
+				return this.distCap;
+			}
+			iters += 1;
 		}
-		
-		//get distance
-		var [dist, distObj] = this.world.tree.estimate(this);
-		dist *= ray_safetyMult;
-
-		//if distance is out of dist bounds
-		if (dist < ray_minDist) {
-			this.object = distObj;
-			return this.distance;
-		}
-		
-		dist = Math.min(dist, this.distCap - this.distance);
-		
-		//move distance
-		this.pos[0] += this.dPos[0] * dist;
-		this.pos[1] += this.dPos[1] * dist;
-		this.pos[2] += this.dPos[2] * dist;
-		this.distance += dist;
-		
-		//if we've reached the cap, return
-		if (this.distance >= this.distCap) {
-			return this.distCap;
-		}
-
-		return this.iterate(num+1);
+		return this.distance;
 	}
 }
 
 
-//test version of the BrickGrid class that uses indeces instead of references. I think it's slower.
-//     BrickGrid			24-73ms, uses 24mb
-//with BrickGridInd:		22-70ms, uses 3mb
-//with BrickGridTor:		
+class ObjectGrid {
+	/**
+	* @param {World} world the world to break into a grid
+	* @param {Number} l number of chunks on an axis
+	 */
+	constructor(world, l) {
+		this.l = l;
+		this.world = world;
+		this.objects = world.objects;
+		this.chunks = [];
+		this.xd = 0;
+		this.yd = 0;
+		this.zd = 0;
+		this.minPos;
+		this.maxPos;
+	}
+	
+	binObject(obj) {
+		var index = this.objects.indexOf(obj);
+		var [min, max] = obj.bounds();
+		min = this.calcGridCoords(min);
+		max = this.calcGridCoords(max);
+
+		for (var a=0; a<=2; a++) {
+			min[a] = Math.floor(clamp(min[a] - 1, 0, this.l));
+			max[a] =  Math.ceil(clamp(max[a] + 1, 0, this.l));
+		}
+		
+		for (var x=min[0]; x<max[0]; x++) {
+			for (var y=min[1]; y<max[1]; y++) {
+				for (var z=min[2]; z<max[2]; z++) {
+					this.chunks[x][y][z].add(index);
+				}
+			}
+		}
+	}
+	
+	calcGridCoords(pos) {
+		return [
+			(pos[0] - this.minPos[0]) / this.xd,
+			(pos[1] - this.minPos[1]) / this.yd,
+			(pos[2] - this.minPos[2]) / this.zd
+		];
+	}
+	
+	generate() {
+		//generate bounds
+		var min = [1e1001, 1e1001, 1e1001];
+		var max = [-1e101, -1e101, -1e101];
+		this.objects.forEach(o => {
+			var bounds = o.bounds();
+			if (Number.isNaN(bounds[0][a])) {
+				console.log(bounds);
+			}
+			for (var a=0; a<=2; a++) {
+				min[a] = Math.min(min[a], bounds[0][a]);
+				max[a] = Math.max(max[a], bounds[1][a]);
+			}
+		});
+		this.minPos = min;
+		this.maxPos = max;
+		this.xd = (max[0] - min[0]) / this.l,
+		this.yd = (max[1] - min[1]) / this.l,
+		this.zd = (max[2] - min[2]) / this.l,
+		
+		// console.log(min, max, this.l);
+		
+		//generate object estimate grid
+		this.chunks = [];
+		for (var x=0; x<this.l; x++) {
+			this.chunks[x] = [];
+			for (var y=0; y<this.l; y++) {
+				this.chunks[x][y] = [];
+				for (var z=0; z<this.l; z++) {
+					this.chunks[x][y][z] = new Set();
+				}
+			}
+		}
+		
+		//add closest object to the estimate grid
+		for (var x=0; x<this.l; x++) {
+			var worldX = this.minPos[0] + x * this.xd;
+			for (var y=0; y<this.l; y++) {
+				var worldY = this.minPos[1] + y * this.yd;
+				for (var z=0; z<this.l; z++) {
+					//add the object that's closest
+					var worldZ = this.minPos[2] + z * this.zd;
+					var obj = this.world.estimatePos(Pos(worldX, worldY, worldZ))[1];
+					//add to all adjacents as well
+					[[1, 1, 1],[1, 1, -1],[1, -1, 1],[1, -1, -1],
+					[-1, 1, 1],[-1, 1, -1],[-1, -1, 1],[-1, -1, -1]].forEach(g => {
+						var mx = x + g[0];
+						var my = y + g[1];
+						var mz = z + g[2];
+						//stupid check
+						if (this.chunks[mx] && this.chunks[mx][my] && this.chunks[mx][my][mz]) {
+							this.chunks[mx][my][mz].add(obj);
+						}
+					});
+				}
+			}
+		}
+		
+		//add all objects to the estimate grid
+		this.objects.forEach(o => {
+			this.binObject(o);
+		});
+	}
+	
+	estimatePos(pos) {
+		var dist = 1e100;
+		var distInd = -1;
+		
+		//ough
+		var gridPos = this.calcGridCoords(pos);
+		gridPos[0] = clamp(gridPos[0], 0, this.l - 1) | 0;
+		gridPos[1] = clamp(gridPos[1], 0, this.l - 1) | 0;
+		gridPos[2] = clamp(gridPos[2], 0, this.l - 1) | 0;
+		
+		var set = this.chunks[gridPos[0]][gridPos[1]][gridPos[2]];
+		set.forEach(i => {
+			var testDist = this.objects[i].distanceToPos(pos);
+			if (testDist < dist) {
+				dist = testDist;
+				distInd = i;
+			}
+			//if the distance is small enough, don't bother running through all the other objects
+			// if (dist > -2); {
+			// 	return [dist, distInd]
+			// }
+		});
+		return [dist, distInd];
+	}
+}
+
+
+
+//test version of the BrickGrid class
+/* 
+CUBES:
+	with ind:		11-193ms, uses 5mb
+	with tor:		13-187ms, uses 2mb
+
+TINYOBJS:
+	ind:		9--60ms, uses 5mb
+	tor:		9--60ms, uses 2mb
+*/
+
 class BrickGridTor {
 	constructor(world, l, d) {
 		this.l = l;
 		this.l2 = l*l;
-		this.pos = Pos(0, 0, 0);
-		this.minPos = Pos(this.pos[0] - awagh, this.pos[1] - awagh, this.pos[2]- awagh);
+		this.pos;
+		this.minPos;
 		this.d = d;
 		this.world = world;
 		
 		this.generated = false;
 		this.estimInds = new U8Arr(l*l*l);
 		this.indOffset = new U8Arr([0, 0, 0]);
+		this.changePos(0, 0, 0);
+	}
+	
+	changePos(newX, newY, newZ) {
+		var range = ((this.l - 1) * this.d) / 2;
+		this.pos = Pos(newX, newY, newZ);
+		this.minPos = [newX - range, newY - range, newZ - range];
 	}
 	
 	generate() {
-		for (var x=0; x<this.l; x++) {
-			this.generateX(this.minPos, x);
-		}
+		this.generateRegion(0, this.l, 0, this.l, 0, this.l);
 		this.generated = true;
 	}
 	
-	generateX(minCoords, x) {
-		for (var y=0; y<this.l; y++) {
-			this.generateY(minCoords, x, y);
+	/*
+	* generates the object estimates for a region between the bounds specified.
+	* bounds are inclusive of the min but not the max. eg. generateRegion(0, 0, 4, 4, 7, 7) will generate nothing
+	* on account of the mins and maxs being the same for all coordinates.
+	 */
+	generateRegion(minX, maxX, minY, maxY, minZ, maxZ) {
+		for (var x=minX; x<maxX; x++) {
+			var gridX = modulateSoft(x + this.indOffset[0], this.l);
+			for (var y=minY; y<maxY; y++) {
+				var gridY = modulateSoft(y + this.indOffset[1], this.l);
+				for (var z=minZ; z<maxZ; z++) {
+					// var i = this.world.estimatePos(Pos(this.minPos[0] + x*this.d, this.minPos[1] + y*this.d, this.minPos[2] + z*this.d))[1];
+					var i = this.world.grid.estimatePos(Pos(this.minPos[0] + x*this.d, this.minPos[1] + y*this.d, this.minPos[2] + z*this.d))[1];
+					// if (i == -1 && prand(0, 1) < 0.001) {
+					// 	console.error("AAAAA", this.minPos, Pos(this.minPos[0] + x*this.d, this.minPos[1] + y*this.d, this.minPos[2] + z*this.d));
+					// }
+					this.estimInds[gridX*this.l2 + gridY*this.l + modulateSoft(z + this.indOffset[2], this.l)] = i;
+				}
+			}
 		}
 	}
 	
-	generateY(minCoords, x, y) {
-		for (var z=0; z<this.l; z++) {
-			this.generateZ(minCoords, x, y, z);
-		}
-	}
-	
-	generateZ(minCoords, x, y, z) {
-		// console.log(`testing ${x} ${y} ${z} -> ${minCoords[0] + this.d * x} ${minCoords[1] + this.d * y} ${minCoords[2] + this.d * z}`)
-		var i = this.world.estimatePos(Pos(minCoords[0] + x*this.d, minCoords[1] + y*this.d, minCoords[2] + z*this.d))[1];
-		if (i == -1 && prand(0, 1) < 0.001) {
-			console.error("AAAAA", Pos(minCoords[0] + x*this.d, minCoords[1] + y*this.d, minCoords[2] + z*this.d));
-		}
-		// console.log(i);
-		this.estimInds[x*this.l2 + y*this.l + z] = i;
-	}
+	//since 
 	
 	update() {
 		//if the player is more than d/2 away from the center point, it's time to shift center points
-		var cVec = this.calcGridCoords(camera.pos);
+		var cVec = this.calcRelCoords(camera.pos);
 		//move towards player
 		this.shift(Math.round(cVec[0]), Math.round(cVec[1]), Math.round(cVec[2]));
 	}
@@ -321,76 +500,67 @@ class BrickGridTor {
 		if (!(xBlocks || yBlocks || zBlocks)) {
 			return;
 		}
+		
 		// console.log(`grid with d=${this.d} shifting by ${xBlocks} ${yBlocks} ${zBlocks}`);
+
+		//only shift a little
 
 		var maxBlock = this.l - 1;
 		var range = ((this.l - 1) * this.d) / 2;
-		var cornerCoords = [this.pos[0] - range, this.pos[1] - range, this.pos[2] - range];
 		
-		//a bit confusing. But I can put the coordinate updates first because generation only depends on cornercoords
+		//coordinate updates can be first because generation only depends on cornercoords
 		this.pos[0] += xBlocks * this.d;
 		this.pos[1] += yBlocks * this.d;
 		this.pos[2] += zBlocks * this.d;
+		this.minPos = [this.pos[0] - range, this.pos[1] - range, this.pos[2] - range];
 		
-		if (xBlocks) {
-			while (xBlocks > 0) {
-				cornerCoords[0] += this.d;
-				this.estimInds.splice(0, 1);
-				this.generateX(cornerCoords, maxBlock);
-				xBlocks -= 1;
-			}
-			while (xBlocks < 0) {
-				cornerCoords[0] -= this.d;
-				this.estimInds.splice(0, 0, []);
-				this.generateX(cornerCoords, 0);
-				this.estimInds.pop();
-				xBlocks += 1;
-			}
+		//if moving too far, just teleport
+		if (Math.max(Math.abs(xBlocks), Math.abs(yBlocks), Math.abs(zBlocks)) >= this.l) {
+			this.generate();
+			return;
 		}
+		this.indOffset[0] = modulate(this.indOffset[0] + xBlocks, this.l);
+		this.indOffset[1] = modulate(this.indOffset[1] + yBlocks, this.l);
+		this.indOffset[2] = modulate(this.indOffset[2] + zBlocks, this.l);
 		
-		if (yBlocks) {
-			while (yBlocks > 0) {
-				cornerCoords[1] += this.d;
-				for (var x=0; x<this.l; x++) {
-					this.estimInds[x].splice(0, 1);
-					this.generateY(cornerCoords, x, maxBlock);
-				}
-				yBlocks -= 1;
-			}
-			while (yBlocks < 0) {
-				cornerCoords[1] -= this.d;
-				for (var x=0; x<this.l; x++) {
-					this.estimInds[x].splice(0, 0, []);
-					this.generateY(cornerCoords, x, 0);
-					this.estimInds[x].pop();
-				}
-				yBlocks += 1;
-			}
-		}
 		
-		if (zBlocks) {
-			while (zBlocks > 0) {
-				cornerCoords[2] += this.d;
-				for (var x=0; x<this.l; x++) {
-					for (var y=0; y<this.l; y++) {
-						this.estimInds[x][y].set(this.estimInds[x][y].slice(1));
-						this.generateZ(cornerCoords, x, y, maxBlock);
-					}
-				}
-				zBlocks -= 1;
-			}
-			while (zBlocks < 0) {
-				cornerCoords[2] -= this.d;
-				for (var x=0; x<this.l; x++) {
-					for (var y=0; y<this.l; y++) {
-						//this.estimInds[x][y].splice(0, 0, []);
-						this.estimInds[x][y].set(this.estimInds[x][y].slice(0, this.estimInds[x][y].length - 1), 1);
-						this.generateZ(cornerCoords, x, y, 0);
-					}
-				}
-				zBlocks += 1;
-			}
-		}
+		
+		//the worst-case scenario of X, Y, and Z all moving can be divided into 6 blocks:
+		//X, Y, Z
+		//X && Y, X && Z, Y && Z
+		//X && Y && Z
+		//we can generate all 6 of these blocks, and then just use the range to figure out which ones are unnecessary
+		var oldZeroX = -xBlocks;
+		var oldZeroY = -yBlocks;
+		var oldZeroZ = -zBlocks;
+		var oldEndX = this.l - xBlocks;
+		var oldEndY = this.l - yBlocks;
+		var oldEndZ = this.l - zBlocks;
+		
+		var xInfo = (xBlocks < 0) ? [0, oldZeroX] : [oldEndX, this.l];
+		var yInfo = (yBlocks < 0) ? [0, oldZeroY] : [oldEndY, this.l];
+		var zInfo = (zBlocks < 0) ? [0, oldZeroZ] : [oldEndZ, this.l];
+		
+		//X, Y, Z
+		this.generateRegion(xInfo[0], xInfo[1], oldZeroY, oldEndY, oldZeroZ, oldEndZ);
+		this.generateRegion(oldZeroX, oldEndX, yInfo[0], yInfo[1], oldZeroZ, oldEndZ);
+		this.generateRegion(oldZeroX, oldEndX, oldZeroY, oldEndY, zInfo[0], zInfo[1]);
+		
+		//X && Y, X && Z, Y && Z
+		this.generateRegion(xInfo[0], xInfo[1], yInfo[0], yInfo[1], oldZeroZ, oldEndZ);
+		this.generateRegion(oldZeroX, oldEndX, yInfo[0], yInfo[1], zInfo[0], zInfo[1]);
+		this.generateRegion(xInfo[0], xInfo[1], oldZeroY, oldEndY, zInfo[0], zInfo[1]);
+		
+		//X && Y && Z
+		this.generateRegion(xInfo[0], xInfo[1], yInfo[0], yInfo[1], zInfo[0], zInfo[1]);
+	}
+	
+	calcRelCoords(pos) {
+		return [
+			(pos[0] - this.pos[0]) / this.d,
+			(pos[1] - this.pos[1]) / this.d,
+			(pos[2] - this.pos[2]) / this.d,
+		];
 	}
 	
 	calcGridCoords(pos) {
@@ -402,11 +572,15 @@ class BrickGridTor {
 	}
 	
 	getMaterial(q) {
-		return this.world.objects[this.estimInds[q[0]][q[1]][q[2]]];
+		return this.world.objects[
+			this.estimInds[	modulateSoft((q[0] + this.indOffset[0]), this.l)*this.l2 + 
+							modulateSoft((q[1] + this.indOffset[1]), this.l)*this.l + 
+							modulateSoft((q[2] + this.indOffset[2]), this.l)]
+		];
 	}
 	
 	estimate(obj) {
-		var q = this.calcGridCoords(obj.pos);
+		var q = this.calcRelCoords(obj.pos);
 		var halfsies = (this.l - 1) / 2;
 		// console.log(q);
 		q[0] = Math.round(halfsies + clamp(q[0], -halfsies, halfsies));
@@ -628,7 +802,7 @@ class BrickMap {
 		this.sets = [];
 		var max = Math.min(this.numSetsIdeal, n);
 		for (var a=0; a<max; a++) {
-			this.sets[a] = new BrickGridInd(this.world, this.l, tree_minD * (2 ** a));
+			this.sets[a] = new BrickGridTor(this.world, this.l, tree_minD * (2 ** a));
 			this.sets[a].generate();
 		}
 		this.trueMinD = this.sets[0].d;

@@ -2,6 +2,7 @@
 importScripts("../common/functions-coordinate.js");
 importScripts("../common/functions-math.js");
 importScripts("functions-helper.js");
+importScripts("materials.js");
 importScripts("objects-engine.js");
 importScripts("objects-world.js");
 importScripts("config.js");
@@ -24,6 +25,9 @@ function run(package) {
 	switch (data[0]) {
 		case "updateCamera":
 			updateCamera(data.slice(1));
+			break;
+		case "updateCameraAdvanced":
+			updateRendering(data.slice(1));
 			break;
 		case "calcLine":
 			// console.log(data.slice(1));
@@ -51,6 +55,7 @@ function updateCamera(data) {
 	[worldStr, x, y, z, theta, phi] = data;
 	//update camera properties
 	camera.world = worlds[worldStr];
+	loading_world = camera.world;
 	camera.pos[0] = x;
 	camera.pos[1] = y;
 	camera.pos[2] = z;
@@ -61,14 +66,22 @@ function updateCamera(data) {
 	cyDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
 	czDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
 	
+	loading_world.objects.forEach(o => {
+		o.tick();
+	});
 	if (!loading_world.tick) {
 		loading_world.tree.update();
 	}
 }
 
+function updateRendering(data) {
+	[camera_FOV, camera_planeOffset, camera_paniniR] = data;
+	updateFOV(camera_FOV);
+}
+
 function drawAndPostLine(data) {
-	[multiple, x, pixelWidth, pixelHeight] = data;
-	var colorValues = calcLine(cxDir, cyDir, czDir, multiple, x, pixelWidth, pixelHeight);
+	[x, pixelWidth, pixelHeight] = data;
+	var colorValues = calcLine(cxDir, cyDir, czDir, x, pixelWidth, pixelHeight);
 	postMessage(["colorLine", x, colorValues]);
 }
 

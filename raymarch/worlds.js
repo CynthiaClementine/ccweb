@@ -1,4 +1,4 @@
-function world_noop(ray) {
+function noop(ray) {
 
 }
 
@@ -8,15 +8,42 @@ function world_loopRay(ray) {
 	ray.pos[2] = modulate(ray.pos[2], ray.world.width);
 }
 
+function world_add(ray, r, g, b) {
+	ray.color[0] += r;
+	ray.color[1] += g;
+	ray.color[2] += b;
+}
+
 function bg_fadeBlack(ray) {
 
 }
 
-function bg_fadeTo(ray, color, dist) {
+function bg_fadeToOld(ray, color, dist) {
 	var distPerc = clamp(ray.dist / dist, 0, 0.9) ** 2;
 	ray.color[0] = color[0]*distPerc + ray.color[0]*(1-distPerc);
 	ray.color[1] = color[1]*distPerc + ray.color[1]*(1-distPerc);
 	ray.color[2] = color[2]*distPerc + ray.color[2]*(1-distPerc);
+}
+
+function bg_fadeTo(ray, color, dist) {
+	var distPerc = clamp(ray.hitDist / dist, 0, 0.9) ** 2;
+	ray.color[0] = color[0]*distPerc + ray.color[0]*(1-distPerc);
+	ray.color[1] = color[1]*distPerc + ray.color[1]*(1-distPerc);
+	ray.color[2] = color[2]*distPerc + ray.color[2]*(1-distPerc);
+}
+
+function bg_sun(ray, color, sunSize) {
+	if (ray.hit) {
+		return;
+	}
+	if (!loading_world.sunVector) {
+		return;
+	}
+	var dotted = Math.max(dot(ray.dPos, loading_world.sunVector) - 1 + sunSize, 0);
+	var dotted = Math.min(2 * dotted / sunSize, 1);
+	ray.color[0] = linterp(ray.color[0], color[0], dotted);
+	ray.color[1] = linterp(ray.color[1], color[1], dotted);
+	ray.color[2] = linterp(ray.color[2], color[2], dotted);
 }
 
 
@@ -33,6 +60,7 @@ class World {
 	 * @param {Scene3dObject[]} objects 
 	 */
 	constructor(name, getBgColor, preEffects, effects, sunVector, spawn, objects) {
+		console.log(`started ${name}..`);
 		this.name = name;
 		this.getBgColor = getBgColor;
 		
@@ -42,11 +70,20 @@ class World {
 		this.sunVector = sunVector;
 		this.spawn = spawn;
 		this.objects = objects;
-		var self = this;
-		worlds[this.name] = self;
-		this.tree = new BrickMap(self, tree_maxD);
+		
+		this.grid;
+		this.tree;
+		this.finalize();
+	}
+	
+	finalize() {
+		//generate BrickMap
+		worlds[this.name] = this;
+		this.grid = new ObjectGrid(this, world_objectChunks);
+		this.tree = new BrickMap(this, tree_maxD);
+		this.grid.generate();
 		this.tree.generate(tree_sets);
-		// this.finalize();
+		console.log(`finished ${this.name}!`);
 	}
 	
 	//estimate distance at a given point. Returns both distance and the object that gave that distance
@@ -65,14 +102,17 @@ class World {
 	}
 	
 	estimatePos(pos) {
-		var dist = 1e1001;
+		var dist = 1e100;
 		var distInd = -1;
-		var testDist;
 		for (var i=0; i<this.objects.length; i++) {
-			testDist = this.objects[i].distanceToPos(pos);
+			var testDist = this.objects[i].distanceToPos(pos);
 			if (testDist < dist) {
 				dist = testDist;
 				distInd = i;
+			}
+			//if the distance is small enough, don't bother running through all the other objects
+			if (dist < -2) {
+				return [dist, distInd];
 			}
 		}
 		return [dist, distInd];
@@ -120,7 +160,6 @@ class World_Looping {
 					for (var z=-1; z<=1; z++) {
 						if (x || y || z) {
 							var dupe = deserialize(o.serialize());
-							console.log(dupe.pos, x, y, z, this.width);
 							dupe.pos[0] += x * this.width;
 							dupe.pos[1] += y * this.width;
 							dupe.pos[2] += z * this.width;
@@ -177,48 +216,51 @@ class World_Looping {
 
 function createWorlds() {
 	console.log(`creating worlds!`);
-	/*
+	
 	new World("start",
-		function() {
-			return Color(40, 30 + 20 * Math.cos(world_time / 80), 50)
+		() => {return Color(40, 30 + 20 * Math.cos(world_time / 80), 50)},
+		noop,
+		(ray) => {
+			bg_sun(ray, Color(255, 255, 240), 0.002);
 		},
-		function(ray, closestObj) {},
 		polToCart(0, 0.7, 1),
 		[0, 600, 0],
 		[
 			new Cube(Pos(0, 500, 0), 70, Color(255, 64, 64)),
-			new Box(Pos(0, 0, 0), 1000, 50, 1000, Color(64, 255, 150)),
-			// new Cylinder(500, 300, 0, 100, 200, Color(128, 128, 255)),
-			// new Ring(500, 400, 0, 200, 50, [128, 255, 255]),
-			// new Portal(900, 50, -827, `darkBright`)
+			new Box(Pos(0, -50, 0), 1000, 100, 1000, Color(64, 255, 150)),
+			new BoxFrame(Pos(100, 100, 100), 50, 50, 50, 10, Color(255, 128, 255)),
+			new Cylinder(Pos(-500, 300, 0), 100, 200, Color(128, 128, 255)),
+			new Gyroid(Pos(100, 100, -300), 50, 50, 50, globalA, globalB, 10, Color(50, 240, 10))
+			// new Ring(Pos(500, 400, 0, 200), 50, Color(128, 255, 255)),
+			// new Portal(Pos(900, 50, -827), `darkBright`)
 		]
 	);
-	console.log(`created start`);
 
 	new World("darkBright",
-		function() {
+		() => {
 			return Color(randomBounded(10, 30),randomBounded(10, 30),randomBounded(10, 30));
 		},
-		function(ray, closestObj) {
-			ray.color[0] += 1;
-			ray.color[1] += 1;
-			ray.color[2] += 1;
+		(ray) => {
+			world_add(ray, 2, 1, 1);
 		},
-		[0, 1, 0],
-		undefined,
+		(ray) => {
+			bg_fadeTo(ray, Color(randomBounded(10, 30),randomBounded(10, 30),randomBounded(10, 30)), 800);
+			bg_sun(ray, Color(255, 160, 140), 0.01);
+		},
+		polToCart(0.1, Math.PI * 0.47, 1),
+		[101, 101, 101],
 		[
-			new Box(0, -100, 0, 6000, 50, 6000, Color(0, 0, 64))
+			new Box(Pos(0, -100, 0), 6000, 50, 6000, Color(0, 0, 64)),
+			new Scene3dLoop(1000, 1000, 1000, 120, new Octahedron(Pos(60, 40, 60), 20, 15, 15, Color(0, 0, 160))),
+			new Line(Pos(-477,550,-311), Pos(-240,670,-300), 5, Color(0, 0, 160))
 		]
 	);
-	
-	console.log(`created darkBright`);
 	
 	
 	new World("tinyObjs",
-		function() {
-			return Color(120, 120, 120);
-		},
-		function(ray, closestObj) {},
+		() => {return Color(120, 120, 120);},
+		noop,
+		noop,
 		polToCart(0, 1.04, 1),
 		[-19.85, 308.75, 241.36],
 		[
@@ -265,17 +307,21 @@ function createWorlds() {
 			new Line(Pos(-274,692,-31), Pos(-371,666,178), 3, Color(246, 173, 105)),
 			new Line(Pos(-371,666,178), Pos(-152,564,378), 3, Color(246, 173, 105)),
 			
-			new Portal(Pos(900, 50, -827), `darkBright`)
+			new Portal(Pos(900, 50, -827), `cubes`)
 		]
-	);*/
+	);
 	
 	//cubes test world
-	var objs = [];
+	var objs = [new Line(Pos(60, 60, 60), Pos(80, 60, 80), 3, Color(240, 180, 60)), 
+		new Line(Pos(45,128,117), Pos(81, 82, 83), 3, Color(255, 0, 255)),
+		// new DebugLines(Pos(-800, -800, -800), Pos(800, 800, 800))
+		];
 	var acceptableCols = [
 		Color(57, 0, 64), Color(133, 111, 132), Color(124, 80, 119), Color(115, 0, 113), 
 		Color(168, 75, 132), Color(194, 112, 141), Color(220, 149, 150), Color(157, 131, 108), Color(132, 160, 124)
 	];
 	rand_seed = 4;
+	
 	for (var f=0; f<200; f++) {
 		objs.push(new Cube(
 			Pos(prand(-800, 800), prand(0, 500), prand(-800, 800)),
@@ -284,44 +330,67 @@ function createWorlds() {
 		));
 	}
 	
-	// new World("cubes", 
+	new World("cubes", 
+		function() {
+			return Color(5, 0, 10);
+		},
+		noop,
+		(ray) => {bg_fadeTo(ray, Color(0, 0, 0), 1500);},
+		polToCart(0, Math.PI / 2, 1),
+		[197,349,-403],
+		objs
+	);
+	
+	// new World_Looping("spheresForever",
 	// 	function() {
-	// 		return Color(5, 0, 10);
+	// 		return Color(255, 227, 245);
 	// 	},
-	// 	noop,
+	// 	//noop,// 
+	// 	world_loopRay,
 	// 	function(ray) {
-	// 		var distPerc = clamp(ray.dist / ray_maxDist, 0, 1) ** 2;
-	// 		ray.color[0] *= 1 - distPerc;
-	// 		ray.color[1] *= 1 - distPerc;
-	// 		ray.color[2] *= 1 - distPerc;
+	// 		bg_fadeToOld(ray, Color(255, 227, 245), 1200);
 	// 	},
-	// 	polToCart(0, Math.PI / 2, 1),
-	// 	[21.21, 498.15, 211.19],
-	// 	objs
+	// 	polToCart(0.6, 0.4, 1),
+	// 	[60.2, 100, 60.2],
+	// 	[
+	// 		new Line(Pos(0, 10, 60), Pos(20, 10, 60), 5, 	Color(240, 180, 60)),
+	// 		new Line(Pos(120, 10, 60), Pos(100, 10, 60), 5, Color(240, 180, 60)),
+	// 		new Line(Pos(60, 10, 0), Pos(60, 10, 20), 5, 	Color(240, 180, 60)),
+	// 		new Line(Pos(60, 10, 120), Pos(60, 10, 100), 5, Color(240, 180, 60)),
+	// 		// new Ring(Pos(60, 40, 60), 60, 10, Color(240, 180, 60)),
+	// 		// new Box(Pos(60, 10, 60), 6, 5, 60, Color(180, 130, 0)),
+	// 		// new Box(Pos(60, 10, 60), 60, 5, 6, Color(180, 130, 0)),
+	// 		new Sphere(Pos(40, 60, 10), 15, Color(60, 40, 60)),
+			
+	// 		new Line(Pos(20, 10, 60), Pos(60, 10, 20), 5, Color(240, 180, 60)),
+	// 		new Line(Pos(60, 10, 20), Pos(100, 10, 60), 5, Color(240, 180, 60)),
+	// 		new Line(Pos(100, 10, 60), Pos(60, 10, 100), 5, Color(240, 180, 60)),
+	// 	],
+	// 	120
 	// );
 	
-	new World_Looping("spheresForever",
-		function() {
-			return Color(255, 227, 245);
-		},
-		//world_noop,// 
+	new World_Looping("turtleHell",
+		() => {return Color(255, 227, 245);},
 		world_loopRay,
-		function(ray) {
-			bg_fadeTo(ray, Color(255, 227, 245), 1200);
-		},
+		(ray) => {bg_fadeToOld(ray, Color(255, 227, 245), 1200);},
 		polToCart(0.6, 0.4, 1),
 		[60.2, 100, 60.2],
-		[
-			// new Line(Pos(60, 60, 60), Pos(70, 60, 70), 5, Color(240, 180, 60)),
-			new Ring(Pos(60, 40, 60), 60, 10, Color(240, 180, 60)),
-			// new Box(Pos(60, 10, 60), 6, 5, 60, Color(180, 130, 0)),
-			// new Box(Pos(60, 10, 60), 60, 5, 6, Color(180, 130, 0)),
-			// new Sphere(Pos(40, 60, 10), 15, Color(60, 40, 60)),
-			// new Line(Pos(120, 10, 100), Pos(80, 10, 100), 5, Color(240, 180, 60)),
-			// new Line(Pos(800, 10, 100), Pos(80, 10, 20), 5, Color(240, 180, 60)),
-		],
+		[new Ring(Pos(60, 40, 60), 60, 10, Color(240, 180, 60))],
 		120
 	);
 	
-	loading_world = worlds["spheresForever"];
+	new World("gyroidCaves",
+		() => {return Color(40, 30, 50);},
+		(ray) => {
+			world_add(ray, 1, 1, 1);
+		},
+		(ray) => {
+			bg_sun(ray, Color(255, 255, 240), 0.002);
+		},
+		polToCart(-0.82, 0.73, 1),
+		[1000, 1000, 1],
+		[new Gyroid(Pos(0, 0, 0), 200, 10, 200, globalA, globalB, 10, Color(50, 240, 10))]
+	);
+	
+	loading_world = worlds["gyroidCaves"];
 }
