@@ -226,15 +226,19 @@ function createWorlds() {
 		polToCart(0, 0.7, 1),
 		[0, 600, 0],
 		[
-			new Cube(Pos(0, 500, 0), 70, Color(255, 64, 64)),
-			new Box(Pos(0, -50, 0), 1000, 100, 1000, Color(64, 255, 150)),
-			new BoxFrame(Pos(100, 100, 100), 50, 50, 50, 10, Color(255, 128, 255)),
-			new Cylinder(Pos(-500, 300, 0), 100, 200, Color(128, 128, 255)),
-			new Gyroid(Pos(100, 100, -300), 50, 50, 50, globalA, globalB, 10, Color(50, 240, 10))
-			// new Ring(Pos(500, 400, 0, 200), 50, Color(128, 255, 255)),
+			new Cube(Pos(0, 500, 0), 70, new M_Color(255, 64, 64)),
+			new Box(Pos(0, -50, 0), 1000, 100, 1000, new M_Color(64, 255, 150)),
+			new BoxFrame(Pos(100, 100, 100), 50, 50, 50, 10, new M_Ghost(Color(255, 128, 255), 0.1)),
+			new Cylinder(Pos(-500, 300, 0), 100, 200, new M_Color(128, 128, 255)),
+			new Gyroid(Pos(100, 100, -300), 50, 50, 50, globalA, globalB, 10, new M_Color(50, 240, 10)),
+			// new Ring(Pos(500, 400, 0, 200), 50, new M_Color(128, 255, 255)),
 			// new Portal(Pos(900, 50, -827), `darkBright`)
+			new CloudSeed(Pos(-80,516,-387), 1.5)
 		]
 	);
+	
+	loading_world = worlds["start"];
+	return;
 
 	new World("darkBright",
 		() => {
@@ -250,9 +254,9 @@ function createWorlds() {
 		polToCart(0.1, Math.PI * 0.47, 1),
 		[101, 101, 101],
 		[
-			new Box(Pos(0, -100, 0), 6000, 50, 6000, Color(0, 0, 64)),
-			new Scene3dLoop(1000, 1000, 1000, 120, new Octahedron(Pos(60, 40, 60), 20, 15, 15, Color(0, 0, 160))),
-			new Line(Pos(-477,550,-311), Pos(-240,670,-300), 5, Color(0, 0, 160))
+			new Box(Pos(0, -100, 0), 6000, 50, 6000, new M_Color(0, 0, 64)),
+			new Scene3dLoop(1000, 1000, 1000, 120, new Octahedron(Pos(60, 40, 60), 20, 15, 15, new M_Color(0, 0, 160))),
+			new Line(Pos(-477,550,-311), Pos(-240,670,-300), 5, new M_Color(0, 0, 160))
 		]
 	);
 	
@@ -264,61 +268,63 @@ function createWorlds() {
 		polToCart(0, 1.04, 1),
 		[-19.85, 308.75, 241.36],
 		[
-			new Box(Pos(0, 10, 0), 1000, 40, 1000, Color(64, 255, 150)),
+			new Box(Pos(0, 10, 0), 1000, 40, 1000, new M_Color(64, 255, 150)),
 			
-			new Cube(Pos(1000, 500, 0), 70, Color(255, 64, 64)),
-			new Cube(Pos(788, 80, 265), 60, Color(255, 64, 64)),
-			new Cube(Pos(758, 80, 154), 60, Color(255, 64, 64)),
-			new Cube(Pos(256, 80, 686), 60, Color(255, 64, 64)),
-			new Cube(Pos(159, 80, 90), 60, Color(255, 64, 64)),
-			new Cube(Pos(604, 80, 156), 60, Color(255, 64, 64)),
-			new Cube(Pos(730, 80, 775), 60, Color(255, 64, 64)),
-			new Cube(Pos(-788, 80, -265), 60, Color(255, 64, 64)),
-			new Cube(Pos(-758, 80, -154), 60, Color(255, 64, 64)),
-			new Cube(Pos(-256, 80, -686), 60, Color(255, 64, 64)),
-			new Cube(Pos(-159, 80, -90), 60, Color(255, 64, 64)),
-			new Cube(Pos(-604, 80, -156), 60, Color(255, 64, 64)),
-			new Cube(Pos(-730, 80, -775), 60, Color(255, 64, 64)),
+			new Cube(Pos(1000, 500, 0), 70, new M_Color(255, 64, 64)),
+			new Cube(Pos(788, 80, 265), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(758, 80, 154), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(256, 80, 686), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(159, 80, 90), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(604, 80, 156), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(730, 80, 775), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(-788, 80, -265), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(-758, 80, -154), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(-256, 80, -686), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(-159, 80, -90), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(-604, 80, -156), 60, new M_Color(255, 64, 64)),
+			new Cube(Pos(-730, 80, -775), 60, new M_Color(255, 64, 64)),
 			
-			new Sphere(Pos(0, 100, 0), 100, Color(128, 0, 128)),
-			new Cylinder(Pos(500, 60, 0), 100, 100, Color(128, 128, 255)),
-			new Cylinder(Pos(720, 60, -200), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(810, 60, -150), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(100, 60, -400), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(-500, 60, 0), 100, 100, Color(128, 128, 255)),
-			new Cylinder(Pos(-720, 60, -200), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(-810, 60, -150), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(-100, 60, -400), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(-500, 60, 840), 100, 100, Color(128, 128, 255)),
-			new Cylinder(Pos(-720, 60, 200), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(-810, 60, 150), 50, 50, Color(128, 128, 255)),
-			new Cylinder(Pos(-100, 60, 400), 50, 50, Color(128, 128, 255)),
+			new Sphere(Pos(0, 100, 0), 100, new M_Color(128, 0, 128)),
+			new Cylinder(Pos(500, 60, 0), 100, 100, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(720, 60, -200), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(810, 60, -150), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(100, 60, -400), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-500, 60, 0), 100, 100, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-720, 60, -200), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-810, 60, -150), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-100, 60, -400), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-500, 60, 840), 100, 100, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-720, 60, 200), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-810, 60, 150), 50, 50, new M_Color(128, 128, 255)),
+			new Cylinder(Pos(-100, 60, 400), 50, 50, new M_Color(128, 128, 255)),
 			new Ring(Pos(500, 100, 0), 200, 50, [128, 255, 255]),
 			
-			new Line(Pos(1000,800,990), Pos(628,750,427), 3, Color(246, 173, 105)),
-			new Line(Pos(628,750,427),  Pos(-123,900,234), 3, Color(246, 173, 105)),
-			new Line(Pos(-123,900,234), Pos(-123,400,200), 3, Color(246, 173, 105)),
-			new Line(Pos(-123,900,234), Pos(-123,400,200), 3, Color(246, 173, 105)),
+			new Line(Pos(1000,800,990), Pos(628,750,427), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(628,750,427),  Pos(-123,900,234), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(-123,900,234), Pos(-123,400,200), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(-123,900,234), Pos(-123,400,200), 3, new M_Color(246, 173, 105)),
 			
-			new Line(Pos(628,750,427),  Pos(932,570,68), 3, Color(246, 173, 105)),
+			new Line(Pos(628,750,427),  Pos(932,570,68), 3, new M_Color(246, 173, 105)),
 			
-			new Line(Pos(-122,916,219), Pos(-160,848,-36), 3, Color(246, 173, 105)),
-			new Line(Pos(-160,848,-36), Pos(-274,692,-31), 3, Color(246, 173, 105)),
-			new Line(Pos(-274,692,-31), Pos(-371,666,178), 3, Color(246, 173, 105)),
-			new Line(Pos(-371,666,178), Pos(-152,564,378), 3, Color(246, 173, 105)),
+			new Line(Pos(-122,916,219), Pos(-160,848,-36), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(-160,848,-36), Pos(-274,692,-31), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(-274,692,-31), Pos(-371,666,178), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(-371,666,178), Pos(-152,564,378), 3, new M_Color(246, 173, 105)),
 			
 			new Portal(Pos(900, 50, -827), `cubes`)
 		]
 	);
 	
 	//cubes test world
-	var objs = [new Line(Pos(60, 60, 60), Pos(80, 60, 80), 3, Color(240, 180, 60)), 
-		new Line(Pos(45,128,117), Pos(81, 82, 83), 3, Color(255, 0, 255)),
+	var objs = [new Line(Pos(60, 60, 60), Pos(80, 60, 80), 3, new M_Color(240, 180, 60)), 
+		new Line(Pos(45,128,117), Pos(81, 82, 83), 3, new M_Color(255, 0, 255)),
+		new Pipe(Pos(-202,121,19), 15, 10, new M_Portal("gyroidCaves", Pos(-62, -100, -104)))
 		// new DebugLines(Pos(-800, -800, -800), Pos(800, 800, 800))
 		];
-	var acceptableCols = [
-		Color(57, 0, 64), Color(133, 111, 132), Color(124, 80, 119), Color(115, 0, 113), 
-		Color(168, 75, 132), Color(194, 112, 141), Color(220, 149, 150), Color(157, 131, 108), Color(132, 160, 124)
+	var acceptableMats = [
+		new M_Color(57, 0, 64), new M_Color(133, 111, 132), new M_Color(124, 80, 119), new M_Color(115, 0, 113), 
+		new M_Color(168, 75, 132), new M_Color(194, 112, 141), new M_Color(220, 149, 150), new M_Color(157, 131, 108), 
+		new M_Color(132, 160, 124)
 	];
 	rand_seed = 4;
 	
@@ -326,7 +332,7 @@ function createWorlds() {
 		objs.push(new Cube(
 			Pos(prand(-800, 800), prand(0, 500), prand(-800, 800)),
 			prand(30, 60), 
-			acceptableCols[Math.floor(prand(0, acceptableCols.length))]
+			acceptableMats[Math.floor(prand(0, acceptableMats.length))]
 		));
 	}
 	
@@ -354,30 +360,30 @@ function createWorlds() {
 	// 	[60.2, 100, 60.2],
 	// 	[
 	// 		new Line(Pos(0, 10, 60), Pos(20, 10, 60), 5, 	Color(240, 180, 60)),
-	// 		new Line(Pos(120, 10, 60), Pos(100, 10, 60), 5, Color(240, 180, 60)),
+	// 		new Line(Pos(120, 10, 60), Pos(100, 10, 60), 5, new M_Color(240, 180, 60)),
 	// 		new Line(Pos(60, 10, 0), Pos(60, 10, 20), 5, 	Color(240, 180, 60)),
-	// 		new Line(Pos(60, 10, 120), Pos(60, 10, 100), 5, Color(240, 180, 60)),
-	// 		// new Ring(Pos(60, 40, 60), 60, 10, Color(240, 180, 60)),
-	// 		// new Box(Pos(60, 10, 60), 6, 5, 60, Color(180, 130, 0)),
-	// 		// new Box(Pos(60, 10, 60), 60, 5, 6, Color(180, 130, 0)),
-	// 		new Sphere(Pos(40, 60, 10), 15, Color(60, 40, 60)),
+	// 		new Line(Pos(60, 10, 120), Pos(60, 10, 100), 5, new M_Color(240, 180, 60)),
+	// 		// new Ring(Pos(60, 40, 60), 60, 10, new M_Color(240, 180, 60)),
+	// 		// new Box(Pos(60, 10, 60), 6, 5, 60, new M_Color(180, 130, 0)),
+	// 		// new Box(Pos(60, 10, 60), 60, 5, 6, new M_Color(180, 130, 0)),
+	// 		new Sphere(Pos(40, 60, 10), 15, new M_Color(60, 40, 60)),
 			
-	// 		new Line(Pos(20, 10, 60), Pos(60, 10, 20), 5, Color(240, 180, 60)),
-	// 		new Line(Pos(60, 10, 20), Pos(100, 10, 60), 5, Color(240, 180, 60)),
-	// 		new Line(Pos(100, 10, 60), Pos(60, 10, 100), 5, Color(240, 180, 60)),
+	// 		new Line(Pos(20, 10, 60), Pos(60, 10, 20), 5, new M_Color(240, 180, 60)),
+	// 		new Line(Pos(60, 10, 20), Pos(100, 10, 60), 5, new M_Color(240, 180, 60)),
+	// 		new Line(Pos(100, 10, 60), Pos(60, 10, 100), 5, new M_Color(240, 180, 60)),
 	// 	],
 	// 	120
 	// );
 	
-	new World_Looping("turtleHell",
-		() => {return Color(255, 227, 245);},
-		world_loopRay,
-		(ray) => {bg_fadeToOld(ray, Color(255, 227, 245), 1200);},
-		polToCart(0.6, 0.4, 1),
-		[60.2, 100, 60.2],
-		[new Ring(Pos(60, 40, 60), 60, 10, Color(240, 180, 60))],
-		120
-	);
+	// new World_Looping("turtleHell",
+	// 	() => {return Color(255, 227, 245);},
+	// 	world_loopRay,
+	// 	(ray) => {bg_fadeToOld(ray, Color(255, 227, 245), 1200);},
+	// 	polToCart(0.6, 0.4, 1),
+	// 	[60.2, 100, 60.2],
+	// 	[new Ring(Pos(60, 40, 60), 60, 10, new M_Color(240, 180, 60))],
+	// 	120
+	// );
 	
 	new World("gyroidCaves",
 		() => {return Color(40, 30, 50);},
@@ -388,9 +394,13 @@ function createWorlds() {
 			bg_sun(ray, Color(255, 255, 240), 0.002);
 		},
 		polToCart(-0.82, 0.73, 1),
-		[1000, 1000, 1],
-		[new Gyroid(Pos(0, 0, 0), 200, 10, 200, globalA, globalB, 10, Color(50, 240, 10))]
+		[17,22,-6],
+		[
+			new Gyroid(Pos(0, 0, 0), 200, 10, 200, globalA, globalB, 10, new M_Color(50,240,10)),
+			new Box(Pos(112,22,105), 30, 10, 30, new M_Rubber()),
+			new Pipe(Pos(-115,22,-59), 10, 15, new M_Portal("cubes", Pos(-70, 110, 30)))
+		]
 	);
 	
-	loading_world = worlds["gyroidCaves"];
+	loading_world = worlds["start"];
 }

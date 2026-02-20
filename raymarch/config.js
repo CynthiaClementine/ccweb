@@ -57,12 +57,13 @@ var perf_endT = 0;
 var player;
 var player_bounceThreshold = 1;
 var player_stepHeight = 2;
-var player_width = 5;
+var player_width = 3;
 
 var rand_seed = 3;
 
 //ray properties
 const ray_maxDist = 3000;
+const ray_nearDist = 3;
 const ray_minDist = 0.1;
 const ray_maxIters = 500;
 var ray_safetyMult = 0.85;

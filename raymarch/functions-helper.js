@@ -195,6 +195,15 @@ function fastSqrt(x) {
 	return sqrtTable[x << 1 >> 1];
 }
 
+function loadWorld(worldName) {
+	var obj = worlds[worldName];
+	if (!obj) {
+		console.error(`invalid world name!`);
+		return;
+	}
+	camera.world = obj;
+}
+
 function modulate(x, num) {
 	return (x < 0) ? num + (x % num) : x % num;
 }
@@ -235,13 +244,6 @@ function performanceTest2() {
 	return;
 }
 
-
-//for quaternion functions, quaternions are expected to be an array of length 4, with the structure [w, x, y, z].
-function quatNormalize(quat) {
-	var magnitude = Math.sqrt(quat[0] * quat[0] + quat[1] * quat[1] + quat[2] * quat[2] + quat[3] * quat[3]);
-	return [quat[0] / magnitude, quat[1] / magnitude, quat[2] / magnitude, quat[3] / magnitude];
-}
-
 //ack this is a mess
 function quatMultiply(quat1, quat2) {
 	return [
@@ -250,15 +252,6 @@ function quatMultiply(quat1, quat2) {
 		quat1[0] * quat2[2] - quat1[1] * quat2[3] + quat1[2] * quat2[0] + quat1[3] * quat2[1],
 		quat1[0] * quat2[3] + quat1[1] * quat2[2] - quat1[2] * quat2[1] + quat1[3] * quat2[0]
 	]
-}
-
-//converts [w, x, y, z] to [x, y, z, theta]
-function quatToAxisAngle(quat) {
-
-}
-
-function quatToCart(quat) {
-
 }
 
 /**

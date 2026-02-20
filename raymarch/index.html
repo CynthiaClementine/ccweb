@@ -7,10 +7,14 @@
 	-->
 	<head>
 		<title>Welcome to casting</title>
+		<link rel="icon" type="image/x-icon" href="./favicon.png">
 		<meta charset="utf-8">
 		<style>
 			body {
 				background-color: slateblue;
+				display: flex;
+				font-family: Courier New;
+				font-size: 1.5rem;
 			}
 	
 			#centerModule {
@@ -19,25 +23,127 @@
 			}
 			
 			p {
-				font-family: Courier New;
-				font-size: 12px;
-				line-height: 1.1em;
 				user-select: none;
+			}
+			
+			#editorPanelGroup {
+				float: right;
+			}
+			
+			.sliderGroup {
+				display: inline;
+				width: 1200px;
+			}
+			
+			.slider {
+				width: 600px;
+				-webkit-appearance: none;
+				height: 10px;
+				background: #111;
+				margin: 0;
+			}
+			
+			/* custom thumb */
+			.slider::-webkit-slider-thumb {
+				-webkit-appearance: none;
+				appearance: none;
+				width: 25px;
+				height: 25px;
+				/*border-radius: 50%;*/
+				border: #111 5px solid;
+				cursor: pointer;
+			}
+			
+			.value {
+				width: 10%;
+				text-align: center;
+				border-right: #e6e4e4 1px solid;
+				font-size: 1.5rem;
+				font-weight: 600;
+				color: #3c3b3b;
+			}
+			.slider::-moz-range-thumb {
+				width: 20px;
+				height: 20px;
+				border: 0;
+				/*border-radius: 50%;*/
+				background: #FFFFFF;
+				border: #111 5px solid; cursor: pointer;
 			}
 		</style>
 		<script src="../common/functions-coordinate.js"></script>
 		<script src="../common/functions-math.js"></script>
 		<script src="functions-helper.js"></script>
 	
+		<script src="config.js"></script>
+		<script src="editor.js"></script>
 		<script src="objects-engine.js"></script>
 		<script src="materials.js"></script>
 		<script src="objects-world.js"></script>
-		<script src="config.js"></script>
 		<script src="worlds.js"></script>
 		<script src="main.js"></script>
 	</head>
 	<body>
 		<canvas id="artbox"></canvas>
-		<p>avg frame time: <span id="debugMSPF">[!]</span> ms</p>
+		<div id="editorPanelGroup">
+			<datalist id="markers">
+				<option value="-100"></option>
+				<option value="-90"></option>
+				<option value="-80"></option>
+				<option value="-70"></option>
+				<option value="-60"></option>
+				<option value="-50"></option>
+				<option value="-40"></option>
+				<option value="-30"></option>
+				<option value="-20"></option>
+				<option value="0"></option>
+				<option value="20"></option>
+				<option value="30"></option>
+				<option value="40"></option>
+				<option value="50"></option>
+				<option value="60"></option>
+				<option value="70"></option>
+				<option value="80"></option>
+				<option value="90"></option>
+				<option value="100"></option>
+			</datalist>
+			<div id="editorSpace">
+				<div>
+					avg frame time: <span id="debugMSPF">[!]</span> ms
+				</div>
+				
+				<div class="separator">OBJECT</div>
+				
+				<div>Pos controls</div>
+				<div class="sliderGroup" id="xSlider">
+					<span class="value">[!]</span>
+					<input class="slider" type="range" list="markers"/>
+				</div><br>
+				<div class="sliderGroup" id="ySlider">
+					<span class="value">[!]</span>
+					<input class="slider" type="range" list="markers"/>
+				</div><br>
+				<div class="sliderGroup" id="zSlider">
+					<span class="value">[!]</span>
+					<input class="slider" type="range" list="markers"/>
+				</div><br>
+				
+				<div class="separator">MATERIAL</div>
+				
+				<div>Color controls</div>
+				<div class="sliderGroup" id="xSlider">
+					<span class="value">[!]</span>
+					<input class="slider" type="range" list="markers"/>
+				</div><br>
+				<div class="sliderGroup" id="ySlider">
+					<span class="value">[!]</span>
+					<input class="slider" type="range" list="markers"/>
+				</div><br>
+				<div class="sliderGroup" id="zSlider">
+					<span class="value">[!]</span>
+					<input class="slider" type="range" list="markers"/>
+				</div><br>
+			</div>
+		</div>
 	</body>
 </html>

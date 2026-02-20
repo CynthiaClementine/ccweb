@@ -22,9 +22,9 @@ Meta-Objects:
 
 //main object contract
 class Scene3dObject {
-	constructor(pos, color) {
+	constructor(pos, material) {
 		this.pos = pos;
-		this.color = color;
+		this.material = material;
 	}
 	
 	//gives the axis-aligned bounding box of the object, in [smallest pos, largest pos] terms
@@ -49,17 +49,6 @@ class Scene3dObject {
 	distanceToObj(object) {
 		return this.distanceToPos(object.pos);
 	}
-	
-	/**
-	* what to do to rays that hit the object. By default just sets the color of the ray to self
-	* @param {Object} object the object to check against
-	 */
-	applyHitEffect(object) {
-		object.color[0] = this.color[0];
-		object.color[1] = this.color[1];
-		object.color[2] = this.color[2];
-	}
-	
 
 	serialize() {
 		console.error(`serialization is not defined for ${this.constructor.name}!`);
@@ -68,8 +57,8 @@ class Scene3dObject {
 }
 
 class Scene3dObject_Axes extends Scene3dObject {
-	constructor(pos, rx, ry, rz, color) {
-		super(pos, color);
+	constructor(pos, rx, ry, rz, material) {
+		super(pos, material);
 		this.rx = rx;
 		this.ry = ry;
 		this.rz = rz;
@@ -99,7 +88,7 @@ class Scene3dLoop {
 		object.pos[2] = loopSize / 2;
 		this.obj = object;
 		this.pos = object.pos;
-		this.color = object.color;
+		this.material = object.material;
 	}
 	
 	applyHitEffect(object) {
@@ -134,12 +123,30 @@ class Scene3dLoop {
 	}
 }
 
+class CloudSeed extends Scene3dObject {
+	constructor(pos, r) {
+		super(pos, materialCloud);
+		this.minR = r;
+	}
+	
+	bounds() {
+		return giveBounds(this.pos, this.minR, this.minR, this.minR);
+	}
+	
+	distanceToPos(pos) {
+		var x = Math.max(this.minR, Math.abs(pos[0] - this.pos[0]) - this.minR);
+		var y = Math.max(this.minR, Math.abs(pos[1] - this.pos[1]) - this.minR);
+		var z = Math.max(this.minR, Math.abs(pos[2] - this.pos[2]) - this.minR);
+		return Math.sqrt(x * x + y * y + z * z);
+	}
+}
+
 
 
 //cube, standard object
 class Cube extends Scene3dObject {
-	constructor(pos, r, RGBColor) {
-		super(pos, RGBColor);
+	constructor(pos, r, material) {
+		super(pos, material);
 		this.r = r;
 	}
 	
@@ -157,13 +164,13 @@ class Cube extends Scene3dObject {
 	
 
 	serialize() {
-		return `CUBE|[${this.pos}]~${this.r}~[${this.color}]`;
+		return `CUBE|[${this.pos}]~${this.r}~[${this.material}]`;
 	}
 }
 
 class Box extends Scene3dObject_Axes {
-	constructor(pos, rx, ry, rz, RGBColor) {
-		super(pos, rx, ry, rz, RGBColor);
+	constructor(pos, rx, ry, rz, material) {
+		super(pos, rx, ry, rz, material);
 	}
 	
 	bounds() {
@@ -178,13 +185,13 @@ class Box extends Scene3dObject_Axes {
 	}
 
 	serialize() {
-		return `BOX|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~[${this.color}]`;
+		return `BOX|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~[${this.material}]`;
 	}
 }
 
 class BoxFrame extends Scene3dObject_Axes {
-	constructor(pos, rx, ry, rz, thickness, color) {
-		super(pos, rx, ry, rz, color);
+	constructor(pos, rx, ry, rz, thickness, material) {
+		super(pos, rx, ry, rz, material);
 		this.e = thickness;
 	}
 	
@@ -225,8 +232,8 @@ class BoxFrame extends Scene3dObject_Axes {
 }
 
 class Cylinder extends Scene3dObject {
-	constructor(pos, r, h, RGBColor) {
-		super(pos, RGBColor);
+	constructor(pos, r, h, material) {
+		super(pos, material);
 		this.r = r;
 		this.h = h;
 	}
@@ -244,13 +251,13 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `CYLINDER|[${this.pos}]~${this.r}~${this.h}~[${this.color}]`;
+		return `CYLINDER|[${this.pos}]~${this.r}~${this.h}~[${this.material}]`;
 	}
 }
 
 class DebugLines extends Scene3dObject {
 	constructor(minPos, maxPos) {
-		super(Pos(0, 0, 0), Color(255, 0, 255));
+		super(Pos(0, 0, 0), new M_Standard(Color(255, 0, 255)));
 		this.minPos = minPos;
 		this.maxPos = maxPos;
 		this.frame = new BoxFrame(Pos(0, 0, 0), 10, 10, 10, 2);
@@ -267,7 +274,7 @@ class DebugLines extends Scene3dObject {
 		cameraBlock[2] = Math.floor(cameraBlock[2]) + 0.5;
 		
 		
-		this.frame.color = this.color;
+		this.frame.material = this.material;
 		this.frame.pos = Pos(
 			loading_world.grid.minPos[0] + cameraBlock[0] * loading_world.grid.xd,
 			loading_world.grid.minPos[1] + cameraBlock[1] * loading_world.grid.yd,
@@ -284,8 +291,8 @@ class DebugLines extends Scene3dObject {
 }
 
 class Line extends Scene3dObject {
-	constructor(pos1, pos2, radius, RGBColor) {
-		super(pos1, RGBColor);
+	constructor(pos1, pos2, radius, material) {
+		super(pos1, material);
 		this.posEnd = pos2;
 		var lv = [pos2[0] - pos1[0], pos2[1] - pos1[1], pos2[2] - pos1[2]];
 		this.lineVec = lv;
@@ -318,12 +325,30 @@ class Line extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `LINE|[${this.pos}]~[${this.posEnd}]~${this.r}~[${this.color}]`;
+		return `LINE|[${this.pos}]~[${this.posEnd}]~${this.r}~[${this.material}]`;
 	}
 }
 
 class Pipe extends Scene3dObject {
-
+	constructor(pos, r, h, material) {
+		super(pos, material);
+		this.r = r;
+		this.h = h;
+	}
+	
+	bounds() {
+		return giveBounds(this.pos, this.r, this.h, this.r);
+	}
+	
+	distanceToPos(pos) {
+		var relX = pos[0] - this.pos[0];
+		var relY = pos[1] - this.pos[1];
+		var relZ = pos[2] - this.pos[2];
+		
+		var hDist = Math.abs(relY) - this.h;
+		var xyDist = Math.hypot(relX, relZ) - this.r;
+		return Math.min(Math.max(hDist, xyDist), 0) + Math.hypot(Math.max(xyDist, 0), Math.max(hDist, 0));
+	}
 }
 
 class Portal extends Cylinder {
@@ -369,8 +394,8 @@ class Portal extends Cylinder {
 }
 
 class Ring extends Scene3dObject {
-	constructor(pos, r, ringR, RGBColor) {
-		super(pos, RGBColor);
+	constructor(pos, r, ringR, material) {
+		super(pos, material);
 		this.r = r;
 		this.ringR = ringR;
 	}
@@ -388,16 +413,14 @@ class Ring extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `RING|[${this.pos}]~${this.r}~${this.ringR}~[${this.color}]`;
+		return `RING|[${this.pos}]~${this.r}~${this.ringR}~[${this.material}]`;
 	}
 }
 
 class Sphere extends Scene3dObject {
-	constructor(pos, r, RGBColor) {
-		super(pos, RGBColor)
+	constructor(pos, r, material) {
+		super(pos, material)
 		this.r = r;
-
-		this.color = RGBColor;
 	}
 	
 	bounds() {
@@ -415,7 +438,7 @@ class Sphere extends Scene3dObject {
 	}
 
 	serialize() {
-		return `SPHERE|[${this.pos}]~${this.r}~[${this.color}]`;
+		return `SPHERE|[${this.pos}]~${this.r}~[${this.material}]`;
 	}
 }
 
@@ -436,8 +459,8 @@ class Oval extends Scene3dObject_Axes {
 }
 
 class Gyroid extends Scene3dObject_Axes {
-	constructor(pos, xRadius, yRadius, zRadius, a, b, h, RGBColor) {
-		super(pos, xRadius, yRadius, zRadius, RGBColor);
+	constructor(pos, xRadius, yRadius, zRadius, a, b, h, material) {
+		super(pos, xRadius, yRadius, zRadius, material);
 		this.a = a;
 		this.b = b;
 		this.h = h;
@@ -447,7 +470,7 @@ class Gyroid extends Scene3dObject_Axes {
 		var relX = pos[0] - this.pos[0];
 		var relY = pos[1] - this.pos[1];
 		var relZ = pos[2] - this.pos[2];
-		var a = globalA;
+		var a = this.a;
 		var dot = 
 			(Math.sin(a * relX) * Math.cos(a * relZ)) + 
 			(Math.sin(a * relY) * Math.cos(a * relX)) + 
@@ -461,7 +484,7 @@ class Gyroid extends Scene3dObject_Axes {
 		var y = Math.max(0, Math.abs(relY) - this.ry);
 		var z = Math.max(0, Math.abs(relZ) - this.rz);
 		
-		var gyroidSDF = Math.abs(globalB * dot) - this.h;
+		var gyroidSDF = Math.abs(this.b * dot) - this.h;
 		var boxSDF = Math.sqrt(x * x + y * y + z * z);
 		
 		
@@ -471,8 +494,8 @@ class Gyroid extends Scene3dObject_Axes {
 
 
 class Octahedron extends Scene3dObject {
-	constructor(pos, xRadius, yRadius, zRadius, RGBColor) {
-		super(pos, RGBColor);
+	constructor(pos, xRadius, yRadius, zRadius, material) {
+		super(pos, material);
 		this.rx = xRadius;
 		this.ry = yRadius;
 		this.rz = zRadius;
@@ -496,6 +519,6 @@ class Octahedron extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `OCTOHEDRON|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~[${this.color}]`;
+		return `OCTOHEDRON|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~[${this.material}]`;
 	}
 }

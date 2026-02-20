@@ -10,7 +10,6 @@ document.addEventListener('mozpointerlockchange', handleCursorLockChange, false)
 
 //setup
 function setup() {
-
 	initiateWorkers();
 	createWorlds();
 	canvas = document.getElementById("artbox");
@@ -23,6 +22,8 @@ function setup() {
 	canvas.onclick = function() {canvas.requestPointerLock({unadjustedMovement: true});}
 
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
+	
+	editor_initialize();
 	
 	window.setTimeout(main, 10);
 }
@@ -220,6 +221,10 @@ function handleWorkerMsg(e) {
 
 function handleKeyPress(a) {
 	if (debug_listening) {
+		//synchronize sliders
+		editor_xSlider.synchronize();
+		editor_ySlider.synchronize();
+		editor_zSlider.synchronize();
 		/*
 		all debug effects are activated by pressing ] and then another key.
 		DEBUG EFFECTS:
@@ -227,21 +232,20 @@ function handleKeyPress(a) {
 			O - give information about the crosshair's object
 		
 		*/
-		console.log(a.keyCode);
 		
 		switch (a.code) {
 			case "KeyC":
 				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
 				break;
 			case "KeyO":
-				// var ray = new Ray_Tracking(loading_world, )
-				// console.log(ray.object);
-				break;
-			case "BracketRight":
-				debug_listening = false;
+				var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist);
+				ray.iterate();
+				if (ray.object) {
+					console.log(`selecting`, ray.object);
+				}
+				editor_selectObj(ray.object);
 				break;
 		}
-		return;
 	}
 
 	//handling controls for camera
@@ -271,7 +275,7 @@ function handleKeyPress(a) {
 			break;
 		
 		case "BracketRight":
-			debug_listening = true;
+			debug_listening = !debug_listening;
 			break;
 	}
 }

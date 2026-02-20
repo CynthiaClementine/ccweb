@@ -2,10 +2,10 @@
 importScripts("../common/functions-coordinate.js");
 importScripts("../common/functions-math.js");
 importScripts("functions-helper.js");
+importScripts("config.js");
 importScripts("materials.js");
 importScripts("objects-engine.js");
 importScripts("objects-world.js");
-importScripts("config.js");
 importScripts("worlds.js");
 //ough
 
