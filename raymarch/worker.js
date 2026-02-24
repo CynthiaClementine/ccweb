@@ -5,7 +5,7 @@ importScripts("functions-helper.js");
 importScripts("config.js");
 importScripts("materials.js");
 importScripts("objects-engine.js");
-importScripts("objects-world.js");
+importScripts("objects.js");
 importScripts("worlds.js");
 //ough
 
@@ -26,8 +26,8 @@ function run(package) {
 		case "updateCamera":
 			updateCamera(data.slice(1));
 			break;
-		case "updateCameraAdvanced":
-			updateRendering(data.slice(1));
+		case "updateFOV":
+			updateFOV_work(data.slice(1));
 			break;
 		case "calcLine":
 			// console.log(data.slice(1));
@@ -39,6 +39,9 @@ function run(package) {
 		case "ID":
 			threadID = data[1];
 			postMessage(["ready", threadID]);
+			break;
+		case "syncObject":
+			syncObject_recieve(...data.slice(1));
 			break;
 	}
 }
@@ -69,14 +72,7 @@ function updateCamera(data) {
 	loading_world.objects.forEach(o => {
 		o.tick();
 	});
-	if (!loading_world.tick) {
-		loading_world.tree.update();
-	}
-}
-
-function updateRendering(data) {
-	[camera_FOV, camera_planeOffset, camera_paniniR] = data;
-	updateFOV(camera_FOV);
+	loading_world.tick();
 }
 
 function drawAndPostLine(data) {
