@@ -8,8 +8,29 @@ dot(a, b)
 getDistance(x1, y1, z1, x2, y2, z2)
 getDistancePos(pos1, pos2)
 
+projectPanini(x, pixelsInX, y, pixelsInY)
+projectPerspective(x, pixelsInX, y, pixelsInY)
+projectOct(x, pixelsInX, y, pixelsInY)
+
 
 */
+
+/**
+* applies a paint Color to a base Color4.
+* @param {Color4} paintColor the color to paint
+* @param {Color4} baseColor the color to paint onto
+ */
+function applyColor(paintColor, baseColor) {
+	var availableOpacity = (255 - baseColor[3]) / 255;
+	if (availableOpacity <= 0) {
+		return;
+	}
+	
+	baseColor[0] = linterp(baseColor[0], paintColor[0], availableOpacity);
+	baseColor[1] = linterp(baseColor[1], paintColor[1], availableOpacity);
+	baseColor[2] = linterp(baseColor[2], paintColor[2], availableOpacity);
+	baseColor[3] += paintColor[3];
+}
 
 function giveBounds(pos, rx, ry, rz) {
 	return [
@@ -19,70 +40,8 @@ function giveBounds(pos, rx, ry, rz) {
 }
 
 
-//pixel ray starts at camera point and intersects regular intervals on a plane 1 unit in front
-function projectPerspective(x, pixelsInX, y, pixelsInY) {
-	var singleOffset = (camera_halfTan / (render_n / 2));
-	return [
-		singleOffset * (x - (pixelsInX / 2)),
-		singleOffset * (y - (pixelsInY / 2)),
-		1
-	];
-}
-
-//pixel ray essentially starts behind the camera, from the back of the panini circle.
-function projectPanini(x, pixelsInX, y, pixelsInY) {
-	var screenDist = (camera_paniniR);
-	var halfPixX = pixelsInX / 2;
-	var halfPixY = pixelsInY / 2;
-
-	var maxOffsetX = (camera_halfTan * screenDist);
-	var singleOffsetX = (maxOffsetX / halfPixX);
-	var singleOffsetY = (camera_halfTanVert / halfPixY);
-	
-	var screenX = singleOffsetX * (x - halfPixX);
-	var screenY = singleOffsetY * (y - halfPixY);
-	
-	var paniniAngle = Math.atan(screenX / screenDist);
-		/*
-		2 * paniniFOV = regular FOV
-		x = (1+panini) * tan(2*maxPaniniFOV)
-		atan(x / (1+panini)) = 4 * regularFOV
-		atan(x / (1+panini)) / 4 = regularFOV */
-	var [z, x] = polToXY(0, 0, paniniAngle * 2, 1);
-	return [
-		x,
-		screenY,
-		z
-	];
-}
-
-function projectPaniniDebug(x, pixelsInX, y, pixelsInY) {
-	var screenDist = (1 + camera_paniniR);
-	var halfPixX = pixelsInX / 2;
-	var halfPixY = pixelsInY / 2;
-
-	var maxOffsetX = (camera_halfTan * screenDist);
-	var singleOffsetX = (maxOffsetX / halfPixX);
-	var singleOffsetY = (camera_halfTanVert / halfPixY);
-	
-	var screenX = singleOffsetX * (x - halfPixX);
-	var screenY = singleOffsetY * (y - halfPixY);
-	
-	var paniniAngle = Math.atan(screenX / screenDist);
-		/*
-		2 * paniniFOV = regular FOV
-		x = (1+panini) * tan(2*maxPaniniFOV)
-		atan(x / (1+panini)) = 4 * regularFOV
-		atan(x / (1+panini)) / 4 = regularFOV */
-	var [z, x] = polToXY(0, 0, paniniAngle * 2, 1);
-	return [
-		x,
-		screenY,
-		z
-	];
-}
-
 function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
+	var r = new Ray(camera.world, camera.pos, [0, 1, 0]);
 	//array of integers, measuring RGB/RGB/RGB/RGB
 	var colors = new Uint8Array(pixelHeight * 3);
 	for (var y=0; y<pixelHeight; y++) {
@@ -109,7 +68,8 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 		// 	var thrower = [4,4,4];
 		// 	var res = thrower[NaN][0];
 		// }
-		var c = new Ray(camera.world, camera.pos, trueDir).iterate();
+		r.reset(camera.world, camera.pos, trueDir);
+		var c = r.iterate();
 		colors[3*y] = c[0];
 		colors[3*y+1] = c[1];
 		colors[3*y+2] = c[2];
@@ -117,38 +77,120 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 	return colors;
 }
 
+function createCloud() {
 
-function deserialize(str) {
-	var [type, params] = str.split(`|`);
-	var spl = params.split(`~`);
-	var obj;
-	var J = JSON.parse;
+}
+
+function createDefaultObject(constructorString, objRef) {
+	console.log(constructorString, objRef);
+	var type = map_strObj[constructorString];
 	
-	switch (type) {
-		case `CUBE`:
-			obj = new Cube(Pos(...J(spl[0])), +spl[1], Color(...J(spl[2])));
-			break;
-		case `BOX`:
-			obj = new Box(Pos(...J(spl[0])), +spl[1], +spl[2], +spl[3], Color(...J(spl[4])));
-			break;
-		case `CYLINDER`:
-			obj = new Cylinder(Pos(...J(spl[0])), +spl[1], +spl[2], Color(...J(spl[3])));
-			break;
-			
-		case `PORTAL`:
-			obj = new Portal(Pos(...J(spl[0])), J(spl[1]));
-			break;
-		case `RING`:
-			obj = new Ring(Pos(...J(spl[0])), +spl[1], +spl[2], Color(...J(spl[3])));
-			break;
-		case `SPHERE`:
-			obj = new Sphere(Pos(...J(spl[0])), +spl[1], Color(...J(spl[2])));
-			break;
-		case `LINE`:
-			obj = new Line(Pos(...J(spl[0])), Pos(...J(spl[1])), +spl[2], Color(...J(spl[3])));
-			break;
+	//steal properties from old object
+	var material = objRef.material ?? new M_Color(255, 0, 255);
+	var pos = objRef.pos;
+	if (!pos) {
+		var offset = polToCart(camera.theta, camera.phi, 100);
+		pos = Pos(camera.x + offset[0], camera.y + offset[1], camera.z + offset[2]);
+	}
+	var arg1 = objRef.r ?? objRef.rx ?? 10;
+	var arg2 = objRef.h ?? objRef.ry ?? 10;
+	var arg3 = objRef.rz ?? 10;
+	var arg4 = objRef.e ?? 1;
+	var arg5 = 12;
+	var arg6 = 6;
+	if (objRef.constructor.name == `Gyroid` && type.constructor.name == `Gyroid`) {
+		[arg4, arg5, arg6] = [objRef.a, objRef.b, objRef.h];
 	}
 	
+	//actually create the thing
+	return new type(pos, material, arg1, arg2, arg3, arg4, arg5, arg6, 10, 10, 10, 10, 10);
+}	
+
+/**
+* @param {String} constructorString
+* @param {Color4|undefined} color
+ */
+function createDefaultMaterial(constructorString, color) {
+	color = color ?? [];
+	color[0] = color[0] ?? 255;
+	color[1] = color[1] ?? 0;
+	color[2] = color[2] ?? 255;
+	color[3] = color[3] ?? 128;
+	var type = map_strMat[constructorString];
+	switch (type) {
+		case M_Portal:
+			return new M_Portal(`start`, Pos(0, 0, 0));
+		default:
+			console.error(`ough`);
+		case M_Color:
+		case M_Ghost:
+		case M_Glass:
+		case M_Rubber:
+			return new type(...color);
+	}
+}
+
+//tests whether the keys in dictionary A and B are the same
+function keysMatch(dictA, dictB) {
+	var s = new Set();
+	const aKeys = Object.keys(dictA);
+	const bKeys = Object.keys(dictB);
+	
+	if (aKeys.length != bKeys.length) {
+		return false;
+	}
+	
+	aKeys.forEach(k => {
+		s.add(k);
+	});
+	
+	for (var z=0; z<bKeys.length; z++) {
+		if (!s.delete(bKeys[z])) {
+			return false;
+		}
+	}
+	
+	return (s.size == 0);
+}
+
+
+function deserialize(str) {
+	var [type, material, params] = str.split(`|`);
+	material = deserializeMat(material);
+	const spl = params.split(`~`);
+	const pos = JSON.parse(spl[0]);
+	const construct = map_strObj[type];
+	if (!construct) {
+		throw new Error(`cannot deserialize type "${type}"!`);
+	}
+	
+	return new construct(Pos(...pos), material, ...spl.slice(1).map(a => +a));
+}
+
+function deserializeMat(str) {
+	var [name, params] = str.split(`:`);
+	params = params.split(`~`);
+	var obj;
+	
+	switch (name) {
+		case `color`:
+			obj = new M_Color(...params.map(a => +a));
+			break;
+		case `ghost`:
+			obj = new M_Ghost(...params.map(a => +a));
+			break;
+		case `glass`:
+			obj = new M_Glass(...params.map(a => +a));
+			break;
+		case `portal`:
+			obj = new M_Portal(params[0], Color4(...JSON.parse(params[1])));
+			break;
+		default:
+			console.error(`cannot parse material "${str}"!`)
+		case `rubber`:
+			obj = new M_Rubber();
+			break;
+	}
 	return obj;
 }
 
@@ -202,6 +244,96 @@ function loadWorld(worldName) {
 		return;
 	}
 	camera.world = obj;
+}
+
+//https://www.researchgate.net/publication/354065227_Essential_Ray_Generation_Shaders
+
+//pixel ray essentially starts behind the camera, from the back of the panini circle.
+function projectPanini(x, pixelsInX, y, pixelsInY) {
+	var screenDist = (camera_paniniR); //1 + camera_paniniR 		?
+	var halfPixX = pixelsInX / 2;
+	var halfPixY = pixelsInY / 2;
+
+	var maxOffsetX = (camera_halfTan * screenDist);
+	
+	var screenX = maxOffsetX * (x - halfPixX) / halfPixX;
+	var screenY = camera_halfTanVert * (y - halfPixY) / halfPixY;
+	
+	var paniniAngle = Math.atan(screenX / screenDist);
+		/*
+		2 * paniniFOV = regular FOV
+		x = (1+panini) * tan(2*maxPaniniFOV)
+		atan(x / (1+panini)) = 4 * regularFOV
+		atan(x / (1+panini)) / 4 = regularFOV */
+	var [z, x] = polToXY(0, 0, paniniAngle * 2, 1);
+	return [
+		x,
+		screenY,
+		z
+	];
+}
+
+//pixel ray starts at camera point and intersects regular intervals on a plane 1 unit in front
+function projectPerspective(x, pixelsInX, y, pixelsInY) {
+	var singleOffset = (camera_halfTan / (render_n / 2));
+	return [
+		singleOffset * (x - (pixelsInX / 2)),
+		singleOffset * (y - (pixelsInY / 2)),
+		1
+	];
+}
+
+function projectOct(x, pixelsInX, y, pixelsInY) {
+	var halfPixX = pixelsInX / 2;
+	var halfPixY = pixelsInY / 2;
+	x = (x - halfPixX) / halfPixX;
+	y = (y - halfPixY) / halfPixY;
+	var n = [
+		x,
+		y,
+		1 - Math.abs(x) - Math.abs(y)
+	];
+	var t = Math.min(n[2], 0);
+	n[0] += (n[0] > 0 ? -t : t);
+	n[1] += (n[1] > 0 ? -t : t);
+	return n;
+}
+
+function syncObject_send(world, object) {
+	var reselect = world.objects.indexOf(editor_selected);
+	
+	//serialize object, then send it to all workers
+	var objStr = object.serialize();
+	var ind = world.objects.indexOf(object);
+	
+	syncObject_recieve(world.name, ind, objStr);
+	worker_pool.forEach(w => {
+		w.postMessage(["syncObject", world.name, ind, objStr]);
+	});
+	
+	if (reselect > -1) {
+		editor_select(world.objects[reselect]);
+	}
+}
+
+function syncObject_recieve(worldName, index, objStr) {
+	var world = worlds[worldName];
+	var oldObj = world.objects[index];
+	var newObj = deserialize(objStr);
+	
+	//replace the old object with the new object
+	world.objects[index] = newObj;
+	//update the part of the grid/tree containing the old object and new object
+	//naive approach: just replace entire grid/tree
+	world.grid.generate();
+	world.tree.generate();
+}
+
+function synchronizeWorld(worldName) {
+	//serialize the world
+	//send to all threads
+	console.error(`unimplemented`);
+	
 }
 
 function modulate(x, num) {
@@ -357,19 +489,44 @@ function test_gridMany() {
 	console.log(`in total: ${passed} / ${total} passed`);
 }
 
-function updateFOV(newFOV, isPanini) {
-	camera_projFunc = (isPanini ? projectPanini : projectPerspective);
-	if (isPanini) {
-		//panini FOVs are different. Because it's stereographic projection, basically, degrees are doubled. 
-		//90 paniniº are worth 180 traditionalº. 
-		//For parity with traditional projection, "newFOV" will correspond to the regular degrees.
-		//But it's more useful to store the paniniº.
-		camera_FOV = newFOV;
-		var vertFOV = Math.min((newFOV / 2), 90);
-		camera_halfTan = Math.tan((camera_FOV / 4) * degToRad);
-		camera_halfTanVert = Math.tan((vertFOV / 2) * degToRad);
-	} else {
-		camera_FOV = newFOV;
-		camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
+function updateFOV(newFOV) {
+	updateFOV_work([newFOV]);
+	worker_pool.forEach(w => {
+		w.postMessage(["updateFOV", newFOV, render_goalN]);
+	});
+}
+
+function updateFOV_work(data) {
+	var [newFOV, newRenderN] = data;
+	if (newRenderN) {
+		render_n = newRenderN;
 	}
+	camera_FOV = newFOV;
+	//first figure out best function given the FOV
+	switch (true) {
+		case (newFOV <= 120):
+			camera_projFunc = projectPerspective;
+			camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
+			break;
+		case (newFOV <= 180):
+			camera_projFunc = projectPanini;
+			//handle panini FOV:
+			//panini FOVs are different. Because it's stereographic projection, basically, degrees are doubled. 
+			//90 paniniº are worth 180 traditionalº. 
+			//For parity with traditional projection, "newFOV" will correspond to the regular degrees.
+			//But it's more useful to store the paniniº.
+			var vertFOV = Math.min((newFOV / 2), 90);
+			camera_halfTan = Math.tan((camera_FOV / 4) * degToRad);
+			//in this case, vertical FOV will be less than horizontal FOV
+			camera_halfTanVert = Math.tan((vertFOV / 2) * degToRad);
+			break;
+		case (newFOV == 360):
+			camera_projFunc = projectOct;
+			//not much to do here. the octahedron mapping takes care of pretty much everything
+			break;
+		default:
+			console.error(`something went wrong with FOV=${newFOV} ):`);
+			break;
+	}
+	
 }
