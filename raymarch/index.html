@@ -79,7 +79,7 @@
 		<script src="editor.js"></script>
 		<script src="objects-engine.js"></script>
 		<script src="materials.js"></script>
-		<script src="objects-world.js"></script>
+		<script src="objects.js"></script>
 		<script src="worlds.js"></script>
 		<script src="main.js"></script>
 	</head>
@@ -111,38 +111,41 @@
 				<div>
 					avg frame time: <span id="debugMSPF">[!]</span> ms
 				</div>
+				<br>
+				<div id="group_settings">
+					<div class="separator">SETTINGS</div>
+				</div>
+				<br>
 				
 				<div class="separator">OBJECT</div>
+				<select id="objectDropdown"></select>
+
+				<div id="group_pos">
+					<div>Pos controls</div>
+				</div>
+				<br>
 				
-				<div>Pos controls</div>
-				<div class="sliderGroup" id="xSlider">
-					<span class="value">[!]</span>
-					<input class="slider" type="range" list="markers"/>
-				</div><br>
-				<div class="sliderGroup" id="ySlider">
-					<span class="value">[!]</span>
-					<input class="slider" type="range" list="markers"/>
-				</div><br>
-				<div class="sliderGroup" id="zSlider">
-					<span class="value">[!]</span>
-					<input class="slider" type="range" list="markers"/>
-				</div><br>
+				<div id="group_radius">
+					<div>Radius controls</div>
+				</div>
+				<br>
+				
+				<div id="group_special">
+					<div>Other controls</div>
+				</div>
 				
 				<div class="separator">MATERIAL</div>
+				<select id="materialDropdown"></select>
+
+				<input type="text" id="worldSelector"></input>
 				
-				<div>Color controls</div>
-				<div class="sliderGroup" id="xSlider">
-					<span class="value">[!]</span>
-					<input class="slider" type="range" list="markers"/>
-				</div><br>
-				<div class="sliderGroup" id="ySlider">
-					<span class="value">[!]</span>
-					<input class="slider" type="range" list="markers"/>
-				</div><br>
-				<div class="sliderGroup" id="zSlider">
-					<span class="value">[!]</span>
-					<input class="slider" type="range" list="markers"/>
-				</div><br>
+				<div id="group_color">
+					<div>Color controls</div>
+				</div>
+				
+				<div id="group_matSpecial">
+					<div>Other controls</div>
+				</div>
 			</div>
 		</div>
 	</body>
