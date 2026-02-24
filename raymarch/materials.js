@@ -1,6 +1,6 @@
 class Material {
 	constructor(color, bounciness) {
-		this.color = color ?? Color(255, 0, 255);
+		this.color = color ?? Color4(255, 0, 255, 255);
 		this.bounciness = bounciness ?? 0;
 	}
 	
@@ -15,65 +15,86 @@ class Material {
 	applyHitEffect(ray) {
 		console.error(`Hit effect not initialized for material ${this.constructor.name}!`);
 	}
+	
+	serialize() {
+		console.error(`serialization not implemented for material ${this.constructor.name}!`);
+		return `___`;
+	}
 }
 
 class M_Color extends Material {
 	constructor(r, g, b) {
-		super(Color(r, g, b), 0.3);
+		super(Color4(r, g, b, 255), 0.3);
 	}
 	
 	applyNearEffect(ray) {}
 	
 	applyHitEffect(ray) {
-		ray.color[0] = this.color[0];
-		ray.color[1] = this.color[1];
-		ray.color[2] = this.color[2];
-	}
-}
-
-class M_Rubber extends Material {
-	constructor() {
-		super(Color(47, 48, 66), 1);
-		this.lumi = 4;
+		applyColor(this.color, ray.color);
+		ray.localDist = ray_minDist * 2;
 	}
 	
-	applyNearEffect(ray) {}
-	
-	applyHitEffect(ray) {
-		var localVal = ((ray.pos[0] + ray.pos[2]) % 10) - 5;
-		ray.color[0] = this.color[0] + this.lumi * localVal;
-		ray.color[1] = this.color[1] + this.lumi * localVal;
-		ray.color[2] = this.color[2] + this.lumi * localVal * 1.2;
+	serialize() {
+		return `color:${this.color[0]}~${this.color[1]}~${this.color[2]}`;
 	}
 }
 
 class M_Ghost extends Material {
-	constructor(color, opacity) {
-		super(color, 0.1);
-		this.opacity = opacity;
+	constructor(r, g, b, opacity) {
+		super(Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {
 		if (ray.color != undefined && !ray.hit) {
-			ray.color[0] = linterp(ray.color[0], this.color[0], this.opacity);
-			ray.color[1] = linterp(ray.color[1], this.color[1], this.opacity);
-			ray.color[2] = linterp(ray.color[2], this.color[2], this.opacity);
+			applyColor(this.color, ray.color);
 		}
 	}
 	
 	applyHitEffect(ray) {}
+	
+	serialize() {
+		return `ghost:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
+	}
+}
+
+class M_Glass extends Material {
+	constructor(r, g, b, opacity) {
+		super(Color4(r, g, b, opacity), 0.1);
+	}
+	
+	applyNearEffect(ray) {}
+	
+	applyHitEffect(ray) {
+		if (Math.abs(ray.localDist) < ray_minDist * 2) {
+			applyColor(this.color, ray.color);
+			ray.localDist = ray_minDist * 2;
+		} else {
+			ray.localDist = -ray.localDist;
+		}
+		ray.hit -= 1;
+	}
+	
+	serialize() {
+		return `glass:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
+	}
 }
 
 class M_Portal extends Material {
-	constructor(newWorldSTRING, posOffset) {
-		super(Color(255, 255, 255), 0);
+	constructor(newWorldName, posOffset) {
+		super(Color4(255, 255, 255, 255), 0);
+		this.str = newWorldName;
 		this.offset = posOffset;
+		this.newWorld;
+		
+		
 		var self = this;
 		setTimeout(() => {
-			if (worlds[newWorldSTRING]) {
-				self.newWorld = worlds[newWorldSTRING];
-			}
+			self.sync();
 		}, 5);
+	}
+	
+	sync() {
+		this.newWorld = worlds[this.str];
 	}
 	
 	applyNearEffect(ray) {
@@ -83,11 +104,7 @@ class M_Portal extends Material {
 			ray.pos[0] += this.offset[0];
 			ray.pos[1] += this.offset[1];
 			ray.pos[2] += this.offset[2];
-			ray.hit = false;
-		}
-		//if it's an unhit ray, make it the color of the new world background
-		if (ray.color != undefined && !ray.hit) {
-			ray.color = ray.world.getBgColor();
+			ray.hit -= 1;
 		}
 	}
 	
@@ -98,16 +115,56 @@ class M_Portal extends Material {
 			ray.pos[0] += this.offset[0];
 			ray.pos[1] += this.offset[1];
 			ray.pos[2] += this.offset[2];
-			ray.hit = false;
+			ray.hit -= 1;
 		}
-		//if it's an unhit ray, make it the color of the new world background
-		if (ray.color != undefined && !ray.hit) {
-			ray.color = ray.world.getBgColor();
+		ray.localDist = ray_minDist * 2;
+	}
+	
+	tick() {
+		if (this.newWorld && this.newWorld != loading_world) {
+			this.newWorld.tick();
 		}
+	}
+	
+	serialize() {
+		return `portal:${this.str}~[${this.offset}]`;
 	}
 }
 
+class M_Rubber extends Material {
+	constructor() {
+		super(Color4(47, 48, 66, 255), 1);
+		this.lumi = 4;
+	}
+	
+	applyNearEffect(ray) {}
+	
+	applyHitEffect(ray) {
+		var localVal = ((ray.pos[0] + ray.pos[2]) % 10) - 5;
+		var paint = Color4(
+			this.color[0] + this.lumi * localVal,
+			this.color[1] + this.lumi * localVal,
+			this.color[2] + this.lumi * localVal * 1.2,
+			255
+		);
+		applyColor(paint, ray.color);
+		ray.localDist = ray_minDist * 2;
+	}
+	
+	serialize() {
+		return `rubber`;
+	}
+}
+
+var materialCloud = new M_Ghost(255, 255, 255, 26);
 
 
 
-var materialCloud = new M_Ghost(Color(255, 255, 255), 0.1);
+var map_strMat = {
+	"color": M_Color,
+	"ghost": M_Ghost,
+	"glass": M_Glass,
+	"portal": M_Portal,
+	"rubber": M_Rubber,
+};
+var map_matStr = Object.fromEntries(Object.entries(map_strMat).map(a => [a[1].name, a[0]]));
