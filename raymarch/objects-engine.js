@@ -198,56 +198,74 @@ class Ray {
 	constructor(world, pos, dPos) {
 		this.world = world;
 		this.pos = new Float32Array(pos);
-		this.color = world.getBgColor();
+		this.color = Color4(255, 0, 255, 0);
 		this.dPos = dPos;
 		this.hit = 0;
 		this.iters = 0;
-		this.dist = 0;
+		this.totalDist = 0;
 		this.hitDist = 0;
+		this.localDist = 0;
+	}
+	
+	reset(world, pos, dPos) {
+		this.world = world;
+		this.pos = new Float32Array(pos);
+		this.color = Color4(255, 0, 255, 0);
+		this.dPos = dPos;
+		this.hit = 0;
+		this.iters = 0;
+		this.totalDist = 0;
+		this.hitDist = 0;
+		this.localDist = 0;
 	}
 
 	iterate() {
 		while (this.iters < ray_maxIters) {
-			if (this.dist > ray_maxDist) {
+			if (this.totalDist > ray_maxDist) {
 				this.world.postEffects(this);
 				return this.color;
 			}
 	
 			//get distance
-			var [dist, distObj] = this.world.tree.estimate(this);
+			const [dist, distObj] = this.world.tree.estimate(this);
+			const safeDist = dist * ray_safetyMult;
+			this.localDist = safeDist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
 			// distObj = this.world.objects[distObj];
-			dist *= ray_safetyMult;
 	
 			//if distance is out of dist bounds
-			if (dist < ray_minDist) {
-				if (this.hit) {
+			
+			if (safeDist < ray_minDist) {
+				//if it's hit:
+				this.hit += 1;
+				distObj.material.applyHitEffect(this);
+				
+				//a ray will go through normal (hit=0) -> shadow (hit=1) -> done (hit=2) span.
+				
+				if (this.hit == 2) {
 					//draw self as a shadow
 					this.shadow();
 					this.world.postEffects(this);
 					return this.color;
 				}
 				
-				//color self according to hit object, and change direction
-				this.hit = true;
-				distObj.material.applyHitEffect(this);
-				dist = ray_minDist * 2;
+				
 				//can be false if it's a portal
-				if (this.hit) {
-					this.hitDist = this.dist;
+				if (this.hit == 1) {
+					this.hitDist = this.totalDist;
 					this.dPos[0] = this.world.sunVector[0];
 					this.dPos[1] = this.world.sunVector[1];
 					this.dPos[2] = this.world.sunVector[2];
 				}
-			} else if (dist < ray_nearDist) {
+			} else if (safeDist < ray_nearDist) {
 				distObj.material.applyNearEffect(this);
 			}
 
 			//move distance
-			this.pos[0] += this.dPos[0] * dist;
-			this.pos[1] += this.dPos[1] * dist;
-			this.pos[2] += this.dPos[2] * dist;
-			this.dist += dist;
+			this.pos[0] += this.dPos[0] * this.localDist;
+			this.pos[1] += this.dPos[1] * this.localDist;
+			this.pos[2] += this.dPos[2] * this.localDist;
+			this.totalDist += this.localDist;
 			this.world.preEffects(this);
 			this.iters += 1;
 		}
@@ -376,19 +394,23 @@ class ObjectGrid {
 		var max = [-1e101, -1e101, -1e101];
 		this.objects.forEach(o => {
 			var bounds = o.bounds();
-			if (Number.isNaN(bounds[0][a])) {
-				console.log(bounds);
-			}
 			for (var a=0; a<=2; a++) {
 				min[a] = Math.min(min[a], bounds[0][a]);
 				max[a] = Math.max(max[a], bounds[1][a]);
 			}
+			if (Number.isNaN(bounds[0][a])) {
+				console.log(bounds);
+			}
 		});
 		this.minPos = min;
 		this.maxPos = max;
-		this.xd = (max[0] - min[0]) / this.l,
-		this.yd = (max[1] - min[1]) / this.l,
-		this.zd = (max[2] - min[2]) / this.l,
+		this.xd = (max[0] - min[0]) / this.l;
+		this.yd = (max[1] - min[1]) / this.l;
+		this.zd = (max[2] - min[2]) / this.l;
+		
+		if (Number.isNaN(this.xd)) {
+			throw new Error("something has gone horribly wrong with block bounds.");
+		}
 		
 		// console.log(min, max, this.l);
 		
@@ -477,6 +499,7 @@ class BrickGridTor {
 	constructor(world, l, d) {
 		this.l = l;
 		this.l2 = l*l;
+		this.lHalf = (l - 1) / 2;
 		this.pos;
 		this.minPos;
 		this.d = d;
@@ -535,7 +558,6 @@ class BrickGridTor {
 		if (!(xBlocks || yBlocks || zBlocks)) {
 			return;
 		}
-		
 		// console.log(`grid with d=${this.d} shifting by ${xBlocks} ${yBlocks} ${zBlocks}`);
 
 		//only shift a little
@@ -591,10 +613,11 @@ class BrickGridTor {
 	}
 	
 	calcRelCoords(pos) {
+		const d = this.d;
 		return [
-			(pos[0] - this.pos[0]) / this.d,
-			(pos[1] - this.pos[1]) / this.d,
-			(pos[2] - this.pos[2]) / this.d,
+			(pos[0] - this.pos[0]) / d,
+			(pos[1] - this.pos[1]) / d,
+			(pos[2] - this.pos[2]) / d,
 		];
 	}
 	
@@ -606,27 +629,29 @@ class BrickGridTor {
 		];
 	}
 	
-	getMaterial(q) {
+	getSurface(q) {
+		const l = this.l;
 		return this.world.objects[
-			this.estimInds[	modulateSoft((q[0] + this.indOffset[0]), this.l)*this.l2 + 
-							modulateSoft((q[1] + this.indOffset[1]), this.l)*this.l + 
-							modulateSoft((q[2] + this.indOffset[2]), this.l)]
+			this.estimInds[	modulateSoft((q[0] + this.indOffset[0]), l)*l*l + 
+							modulateSoft((q[1] + this.indOffset[1]), l)*l + 
+							modulateSoft((q[2] + this.indOffset[2]), l)]
+		];
+	}
+	
+	//somehow faster than in-place modifying the q array (at least on firefox)
+	fixQ(q) {
+		const lHalf = this.lHalf;
+		return [
+			Math.round(lHalf + clamp(q[0], -lHalf, lHalf)),
+			Math.round(lHalf + clamp(q[1], -lHalf, lHalf)),
+			Math.round(lHalf + clamp(q[2], -lHalf, lHalf))
 		];
 	}
 	
 	estimate(obj) {
-		var q = this.calcRelCoords(obj.pos);
-		var halfsies = (this.l - 1) / 2;
-		// console.log(q);
-		q[0] = Math.round(halfsies + clamp(q[0], -halfsies, halfsies));
-		q[1] = Math.round(halfsies + clamp(q[1], -halfsies, halfsies));
-		q[2] = Math.round(halfsies + clamp(q[2], -halfsies, halfsies));
-		
-		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
-		var material = this.getMaterial(q);
-		// console.log(this, material, q);
-		var g = material.distanceToObj(obj);
-		return [g, material];
+		const surface = this.getSurface(this.fixQ(this.calcRelCoords(obj.pos)));
+		const g = surface.distanceToPos(obj.pos);
+		return [g, surface];
 	}
 }
 
@@ -790,22 +815,23 @@ class BrickGridTor {
 		q[2] = Math.round(halfsies + clamp(q[2], -halfsies, halfsies));
 		
 		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
-		var material = this.getMaterial(q);
+		const material = this.getMaterial(q);
 		// console.log(this, material, q);
-		var g = material.distanceToObj(obj);
+		const g = material.distanceToPos(obj.pos);
 		return [g, material];
 	}
 }
 
 //a series of exponentially larger BrickGrids that cover the world
 class BrickMap {
-	constructor(world, maxRange) {
+	constructor(world, maxRange, maxSets) {
 		this.world = world;
 		this.numSetsIdeal = Math.ceil(Math.log2(maxRange / tree_minD));
 		this.trueMinD = undefined;
 		//number of points in each grid axis
 		this.l = tree_l;
 		this.sets = [];
+		this.maxSetNum = maxSets;
 	}
 	
 	estimate(obj) {
@@ -832,10 +858,10 @@ class BrickMap {
 		return this.sets[level].estimate(obj);
 	}
 	
-	generate(n) {
+	generate() {
 		//create all BrickGrids
 		this.sets = [];
-		var max = Math.min(this.numSetsIdeal, n);
+		var max = Math.min(this.numSetsIdeal, this.maxSetNum);
 		for (var a=0; a<max; a++) {
 			this.sets[a] = new BrickGridTor(this.world, this.l, tree_minD * (2 ** a));
 			this.sets[a].generate();
