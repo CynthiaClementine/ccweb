@@ -8,10 +8,20 @@ function world_loopRay(ray) {
 	ray.pos[2] = modulate(ray.pos[2], ray.world.width);
 }
 
-function world_add(ray, r, g, b) {
+function world_brighten(ray, r, g, b) {
 	ray.color[0] += r;
 	ray.color[1] += g;
 	ray.color[2] += b;
+}
+
+function world_spherize(ray, sphereR) {
+	ray.dPos[1] += (ray.localDist / sphereR);
+	ray.dPos = normalize(ray.dPos);
+}
+
+//applies a background color.
+function bg(ray, color) {
+	applyColor(color, ray.color);
 }
 
 function bg_fadeBlack(ray) {
@@ -52,17 +62,15 @@ class World {
 	/**
 	 * Creates a World object
 	 * @param {String} name 
-	 * @param {Function} getBgColor 
 	 * @param {Function} preEffects effects applied at every stage of a ray's march
 	 * @param {Function} effects effects applied after a ray finishes its march
 	 * @param {Number[]} sunVector 
 	 * @param {Number[]} spawn 
 	 * @param {Scene3dObject[]} objects 
 	 */
-	constructor(name, getBgColor, preEffects, effects, sunVector, spawn, objects) {
+	constructor(name, preEffects, effects, sunVector, spawn, objects) {
 		console.log(`started ${name}..`);
 		this.name = name;
-		this.getBgColor = getBgColor;
 		
 		this.preEffects = preEffects;
 		this.postEffects = effects;
@@ -80,9 +88,9 @@ class World {
 		//generate BrickMap
 		worlds[this.name] = this;
 		this.grid = new ObjectGrid(this, world_objectChunks);
-		this.tree = new BrickMap(this, tree_maxD);
+		this.tree = new BrickMap(this, tree_maxD, tree_sets);
 		this.grid.generate();
-		this.tree.generate(tree_sets);
+		this.tree.generate();
 		console.log(`finished ${this.name}!`);
 	}
 	
@@ -117,23 +125,25 @@ class World {
 		}
 		return [dist, distInd];
 	}
+	
+	tick() {
+		this.tree.update();
+	}
 }
 
 class World_Looping {
 	/**
 	 * A World object that has built in looping effects, for pseudo-infinite space.
 	 * @param {String} name 
-	 * @param {Function} getBgColor 
 	 * @param {Function} preEffects 
 	 * @param {Number[]} sunVector 
 	 * @param {Number[]} spawn 
 	 * @param {Scene3dObject[]} objects 
 	 * @param {Number} size 
 	 */
-	constructor(name, getBgColor, preEffects, effects, sunVector, spawn, objects, size) {
+	constructor(name, preEffects, effects, sunVector, spawn, objects, size) {
 		this.name = name;
 		this.width = size;
-		this.getBgColor = getBgColor;
 		
 		this.preEffects = preEffects;
 		this.postEffects = effects;
@@ -218,53 +228,70 @@ function createWorlds() {
 	console.log(`creating worlds!`);
 	
 	new World("start",
-		() => {return Color(40, 30 + 20 * Math.cos(world_time / 80), 50)},
 		noop,
 		(ray) => {
+			bg(ray, Color4(40, 30 + 20 * Math.cos(world_time / 80), 50, 0));
 			bg_sun(ray, Color(255, 255, 240), 0.002);
 		},
 		polToCart(0, 0.7, 1),
 		[0, 600, 0],
 		[
-			new Cube(Pos(0, 500, 0), 70, new M_Color(255, 64, 64)),
-			new Box(Pos(0, -50, 0), 1000, 100, 1000, new M_Color(64, 255, 150)),
-			new BoxFrame(Pos(100, 100, 100), 50, 50, 50, 10, new M_Ghost(Color(255, 128, 255), 0.1)),
-			new Cylinder(Pos(-500, 300, 0), 100, 200, new M_Color(128, 128, 255)),
-			new Gyroid(Pos(100, 100, -300), 50, 50, 50, globalA, globalB, 10, new M_Color(50, 240, 10)),
+			new Cube(Pos(0, 500, 0), new M_Color(255, 64, 64), 70),
+			new PrismRhombus(Pos(0, 300, -100), new M_Color(255, 64, 64), 5, 30, 40, 0b000, 10),
+			new Box(Pos(0, -50, 0), new M_Color(64, 255, 150), 1000, 100, 1000),
+			new BoxFrame(Pos(100, 100, 100), new M_Glass(255, 128, 255, 10), 50, 50, 50, 10),
+			new Cylinder(Pos(-500, 300, 0), new M_Color(128, 128, 255), 100, 200),
+			new Ellipsoid(Pos(-300, 100, 200), new M_Color(128, 128, 255), 100, 80, 60),
+			new Gyroid(Pos(100, 100, -300), new M_Color(255, 240, 10), 50, 50, 50, globalA, globalB, 10),
 			// new Ring(Pos(500, 400, 0, 200), 50, new M_Color(128, 255, 255)),
-			// new Portal(Pos(900, 50, -827), `darkBright`)
-			new CloudSeed(Pos(-80,516,-387), 1.5)
+			new Cylinder(Pos(900, 50, -827), new M_Portal(`darkBright`, Pos(0, 0, 0)), 15, 20),
+			// ...createCloud(),
+			new CloudSeed(Pos(-80,516,-387), 5),
+			new Box_Moving(Pos(-80,120,-387), new M_Color(40, 0, 255), 10, 10, 10),
+			// new DebugLines(Pos(-1000,-1000,-1000), Pos(1000,1000,1000))
 		]
+		/*
+		"CUBE|color:85~137~80|[0,500,0]~34",
+		"BOX|color:75~175~40|[0,-50,0]~1000~100~1000",
+		"BOX-FRAME|glass:255~128~255~10|50~50~50~10",
+		"CYLINDER|color:128~128~255|[-565,300,-995]~30~200",
+		"ELLIPSE|color:128~128~255|[-300,100,200]~100~80~60",
+		"GYROID|color:255~240~10|[200,100,0]~50~440~50~0.08~13~10",
+		"CYLINDER|portal:darkBright~[0,0,0]|[900,50,-827]~15~20",
+		"!!!UNDEFINED!!!",
+		"BOX|color:40~0~255|[-80,120,-334.31801799808585]~10~10~10",
+		 */
 	);
 	
-	loading_world = worlds["start"];
-	return;
+	
 
 	new World("darkBright",
-		() => {
-			return Color(randomBounded(10, 30),randomBounded(10, 30),randomBounded(10, 30));
+		(ray) => {
+			world_brighten(ray, 2, 1, 1);
 		},
 		(ray) => {
-			world_add(ray, 2, 1, 1);
-		},
-		(ray) => {
+			bg(ray, Color(randomBounded(10, 30), randomBounded(10, 30), randomBounded(10, 30), 0));
 			bg_fadeTo(ray, Color(randomBounded(10, 30),randomBounded(10, 30),randomBounded(10, 30)), 800);
 			bg_sun(ray, Color(255, 160, 140), 0.01);
 		},
 		polToCart(0.1, Math.PI * 0.47, 1),
 		[101, 101, 101],
 		[
-			new Box(Pos(0, -100, 0), 6000, 50, 6000, new M_Color(0, 0, 64)),
-			new Scene3dLoop(1000, 1000, 1000, 120, new Octahedron(Pos(60, 40, 60), 20, 15, 15, new M_Color(0, 0, 160))),
-			new Line(Pos(-477,550,-311), Pos(-240,670,-300), 5, new M_Color(0, 0, 160))
+			new Box(Pos(0, -100, 0), new M_Color(0, 0, 64), 6000, 50, 6000),
+			new Scene3dLoop(1000, 1000, 1000, 120, new Octahedron(Pos(60, 40, 60), new M_Color(0, 0, 160), 20, 15, 15)),
+			new Line(Pos(-477,550,-311), new M_Color(0, 0, 160), -240,670,-300, 5)
 		]
 	);
 	
+	loading_world = worlds["start"];
+	return;
+	
 	
 	new World("tinyObjs",
-		() => {return Color(120, 120, 120);},
 		noop,
-		noop,
+		(ray) => {
+			bg(ray, Color4(120, 120, 120, 0));
+		},
 		polToCart(0, 1.04, 1),
 		[-19.85, 308.75, 241.36],
 		[
@@ -299,19 +326,19 @@ function createWorlds() {
 			new Cylinder(Pos(-100, 60, 400), 50, 50, new M_Color(128, 128, 255)),
 			new Ring(Pos(500, 100, 0), 200, 50, [128, 255, 255]),
 			
-			new Line(Pos(1000,800,990), Pos(628,750,427), 3, new M_Color(246, 173, 105)),
-			new Line(Pos(628,750,427),  Pos(-123,900,234), 3, new M_Color(246, 173, 105)),
-			new Line(Pos(-123,900,234), Pos(-123,400,200), 3, new M_Color(246, 173, 105)),
-			new Line(Pos(-123,900,234), Pos(-123,400,200), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(1000,800,990), new M_Color(246, 173, 105), Pos(628,750,427), 3),
+			new Line(Pos(628,750,427),  new M_Color(246, 173, 105), Pos(-123,900,234), 3),
+			new Line(Pos(-123,900,234), new M_Color(246, 173, 105), Pos(-123,400,200), 3),
+			new Line(Pos(-123,900,234), new M_Color(246, 173, 105), Pos(-123,400,200), 3),
 			
-			new Line(Pos(628,750,427),  Pos(932,570,68), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(628,750,427),  new M_Color(246, 173, 105), Pos(932,570,68), 3),
 			
-			new Line(Pos(-122,916,219), Pos(-160,848,-36), 3, new M_Color(246, 173, 105)),
-			new Line(Pos(-160,848,-36), Pos(-274,692,-31), 3, new M_Color(246, 173, 105)),
-			new Line(Pos(-274,692,-31), Pos(-371,666,178), 3, new M_Color(246, 173, 105)),
-			new Line(Pos(-371,666,178), Pos(-152,564,378), 3, new M_Color(246, 173, 105)),
+			new Line(Pos(-122,916,219), new M_Color(246, 173, 105), Pos(-160,848,-36), 3),
+			new Line(Pos(-160,848,-36), new M_Color(246, 173, 105), Pos(-274,692,-31), 3),
+			new Line(Pos(-274,692,-31), new M_Color(246, 173, 105), Pos(-371,666,178), 3),
+			new Line(Pos(-371,666,178), new M_Color(246, 173, 105), Pos(-152,564,378), 3),
 			
-			new Portal(Pos(900, 50, -827), `cubes`)
+			new Cylinder(Pos(900, 50, -827), new M_Portal(`cubes`, Pos(0, 0, 0)), 15, 10)
 		]
 	);
 	
@@ -336,69 +363,69 @@ function createWorlds() {
 		));
 	}
 	
-	new World("cubes", 
-		function() {
-			return Color(5, 0, 10);
-		},
+	new World("cubes",
 		noop,
-		(ray) => {bg_fadeTo(ray, Color(0, 0, 0), 1500);},
+		(ray) => {
+			bg(ray, Color4(5, 0, 10, 0));
+			bg_fadeTo(ray, Color(0, 0, 0), 1500);
+		},
 		polToCart(0, Math.PI / 2, 1),
 		[197,349,-403],
 		objs
 	);
 	
 	// new World_Looping("spheresForever",
-	// 	function() {
-	// 		return Color(255, 227, 245);
-	// 	},
 	// 	//noop,// 
 	// 	world_loopRay,
 	// 	function(ray) {
+	//		bg(ray, Color4(255, 227, 245, 0));
 	// 		bg_fadeToOld(ray, Color(255, 227, 245), 1200);
 	// 	},
 	// 	polToCart(0.6, 0.4, 1),
 	// 	[60.2, 100, 60.2],
 	// 	[
-	// 		new Line(Pos(0, 10, 60), Pos(20, 10, 60), 5, 	Color(240, 180, 60)),
-	// 		new Line(Pos(120, 10, 60), Pos(100, 10, 60), 5, new M_Color(240, 180, 60)),
-	// 		new Line(Pos(60, 10, 0), Pos(60, 10, 20), 5, 	Color(240, 180, 60)),
-	// 		new Line(Pos(60, 10, 120), Pos(60, 10, 100), 5, new M_Color(240, 180, 60)),
-	// 		// new Ring(Pos(60, 40, 60), 60, 10, new M_Color(240, 180, 60)),
-	// 		// new Box(Pos(60, 10, 60), 6, 5, 60, new M_Color(180, 130, 0)),
-	// 		// new Box(Pos(60, 10, 60), 60, 5, 6, new M_Color(180, 130, 0)),
-	// 		new Sphere(Pos(40, 60, 10), 15, new M_Color(60, 40, 60)),
+	// 		new Line(Pos(0, 10, 60), new M_Color(240, 180, 60), Pos(20, 10, 60), 5),
+	// 		new Line(Pos(120, 10, 60), new M_Color(240, 180, 60), Pos(100, 10, 60), 5),
+	// 		new Line(Pos(60, 10, 0), Color(240, 180, 60), Pos(60, 10, 20), 5),
+	// 		new Line(Pos(60, 10, 120), new M_Color(240, 180, 60), Pos(60, 10, 100), 5),
+	// 		// new Ring(Pos(60, 40, 60), new M_Color(240, 180, 60), 60, 10),
+	// 		// new Box(Pos(60, 10, 60), new M_Color(180, 130, 0), 6, 5, 60),
+	// 		// new Box(Pos(60, 10, 60), new M_Color(180, 130, 0), 60, 5, 6),
+	// 		new Sphere(Pos(40, 60, 10), new M_Color(60, 40, 60), 15),
 			
-	// 		new Line(Pos(20, 10, 60), Pos(60, 10, 20), 5, new M_Color(240, 180, 60)),
-	// 		new Line(Pos(60, 10, 20), Pos(100, 10, 60), 5, new M_Color(240, 180, 60)),
-	// 		new Line(Pos(100, 10, 60), Pos(60, 10, 100), 5, new M_Color(240, 180, 60)),
+	// 		new Line(Pos(20, 10, 60), new M_Color(240, 180, 60), Pos(60, 10, 20), 5),
+	// 		new Line(Pos(60, 10, 20), new M_Color(240, 180, 60), Pos(100, 10, 60), 5),
+	// 		new Line(Pos(100, 10, 60), new M_Color(240, 180, 60), Pos(60, 10, 100), 5),
 	// 	],
 	// 	120
 	// );
 	
 	// new World_Looping("turtleHell",
-	// 	() => {return Color(255, 227, 245);},
 	// 	world_loopRay,
-	// 	(ray) => {bg_fadeToOld(ray, Color(255, 227, 245), 1200);},
+	// 	(ray) => {
+	// 	bg(ray, Color4(255, 227, 245, 0));
+	// 	bg_fadeToOld(ray, Color(255, 227, 245), 1200);
+	// },
 	// 	polToCart(0.6, 0.4, 1),
 	// 	[60.2, 100, 60.2],
-	// 	[new Ring(Pos(60, 40, 60), 60, 10, new M_Color(240, 180, 60))],
+	// 	[new Ring(Pos(60, 40, 60), new M_Color(240, 180, 60), 60, 10)],
 	// 	120
 	// );
 	
 	new World("gyroidCaves",
-		() => {return Color(40, 30, 50);},
 		(ray) => {
-			world_add(ray, 1, 1, 1);
+			world_brighten(ray, 1, 1, 1);
 		},
 		(ray) => {
+			bg(ray, Color4(40, 30, 50, 0));
 			bg_sun(ray, Color(255, 255, 240), 0.002);
 		},
 		polToCart(-0.82, 0.73, 1),
 		[17,22,-6],
 		[
-			new Gyroid(Pos(0, 0, 0), 200, 10, 200, globalA, globalB, 10, new M_Color(50,240,10)),
-			new Box(Pos(112,22,105), 30, 10, 30, new M_Rubber()),
-			new Pipe(Pos(-115,22,-59), 10, 15, new M_Portal("cubes", Pos(-70, 110, 30)))
+			new Gyroid(Pos(0, 0, 0), new M_Color(50,240,10), 200, 10, 200, globalA, globalB, 10),
+			new Box(Pos(112,22,105), new M_Rubber(), 30, 10, 30),
+			new Pipe(Pos(-115,22,-59), new M_Portal("cubes", Pos(-70, 110, 30)), 10, 15)
 		]
 	);
 	
