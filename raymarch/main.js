@@ -23,7 +23,19 @@ function setup() {
 
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
+	
+	
 	editor_initialize();
+	editor_select();
+	
+	//serializing / editor error checking
+	if (!keysMatch(map_strObj, objectEditables)) {
+		throw new Error(`Mismatch between editor objects and defined objects!`);
+	}
+	if (!keysMatch(map_strMat, materialEditables)) {
+		throw new Error(`Mismatch between editor objects and defined objects!`);
+	}
+	
 	
 	window.setTimeout(main, 10);
 }
@@ -46,12 +58,12 @@ function initiateWorkers() {
 }
 
 function typeIt() {
-	var width = window.innerWidth;
-	var height = window.innerHeight - 60;
-	var blockSize = Math.min(width / render_n, height / render_n);
+	var width = window.innerWidth - 10;
+	var height = window.innerHeight - 10;
+	var blockSize = Math.min(width, height);
 	
-	canvas.width = render_n * blockSize;
-	canvas.height = render_n * blockSize;
+	canvas.width = blockSize;
+	canvas.height = blockSize;
 	
 	// page_animation = window.setTimeout(main, 10);
 }
@@ -63,15 +75,20 @@ function main() {
 	//tick all world objects
 	loading_world = camera.world;
 	camera.tick();
+	//editor syncing
+	var ab = Math.abs;
+	var dp = camera.dPos;
+	if (debug_listening && Math.max(ab(dp[0]), ab(dp[1]), ab(dp[2])) > 0.1) {
+		editor_controls.forEach(c => {
+			try {
+				c.synchronize();
+			} catch (e) {}
+		});
+	}
 	loading_world.objects.forEach(o => {
 		o.tick();
 	});
-	if (loading_world.tick) {
-		loading_world.tick();
-	} else {
-		//hacky solution for not updating the tree in looping worlds. Fix later
-		loading_world.tree.update();
-	}
+	loading_world.tick();
 	
 	worker_pool.forEach(w => {
 		w.postMessage(["updateCamera", camera.world.name, camera.pos[0], camera.pos[1], camera.pos[2], camera.theta, camera.phi]);
@@ -107,6 +124,7 @@ function finishMain() {
 	if (render_n != render_goalN) {
 		render_n = render_goalN;
 		typeIt();
+		updateFOV(camera_FOV);
 		//ough
 		page_animation = window.setTimeout(main, 70);
 	} else {
@@ -114,7 +132,6 @@ function finishMain() {
 		// console.log(`calculating timeout for ${frameTime} - ${elapsedMS.toFixed(2)} = ${Math.max(1, frameTime - elapsedMS).toFixed(3)}`);
 		page_animation = window.setTimeout(main, Math.max(1, frameTime - elapsedMS));
 	}
-	
 }
 
 function draw() {
@@ -133,12 +150,6 @@ function draw() {
 		// workerInd = 10;
 		if (worker_num > 0) {
 			worker_pool[workerInd].postMessage(["calcLine", x, pixelsInX, pixelsInY]);
-			if (worker_ready[workerInd]) {
-			}
-			// if (x % 2 == 1) {
-			// } else {
-			// 	render_linesDrawn += 1;
-			// }
 		} else {
 			//compute in the main thread
 			drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
@@ -148,7 +159,6 @@ function draw() {
 }
 
 function drawUI() {
-	return;
 	var cw = canvas.width;
 	var ch = canvas.height;
 	var center = [canvas.width / 2, canvas.height / 2];
@@ -221,16 +231,11 @@ function handleWorkerMsg(e) {
 
 function handleKeyPress(a) {
 	if (debug_listening) {
-		//synchronize sliders
-		editor_xSlider.synchronize();
-		editor_ySlider.synchronize();
-		editor_zSlider.synchronize();
 		/*
 		all debug effects are activated by pressing ] and then another key.
 		DEBUG EFFECTS:
 			C - copy current pos to clipboard
-			O - give information about the crosshair's object
-		
+			O - select crosshair's object
 		*/
 		
 		switch (a.code) {
@@ -243,7 +248,7 @@ function handleKeyPress(a) {
 				if (ray.object) {
 					console.log(`selecting`, ray.object);
 				}
-				editor_selectObj(ray.object);
+				editor_select(ray.object);
 				break;
 		}
 	}
