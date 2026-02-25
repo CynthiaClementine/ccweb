@@ -43,7 +43,15 @@ function giveBounds(pos, rx, ry, rz) {
 function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 	var r = new Ray(camera.world, camera.pos, [0, 1, 0]);
 	//array of integers, measuring RGB/RGB/RGB/RGB
-	var colors = new Uint8Array(pixelHeight * 3);
+	const targetSize = pixelHeight * 3;
+	var colors;
+	if (lineBuffer_num > -1 && lineBuffers[lineBuffer_num].length == targetSize) {
+		colors = lineBuffers[lineBuffer_num--];
+	} else {
+		colors = new Uint8Array(targetSize);
+	}
+	
+	
 	for (var y=0; y<pixelHeight; y++) {
 		var [xMult, yMult, zMult] = camera_projFunc(x, pixelWidth, y, pixelHeight);
 		//create a ray and iterate until complete
@@ -84,13 +92,14 @@ function createCloud() {
 function createDefaultObject(constructorString, objRef) {
 	console.log(constructorString, objRef);
 	var type = map_strObj[constructorString];
+	objRef = objRef ?? {};
 	
 	//steal properties from old object
 	var material = objRef.material ?? new M_Color(255, 0, 255);
-	var pos = objRef.pos;
+	pos = objRef.pos;
 	if (!pos) {
 		var offset = polToCart(camera.theta, camera.phi, 100);
-		pos = Pos(camera.x + offset[0], camera.y + offset[1], camera.z + offset[2]);
+		pos = Pos(camera.pos[0] + offset[0], camera.pos[1] + offset[1], camera.pos[2] + offset[2]);
 	}
 	var arg1 = objRef.r ?? objRef.rx ?? 10;
 	var arg2 = objRef.h ?? objRef.ry ?? 10;
@@ -125,6 +134,7 @@ function createDefaultMaterial(constructorString, color) {
 		case M_Color:
 		case M_Ghost:
 		case M_Glass:
+		case M_Mirror:
 		case M_Rubber:
 			return new type(...color);
 	}
@@ -169,27 +179,24 @@ function deserialize(str) {
 
 function deserializeMat(str) {
 	var [name, params] = str.split(`:`);
-	params = params.split(`~`);
+	if (params) {
+		params = params.split(`~`);
+	} else {
+		params = [];
+	}
 	var obj;
+	var type = map_strMat[name];
 	
 	switch (name) {
-		case `color`:
-			obj = new M_Color(...params.map(a => +a));
-			break;
-		case `ghost`:
-			obj = new M_Ghost(...params.map(a => +a));
-			break;
-		case `glass`:
-			obj = new M_Glass(...params.map(a => +a));
-			break;
 		case `portal`:
 			obj = new M_Portal(params[0], Color4(...JSON.parse(params[1])));
 			break;
 		default:
-			console.error(`cannot parse material "${str}"!`)
-		case `rubber`:
-			obj = new M_Rubber();
-			break;
+			try {
+				obj = new type(...params.map(a => +a));
+			} catch (e) {
+				console.error(`cannot parse material "${str}"!`, e);
+			}
 	}
 	return obj;
 }
@@ -305,6 +312,9 @@ function syncObject_send(world, object) {
 	//serialize object, then send it to all workers
 	var objStr = object.serialize();
 	var ind = world.objects.indexOf(object);
+	if (ind == -1) {
+		ind = world.objects.length;
+	}
 	
 	syncObject_recieve(world.name, ind, objStr);
 	worker_pool.forEach(w => {
@@ -316,17 +326,35 @@ function syncObject_send(world, object) {
 	}
 }
 
+function syncObject_remove(world, object) {
+	var ind = world.objects.indexOf(object);
+	
+	syncObject_recieve(world.name, ind);
+	worker_pool.forEach(w => {
+		w.postMessage(["syncObject", world.name, ind]);
+	});
+}
+
 function syncObject_recieve(worldName, index, objStr) {
 	var world = worlds[worldName];
-	var oldObj = world.objects[index];
-	var newObj = deserialize(objStr);
 	
-	//replace the old object with the new object
-	world.objects[index] = newObj;
+	if (!objStr) {
+		world.objects.splice(index, 1);
+	} else {
+		//replace the old object with the new object
+		var oldObj = world.objects[index];
+		var newObj = deserialize(objStr);
+		world.objects[index] = newObj;
+	}
+	
 	//update the part of the grid/tree containing the old object and new object
 	//naive approach: just replace entire grid/tree
-	world.grid.generate();
-	world.tree.generate();
+	if (world.grid) {
+		world.grid.generate();
+	}
+	if (world.tree) {
+		world.tree.generate();
+	}
 }
 
 function synchronizeWorld(worldName) {
@@ -447,6 +475,12 @@ function prand(min, max) {
 	t = t ^ t >>> 15;
 	t = Math.imul(t, 0x735a2d97);
 	return min + (((t = t ^ t >>> 15) >>> 0) / 4294967296) * (max - min);
+}
+
+function threadExec(code) {
+	worker_pool.forEach(w => {
+		w.postMessage([`test`, code]);
+	});
 }
 
 function test_gridVsTree(x, y, z) {

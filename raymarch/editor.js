@@ -7,7 +7,7 @@ function createHTMLSliderAt(parentName, sliderName) {
 	dummy.innerHTML = `
 	<div class="sliderGroup" id="${sliderName}">
 		<span class="value">[!]</span>
-		<input class="slider" type="range" list="markers"/>
+		<input class="slider" type="range"/>
 	</div><br id="${sliderName}_br">`;
 	// console.log(dummy, dummy.children);
 	parent.appendChild(dummy.children[0]);
@@ -49,7 +49,7 @@ class Slider {
 	}
 	
 	value() {
-		return +this.sliderElem.value + (this.rel ? this.offset : 0);
+		return clamp(+this.sliderElem.value + (this.rel ? this.offset : 0), ...this.varRange);
 	}
 
 	init() {
@@ -64,7 +64,7 @@ class Slider {
 	
 	synchronize() {
 		try {
-			this.offset = Math.round(eval(this.var) / this.step) * this.step;
+			this.offset = clamp(Math.round(eval(this.var) / this.step) * this.step, ...this.varRange);
 			if (!this.rel) {
 				this.sliderElem.value = this.offset;
 			}
@@ -89,7 +89,7 @@ class Slider {
 		this.offset = this.value();
 		try {
 			console.log(`setting ${this.var} = ${clamp(this.offset, this.varRange[0], this.varRange[1])};`);
-			eval(`${this.var} = ${clamp(this.offset, this.varRange[0], this.varRange[1])};`);
+			eval(`${this.var} = ${clamp(this.offset, ...this.varRange)};`);
 			if (this.var.includes(`editor_selected`) && editor_selected != camera) {
 				syncObject_send(loading_world, editor_selected);
 			}
@@ -206,7 +206,7 @@ var slider_px, slider_py, slider_pz;
 
 var textbox_world;
 
-var dropdown_obj, dropdown_mat;
+var dropdown_obj, dropdown_mat, dropdown_axes;
 
 var editor_controls = [];
 
@@ -246,11 +246,12 @@ function editor_initialize() {
 	slider_rx = new Slider(`group_radius.rxSlider`, `editor_selected.rx`, `rx: `, -100,100, 1, 0,1E4);
 	slider_ry = new Slider(`group_radius.rySlider`, `editor_selected.ry`, `ry: `, -100,100, 1, 0,1E4);
 	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, 0,1E4);
-	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, -20,20, 1, 0,1E4);
+	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, 0,20, 1, 0,1E4);
 	
 	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0,1, 0.01);
 	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,20, 0.1);
 	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -5,5, 0.1, -9999,9999);
+	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, )
 	
 	//material sliders
 	slider_r = new Slider(`group_color.rSlider`, `editor_selected.material.color[0]`, `r: `, 0,255, 1);
@@ -258,9 +259,9 @@ function editor_initialize() {
 	slider_b = new Slider(`group_color.bSlider`, `editor_selected.material.color[2]`, `b: `, 0,255, 1);
 	slider_a = new Slider(`group_color.aSlider`, `editor_selected.material.color[3]`, `a: `, 0,255, 1);
 	
-	slider_px = new Slider(`group_matSpecial.pxSlider`, `editor_selected.material.pos[0]`, `offX: `, -100,100, 1, -9999,9999);
-	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.pos[1]`, `offY: `, -100,100, 1, -9999,9999);
-	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.pos[2]`, `offZ: `, -100,100, 1, -9999,9999);
+	slider_px = new Slider(`group_matSpecial.pxSlider`, `editor_selected.material.offset[0]`, `offX: `, -100,100, 1, -9999,9999);
+	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -9999,9999);
+	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -9999,9999);
 	
 	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
 		if (val) {
@@ -275,6 +276,18 @@ function editor_initialize() {
 		var type = editor_selected.constructor.name;
 		return map_objStr[type];
 	}, Object.keys(map_strObj));
+	
+	dropdown_axes = new Dropdown(`axisDropdown`, (val) => {
+		var e = editor_selected;
+		if (val) {
+			e.swapXZ = +val[0];
+			e.swapYZ = +val[1];
+			e.swapXY = +val[2];
+			syncObject_send(loading_world, editor_selected);
+		}
+		
+		return `${e.swapXZ}${e.swapYZ}${e.swapXY}`;
+	}, [`000`, `001`, `010`, `011`, `100`, `101`, `110`, `111`]);
 	
 	dropdown_mat = new Dropdown(`materialDropdown`, (val) => {
 		if (val) {
@@ -299,11 +312,11 @@ function editor_initialize() {
 		slider_fov, slider_res,
 		slider_x, slider_y, slider_z,
 		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR,
-		slider_gyrA, slider_gyrB, slider_h,
+		slider_gyrA, slider_gyrB, slider_h, slider_skew,
 		slider_r, slider_g, slider_b, slider_a,
 		slider_px, slider_py, slider_pz,
 
-		dropdown_obj, dropdown_mat,
+		dropdown_obj, dropdown_mat, dropdown_axes,
 		textbox_world
 	];
 	
@@ -314,7 +327,7 @@ function editor_initialize() {
 	var rxyz = [slider_rx, slider_ry, slider_rz];
 	objectEditables = {
 		"CAMERA": [],
-		"BOX": [slider_rr],
+		"BOX": [...rxyz],
 		"BOX-FRAME": [...rxyz],
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
@@ -323,7 +336,8 @@ function editor_initialize() {
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
 		"OCTAHEDRON": [...rxyz],
-		"PIPE": [...rxyz, slider_rr],
+		"PIPE": [slider_rr, slider_h],
+		"PRISM-RHOMBUS": [...rxyz, slider_skew, dropdown_axes],
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
 	};
@@ -333,8 +347,20 @@ function editor_initialize() {
 		"color": [...rgb],
 		"ghost": [...rgb, slider_a],
 		"glass": [],
+		"mirror": [...rgb, slider_a],
 		"portal": [textbox_world, slider_px, slider_py, slider_pz],
 		"rubber": [],
+	}
+}
+
+function editor_addObj() {
+	var obj = createDefaultObject(`BOX`);
+	syncObject_send(loading_world, obj);
+}
+
+function editor_removeObj() {
+	if (editor_selected != camera) {
+		syncObject_remove(loading_world, editor_selected);
 	}
 }
 
