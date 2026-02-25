@@ -54,6 +54,9 @@ var controls_sensitivity = 0.005;
 
 var editor_active = false;
 
+var lineBuffers = [];
+var lineBuffer_num = -1;
+
 var page_animation;
 
 var perf_log = [];
