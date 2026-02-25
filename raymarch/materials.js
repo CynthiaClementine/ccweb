@@ -32,6 +32,7 @@ class M_Color extends Material {
 	applyHitEffect(ray) {
 		applyColor(this.color, ray.color);
 		ray.localDist = ray_minDist * 2;
+		return true;
 	}
 	
 	serialize() {
@@ -50,7 +51,9 @@ class M_Ghost extends Material {
 		}
 	}
 	
-	applyHitEffect(ray) {}
+	applyHitEffect(ray) {
+		return true;
+	}
 	
 	serialize() {
 		return `ghost:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
@@ -71,7 +74,7 @@ class M_Glass extends Material {
 		} else {
 			ray.localDist = -ray.localDist;
 		}
-		ray.hit -= 1;
+		return false;
 	}
 	
 	serialize() {
@@ -104,7 +107,6 @@ class M_Portal extends Material {
 			ray.pos[0] += this.offset[0];
 			ray.pos[1] += this.offset[1];
 			ray.pos[2] += this.offset[2];
-			ray.hit -= 1;
 		}
 	}
 	
@@ -115,12 +117,12 @@ class M_Portal extends Material {
 			ray.pos[0] += this.offset[0];
 			ray.pos[1] += this.offset[1];
 			ray.pos[2] += this.offset[2];
-			ray.hit -= 1;
 		}
 		ray.localDist = ray_minDist * 2;
+		return false;
 	}
 	
-	tick() {
+	tick(parentObj) {
 		if (this.newWorld && this.newWorld != loading_world) {
 			this.newWorld.tick();
 		}
@@ -128,6 +130,50 @@ class M_Portal extends Material {
 	
 	serialize() {
 		return `portal:${this.str}~[${this.offset}]`;
+	}
+}
+
+class M_Mirror extends Material {
+	constructor(r, g, b, absorbance) {
+		super(Color4(r, g, b, absorbance), 0.1);
+		this.parent;
+	}
+	
+	applyNearEffect(ray) {}
+	
+	applyHitEffect(ray) {
+		if (!this.parent || ray.color[3] == 255) {
+			return true;
+		}
+		//bounce the ray away
+		//angle of incidence = angle of reflection. Or in this case, 
+		//reflected = incident - 2 * normal * (incident • normal )
+		
+		const incident = ray.dPos;
+		const normal = this.parent.normalAt(ray.pos);
+		const product = dot(incident, normal);
+		// const fresnel = (1 - product) ** 2; //(1 - product) ** reflectivity
+		
+		applyColor(this.color, ray.color);
+		if (Number.isNaN(normal[0])) {
+			return true;
+		}
+		
+		ray.dPos = Pos(
+			incident[0] - 2 * normal[0] * product,
+			incident[1] - 2 * normal[1] * product,
+			incident[2] - 2 * normal[2] * product
+		);
+		ray.localDist = ray_minDist * 2;
+		return (ray.hit == 1);
+	}
+	
+	tick(parentObj) {
+		this.parent = parentObj;
+	}
+	
+	serialize() {
+		return `mirror:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
 	}
 }
 
@@ -149,6 +195,7 @@ class M_Rubber extends Material {
 		);
 		applyColor(paint, ray.color);
 		ray.localDist = ray_minDist * 2;
+		return true;
 	}
 	
 	serialize() {
@@ -164,6 +211,7 @@ var map_strMat = {
 	"color": M_Color,
 	"ghost": M_Ghost,
 	"glass": M_Glass,
+	"mirror": M_Mirror,
 	"portal": M_Portal,
 	"rubber": M_Rubber,
 };

@@ -237,18 +237,15 @@ class Ray {
 			
 			if (safeDist < ray_minDist) {
 				//if it's hit:
-				this.hit += 1;
-				distObj.material.applyHitEffect(this);
+				this.hit += distObj.material.applyHitEffect(this);
 				
 				//a ray will go through normal (hit=0) -> shadow (hit=1) -> done (hit=2) span.
-				
-				if (this.hit == 2) {
+				if (this.hit >= 2) {
 					//draw self as a shadow
 					this.shadow();
 					this.world.postEffects(this);
 					return this.color;
 				}
-				
 				
 				//can be false if it's a portal
 				if (this.hit == 1) {
@@ -397,9 +394,9 @@ class ObjectGrid {
 			for (var a=0; a<=2; a++) {
 				min[a] = Math.min(min[a], bounds[0][a]);
 				max[a] = Math.max(max[a], bounds[1][a]);
-			}
-			if (Number.isNaN(bounds[0][a])) {
-				console.log(bounds);
+				if (Number.isNaN(min[a]) || Number.isNaN(bounds[0][a])) {
+					throw new Error("something has gone horribly wrong with block bounds.");
+				}
 			}
 		});
 		this.minPos = min;
@@ -409,31 +406,36 @@ class ObjectGrid {
 		this.zd = (max[2] - min[2]) / this.l;
 		
 		if (Number.isNaN(this.xd)) {
-			throw new Error("something has gone horribly wrong with block bounds.");
+			throw new Error("something has gone horribly wrong with block bounds..");
 		}
 		
 		// console.log(min, max, this.l);
 		
 		//generate object estimate grid
 		this.chunks = [];
-		for (var x=0; x<this.l; x++) {
+		const len = this.l;
+		for (var x=0; x<len; x++) {
 			this.chunks[x] = [];
-			for (var y=0; y<this.l; y++) {
+			for (var y=0; y<len; y++) {
 				this.chunks[x][y] = [];
-				for (var z=0; z<this.l; z++) {
+				for (var z=0; z<len; z++) {
 					this.chunks[x][y][z] = new Set();
 				}
 			}
 		}
 		
 		//add closest object to the estimate grid
-		for (var x=0; x<this.l; x++) {
-			var worldX = this.minPos[0] + x * this.xd;
-			for (var y=0; y<this.l; y++) {
-				var worldY = this.minPos[1] + y * this.yd;
-				for (var z=0; z<this.l; z++) {
+		const xd = this.xd;
+		const yd = this.yd;
+		const zd = this.zd;
+		const chunks = this.chunks;
+		for (var x=0; x<len; x++) {
+			var worldX = this.minPos[0] + x * xd;
+			for (var y=0; y<len; y++) {
+				var worldY = this.minPos[1] + y * yd;
+				for (var z=0; z<len; z++) {
 					//add the object that's closest
-					var worldZ = this.minPos[2] + z * this.zd;
+					var worldZ = this.minPos[2] + z * zd;
 					var obj = this.world.estimatePos(Pos(worldX, worldY, worldZ))[1];
 					//add to all adjacents as well
 					[[1, 1, 1],[1, 1, -1],[1, -1, 1],[1, -1, -1],
@@ -442,8 +444,8 @@ class ObjectGrid {
 						var my = y + g[1];
 						var mz = z + g[2];
 						//stupid check
-						if (this.chunks[mx] && this.chunks[mx][my] && this.chunks[mx][my][mz]) {
-							this.chunks[mx][my][mz].add(obj);
+						if (chunks[mx] && chunks[mx][my] && chunks[mx][my][mz]) {
+							chunks[mx][my][mz].add(obj);
 						}
 					});
 				}
@@ -479,6 +481,11 @@ class ObjectGrid {
 			// }
 		});
 		return [dist, distInd];
+	}
+	
+	estimate(obj) {
+		const set = this.estimatePos(obj.pos);
+		return [set[0], this.world.objects[set[1]]];
 	}
 }
 
@@ -528,17 +535,22 @@ class BrickGridTor {
 	* on account of the mins and maxs being the same for all coordinates.
 	 */
 	generateRegion(minX, maxX, minY, maxY, minZ, maxZ) {
+		const source = this.world.grid ?? this.world;
+		const indOff = this.indOffset;
+		const minPos = this.minPos;
+		const len = this.l;
+		const d = this.d;
 		for (var x=minX; x<maxX; x++) {
-			var gridX = modulateSoft(x + this.indOffset[0], this.l);
+			var gridX = modulateSoft(x + indOff[0], len);
 			for (var y=minY; y<maxY; y++) {
-				var gridY = modulateSoft(y + this.indOffset[1], this.l);
+				var gridY = modulateSoft(y + indOff[1], len);
 				for (var z=minZ; z<maxZ; z++) {
 					// var i = this.world.estimatePos(Pos(this.minPos[0] + x*this.d, this.minPos[1] + y*this.d, this.minPos[2] + z*this.d))[1];
-					var i = this.world.grid.estimatePos(Pos(this.minPos[0] + x*this.d, this.minPos[1] + y*this.d, this.minPos[2] + z*this.d))[1];
+					const i = source.estimatePos(Pos(minPos[0] + x*d, minPos[1] + y*d, minPos[2] + z*d))[1];
 					// if (i == -1 && prand(0, 1) < 0.001) {
 					// 	console.error("AAAAA", this.minPos, Pos(this.minPos[0] + x*this.d, this.minPos[1] + y*this.d, this.minPos[2] + z*this.d));
 					// }
-					this.estimInds[gridX*this.l2 + gridY*this.l + modulateSoft(z + this.indOffset[2], this.l)] = i;
+					this.estimInds[gridX*this.l2 + gridY*len + modulateSoft(z + indOff[2], len)] = i;
 				}
 			}
 		}
