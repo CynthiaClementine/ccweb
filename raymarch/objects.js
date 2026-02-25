@@ -41,7 +41,7 @@ class Scene3dObject {
 
 	tick() {
 		if (this.material.tick) {
-			this.material.tick();
+			this.material.tick(this);
 		}
 	}
 	
@@ -56,18 +56,16 @@ class Scene3dObject {
 	normalAt(pos) {
 		const ε = 0.01;
 		const base = this.distanceToPos(pos);
-		var grad = [
+		const grad = [
 			this.distanceToPos(Pos(pos[0] + ε, pos[1], pos[2])) - base,
 			this.distanceToPos(Pos(pos[0], pos[1] + ε, pos[2])) - base,
 			this.distanceToPos(Pos(pos[0], pos[1], pos[2] + ε)) - base,
 		];
-		
-		return grad;
+		return normalize(grad);
 	}
 
 	serialize() {
-		throw new Error(`serialization is not defined for ${this.constructor.name}!`);
-		return `!!!UNDEFINED!!!`;
+		return `|${this.material.serialize()}|[${this.pos}]`;
 	}
 }
 
@@ -121,16 +119,7 @@ class Prism extends Scene3dObject_Axes {
 	
 	serialize() {
 		var axisVal = this.swapXY + 2 * this.swapYZ + 4 * this.swapXZ;
-		return `|${this.material.serialize()}|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~${axisVal}`;
-	}
-}
-
-class Ramp extends PrismRhombus {
-	/**
-	* creates a ramp with given parameters that travels in the x direction.
-	 */
-	constructor() {
-		
+		return `${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${axisVal}`;
 	}
 }
 
@@ -228,7 +217,7 @@ class Cube extends Scene3dObject {
 	
 
 	serialize() {
-		return `CUBE|${this.material.serialize()}|[${this.pos}]~${this.r}`;
+		return `CUBE${super.serialize()}~${this.r}`;
 	}
 }
 
@@ -249,7 +238,7 @@ class Box extends Scene3dObject_Axes {
 	}
 
 	serialize() {
-		return `BOX|${this.material.serialize()}|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}`;
+		return `BOX${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
 	}
 }
 
@@ -301,7 +290,7 @@ class BoxFrame extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `BOX-FRAME|${this.material.serialize()}|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~${this.e}`;
+		return `BOX-FRAME${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${this.e}`;
 	}
 }
 
@@ -325,7 +314,7 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `CYLINDER|${this.material.serialize()}|[${this.pos}]~${this.r}~${this.h}`;
+		return `CYLINDER${super.serialize()}~${this.r}~${this.h}`;
 	}
 }
 
@@ -391,7 +380,7 @@ class Ellipsoid extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `ELLIPSE|${this.material.serialize()}|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}`;
+		return `ELLIPSE${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
 	}
 }
 
@@ -425,7 +414,7 @@ class Gyroid extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `GYROID|${this.material.serialize()}|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}~${this.a}~${this.b}~${this.h}`;
+		return `GYROID${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${this.a}~${this.b}~${this.h}`;
 	}
 }
 
@@ -436,7 +425,7 @@ class Line extends Scene3dObject_Axes {
 		//the constructor is flexible because I couldn't be bothered to rewrite everything
 		if (rx.constructor.name != "Number") {
 			thickness = ry;
-			[rx, ry, rz] = rx;
+			[rx, ry, rz] = [rx[0] - pos1[0], rx[1] - pos1[1], rx[2] - pos1[2]];
 		}
 		super(pos1, material, rx, ry, rz);
 		this.e = thickness;
@@ -475,7 +464,7 @@ class Line extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `LINE|${this.material.serialize()}|[${this.pos}]~[${this.posEnd}]~${this.e}`;
+		return `LINE${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${this.e}`;
 	}
 }
 
@@ -498,7 +487,7 @@ class Octahedron extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `OCTAHEDRON|${this.material.serialize()}|[${this.pos}]~${this.rx}~${this.ry}~${this.rz}`;
+		return `OCTAHEDRON${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
 	}
 }
 
@@ -524,14 +513,14 @@ class Pipe extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `PIPE|${this.material.serialize()}|${this.r}~${this.h}`;
+		return `PIPE${super.serialize()}~${this.r}~${this.h}`;
 	}
 }
 
 class PrismRhombus extends Prism {
 	constructor(pos, material, rx, ry, h, axisType, skew) {
 		super(pos, material, rx, ry, h, axisType);
-		this.skew = skew / 2;
+		this.skew = skew;
 	}
 	
 	sdf2D(relX, relY) {
@@ -540,7 +529,7 @@ class PrismRhombus extends Prism {
 			relY = -relY;
 		}
 		
-		const skew = this.skew;
+		const skew = this.skew / 2;
 		const hegt = this.ry;
 		const widt = this.rx;
 		
@@ -577,6 +566,15 @@ class PrismRhombus extends Prism {
 	}
 }
 
+class Ramp extends PrismRhombus {
+	/**
+	* creates a ramp with given parameters that travels in the x direction.
+	 */
+	constructor() {
+		
+	}
+}
+
 class Ring extends Scene3dObject {
 	constructor(pos, material, r, ringR) {
 		super(pos, material);
@@ -597,7 +595,7 @@ class Ring extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `RING|${this.material.serialize()}|[${this.pos}]~${this.r}~${this.ringR}`;
+		return `RING${super.serialize()}~${this.r}~${this.ringR}`;
 	}
 }
 
@@ -620,7 +618,7 @@ class Sphere extends Scene3dObject {
 	}
 
 	serialize() {
-		return `SPHERE|${this.material.serialize()}|[${this.pos}]~${this.r}`;
+		return `SPHERE${super.serialize()}~${this.r}`;
 	}
 }
 
