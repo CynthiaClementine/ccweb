@@ -63,7 +63,7 @@ function boolToSigned(boolValue) {
 }
 
 function clamp(num, min, max) {
-	return num <= min ? min : num >= max ? max : num;
+	return Math.max(min, Math.min(num, max));
 }
 
 function distSquared(x, y) {
