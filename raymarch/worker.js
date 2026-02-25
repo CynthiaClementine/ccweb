@@ -43,6 +43,10 @@ function run(package) {
 		case "syncObject":
 			syncObject_recieve(...data.slice(1));
 			break;
+		case "returnArr":
+			lineBuffer_num += 1;
+			lineBuffers[lineBuffer_num] = data[1];
+			break;
 	}
 }
 
@@ -78,7 +82,7 @@ function updateCamera(data) {
 function drawAndPostLine(data) {
 	[x, pixelWidth, pixelHeight] = data;
 	var colorValues = calcLine(cxDir, cyDir, czDir, x, pixelWidth, pixelHeight);
-	postMessage(["colorLine", x, colorValues]);
+	postMessage(["colorLine", x, colorValues], [colorValues.buffer]);
 }
 
 onmessage = run;

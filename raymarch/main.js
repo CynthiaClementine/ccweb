@@ -6,8 +6,6 @@ window.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener('pointerlockchange', handleCursorLockChange, false);
 document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
 
-
-
 //setup
 function setup() {
 	initiateWorkers();
@@ -22,7 +20,6 @@ function setup() {
 	canvas.onclick = function() {canvas.requestPointerLock({unadjustedMovement: true});}
 
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
-	
 	
 	
 	editor_initialize();
@@ -207,6 +204,7 @@ function drawLine(x, colorArr) {
 	
 	ctx.putImageData(imageData, x * blockSize, 0);
 	render_linesDrawn += 1;
+	
 	finishMain();
 }
 
@@ -215,6 +213,7 @@ function handleWorkerMsg(e) {
 	switch (data[0]) {
 		case "colorLine":
 			drawLine(data[1], data[2]);
+			e.target.postMessage(["returnArr", data[2]], [data[2].buffer]);
 			break;
 		case "ready":
 			if (data[1] != -1) {
@@ -245,9 +244,22 @@ function handleKeyPress(a) {
 			case "KeyO":
 				var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist);
 				ray.iterate();
+				if (ray.world != loading_world) {
+					//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business
+					var validPortals = [];
+					loading_world.objects.forEach(o => {
+						if (o.material.newWorld == ray.world) {
+							validPortals.push(o);
+						}
+					});
+					
+					validPortals.sort((a, b) => a.distanceToPos(camera.pos) - b.distanceToPos(camera.pos));
+					ray.object = validPortals[0];
+				}
 				if (ray.object) {
 					console.log(`selecting`, ray.object);
 				}
+				
 				editor_select(ray.object);
 				break;
 		}
