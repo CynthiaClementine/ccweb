@@ -10,6 +10,11 @@
 		<link rel="icon" type="image/x-icon" href="./favicon.png">
 		<meta charset="utf-8">
 		<style>
+			html, body {
+				margin: 5px; 
+				height: 100%; 
+				overflow-y: hidden;
+			}
 			body {
 				background-color: slateblue;
 				display: flex;
@@ -22,7 +27,12 @@
 				font-size: 1.5rem;
 				padding: 2px 10px 5px 10px;
 				border: #111 5px solid;
-				
+			}
+			
+			#wrapper canvas {
+				position: absolute;
+				top: 0;
+				left: 0;
 			}
 	
 			#centerModule {
@@ -40,7 +50,6 @@
 			
 			.sliderGroup {
 				display: inline;
-				width: 1200px;
 			}
 			
 			.slider {
@@ -92,71 +101,53 @@
 		<script src="main.js"></script>
 	</head>
 	<body>
-		<canvas id="artbox"></canvas>
-		<div id="editorPanelGroup">
-			<datalist id="markers">
-				<option value="-100"></option>
-				<option value="-90"></option>
-				<option value="-80"></option>
-				<option value="-70"></option>
-				<option value="-60"></option>
-				<option value="-50"></option>
-				<option value="-40"></option>
-				<option value="-30"></option>
-				<option value="-20"></option>
-				<option value="0"></option>
-				<option value="20"></option>
-				<option value="30"></option>
-				<option value="40"></option>
-				<option value="50"></option>
-				<option value="60"></option>
-				<option value="70"></option>
-				<option value="80"></option>
-				<option value="90"></option>
-				<option value="100"></option>
-			</datalist>
-			<div id="editorSpace">
-				<div>
-					avg frame time: <span id="debugMSPF">[!]</span> ms
+		<div id="wrapper">
+			<canvas id="artbox"></canvas>
+			<canvas id="uibox"></canvas>
+			<div id="editorPanelGroup" x="600">
+				<div id="editorSpace">
+					<div>
+						avg frame time: <span id="debugMSPF">[!]</span> ms
+					</div>
+					<br>
+					<div id="group_settings">
+						<div class="separator">SETTINGS</div>
+					</div>
+					<br>
+					
+					<div class="separator">OBJECT</div>
+					<select id="objectDropdown"></select>
+	
+					<div id="group_pos">
+						<div>Pos controls</div>
+					</div>
+					<br>
+					
+					<div id="group_radius">
+						<div>Radius controls</div>
+					</div>
+					<br>
+					
+					<div id="group_special">
+						<div>Other controls</div>
+						<select id="axisDropdown"></select>
+					</div>
+					
+					<div class="separator">MATERIAL</div>
+					<select id="materialDropdown"></select>
+	
+					<input type="text" id="worldSelector"></input>
+					
+					<div id="group_color">
+						<div>Color controls</div>
+					</div>
+					
+					<div id="group_matSpecial">
+						<div>Other controls</div>
+					</div>
+					<button onclick="editor_addObj()">+</button>
+					<button onclick="editor_removeObj()">-</button>
 				</div>
-				<br>
-				<div id="group_settings">
-					<div class="separator">SETTINGS</div>
-				</div>
-				<br>
-				
-				<div class="separator">OBJECT</div>
-				<select id="objectDropdown"></select>
-
-				<div id="group_pos">
-					<div>Pos controls</div>
-				</div>
-				<br>
-				
-				<div id="group_radius">
-					<div>Radius controls</div>
-				</div>
-				<br>
-				
-				<div id="group_special">
-					<div>Other controls</div>
-					<select id="axisDropdown"></select>
-				</div>
-				
-				<div class="separator">MATERIAL</div>
-				<select id="materialDropdown"></select>
-
-				<input type="text" id="worldSelector"></input>
-				
-				<div id="group_color">
-					<div>Color controls</div>
-				</div>
-				
-				<div id="group_matSpecial">
-					<div>Other controls</div>
-				</div>
-				<button onclick="editor_addObj()">+</button>
-				<button onclick="editor_removeObj()">-</button>
 			</div>
 		</div>
 	</body>

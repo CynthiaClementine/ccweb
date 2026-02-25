@@ -485,7 +485,9 @@ function threadExec(code) {
 
 function test_gridVsTree(x, y, z) {
 	var grid = loading_world.grid;
-	var a = loading_world.tree.estimate({pos: Pos(x,y,z)});
+	var tempObj = {pos: Pos(x, y, z)};
+	var a = loading_world.tree.estimate(tempObj);
+	a = [distObj.distanceToPos(tempObj.pos), a];
 	var b = grid.estimatePos(Pos(x,y,z));
 	if (Math.abs(a[0] - b[0]) > 0.01 || a[1] != loading_world.objects[b[1]]) {
 		console.log(`pos (${x},${y},${z}) or grid (${(x-grid.minPos[0])/grid.xd},${(y-grid.minPos[1])/grid.yd},${(z-grid.minPos[2])/grid.zd}) fails test! 

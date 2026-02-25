@@ -442,5 +442,5 @@ function createWorlds() {
 		]
 	);
 	
-	loading_world = worlds["turtleHell"];
+	loading_world = worlds["start"];
 }

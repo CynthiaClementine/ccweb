@@ -1,6 +1,3 @@
-var canvas;
-var ctx;
-
 var globalA = 0.08;
 var globalB = 13;
 

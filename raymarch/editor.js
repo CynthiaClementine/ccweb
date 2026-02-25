@@ -234,7 +234,7 @@ function editor_initialize() {
 			render_goalN = val;
 		}
 		return render_goalN;
-	}, [40, 60, 90, 120, 160, 240, 360]);
+	}, [40, 60, 80, 100, 120, 150, 180, 240, 300, 360]);
 	
 	//object sliders
 	

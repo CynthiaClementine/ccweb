@@ -124,18 +124,11 @@ class Camera {
 		}
 		feetCoords[1] -= lookRay.distance;
 		
-		
 		//update real coordinates
 		this.dPos[0] = dVec[0] / speedMultiplier;
 		this.dPos[1] = dVec[1];
 		this.dPos[2] = dVec[2] / speedMultiplier;
 		this.pos = Pos(feetCoords[0], feetCoords[1] + this.height, feetCoords[2]);
-		
-		//align camera to self
-		// camera.world = this.world;
-		// camera.pos = this.pos;
-		// camera.theta = this.theta;
-		// camera.phi = this.phi;
 	}
 	
 	portalTest(obj, feetCoords) {
@@ -143,7 +136,6 @@ class Camera {
 		var mat = obj.material;
 		if (obj.distanceToPos(feetCoords) < ray_nearDist && mat.constructor.name == "M_Portal") {
 			if (mat.newWorld) {
-				console.log(`hi.`);
 				this.world = mat.newWorld;
 				feetCoords[0] += mat.offset[0];
 				feetCoords[1] += mat.offset[1];
@@ -175,6 +167,10 @@ class Camera {
 				return lookRay.object;
 			}
 		}
+	}
+	
+	dash() {
+		
 	}
 
 	jump() {
@@ -227,7 +223,8 @@ class Ray {
 			}
 	
 			//get distance
-			const [dist, distObj] = this.world.tree.estimate(this);
+			const distObj = this.world.tree.estimate(this);
+			const dist = distObj.distanceToPos(this.pos);
 			const safeDist = dist * ray_safetyMult;
 			this.localDist = safeDist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
@@ -303,10 +300,10 @@ class Ray_Tracking {
 		var iters = 0;
 		while (iters < ray_maxIters) {
 			//get distance
-			var [dist, distObj] = this.world.tree.estimate(this);
+			const distObj = this.world.tree.estimate(this);
+			var dist = distObj.distanceToPos(this.pos) * ray_safetyMult;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
 			// distObj = this.world.objects[distObj];
-			dist *= ray_safetyMult;
 	
 			//if distance is out of dist bounds
 			if (dist < ray_minDist) {
@@ -484,8 +481,8 @@ class ObjectGrid {
 	}
 	
 	estimate(obj) {
-		const set = this.estimatePos(obj.pos);
-		return [set[0], this.world.objects[set[1]]];
+		//technically a little bit of wasted work. But it's probably fine
+		return this.world.objects[this.estimatePos(obj.pos)[1]];
 	}
 }
 
@@ -661,9 +658,7 @@ class BrickGridTor {
 	}
 	
 	estimate(obj) {
-		const surface = this.getSurface(this.fixQ(this.calcRelCoords(obj.pos)));
-		const g = surface.distanceToPos(obj.pos);
-		return [g, surface];
+		return this.getSurface(this.fixQ(this.calcRelCoords(obj.pos)));
 	}
 }
 
@@ -825,12 +820,7 @@ class BrickGridTor {
 		q[0] = Math.round(halfsies + clamp(q[0], -halfsies, halfsies));
 		q[1] = Math.round(halfsies + clamp(q[1], -halfsies, halfsies));
 		q[2] = Math.round(halfsies + clamp(q[2], -halfsies, halfsies));
-		
-		// console.log(`trying to access ${Math.round(q[0])}_${Math.round(q[1])}_${Math.round(q[2])}`);
-		const material = this.getMaterial(q);
-		// console.log(this, material, q);
-		const g = material.distanceToPos(obj.pos);
-		return [g, material];
+		return this.getMaterial(q);
 	}
 }
 
@@ -848,7 +838,8 @@ class BrickMap {
 	
 	estimate(obj) {
 		//figure out which BrickGrid the ray is in
-		var brickDist = [
+		const sets = this.sets;
+		const brickDist = [
 			(obj.pos[0] - camera.pos[0]) / tree_minD,
 			(obj.pos[1] - camera.pos[1]) / tree_minD,
 			(obj.pos[2] - camera.pos[2]) / tree_minD,
@@ -859,15 +850,15 @@ class BrickMap {
 		if (level < 0) {
 			level = 0;
 		}
-		if (!this.sets[level]) {
+		if (!sets[level]) {
 			// console.log(`cannot find brickmap level ${level}! Using ${this.sets.length - 1}`);
-			level = this.sets.length - 1;
+			level = sets.length - 1;
 		}
-		if (!this.sets[level].generated) {
+		if (!sets[level].generated) {
 			return ray_maxDist;
 		}
 		// console.log(`passing off to level ${level}, d=${this.sets[level].d}`);
-		return this.sets[level].estimate(obj);
+		return sets[level].estimate(obj);
 	}
 	
 	generate() {

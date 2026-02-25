@@ -6,18 +6,28 @@ window.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener('pointerlockchange', handleCursorLockChange, false);
 document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
 
+var canvas;
+var ctx;
+
+var banvas;
+var btx;
+
 //setup
 function setup() {
 	initiateWorkers();
 	createWorlds();
 	canvas = document.getElementById("artbox");
 	ctx = canvas.getContext("2d");
+	banvas = document.getElementById("uibox");
+	btx = banvas.getContext("2d");
+	
+	
 	typeIt();
 	updateFOV(camera_FOV, false);
 
-	canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+	banvas.requestPointerLock = banvas.requestPointerLock || banvas.mozRequestPointerLock;
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
-	canvas.onclick = function() {canvas.requestPointerLock({unadjustedMovement: true});}
+	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
@@ -60,7 +70,10 @@ function typeIt() {
 	var blockSize = Math.min(width, height);
 	
 	canvas.width = blockSize;
+	banvas.width = blockSize;
+	editorPanelGroup.style = `margin-left: ${blockSize + 20}px`;
 	canvas.height = blockSize;
+	banvas.height = blockSize;
 	
 	// page_animation = window.setTimeout(main, 10);
 }
@@ -161,23 +174,24 @@ function drawUI() {
 	var center = [canvas.width / 2, canvas.height / 2];
 	
 	//debug bars
-	ctx.globalAlpha = 0.3;
+	btx.clearRect(0, 0, canvas.width, canvas.height);
+	btx.globalAlpha = 0.3;
 	if (debug_listening) {
-		ctx.fillStyle = color_editor_border;
-		ctx.fillRect(0, 0, canvas.width, canvas.height * 0.03);
-		ctx.fillRect(0, canvas.height * 0.97, canvas.width, canvas.height * 0.03);
+		btx.fillStyle = color_editor_border;
+		btx.fillRect(0, 0, canvas.width, canvas.height * 0.03);
+		btx.fillRect(0, canvas.height * 0.97, canvas.width, canvas.height * 0.03);
 	}
 	
 	//crosshair
-	ctx.beginPath();
-	ctx.strokeStyle = color_editor_border;
-	ctx.lineWidth = Math.ceil(ch / 200);
-	ctx.moveTo(center[0] - ch * 0.05, center[1]);
-	ctx.lineTo(center[0] + ch * 0.05, center[1]);
-	ctx.moveTo(center[0], center[1] - ch * 0.05);
-	ctx.lineTo(center[0], center[1] + ch * 0.05);
-	ctx.stroke();
-	ctx.globalAlpha = 1;
+	btx.beginPath();
+	btx.strokeStyle = color_editor_border;
+	btx.lineWidth = Math.ceil(ch / 200);
+	btx.moveTo(center[0] - ch * 0.05, center[1]);
+	btx.lineTo(center[0] + ch * 0.05, center[1]);
+	btx.moveTo(center[0], center[1] - ch * 0.05);
+	btx.lineTo(center[0], center[1] + ch * 0.05);
+	btx.stroke();
+	btx.globalAlpha = 1;
 }
 
 function drawLine(x, colorArr) {
@@ -285,10 +299,12 @@ function handleKeyPress(a) {
 			break;
 		case "ShiftLeft":
 		case "ShiftRight":
+			camera.dash();
 			controls_shiftPressed = true;
 			break;
 		case "Space":
 			camera.jump();
+			a.preventDefault();
 			break;
 		
 		case "BracketRight":
@@ -331,7 +347,7 @@ function handleKeyNegate(a) {
 
 function handleCursorLockChange() {
 	console.log(`cursor lock is changing`);
-	if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas) {
+	if (document.pointerLockElement === banvas || document.mozPointerLockElement === banvas) {
 		controls_cursorLock = true;
 		document.addEventListener("mousemove", handleMouseMove, false);
 	} else {
