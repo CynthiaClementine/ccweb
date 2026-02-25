@@ -65,7 +65,7 @@ function estimate(p) {
 	return [minD, minObj, minInd];
 }
 
-class Scene3dObject {
+class Scene2dObject {
 	constructor(x, y, RGBColor) {
 		this.x = x;
 		this.y = y;
@@ -73,7 +73,7 @@ class Scene3dObject {
 	}
 }
 
-class Box extends Scene3dObject {
+class Box extends Scene2dObject {
 	constructor(x, y, w, h, RGBColor) {
 		super(x, y, RGBColor);
 		this.w = w;
@@ -87,7 +87,7 @@ class Box extends Scene3dObject {
 	}
 }
 
-class Circle extends Scene3dObject {
+class Circle extends Scene2dObject {
 	constructor(x, y, r, RGBColor) {
 		super(x, y, RGBColor);
 		this.r = r;
@@ -97,6 +97,55 @@ class Circle extends Scene3dObject {
 		var relX = (object.x - this.x);
 		var relY = (object.y - this.y);
 		return Math.sqrt(relX * relX + relY * relY) - this.r;
+	}
+}
+
+class Parallelogram extends Scene2dObject {
+	constructor(x, y, w, h, skew, RGBColor) {
+		super(x, y, RGBColor);
+		this.rx = w;
+		this.ry = h;
+		this.skew = skew;
+	}
+	
+	distanceTo(obj) {
+		var relX = obj.x - this.x;
+		var relY = obj.y - this.y;
+		if (relY < 0) {
+			relX = -relX;
+			relY = -relY;
+		}
+		
+		const skew = this.skew;
+		const hegt = this.ry;
+		const widt = this.rx;
+		
+		var w0 = relX - skew;
+		var w1 = relY - hegt;
+		w0 = w0 - clamp(w0, -widt, widt);
+		var d0 = w0*w0 + w1*w1;
+		var d1 = -w1;
+		
+		const s = relX * hegt - relY * skew;
+		if (s < 0) {
+			relX = -relX;
+			relY = -relY;
+		}
+		var v0 = relX - widt;
+		var v1 = relY;
+		
+		const ve = v0 * skew   + v1 * hegt;
+		const ee = skew * skew + hegt * hegt;
+		const gweh = clamp(ve / ee, -1, 1);
+		
+		v0 = v0 - skew * gweh;
+		v1 = v1 - hegt * gweh;
+		const vv = v0 * v0 + v1 * v1;
+		
+		d0 = Math.min(d0, vv);
+		d1 = Math.min(d1, widt * hegt - Math.abs(s));
+		
+		return Math.sqrt(d0) * Math.sign(-d1);
 	}
 }
 
@@ -170,9 +219,10 @@ function raymarch(origin, angle, debug) {
 // -----------------------------
 
 var objects = [
-	new Box(400, 150, 60, 40, "#F00"),
-	new Box(100, 400, 20, 50, "#00F"),
-	new Circle(400, 100, 60, "#0FF"),
+	// new Box(400, 150, 60, 40, "#F00"),
+	// new Box(100, 400, 20, 50, "#00F"),
+	// new Circle(400, 100, 60, "#0FF"),
+	new Parallelogram(400, 150, 40, 60, 20, "#F00"),
 	new Circle(500, 300, 80, "#FFF"),
 ];
 var grid;
@@ -190,9 +240,11 @@ function drawScene() {
 			ctx.beginPath();
 			ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
 			ctx.stroke();
-		} else {
+		} else if (o.constructor.name == "Box") {
 			//boxes
 			ctx.strokeRect(o.x - o.w, o.y - o.h, o.w * 2, o.h * 2);
+		} else {
+			//parallelogram
 		}
 	});
 
@@ -261,10 +313,15 @@ class BrickGrid {
 		this.minCoords = [this.x - awagh, this.y - awagh, this.z - awagh];
 		for (var x=0; x<this.l; x++) {
 			for (var y=0; y<this.l; y++) {
-				ctx.beginPath();
-				ctx.strokeStyle = objects[this.estimInds[x][y]].color;
-				ctx.rect(this.minCoords[0] + this.d * x - (octree_minD / 2), this.minCoords[1] + this.d * y - (octree_minD / 2), octree_minD, octree_minD);
-				ctx.stroke();
+				if (objects[this.estimInds[x][y]].distanceTo({
+					x: this.minCoords[0] + x * this.d, 
+					y: this.minCoords[1] + y * this.d
+				}) > 0) {
+					ctx.beginPath();
+					ctx.strokeStyle = objects[this.estimInds[x][y]].color;
+					ctx.rect(this.minCoords[0] + this.d * x - (octree_minD / 2), this.minCoords[1] + this.d * y - (octree_minD / 2), octree_minD, octree_minD);
+					ctx.stroke();
+				}
 			}
 		}
 		ctx.globalAlpha = 1;
