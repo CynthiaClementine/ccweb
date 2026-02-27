@@ -29,6 +29,7 @@ function setup() {
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 
+	player = new Player(loading_world, Pos(...loading_world.spawn));
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
 	
@@ -84,7 +85,7 @@ function main() {
 	world_time += 1;
 	//tick all world objects
 	loading_world = camera.world;
-	camera.tick();
+	player.tick();
 	//editor syncing
 	var ab = Math.abs;
 	var dp = camera.dPos;
@@ -146,12 +147,12 @@ function finishMain() {
 
 function draw() {
 	//draw everything
-	var pixelsInX = render_n;
-	var pixelsInY = render_n;
+	const pixelsInX = render_n;
+	const pixelsInY = render_n;
 
-	var xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
-	var yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
-	var zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
+	const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
+	const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
+	const zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
 	
 	var workerInd = -1;
 
@@ -279,31 +280,33 @@ function handleKeyPress(a) {
 		}
 	}
 
-	//handling controls for camera
+	//handling controls for player
 	switch (a.code) {
 		case "KeyA":
 		case "ArrowLeft":
-			camera.aPos[0] = -camera.speed;
+			player.aPos[0] = -player.speed;
 			break;
 		case "KeyW":
 		case "ArrowUp":
-			camera.aPos[2] = camera.speed;
+			player.aPos[2] = player.speed;
 			break;
 		case "KeyD":
 		case "ArrowRight":
-			camera.aPos[0] = camera.speed;
+			player.aPos[0] = player.speed;
 			break;
 		case "KeyS":
 		case "ArrowDown":
-			camera.aPos[2] = -camera.speed;
+			player.aPos[2] = -player.speed;
 			break;
 		case "ShiftLeft":
 		case "ShiftRight":
-			camera.dash();
+			player.dash();
+			player.aPos[1] = -player.speed;
 			controls_shiftPressed = true;
 			break;
 		case "Space":
-			camera.jump();
+			player.jump();
+			player.aPos[1] = player.speed;
 			a.preventDefault();
 			break;
 		
@@ -314,33 +317,31 @@ function handleKeyPress(a) {
 }
 
 function handleKeyNegate(a) {
-	switch(a.keyCode) {
-		case 65:
-		case 37:
-			if (camera.aPos[0] < 0) {
-				camera.aPos[0] = 0;
-			}
+	switch(a.code) {
+		case "KeyA":
+		case "ArrowLeft":
+			player.aPos[0] = Math.max(player.aPos[0], 0);
 			break;
-		case 87:
-		case 38:
-			if (camera.aPos[2] > 0) {
-				camera.aPos[2] = 0;
-			}
+		case "KeyW":
+		case "ArrowUp":
+			player.aPos[2] = Math.min(player.aPos[2], 0);
 			break;
-		case 68:
-		case 39:
-			if (camera.aPos[0] > 0) {
-				camera.aPos[0] = 0;
-			}
+		case "KeyD":
+		case "ArrowRight":
+			player.aPos[0] = Math.min(player.aPos[0], 0);
 			break;
-		case 83:
-		case 40:
-			if (camera.aPos[2] < 0) {
-				camera.aPos[2] = 0;
-			}
+		case "KeyS":
+		case "ArrowDown":
+			player.aPos[2] = Math.max(player.aPos[2], 0);
 			break;
-		case 16:
+		case "ShiftLeft":
+		case "ShiftRight":
+			player.aPos[1] = Math.max(player.aPos[1], 0);
 			controls_shiftPressed = false;
+			break;
+		case "Space":
+			player.aPos[1] = Math.min(player.aPos[1], 0);
+			controls_dashPressed = false;
 			break;
 	}
 }
@@ -357,8 +358,8 @@ function handleCursorLockChange() {
 }
 
 function handleMouseMove(a) {
-	camera.theta += a.movementX * controls_sensitivity;
-	camera.phi -= (a.movementY) * controls_sensitivity;
+	player.theta += a.movementX * controls_sensitivity;
+	player.phi -= (a.movementY) * controls_sensitivity;
 	var phiLimit = (camera_projFunc == projectPanini) ? Math.PI * 0.2 : Math.PI * 0.49;
-	camera.phi = clamp(camera.phi, -phiLimit, phiLimit);
+	player.phi = clamp(player.phi, -phiLimit, phiLimit);
 }

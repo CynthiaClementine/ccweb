@@ -53,7 +53,7 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 	
 	
 	for (var y=0; y<pixelHeight; y++) {
-		var [xMult, yMult, zMult] = camera_projFunc(x, pixelWidth, y, pixelHeight);
+		const [xMult, yMult, zMult] = camera_projFunc(x, pixelWidth, y, pixelHeight);
 		//create a ray and iterate until complete
 		trueDir = [
 			xDir[0] * xMult + yDir[0] * yMult + zDir[0] * zMult,
@@ -72,10 +72,6 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 		trueDir[0] /= magnitude;
 		trueDir[1] /= magnitude;
 		trueDir[2] /= magnitude;
-		// if (camera.pos == 0) {
-		// 	var thrower = [4,4,4];
-		// 	var res = thrower[NaN][0];
-		// }
 		r.reset(camera.world, camera.pos, trueDir);
 		var c = r.iterate();
 		colors[3*y] = c[0];
@@ -99,7 +95,8 @@ function createDefaultObject(constructorString, objRef) {
 	pos = objRef.pos;
 	if (!pos) {
 		var offset = polToCart(camera.theta, camera.phi, 100);
-		pos = Pos(camera.pos[0] + offset[0], camera.pos[1] + offset[1], camera.pos[2] + offset[2]);
+		var r = Math.round;
+		pos = Pos(r(camera.pos[0] + offset[0]), r(camera.pos[1] + offset[1]), r(camera.pos[2] + offset[2]));
 	}
 	var arg1 = objRef.r ?? objRef.rx ?? 10;
 	var arg2 = objRef.h ?? objRef.ry ?? 10;
@@ -250,7 +247,7 @@ function loadWorld(worldName) {
 		console.error(`invalid world name!`);
 		return;
 	}
-	camera.world = obj;
+	player.world = obj;
 }
 
 //https://www.researchgate.net/publication/354065227_Essential_Ray_Generation_Shaders

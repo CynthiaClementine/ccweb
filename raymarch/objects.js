@@ -637,6 +637,7 @@ var map_strObj = {
 	"SPHERE": Sphere,
 	
 	//it's in here for editor purposes
-	"CAMERA": Camera
+	"PLAYER": Player,
+	"PLAYER-DEBUG": Player_Debug,
 };
 var map_objStr = Object.fromEntries(Object.entries(map_strObj).map(a => [a[1].name, a[0]]));

@@ -4,6 +4,7 @@ importScripts("../common/functions-math.js");
 importScripts("functions-helper.js");
 importScripts("config.js");
 importScripts("materials.js");
+importScripts("objects-player.js");
 importScripts("objects-engine.js");
 importScripts("objects.js");
 importScripts("worlds.js");
@@ -12,6 +13,7 @@ importScripts("worlds.js");
 //workers all have a copy of the world state, so they can simulate raycasts
 createWorlds();
 
+var player = new Player(loading_world, Pos(0, 0, 0));
 var camera = new Camera(loading_world, Pos(0, 0, 0));
 var cxDir = [0, 0, 0];
 var cyDir = [0, 0, 0];

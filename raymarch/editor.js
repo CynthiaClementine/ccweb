@@ -90,7 +90,7 @@ class Slider {
 		try {
 			console.log(`setting ${this.var} = ${clamp(this.offset, this.varRange[0], this.varRange[1])};`);
 			eval(`${this.var} = ${clamp(this.offset, ...this.varRange)};`);
-			if (this.var.includes(`editor_selected`) && editor_selected != camera) {
+			if (this.var.includes(`editor_selected`) && editor_selected != player) {
 				syncObject_send(loading_world, editor_selected);
 			}
 		} catch (e) {
@@ -214,7 +214,7 @@ var objectEditables = {};
 var materialEditables = {};
 
 function editor_initialize() {
-	editor_selected = camera;
+	editor_selected = player;
 	var s = `&nbsp;`;
 	
 	//settings
@@ -263,13 +263,30 @@ function editor_initialize() {
 	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -9999,9999);
 	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -9999,9999);
 	
+	var playerConstructors = [Player, Player_Debug];
 	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
 		if (val) {
-			var obj = createDefaultObject(val, editor_selected);
-			var ind = loading_world.objects.indexOf(editor_selected);
-			loading_world.objects[ind] = obj;
-			editor_selected = obj;
-			syncObject_send(loading_world, editor_selected);
+			if (editor_selected == player) {
+				if (playerConstructors.includes(map_strObj[val])) {
+					var oldPlayer = player;
+					player = new map_strObj[val](player.world, player.pos);
+					player.dPos = oldPlayer.dPos;
+					player.theta = oldPlayer.theta;
+					player.phi = oldPlayer.phi;
+					editor_selected = player;
+				} else {
+					editor_addObj(undefined, val);
+				}
+			} else {
+				var obj = createDefaultObject(val, editor_selected);
+				var ind = loading_world.objects.indexOf(editor_selected);
+				loading_world.objects[ind] = obj;
+				editor_selected = obj;
+			}
+			
+			if (editor_selected != player) {
+				syncObject_send(loading_world, editor_selected);
+			}
 		}
 		
 		//idk whatever
@@ -326,7 +343,8 @@ function editor_initialize() {
 	//an assumption is made that every editable object uses the pos sliders, so they're omitted.
 	var rxyz = [slider_rx, slider_ry, slider_rz];
 	objectEditables = {
-		"CAMERA": [],
+		"PLAYER": [],
+		"PLAYER-DEBUG": [],
 		"BOX": [...rxyz],
 		"BOX-FRAME": [...rxyz],
 		"CUBE": [slider_rr],
@@ -353,19 +371,20 @@ function editor_initialize() {
 	}
 }
 
-function editor_addObj() {
-	var obj = createDefaultObject(`BOX`);
+function editor_addObj(e, optionalConstructor) {
+	console.log(e, optionalConstructor);
+	var obj = createDefaultObject(optionalConstructor ?? `BOX`);
 	syncObject_send(loading_world, obj);
 }
 
 function editor_removeObj() {
-	if (editor_selected != camera) {
+	if (editor_selected != player) {
 		syncObject_remove(loading_world, editor_selected);
 	}
 }
 
 function editor_select(object) {
-	editor_selected = object ?? camera;
+	editor_selected = object ?? player;
 	var consName = editor_selected.constructor.name;
 	var matName;
 	if (editor_selected.material) {

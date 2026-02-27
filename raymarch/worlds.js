@@ -205,9 +205,9 @@ class World_Looping {
 		if (loading_world != this) {
 			return;
 		}
-		camera.pos[0] = modulate(camera.pos[0], this.width);
-		camera.pos[1] = modulate(camera.pos[1], this.width);
-		camera.pos[2] = modulate(camera.pos[2], this.width);
+		player.pos[0] = modulate(player.pos[0], this.width);
+		player.pos[1] = modulate(player.pos[1], this.width);
+		player.pos[2] = modulate(player.pos[2], this.width);
 	}
 	
 	estimateObj(obj) {
@@ -439,6 +439,66 @@ function createWorlds() {
 			new Gyroid(Pos(0, 0, 0), new M_Color(50,240,10), 200, 10, 200, globalA, globalB, 10),
 			new Box(Pos(112,22,105), new M_Rubber(), 30, 10, 30),
 			new Pipe(Pos(-115,22,-59), new M_Portal("cubes", Pos(-70, 110, 30)), 10, 15)
+		]
+	);
+	
+	new World("parkourSimple",
+		noop,
+		(ray) => {
+			bg(ray, Color4(80, 80, 120));
+			bg_sun(ray, Color(255, 200, 170), 0.003);
+			bg_sun(ray, Color(255, 255, 255), 0.001);
+		},
+		polToCart(0.2, 0.7, 1),
+		[-101, 400, 101],
+		[
+			"CUBE|rubber|[-100,330,100]~45",
+			"BOX|mirror:0~149~234~34|[-118,100,165]~300~80~260",
+			"BOX|color:255~0~255|[-82.92654418945312,400.5628967285156,218.53836059570312]~10~10~10",
+			"BOX|color:255~0~255|[-147.37078857421875,428.16204833984375,298.4496765136719]~10~10~10",
+			"BOX|color:255~0~255|[-91.93114471435547,451.25103759765625,384.7395935058594]~10~10~10",
+			"BOX|color:255~0~255|[-8.84300708770752,474,335.62628173828125]~10~10~10",
+			"BOX|color:255~0~255|[82.50881958007812,500,302.96343994140625]~10~10~10",
+			"BOX|color:255~0~255|[109.50541687011719,527,207.44947814941406]~10~10~10",
+			"BOX|color:255~0~255|[72.22925567626953,554,110.82789611816406]~10~10~10",
+			"BOX|color:255~0~255|[5.07427453994751,581.8301391601562,38.86457061767578]~10~10~10",
+			"BOX|color:255~0~255|[-82.90099334716797,600.4811401367188,-18.29030418395996]~10~10~10",
+			"BOX|color:255~0~255|[-225,628.0913696289062,225]~10~10~10",
+			"BOX|color:186~197~203|[-88,370,116]~25~7~25"
+		]
+	);
+	
+	new World("speedCheck",
+		noop,
+		(ray) => {
+			bg(ray, Color4(80, 80, 120));
+			bg_sun(ray, Color(255, 200, 170), 0.003);
+			bg_sun(ray, Color(255, 255, 255), 0.001);
+		},
+		polToCart(0.2, 0.7, 1),
+		[-101, 400, 101],
+		[
+			"BOX|mirror:0~149~234~34|[0,0,0]~10000~70~300",
+			new Cylinder(Pos(100, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(100, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(200, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(200, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(300, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(300, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(400, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(400, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(500, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(500, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(600, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(600, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(700, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(700, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(800, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(900, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1000, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1100, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1100, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1200, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1200, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1300, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1300, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1400, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1400, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1500, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1500, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1600, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1600, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1700, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1700, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1800, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(1900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1900, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Cylinder(Pos(2000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(2000, 80, -60), new M_Color(255, 240, 200), 15, 10),
 		]
 	);
 	

@@ -1,187 +1,5 @@
 
 //objects that are required for the engine to run
-// class Camera {
-// 	constructor(world, pos) {
-// 		this.world = world;
-// 		this.pos = pos;
-		
-// 		this.theta = 0;
-// 		this.phi = 0;
-// 	}
-// }
-
-class Camera {
-	constructor(world, pos) {
-		this.world = world;
-		this.pos = pos;
-		this.dPos = Pos(0, 0, 0);
-		this.aPos = Pos(0, 0, 0);
-		this.dMax = 1.5;
-		this.dMin = 0.05;
-
-		this.speed = 0.07;
-		this.jumpSpeed = 3;
-		this.friction = 0.8;
-
-		this.gravity = 0.1;
-		this.fallMax = 10;
-		this.onGround = false;
-
-		this.height = 10;
-		this.width = player_width;
-
-		this.theta = 0;
-		this.phi = 0;
-	}
-
-	tick() {
-		this.updateMomentum();
-		this.updatePosition();
-	}
-
-	updateMomentum() {
-		//updates dVars
-		this.dPos[0] += this.aPos[0];
-		if (Math.abs(this.dPos[0]) > this.dMax) {
-			this.dPos[0] = clamp(this.dPos[0], -this.dMax, this.dMax);
-		}
-		if (this.aPos[0] * this.dPos[0] <= 0) {
-			this.dPos[0] *= this.friction;
-		}
-
-		//gravity
-		this.dPos[1] -= this.gravity;
-		if (Math.abs(this.dPos[1]) > this.fallMax) {
-			this.dPos[1] = clamp(this.dPos[1], -this.fallMax, this.fallMax);
-		}
-
-		this.dPos[2] += this.aPos[2];
-		if (Math.abs(this.dPos[2]) > this.dMax) {
-			this.dPos[2] = clamp(this.dPos[2], -this.dMax, this.dMax);
-		}
-		if (this.aPos[2] * this.dPos[2] <= 0) {
-			this.dPos[2] *= this.friction;
-		}
-	}
-
-	updatePosition() {
-		/* movement follows a simple 3-part plan
-		1. cast ray upwards from self's feet
-		2. try to move ray in the movement directions, to whatever varying success
-		3. move ray downwards
-		
-		This makes sure that the movement is always valid, because there has to be an unobstructed path 
-		between the previous position and the new position.
-		It also allows the player to step up slopes.
-		 */
-
-		//before any raycasts, housekeeping
-		var speedMultiplier = 1 + controls_shiftPressed * (1 + editor_active * 7);
-		var feetCoords = Pos(this.pos[0], this.pos[1] - this.height + 1, this.pos[2]);
-		var headCoords = Pos(this.pos[0], this.pos[1], this.pos[2]);
-		var axisVecs = [
-			polToCart(this.theta + (Math.PI / 2), 0, 1),
-			[0, 1, 0],
-			polToCart(this.theta, 0, 1),
-		];
-		var dVec = Pos(this.dPos[0] * speedMultiplier, this.dPos[1], this.dPos[2] * speedMultiplier);
-		
-		
-		//go up
-		var lookRay = new Ray_Tracking(this.world, feetCoords, Pos(0, 1, 0), player_stepHeight);
-		lookRay.iterate(0);
-		feetCoords[1] += lookRay.distance;
-		
-		//sideways
-		for (var i=0; i<3; i++) {
-			var obj1 = this.tryMovementOnAxis(feetCoords, axisVecs[i], dVec[i]);
-			var obj2 = this.tryMovementOnAxis(headCoords, axisVecs[i], dVec[i]);
-			if (obj1 || obj2) {
-				//there comes a point at which you just give up and make a special case for portals
-				var trueObj = (obj1 ?? obj2);
-				this.portalTest(trueObj, feetCoords);
-				if (Math.abs(dVec[i]) > player_bounceThreshold) {
-					dVec[i] *= -trueObj.material.bounciness;
-				} else {
-					dVec[i] = 0;
-				}
-				if (i == 1) {
-					this.onGround = true;
-				} else {
-					//push away from objects a bit
-					// if (Math.abs(dVec[i]) < 0.1 && dVec[i] != 0) {
-					// 	dVec[i] = 0.1 * (dVec[i] / Math.abs(dVec[i]));
-					// }
-				}
-			}
-		}
-		
-		//go back down. Hacky solution with the +1 but it works
-		var lookRay = new Ray_Tracking(this.world, feetCoords, Pos(0, -1, 0), (player_stepHeight + 1));
-		lookRay.iterate(0);
-		if (lookRay.object) {
-			this.portalTest(lookRay.object, feetCoords);
-		}
-		feetCoords[1] -= lookRay.distance;
-		
-		//update real coordinates
-		this.dPos[0] = dVec[0] / speedMultiplier;
-		this.dPos[1] = dVec[1];
-		this.dPos[2] = dVec[2] / speedMultiplier;
-		this.pos = Pos(feetCoords[0], feetCoords[1] + this.height, feetCoords[2]);
-	}
-	
-	portalTest(obj, feetCoords) {
-		// console.log(`portal testing ${obj.constructor.name}`);
-		var mat = obj.material;
-		if (obj.distanceToPos(feetCoords) < ray_nearDist && mat.constructor.name == "M_Portal") {
-			if (mat.newWorld) {
-				this.world = mat.newWorld;
-				feetCoords[0] += mat.offset[0];
-				feetCoords[1] += mat.offset[1];
-				feetCoords[2] += mat.offset[2];
-			}
-		}
-	}
-	
-	tryMovementOnAxis(pos, axisVec, distance) {
-		if (distance < 0) {
-			axisVec = [-axisVec[0], -axisVec[1], -axisVec[2]];
-			distance = -distance;
-		}
-		if (distance > this.dMin) {
-			//cast ray sideways
-			var lookRay = new Ray_Tracking(this.world, pos, axisVec, this.width + distance + 1);
-			lookRay.iterate(0);
-			//if the ray's gone far enough, then move there
-			if (lookRay.distance > this.width + distance) {
-				//doesn't need a y because phi is always 0
-				pos[0] += axisVec[0] * distance;
-				pos[1] += axisVec[1] * distance;
-				pos[2] += axisVec[2] * distance;
-				// if (lookRay.world != this.world) {
-				// 	this.world = lookRay.world;
-				// }
-				return undefined;
-			} else {
-				return lookRay.object;
-			}
-		}
-	}
-	
-	dash() {
-		
-	}
-
-	jump() {
-		if (true || this.onGround) {
-			this.dPos[1] = this.jumpSpeed;
-			this.onGround = false;
-		}
-	}
-}
-
-
 
 //ray class, for marching rays
 class Ray {
@@ -556,9 +374,9 @@ class BrickGridTor {
 	//since 
 	
 	update() {
-		//if the player is more than d/2 away from the center point, it's time to shift center points
+		//if the camera is more than d/2 away from the center point, it's time to shift center points
 		var cVec = this.calcRelCoords(camera.pos);
-		//move towards player
+		//move towards camera
 		this.shift(Math.round(cVec[0]), Math.round(cVec[1]), Math.round(cVec[2]));
 	}
 	
@@ -839,21 +657,13 @@ class BrickMap {
 	estimate(obj) {
 		//figure out which BrickGrid the ray is in
 		const sets = this.sets;
-		const brickDist = [
-			(obj.pos[0] - camera.pos[0]) / tree_minD,
-			(obj.pos[1] - camera.pos[1]) / tree_minD,
-			(obj.pos[2] - camera.pos[2]) / tree_minD,
-		];
-		var maxBrickDist = Math.max(Math.abs(brickDist[0]), Math.abs(brickDist[1]), Math.abs(brickDist[2]));
+		const brickDistX = (obj.pos[0] - camera.pos[0]) / tree_minD;
+		const brickDistY = (obj.pos[1] - camera.pos[1]) / tree_minD;
+		const brickDistZ = (obj.pos[2] - camera.pos[2]) / tree_minD;
+		var maxBrickDist = Math.max(Math.abs(brickDistX), Math.abs(brickDistY), Math.abs(brickDistZ));
 		
-		var level = Math.ceil(Math.log2(maxBrickDist / this.l)) + 1;
-		if (level < 0) {
-			level = 0;
-		}
-		if (!sets[level]) {
-			// console.log(`cannot find brickmap level ${level}! Using ${this.sets.length - 1}`);
-			level = sets.length - 1;
-		}
+		const level = clamp(Math.ceil(Math.log2(maxBrickDist / this.l)) + 1,
+							0, sets.length - 1);
 		if (!sets[level].generated) {
 			return ray_maxDist;
 		}
