@@ -89,7 +89,7 @@ const tree_minD = 2;
 const tree_l = 63;
 const tree_sets = 7;
 
-var worker_num = 4;
+var worker_num = 8;
 var worker_pool = [];
 var worker_ready = [];
 
