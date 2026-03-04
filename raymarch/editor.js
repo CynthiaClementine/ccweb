@@ -345,8 +345,10 @@ function editor_initialize() {
 	objectEditables = {
 		"PLAYER": [],
 		"PLAYER-DEBUG": [],
+		"PLAYER-NOCLIP": [],
 		"BOX": [...rxyz],
 		"BOX-FRAME": [...rxyz],
+		"CAPSULE": [slider_rr, slider_h],
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
 		"ELLIPSE": [...rxyz],
@@ -354,18 +356,19 @@ function editor_initialize() {
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
 		"OCTAHEDRON": [...rxyz],
-		"PIPE": [slider_rr, slider_h],
 		"PRISM-RHOMBUS": [...rxyz, slider_skew, dropdown_axes],
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
 	};
 	
 	var rgb = [slider_r, slider_g, slider_b];
+	var rgba = [slider_r, slider_g, slider_b, slider_a];
 	materialEditables = {
 		"color": [...rgb],
-		"ghost": [...rgb, slider_a],
-		"glass": [],
-		"mirror": [...rgb, slider_a],
+		"concrete": [],
+		"ghost": [...rgba],
+		"glass": [...rgba],
+		"mirror": [...rgba],
 		"portal": [textbox_world, slider_px, slider_py, slider_pz],
 		"rubber": [],
 	}

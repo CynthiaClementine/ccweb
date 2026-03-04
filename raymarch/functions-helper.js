@@ -29,7 +29,7 @@ function applyColor(paintColor, baseColor) {
 	baseColor[0] = linterp(baseColor[0], paintColor[0], availableOpacity);
 	baseColor[1] = linterp(baseColor[1], paintColor[1], availableOpacity);
 	baseColor[2] = linterp(baseColor[2], paintColor[2], availableOpacity);
-	baseColor[3] += paintColor[3];
+	baseColor[3] += paintColor[3] * availableOpacity;
 }
 
 function giveBounds(pos, rx, ry, rz) {
@@ -126,9 +126,11 @@ function createDefaultMaterial(constructorString, color) {
 	switch (type) {
 		case M_Portal:
 			return new M_Portal(`start`, Pos(0, 0, 0));
+		case undefined:
 		default:
 			console.error(`ough`);
 		case M_Color:
+		case M_Concrete:
 		case M_Ghost:
 		case M_Glass:
 		case M_Mirror:

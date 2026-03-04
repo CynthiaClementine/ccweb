@@ -79,7 +79,6 @@ function typeIt() {
 	// page_animation = window.setTimeout(main, 10);
 }
 
-//loop loop loop loop
 function main() {
 	perf_startT = performance.now();
 	world_time += 1;
@@ -88,7 +87,7 @@ function main() {
 	player.tick();
 	//editor syncing
 	var ab = Math.abs;
-	var dp = camera.dPos;
+	var dp = player.dPos;
 	if (debug_listening && Math.max(ab(dp[0]), ab(dp[1]), ab(dp[2])) > 0.1) {
 		editor_controls.forEach(c => {
 			try {

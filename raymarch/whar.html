@@ -1,24 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Raymarching, now with webgl</title>
-<style>
-	html, body {
-		margin: 0;
-		height: 100%;
-		overflow: hidden;
-		background: black;
-	}
-	canvas {
-		display: block;
-		width: 100%;
-		height: 100%;
-	}
-</style>
+	<meta charset="UTF-8">
+	<title>Raymarching, now with webgl</title>
+	<style>
+		html, body {
+			margin: 0;
+			height: 100%;
+			overflow: hidden;
+			background: black;
+		}
+		canvas {
+			width: 100%;
+			height: 100%;
+		}
+		
+		#wrapper canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+		}
+	</style>
+	<script src="../common/functions-coordinate.js"></script>
+	<script src="../common/functions-math.js"></script>
+	<script src="functions-helper.js"></script>
+	<script src="functions-gpu.js"></script>
+	<script src="config.js"></script>
+	
+	<script src="objects-player.js"></script>
+	<script src="objects-engine.js"></script>
+	
+	<!--
+		<script src="editor.js"></script>-->
+		<script src="materials.js"></script>
+		<script src="objects.js"></script>
+		<script src="worlds.js"></script>
+		<!--<script src="main.js"></script>-->
+	<script src="script.js"></script>
 </head>
 <body>
-<canvas id="glcanvas"></canvas>
-<script src="script.js"></script>
+	<div id="wrapper">
+		<canvas id="glcanvas"></canvas>
+		<canvas id="banvas"></canvas>
+	</div>
 </body>
 </html>

@@ -1,7 +1,8 @@
 class Material {
-	constructor(color, bounciness) {
+	constructor(type, color, bounciness) {
 		this.color = color ?? Color4(255, 0, 255, 255);
 		this.bounciness = bounciness ?? 0;
+		this.type = type;
 	}
 	
 	applySDFEffect(val) {
@@ -20,11 +21,15 @@ class Material {
 		console.error(`serialization not implemented for material ${this.constructor.name}!`);
 		return `___`;
 	}
+	
+	serializeGPU() {
+		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255]];
+	}
 }
 
 class M_Color extends Material {
 	constructor(r, g, b) {
-		super(Color4(r, g, b, 255), 0.3);
+		super(0, Color4(r, g, b, 255), 0.3);
 	}
 	
 	applyNearEffect(ray) {}
@@ -40,9 +45,49 @@ class M_Color extends Material {
 	}
 }
 
+class M_Concrete extends M_Color {
+	constructor() {
+		super(249, 248, 243);
+		this.type = 1;
+		this.closeColors = [
+			Color4(255, 255, 255, 255),
+			Color4(255, 249, 224, 255),
+			Color4(242, 236, 230, 255),
+			Color4(242, 252, 255, 255),
+		];
+		this.farColors = [
+			Color4(252, 252, 249, 255),
+			Color4(252, 248, 234, 255),
+			Color4(245, 242, 236, 255),
+			Color4(245, 250, 249, 255),
+		];
+		this.shimmer = 3;
+	}
+	
+	applyHitEffect(ray) {
+		if (ray.totalDist > 40) {
+			return super.applyHitEffect(ray);
+		}
+		const colors = (ray.totalDist > 20) ? this.farColors : this.closeColors;
+		const shimmer = this.shimmer;
+		const x = modulate((ray.pos[0] * shimmer) | 0, 10);
+		const y = modulate((ray.pos[1] * shimmer) | 0, 10);
+		const z = modulate((ray.pos[2] * shimmer) | 0, 10);
+		
+		// applyColor(colors[modulate(3 * x + 7 * y + z, colors.length)], ray.color);
+		applyColor(colors[modulate(x ** y + (4.6 * z | 0), colors.length)], ray.color);
+		ray.localDist = ray_minDist * 2;
+		return true;
+	}
+	
+	serialize() {
+		return `concrete`;
+	}
+}
+
 class M_Ghost extends Material {
 	constructor(r, g, b, opacity) {
-		super(Color4(r, g, b, opacity), 0.1);
+		super(11, Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {
@@ -62,7 +107,7 @@ class M_Ghost extends Material {
 
 class M_Glass extends Material {
 	constructor(r, g, b, opacity) {
-		super(Color4(r, g, b, opacity), 0.1);
+		super(10, Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {}
@@ -84,7 +129,7 @@ class M_Glass extends Material {
 
 class M_Portal extends Material {
 	constructor(newWorldName, posOffset) {
-		super(Color4(255, 255, 255, 255), 0);
+		super(20, Color4(255, 255, 255, 255), 0);
 		this.str = newWorldName;
 		this.offset = posOffset;
 		this.newWorld;
@@ -135,7 +180,7 @@ class M_Portal extends Material {
 
 class M_Mirror extends Material {
 	constructor(r, g, b, absorbance) {
-		super(Color4(r, g, b, absorbance), 0.1);
+		super(30, Color4(r, g, b, absorbance), 0.1);
 		this.parent;
 	}
 	
@@ -159,11 +204,9 @@ class M_Mirror extends Material {
 			return true;
 		}
 		
-		ray.dPos = Pos(
-			incident[0] - 2 * normal[0] * product,
-			incident[1] - 2 * normal[1] * product,
-			incident[2] - 2 * normal[2] * product
-		);
+		incident[0] = incident[0] - 2 * normal[0] * product;
+		incident[1] = incident[1] - 2 * normal[1] * product;
+		incident[2] = incident[2] - 2 * normal[2] * product;
 		ray.localDist = ray_minDist * 2;
 		return (ray.hit == 1);
 	}
@@ -179,7 +222,7 @@ class M_Mirror extends Material {
 
 class M_Rubber extends Material {
 	constructor() {
-		super(Color4(47, 48, 66, 255), 1);
+		super(2, Color4(47, 48, 66, 255), 1);
 		this.lumi = 4;
 	}
 	
@@ -209,6 +252,7 @@ var materialCloud = new M_Ghost(255, 255, 255, 26);
 
 var map_strMat = {
 	"color": M_Color,
+	"concrete": M_Concrete,
 	"ghost": M_Ghost,
 	"glass": M_Glass,
 	"mirror": M_Mirror,

@@ -34,6 +34,9 @@ class Ray {
 	}
 
 	iterate() {
+		const pos = this.pos;
+		const dPos = this.dPos;
+		
 		while (this.iters < ray_maxIters) {
 			if (this.totalDist > ray_maxDist) {
 				this.world.postEffects(this);
@@ -42,7 +45,7 @@ class Ray {
 	
 			//get distance
 			const distObj = this.world.tree.estimate(this);
-			const dist = distObj.distanceToPos(this.pos);
+			const dist = distObj.distanceToPos(pos);
 			const safeDist = dist * ray_safetyMult;
 			this.localDist = safeDist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
@@ -65,18 +68,18 @@ class Ray {
 				//can be false if it's a portal
 				if (this.hit == 1) {
 					this.hitDist = this.totalDist;
-					this.dPos[0] = this.world.sunVector[0];
-					this.dPos[1] = this.world.sunVector[1];
-					this.dPos[2] = this.world.sunVector[2];
+					dPos[0] = this.world.sunVector[0];
+					dPos[1] = this.world.sunVector[1];
+					dPos[2] = this.world.sunVector[2];
 				}
 			} else if (safeDist < ray_nearDist) {
 				distObj.material.applyNearEffect(this);
 			}
 
 			//move distance
-			this.pos[0] += this.dPos[0] * this.localDist;
-			this.pos[1] += this.dPos[1] * this.localDist;
-			this.pos[2] += this.dPos[2] * this.localDist;
+			pos[0] += dPos[0] * this.localDist;
+			pos[1] += dPos[1] * this.localDist;
+			pos[2] += dPos[2] * this.localDist;
 			this.totalDist += this.localDist;
 			this.world.preEffects(this);
 			this.iters += 1;
@@ -87,9 +90,10 @@ class Ray {
 	
 	//applies the shadow effect to the color
 	shadow() {
-		this.color[0] *= render_shadowPercent;
-		this.color[1] *= render_shadowPercent;
-		this.color[2] *= render_shadowPercent;
+		const shh = this.world.ambientLight;
+		this.color[0] *= shh;
+		this.color[1] *= shh;
+		this.color[2] *= shh;
 	}
 }
 

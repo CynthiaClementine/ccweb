@@ -28,9 +28,10 @@ templates/abstract:
 
 //main object contract
 class Scene3dObject {
-	constructor(pos, material) {
+	constructor(type, pos, material) {
 		this.pos = pos;
 		this.material = material;
+		this.typeID = type;
 	}
 	
 	//gives the axis-aligned bounding box of the object, in [smallest pos, largest pos] terms
@@ -67,11 +68,16 @@ class Scene3dObject {
 	serialize() {
 		return `|${this.material.serialize()}|[${this.pos}]`;
 	}
+	
+	serializeGPU() {
+		var color = this.material.color;
+		return [this.typeID, this.pos, this.material];
+	}
 }
 
 class Scene3dObject_Axes extends Scene3dObject {
-	constructor(pos, material, rx, ry, rz) {
-		super(pos, material);
+	constructor(type, pos, material, rx, ry, rz) {
+		super(type, pos, material);
 		this.rx = rx;
 		this.ry = ry;
 		this.rz = rz;
@@ -80,11 +86,19 @@ class Scene3dObject_Axes extends Scene3dObject {
 	bounds() {
 		return giveBounds(this.pos, this.rx, this.ry, this.rz);
 	}
+	
+	serialize() {
+		return `${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(null, this.rx, this.ry, this.rz);
+	}
 }
 
 class Prism extends Scene3dObject_Axes {
-	constructor(pos, material, rx, ry, h, axisType) {
-		super(pos, material, rx, ry, h);
+	constructor(type, pos, material, rx, ry, h, axisType) {
+		super(type, pos, material, rx, ry, h);
 		this.swapXY = axisType & 0b001;
 		this.swapYZ = axisType & 0b010;
 		this.swapXZ = axisType & 0b100;
@@ -117,9 +131,16 @@ class Prism extends Scene3dObject_Axes {
 		return (negPart + posPart);
 	}
 	
+	calcAxisType(swapXY, swapYZ, swapXZ) {
+		return swapXY + 2 * swapYZ + 4 * swapXZ;
+	}
+	
 	serialize() {
-		var axisVal = this.swapXY + 2 * this.swapYZ + 4 * this.swapXZ;
-		return `${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${axisVal}`;
+		return `${super.serialize()}~${this.calcAxisType(this.swapXY, this.swapYZ, this.swapXZ)}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(this.calcAxisType(this.swapXY, this.swapYZ, this.swapXZ));
 	}
 }
 
@@ -175,7 +196,7 @@ class Scene3dLoop {
 
 class CloudSeed extends Scene3dObject {
 	constructor(pos, r) {
-		super(pos, materialCloud);
+		super(99, pos, materialCloud);
 		this.minR = r;
 	}
 	
@@ -197,7 +218,7 @@ class CloudSeed extends Scene3dObject {
 //cube, standard object
 class Cube extends Scene3dObject {
 	constructor(pos, material, r) {
-		super(pos, material);
+		super(10, pos, material);
 		this.r = r;
 	}
 	
@@ -213,17 +234,19 @@ class Cube extends Scene3dObject {
 		const z = Math.max(0, Math.abs(pos[2] - zeroPos[2]) - r);
 		return Math.sqrt(x * x + y * y + z * z);
 	}
-	
-	
 
 	serialize() {
 		return `CUBE${super.serialize()}~${this.r}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(null, this.r, this.r, this.r)
 	}
 }
 
 class Box extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz) {
-		super(pos, material, rx, ry, rz);
+		super(10, pos, material, rx, ry, rz);
 	}
 	
 	bounds() {
@@ -238,7 +261,7 @@ class Box extends Scene3dObject_Axes {
 	}
 
 	serialize() {
-		return `BOX${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
+		return `BOX${super.serialize()}`;
 	}
 }
 
@@ -265,7 +288,7 @@ class Box_Moving extends Box {
 
 class BoxFrame extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz, thickness) {
-		super(pos, material, rx, ry, rz);
+		super(11, pos, material, rx, ry, rz);
 		this.e = thickness;
 	}
 	
@@ -290,13 +313,17 @@ class BoxFrame extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `BOX-FRAME${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${this.e}`;
+		return `BOX-FRAME${super.serialize()}~${this.e}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(this.e);
 	}
 }
 
-class Cylinder extends Scene3dObject {
+class Capsule extends Scene3dObject {
 	constructor(pos, material, r, h) {
-		super(pos, material);
+		super(2, pos, material);
 		this.r = r;
 		this.h = h;
 	}
@@ -314,13 +341,47 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	serialize() {
+		return `CAPSULE${super.serialize()}~${this.r}~${this.h}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(this.r, this.h);
+	}
+}
+
+class Cylinder extends Scene3dObject {
+	constructor(pos, material, r, h) {
+		super(3, pos, material);
+		this.r = r;
+		this.h = h;
+	}
+	
+	bounds() {
+		return giveBounds(this.pos, this.r, this.h, this.r);
+	}
+	
+	distanceToPos(pos) {
+		const relX = pos[0] - this.pos[0];
+		const relY = pos[1] - this.pos[1];
+		const relZ = pos[2] - this.pos[2];
+		
+		const hDist = Math.abs(relY) - this.h;
+		const xyDist = Math.hypot(relX, relZ) - this.r;
+		return Math.min(Math.max(hDist, xyDist), 0) + Math.hypot(Math.max(xyDist, 0), Math.max(hDist, 0));
+	}
+	
+	serialize() {
 		return `CYLINDER${super.serialize()}~${this.r}~${this.h}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(this.r, this.h);
 	}
 }
 
 class DebugLines extends Scene3dObject {
 	constructor(minPos, maxPos) {
-		super(Pos(0, 0, 0), new M_Color(255, 0, 255));
+		super(11, Pos(0, 0, 0), new M_Color(255, 0, 255));
 		this.minPos = minPos;
 		this.maxPos = maxPos;
 		this.frame = new BoxFrame(Pos(0, 0, 0), 10, 10, 10, 2);
@@ -351,12 +412,16 @@ class DebugLines extends Scene3dObject {
 	distanceToPos(pos) {
 		return this.frame.distanceToPos(pos);
 	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(null, this.frame.rx, this.frame.ry, this.frame.rz, 2);
+	}
 }
 
 //TODO: SDF is wrong, not a proper euclidian distance
 class Ellipsoid extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz) {
-		super(pos, material, rx, ry, rz);
+		super(1, pos, material, rx, ry, rz);
 	}
 	
 	distanceToPos(pos) {
@@ -380,15 +445,15 @@ class Ellipsoid extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `ELLIPSE${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
+		return `ELLIPSE${super.serialize()}`;
 	}
 }
 
 class Gyroid extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz, a, b, h) {
-		super(pos, material, rx, ry, rz);
-		this.a = a;
-		this.b = b;
+		super(12, pos, material, rx, ry, rz);
+		this.a = a ?? 0.08;
+		this.b = b ?? 13;
 		this.h = h;
 	}
 	
@@ -414,7 +479,14 @@ class Gyroid extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `GYROID${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${this.a}~${this.b}~${this.h}`;
+		return `GYROID${super.serialize()}~${this.a}~${this.b}~${this.h}`;
+	}
+	
+	serializeGPU() {
+	//[x, y, z, a, rx, ry, rz, b, h, 0, 0, 0]
+		var params = super.serializeGPU();
+		params[3] = this.a;
+		return params.concat(this.b, this.h);
 	}
 }
 
@@ -427,7 +499,7 @@ class Line extends Scene3dObject_Axes {
 			thickness = ry;
 			[rx, ry, rz] = [rx[0] - pos1[0], rx[1] - pos1[1], rx[2] - pos1[2]];
 		}
-		super(pos1, material, rx, ry, rz);
+		super(20, pos1, material, rx, ry, rz);
 		this.e = thickness;
 		this.calc();
 	}
@@ -464,13 +536,13 @@ class Line extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `LINE${super.serialize()}~${this.rx}~${this.ry}~${this.rz}~${this.e}`;
+		return `LINE${super.serialize()}~${this.e}`;
 	}
 }
 
 class Octahedron extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz) {
-		super(pos, material, rx, ry, rz);
+		super(30, pos, material, rx, ry, rz);
 	}
 	
 	//TODO: probably broken in some way
@@ -487,39 +559,13 @@ class Octahedron extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `OCTAHEDRON${super.serialize()}~${this.rx}~${this.ry}~${this.rz}`;
-	}
-}
-
-class Pipe extends Scene3dObject {
-	constructor(pos, material, r, h) {
-		super(pos, material);
-		this.r = r;
-		this.h = h;
-	}
-	
-	bounds() {
-		return giveBounds(this.pos, this.r, this.h, this.r);
-	}
-	
-	distanceToPos(pos) {
-		const relX = pos[0] - this.pos[0];
-		const relY = pos[1] - this.pos[1];
-		const relZ = pos[2] - this.pos[2];
-		
-		const hDist = Math.abs(relY) - this.h;
-		const xyDist = Math.hypot(relX, relZ) - this.r;
-		return Math.min(Math.max(hDist, xyDist), 0) + Math.hypot(Math.max(xyDist, 0), Math.max(hDist, 0));
-	}
-	
-	serialize() {
-		return `PIPE${super.serialize()}~${this.r}~${this.h}`;
+		return `OCTAHEDRON${super.serialize()}`;
 	}
 }
 
 class PrismRhombus extends Prism {
 	constructor(pos, material, rx, ry, h, axisType, skew) {
-		super(pos, material, rx, ry, h, axisType);
+		super(51, pos, material, rx, ry, h, axisType);
 		this.skew = skew;
 	}
 	
@@ -577,7 +623,7 @@ class Ramp extends PrismRhombus {
 
 class Ring extends Scene3dObject {
 	constructor(pos, material, r, ringR) {
-		super(pos, material);
+		super(40, pos, material);
 		this.r = r;
 		this.ringR = ringR;
 	}
@@ -597,11 +643,15 @@ class Ring extends Scene3dObject {
 	serialize() {
 		return `RING${super.serialize()}~${this.r}~${this.ringR}`;
 	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(null, this.r, this.ringR);
+	}
 }
 
 class Sphere extends Scene3dObject {
 	constructor(pos, material, r) {
-		super(pos, material)
+		super(0, pos, material)
 		this.r = r;
 	}
 	
@@ -620,18 +670,22 @@ class Sphere extends Scene3dObject {
 	serialize() {
 		return `SPHERE${super.serialize()}~${this.r}`;
 	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(this.r);
+	}
 }
 
 var map_strObj = {
 	"BOX": Box,
 	"BOX-FRAME": BoxFrame,
 	"CUBE": Cube,
+	"CAPSULE": Capsule,
 	"CYLINDER": Cylinder,
 	"ELLIPSE": Ellipsoid,
 	"GYROID": Gyroid,
 	"LINE": Line,
 	"OCTAHEDRON": Octahedron,
-	"PIPE": Pipe,
 	"PRISM-RHOMBUS": PrismRhombus,
 	"RING": Ring,
 	"SPHERE": Sphere,
@@ -639,5 +693,6 @@ var map_strObj = {
 	//it's in here for editor purposes
 	"PLAYER": Player,
 	"PLAYER-DEBUG": Player_Debug,
+	"PLAYER-NOCLIP": Player_Noclip,
 };
 var map_objStr = Object.fromEntries(Object.entries(map_strObj).map(a => [a[1].name, a[0]]));

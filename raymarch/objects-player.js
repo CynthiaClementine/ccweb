@@ -4,14 +4,30 @@ class Camera {
 	constructor(world, pos) {
 		this.world = world;
 		this.pos = pos;
-		
 		this.theta = 0;
 		this.phi = 0;
+	}
+	
+	calcMatrix() {
+		var cxDir = polToCart(this.theta + (Math.PI / 2), 0, 1);
+		var cyDir = polToCart(this.theta, this.phi + (Math.PI / 2), 1);
+		var czDir = polToCart(this.theta, this.phi, 1);
+	
+		return [
+			cxDir[0], cxDir[1], cxDir[2],
+			cyDir[0], cyDir[1], cyDir[2],
+			czDir[0], czDir[1], czDir[2]
+		];
 	}
 	
 	tick() {
 		camera.theta = this.theta;
 		camera.phi = this.phi;
+		
+		//update GPU with current data
+		gl.uniform3fv(uCamPos, Array.from(this.pos));
+		gl.uniformMatrix3fv(uCamRot, false, this.calcMatrix());
+		gl.uniform1i(uCamWorld, this.world.id);
 	}
 }
 
@@ -196,5 +212,31 @@ class Player_Debug extends Player {
 		this.updateMomentumAxis(0);
 		this.updateMomentumAxis(1);
 		this.updateMomentumAxis(2);
+	}
+}
+
+class Player_Noclip extends Player {
+	constructor(world, pos) {
+		super(world, pos);
+		this.dMax = 6;
+		this.speed = 0.4;
+	}
+	
+	updateMomentum() {
+		this.updateMomentumAxis(0);
+		this.updateMomentumAxis(1);
+		this.updateMomentumAxis(2);
+	}
+	
+	updatePosition() {
+		var axisVecs = [
+			polToCart(this.theta + (Math.PI / 2), 0, 1),
+			[0, 1, 0],
+			polToCart(this.theta, 0, 1),
+		];
+		const dPos = this.dPos;
+		this.pos[0] += axisVecs[0][0] * dPos[0] + axisVecs[1][0] * dPos[1] + axisVecs[2][0] * dPos[2];
+		this.pos[1] += axisVecs[0][1] * dPos[0] + axisVecs[1][1] * dPos[1] + axisVecs[2][1] * dPos[2];
+		this.pos[2] += axisVecs[0][2] * dPos[0] + axisVecs[1][2] * dPos[1] + axisVecs[2][2] * dPos[2];
 	}
 }

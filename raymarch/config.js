@@ -1,5 +1,5 @@
-var globalA = 0.08;
-var globalB = 13;
+// var globalA = 0.08;
+// var globalB = 13;
 
 const degToRad = (Math.PI / 180);
 
@@ -29,7 +29,11 @@ function Color4(r, g, b, a) {
 	return q;
 }
 
-var frameTime = 1000 / 60;
+var program;
+var vertexBuffer;
+var posLoc;
+
+const frameTime = 1000 / 60;
 
 var camera_FOV = 90;
 var camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
@@ -81,13 +85,28 @@ var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
 var render_n = 120;
 var render_goalN = render_n;
-var render_shadowPercent = 0.3;
+var render_shadowPercent = 0.7;
 var render_linesDrawn = 0;
 
 const tree_maxD = 5000;
 const tree_minD = 2;
-const tree_l = 63;
-const tree_sets = 7;
+const tree_l = 41;
+const tree_sets = 3;
+
+const texture_rowsPerObj = 4;
+const texture_rowsPerMat = 3;
+const texture_maxObjs = 512;
+var texture_universe;
+var texture_universeArr;
+
+
+//uniforms
+var uResolution;
+var uTime;
+var uCamPos;
+var uCamRot;
+var uCamWorld;
+var uObjectCount;
 
 var worker_num = 8;
 var worker_pool = [];
@@ -95,6 +114,7 @@ var worker_ready = [];
 
 var loading_world;
 
-var worlds = {};
+const world_maxID = 20;
 const world_objectChunks = Math.floor(Math.cbrt(10000));
+var worlds = {};
 var world_time = 0;

@@ -26,7 +26,7 @@ function bg(ray, color) {
 	applyColor(color, ray.color);
 }
 
-function bg_fadeBlack(ray) {
+function bg_gradient(ray, color, power) {
 
 }
 
@@ -71,8 +71,9 @@ class World {
 	 * @param {Number[]} sunVector 
 	 * @param {Number[]} spawn 
 	 * @param {Scene3dObject[]} objects 
+	 * @param {Number|none} shadowPercent a number from 0 to 1 representing the brightness of shadowed areas. At 0, shadows do nothing. At 1, shadows are pure black.
 	 */
-	constructor(name, preEffects, effects, sunVector, spawn, objects) {
+	constructor(name, preEffects, effects, sunVector, spawn, objects, shadowPercent) {
 		console.log(`started ${name}..`);
 		this.name = name;
 		
@@ -82,6 +83,8 @@ class World {
 		this.sunVector = sunVector;
 		this.spawn = spawn;
 		this.objects = objects;
+		
+		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
 		
 		this.grid;
 		this.tree;
@@ -96,8 +99,13 @@ class World {
 			}
 		}
 		
-		//generate BrickMap
+		this.id = Object.keys(worlds).length;
+		if (this.id >= world_maxID) {
+			throw new Error(`Attempting to defined more than the maximum number of worlds!`);
+		}
 		worlds[this.name] = this;
+		
+		//generate BrickMap
 		this.grid = new ObjectGrid(this, world_objectChunks);
 		this.tree = new BrickMap(this, tree_maxD, tree_sets);
 		this.grid.generate();
@@ -155,8 +163,10 @@ class World_Looping {
 	 * @param {Number[]} spawn 
 	 * @param {Scene3dObject[]} objects 
 	 * @param {Number} size 
+	 * @param {Number|none} shadowPercent 
 	 */
-	constructor(name, preEffects, effects, sunVector, spawn, objects, size) {
+	constructor(name, preEffects, effects, sunVector, spawn, objects, size, shadowPercent) {
+		console.log(`started ${name}..`);
 		this.name = name;
 		this.width = size;
 		
@@ -166,6 +176,7 @@ class World_Looping {
 		this.sunVector = sunVector;
 		this.spawn = spawn;
 		this.objects = objects;
+		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
 		
 		var self = this;
 		worlds[this.name] = self;
@@ -256,20 +267,20 @@ function createWorlds() {
 			"CUBE|color:90~114~187|[-100,330,100]~45",
 			"PRISM-RHOMBUS|color:255~64~64|[0,300,-80]~5~24~30~17~50",
 			new Box(Pos(0, -50, 0), new M_Color(64, 255, 150), 1000, 100, 1000),
-			new BoxFrame(Pos(100, 100, 100), new M_Glass(255, 128, 255, 10), 50, 50, 50, 10),
-			new Cylinder(Pos(-500, 300, 0), new M_Color(128, 128, 255), 100, 200),
+			new BoxFrame(Pos(100, 100, 100), new M_Glass(255, 128, 255, 40), 50, 50, 50, 10),
+			new Capsule(Pos(-500, 300, 0), new M_Color(128, 128, 255), 100, 200),
 			new Ellipsoid(Pos(-300, 100, 200), new M_Mirror(128, 128, 255, 30), 100, 80, 60),
-			new Gyroid(Pos(100, 100, -300), new M_Color(255, 240, 10), 50, 50, 50, globalA, globalB, 10),
-			// new Ring(Pos(500, 400, 0, 200), 50, new M_Color(128, 255, 255)),
+			new Gyroid(Pos(100, 100, -300), new M_Color(255, 240, 10), 50, 50, 50, 0.08, 13, 10),
+			new Ring(Pos(500, 400, 0), new M_Color(128, 255, 255), 100, 20),
 			// ...createCloud(),
-			new CloudSeed(Pos(-80,516,-387), 5),
+			// new CloudSeed(Pos(-80,516,-387), 5),
 			new Box_Moving(Pos(-80,120,-387), new M_Color(40, 0, 255), 10, 10, 10),
 			
 			"BOX|mirror:255~0~255~7|[-587,60,-777]~10~10~5",
-			"BOX|mirror:255~0~255~57|[-572.9833984375,60,-763.1935424804688]~5~10~10",
+			"BOX|mirror:255~0~255~57|[-573,60,-763]~5~10~10",
 			"BOX|mirror:255~0~255~9|[-584,60,-748]~10~10~5",
 			
-			new Cylinder(Pos(900, 50, -827), new M_Portal(`darkBright`, Pos(0, 0, 0)), 15, 20),
+			new Capsule(Pos(900, 50, -827), new M_Portal(`darkBright`, Pos(0, 0, 0)), 15, 20),
 			"BOX|portal:cubes~[0,50,0]|[746,60,-399]~10~10~10",
 			// new DebugLines(Pos(-1000,-1000,-1000), Pos(1000,1000,1000))
 		]
@@ -320,18 +331,18 @@ function createWorlds() {
 			new Cube(Pos(-730, 80, -775), new M_Color(255, 64, 64), 60),
 			
 			new Sphere(Pos(0, 100, 0), new M_Color(128, 0, 128), 100),
-			new Cylinder(Pos(500, 60, 0), new M_Color(128, 128, 255), 100, 100),
-			new Cylinder(Pos(720, 60, -200), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(810, 60, -150), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(100, 60, -400), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(-500, 60, 0), new M_Color(128, 128, 255), 100, 100),
-			new Cylinder(Pos(-720, 60, -200), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(-810, 60, -150), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(-100, 60, -400), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(-500, 60, 840), new M_Color(128, 128, 255), 100, 100),
-			new Cylinder(Pos(-720, 60, 200), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(-810, 60, 150), new M_Color(128, 128, 255), 50, 50),
-			new Cylinder(Pos(-100, 60, 400), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(500, 60, 0), new M_Color(128, 128, 255), 100, 100),
+			new Capsule(Pos(720, 60, -200), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(810, 60, -150), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(100, 60, -400), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(-500, 60, 0), new M_Color(128, 128, 255), 100, 100),
+			new Capsule(Pos(-720, 60, -200), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(-810, 60, -150), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(-100, 60, -400), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(-500, 60, 840), new M_Color(128, 128, 255), 100, 100),
+			new Capsule(Pos(-720, 60, 200), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(-810, 60, 150), new M_Color(128, 128, 255), 50, 50),
+			new Capsule(Pos(-100, 60, 400), new M_Color(128, 128, 255), 50, 50),
 			new Ring(Pos(500, 100, 0), new M_Color(128, 255, 255), 200, 50),
 			
 			new Line(Pos(1000,800,990), new M_Color(246, 173, 105), Pos(628,750,427), 3),
@@ -346,7 +357,7 @@ function createWorlds() {
 			new Line(Pos(-274,692,-31), new M_Color(246, 173, 105), Pos(-371,666,178), 3),
 			new Line(Pos(-371,666,178), new M_Color(246, 173, 105), Pos(-152,564,378), 3),
 			
-			new Cylinder(Pos(900, 50, -827), new M_Portal(`cubes`, Pos(0, 0, 0)), 15, 10),
+			new Capsule(Pos(900, 50, -827), new M_Portal(`cubes`, Pos(0, 0, 0)), 15, 10),
 		]
 	);
 	
@@ -359,8 +370,8 @@ function createWorlds() {
 		"BOX|color:255~255~255|[861,91,-400]~420~10~25",
 		"PRISM-RHOMBUS|color:255~255~255|[373,124,-399]~10~70~25~1~-74",
 		
-		new Pipe(Pos(-202,121,19), new M_Portal("gyroidCaves", Pos(-62, -100, -104)), 15, 10),
-		"PIPE|portal:turtleHell~[7,68,105]|[1073,109,-404]~10~15"
+		new Cylinder(Pos(-202,121,19), new M_Portal("gyroidCaves", Pos(-62, -100, -104)), 15, 10),
+		"CYLINDER|portal:turtleHell~[7,68,105]|[1073,109,-404]~10~15"
 	];
 	var acceptableMats = [
 		new M_Color(57, 0, 64), new M_Color(133, 111, 132), new M_Color(124, 80, 119), new M_Color(115, 0, 113), 
@@ -436,9 +447,9 @@ function createWorlds() {
 		polToCart(-0.82, 0.73, 1),
 		[17,22,-6],
 		[
-			new Gyroid(Pos(0, 0, 0), new M_Color(50,240,10), 200, 10, 200, globalA, globalB, 10),
+			new Gyroid(Pos(0, 0, 0), new M_Color(50,240,10), 200, 10, 200, 0.08, 13, 10),
 			new Box(Pos(112,22,105), new M_Rubber(), 30, 10, 30),
-			new Pipe(Pos(-115,22,-59), new M_Portal("cubes", Pos(-70, 110, 30)), 10, 15)
+			new Cylinder(Pos(-115,22,-59), new M_Portal("cubes", Pos(-70, 110, 30)), 10, 15)
 		]
 	);
 	
@@ -479,27 +490,53 @@ function createWorlds() {
 		[-101, 400, 101],
 		[
 			"BOX|mirror:0~149~234~34|[0,0,0]~10000~70~300",
-			new Cylinder(Pos(100, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(100, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(200, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(200, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(300, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(300, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(400, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(400, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(500, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(500, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(600, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(600, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(700, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(700, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(800, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(900, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1000, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1100, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1100, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1200, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1200, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1300, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1300, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1400, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1400, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1500, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1500, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1600, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1600, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1700, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1700, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1800, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(1900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(1900, 80, -60), new M_Color(255, 240, 200), 15, 10),
-			new Cylinder(Pos(2000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Cylinder(Pos(2000, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(100, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(100, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(200, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(200, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(300, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(300, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(400, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(400, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(500, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(500, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(600, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(600, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(700, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(700, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(800, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(900, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1000, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1100, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1100, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1200, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1200, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1300, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1300, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1400, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1400, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1500, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1500, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1600, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1600, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1700, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1700, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1800, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(1900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1900, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Capsule(Pos(2000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(2000, 80, -60), new M_Color(255, 240, 200), 15, 10),
 		]
+	);
+	
+	new World("stairwell",
+		noop,
+		(ray) => {
+			bg_fadeTo(ray, Color4(128, 128, 128, 128), 100);
+			bg(ray, Color4(184, 255, 249, 0));
+		},
+		polToCart(1.4, Math.PI * 0.4, 1),
+		[0, 0, 0],
+		[
+			"CYLINDER|color:255~255~255|[0,-19,0]~200~20",
+			"BOX|color:255~255~255|[86,1,-8]~100~2~5",
+			"BOX|color:255~255~255|[86,1,-10]~100~3~5",
+			"BOX|color:255~255~255|[86,1,-12]~100~4~5",
+			"BOX|color:255~255~255|[86,2,-14]~100~4~5",
+			"BOX|color:255~255~255|[86,3,-16]~100~4~5",
+			"BOX|color:255~255~255|[86,4,-18]~100~4~5",
+			"BOX|color:255~255~255|[86,5,-20]~100~4~5",
+			"BOX|color:255~255~255|[86,6,-22]~100~4~5",
+			"BOX|color:255~255~255|[86,7,-24]~100~4~5",
+			"BOX|color:255~255~255|[86,8,-26]~100~4~5",
+			"BOX|color:255~255~255|[86,9,-28]~100~4~5",
+			"BOX|color:255~255~255|[86,10,-30]~100~4~5",
+		],
+		1
 	);
 	
 	loading_world = worlds["start"];
