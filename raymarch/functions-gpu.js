@@ -12,64 +12,144 @@ function compile(type, source) {
 }
 
 function createObjectsTexture() {
-	texture_universeArr = new Float32Array(texture_maxObjs * (texture_rowsPerObj + texture_rowsPerMat) * 4);
-	
+	texture_universeArr = new Float32Array(universe_maxID * (world_maxObjs + texture_worldCols) * (texture_rowsPerObj + texture_rowsPerMat) * 4);
 	texture_universe = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, texture_universe);
+	gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture_universe);
 	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-	gl.texImage2D(
-		gl.TEXTURE_2D,
-		0,
-		gl.RGBA32F,
-		texture_maxObjs,
-		texture_rowsPerObj + texture_rowsPerMat,
-		0,
-		gl.RGBA,
-		gl.FLOAT,
-		texture_universeArr
+	
+	gl.texImage3D(
+		gl.TEXTURE_2D_ARRAY, 0, gl.RGBA32F,
+		world_maxObjs + texture_worldCols, texture_rowsPerObj + texture_rowsPerMat, universe_maxID, 
+		0, gl.RGBA, gl.FLOAT, texture_universeArr
 	);
 	
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 	
 	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, texture_universe);
+	gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture_universe);
 	gl.uniform1i(gl.getUniformLocation(program, "uSceneTex"), 0);
 	
-	createGPUWorld(loading_world);
+	Object.keys(worlds).forEach(k => {
+		createGPUWorld(worlds[k]);
+	});
 }
 
 function createGPUWorld(worldObj) {
 	console.log(`putting world ${worldObj.name} on the GPU:.`);
+	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
+	const worldOffset = worldObj.id * (texture_rowsPerObj + texture_rowsPerMat) * rowOffset;
+	//objects
 	const objs = worldObj.objects;
 	for (var o=0; o<objs.length; o++) {
-		setObject(o, ...objs[o].serializeGPU());
-		setMaterial(o, ...objs[o].material.serializeGPU());
+		setObject(worldOffset, rowOffset, o, ...objs[o].serializeGPU());
+		setMaterial(worldOffset, rowOffset, o, ...objs[o].material.serializeGPU());
 	}
 	
-	gl.uniform1i(uObjectCount, objs.length);
+	//attributes, pre-effects, post-effects
+	setWorldAttribs(worldObj, worldOffset, rowOffset);
+	setEffects(worldObj, worldOffset, rowOffset, false);
+	setEffects(worldObj, worldOffset, rowOffset, true);
+	
+	updateWorldTexture();
+}
+
+function setWorldAttribs(world, worldOff, rowOff) {
+	//other world attributes: spawn, object count, sun vector, shadow%
+	const data = texture_universeArr;
+	var base = worldOff + world_maxObjs * 4;
+	
+	data[base + 0] = world.spawn[0];
+	data[base + 1] = world.spawn[1];
+	data[base + 2] = world.spawn[2];
+	data[base + 3] = world.objects.length;
+	base += rowOff;
+	data[base + 0] = world.sunVector[0];
+	data[base + 1] = world.sunVector[1];
+	data[base + 2] = world.sunVector[2];
+	data[base + 3] = world.ambientLight;
+	base += rowOff;
+	data[base + 0] = world.preEffects.length;
+	data[base + 1] = world.postEffects.length;
+	
+	//5 pixels free to do ???? whatever with I guess
+}
+
+function setEffects(world, worldOff, rowOff, doPreEffects) {
+	var effArr = doPreEffects ? world.preEffects : world.postEffects;
+	var map = doPreEffects ? map_preId : map_postId;
+	
+
+	//loop trhough all post-effects
+	for (var w=0; w<effArr.length; w++) {
+		const eff = effArr[w];
+		const id = map[eff[0].name];
+		var base = worldOff + (world_maxObjs + 1 + w) * 4;
+		base += doPreEffects * rowOff * 4;
+		console.log(`processing ${id}, ${base}`);
+		
+		const data = texture_universeArr;
+		
+		//flatten out all arguments
+		var args = [];
+		for (var q=1; q<eff.length; q++) {
+			if (eff[q].constructor.name != "Number") {
+				//assume it's a color
+				args = args.concat(eff[q][0] / 255, eff[q][1] / 255, eff[q][2] / 255);
+			} else {
+				args = args.concat(eff[q]);
+			}
+		}
+		console.log(`args: ${args}`);
+		
+		//write to data array
+		data[base + 0] = id;
+		data[base + 1] = args[0] ?? 0;
+		console.log(args[0], args[1], args[2]);
+		data[base + 2] = args[1] ?? 0;
+		data[base + 3] = args[2] ?? 0;
+		
+		for (var q=3; q<args.length; q+=4) {
+			base += rowOff;
+			data[base + 0] = args[q + 0] ?? 0;
+			data[base + 1] = args[q + 1] ?? 0;
+			data[base + 2] = args[q + 2] ?? 0;
+			data[base + 3] = args[q + 3] ?? 0;
+		}
+	}
+}
+
+function updateWorldTexture() {
+	const xOffset = 0;
+	const yOffset = 0;
+	const zOffset = 0;
+	
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture_universe);
+	//TODO: ????????
+	gl.uniform1i(gl.getUniformLocation(program, "uSceneTex"), 0);
+	
+	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+	gl.texSubImage3D(
+		gl.TEXTURE_2D_ARRAY, 0,
+		xOffset, yOffset, zOffset,
+		world_maxObjs + texture_worldCols, texture_rowsPerObj + texture_rowsPerMat, universe_maxID,
+		gl.RGBA, gl.FLOAT, texture_universeArr
+	);
 }
 
 function createTestGPUWorld() {
 	setObject(0, 10, [0, 30, -8], [1, 1, 0], null, 4, 4, 3);
 	setObject(1, 2, [-500, 300, 0], [128 / 255, 128 / 255, 1], 100, 200)
-	
-	gl.uniform1i(uObjectCount, 2);
 }
 
-function setObject(index, id, pos, materialRef, param0, param1_1, param1_2, param1_3, param1_4, param2_1, param2_2, param2_3, param2_4) {
-	var base = index * 4;
-	const rowOff = texture_maxObjs * 4;
+function setObject(worldOff, rowOff, objInd, id, pos, materialRef, pram0, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
+	var base = worldOff + objInd * 4;
+	
 	const data = texture_universeArr;
 	const materialID = materialRef.type;
-	// var data = new Float32Array(8192);
-	
-	const xOffset = 0;
-	const yOffset = 0;
-	
-	console.log(index, id, pos, materialRef, param0, param1_1, param1_2, param1_3, param1_4, param2_1, param2_2, param2_3, param2_4);
 	
 	// Row 0
 	data[base + 0] = id; // type
@@ -80,74 +160,39 @@ function setObject(index, id, pos, materialRef, param0, param1_1, param1_2, para
 	data[base + 0] = pos[0];  //pos
 	data[base + 1] = pos[1];
 	data[base + 2] = pos[2];
-	data[base + 3] = param0;
+	data[base + 3] = pram0;
 	base += rowOff;
-	data[base + 0] = param1_1; //rx, ry, rz
-	data[base + 1] = param1_2;
-	data[base + 2] = param1_3;
-	data[base + 3] = param1_4;
+	data[base + 0] = pram1_1; //rx, ry, rz
+	data[base + 1] = pram1_2;
+	data[base + 2] = pram1_3;
+	data[base + 3] = pram1_4;
 	base += rowOff;
-	data[base + 0] = param2_1;
-	data[base + 1] = param2_2;
-	data[base + 2] = param2_3;
-	data[base + 3] = param2_4;
-	
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, texture_universe);
-	gl.uniform1i(gl.getUniformLocation(program, "uSceneTex"), 0);
-	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-	gl.texSubImage2D(
-		gl.TEXTURE_2D,
-		0,
-		xOffset,
-		yOffset,
-		texture_maxObjs,
-		texture_rowsPerObj,
-		gl.RGBA,
-		gl.FLOAT,
-		data
-	);
+	data[base + 0] = pram2_1;
+	data[base + 1] = pram2_2;
+	data[base + 2] = pram2_3;
+	data[base + 3] = pram2_4;
 }
 
-function setMaterial(index, id, color4, param1_1, param1_2, param1_3, param1_4, param2_1, param2_2, param2_3, param2_4) {
-	const rowOff = texture_maxObjs * 4;
-	var base = (index * 4) + (rowOff * 4);
+function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
+	var base = worldOff + objInd * 4;
+	
 	const data = texture_universeArr;
 	
-	const xOffset = 0;
-	const yOffset = 0;
-	
-	// Row 0
+	base += rowOff * 4;
 	data[base + 0] = color4[0];  //color
 	data[base + 1] = color4[1];
 	data[base + 2] = color4[2];
 	data[base + 3] = color4[3];
 	base += rowOff;
-	data[base + 0] = param1_1; // param space 1
-	data[base + 1] = param1_2; 
-	data[base + 2] = param1_3;
-	data[base + 3] = param1_4;
+	data[base + 0] = pram1_1; // param space 1
+	data[base + 1] = pram1_2; 
+	data[base + 2] = pram1_3;
+	data[base + 3] = pram1_4;
 	base += rowOff;
-	data[base + 0] = param2_1; //param space 2
-	data[base + 1] = param2_2;
-	data[base + 2] = param2_3;
-	data[base + 3] = param2_4;
-	
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, texture_universe);
-	gl.uniform1i(gl.getUniformLocation(program, "uSceneTex"), 0);
-	gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-	gl.texSubImage2D(
-		gl.TEXTURE_2D,
-		0,
-		xOffset,
-		yOffset,
-		texture_maxObjs,
-		texture_rowsPerObj + texture_rowsPerMat,
-		gl.RGBA,
-		gl.FLOAT,
-		data
-	);
+	data[base + 0] = pram2_1; //param space 2
+	data[base + 1] = pram2_2;
+	data[base + 2] = pram2_3;
+	data[base + 3] = pram2_4;
 }
 
 function setupGLState(vertexShaderCode, fragmentShaderCode) {
@@ -181,10 +226,32 @@ function setupGLState(vertexShaderCode, fragmentShaderCode) {
 	gl.enableVertexAttribArray(posLoc);
 	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 	
+	uDebug = gl.getUniformLocation(program, "uDebug");
 	uResolution = gl.getUniformLocation(program,"uResolution");
 	uTime = gl.getUniformLocation(program,"uTime");
 	uCamPos = gl.getUniformLocation(program,"uCamPos");
 	uCamRot = gl.getUniformLocation(program,"uCamRot");
 	uCamWorld = gl.getUniformLocation(program,"uCamWorld");
-	uObjectCount = gl.getUniformLocation(program,"uObjectCount");
+}
+
+function feedGPU() {
+	gl.uniform2f(uResolution, canvas.width, canvas.height);
+	gl.uniform1f(uTime, world_time);
+	
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture_universe);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+function GPU_transferObj(world, object) {
+	const worldOffset = world.id * (texture_rowsPerObj + texture_rowsPerMat) * (world_maxObjs + texture_worldCols) * 4;
+	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
+	setObject(worldOffset, rowOffset, world.objects.indexOf(object), ...object.serializeGPU());
+	updateWorldTexture();
+}
+
+function GPU_toggleDebug() {
+	var val = gl.getUniform(program, uDebug);
+	console.log(val, !val);
+	gl.uniform1i(uDebug, !val);
 }
