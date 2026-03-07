@@ -36,10 +36,11 @@ class Ray {
 	iterate() {
 		const pos = this.pos;
 		const dPos = this.dPos;
+		const self = this;
 		
 		while (this.iters < ray_maxIters) {
 			if (this.totalDist > ray_maxDist) {
-				this.world.postEffects(this);
+				this.world.postEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
 				return this.color;
 			}
 	
@@ -55,13 +56,13 @@ class Ray {
 			
 			if (safeDist < ray_minDist) {
 				//if it's hit:
-				this.hit += distObj.material.applyHitEffect(this);
+				this.hit += distObj.material.applyHitEffect(this, distObj);
 				
 				//a ray will go through normal (hit=0) -> shadow (hit=1) -> done (hit=2) span.
 				if (this.hit >= 2) {
 					//draw self as a shadow
 					this.shadow();
-					this.world.postEffects(this);
+					this.world.postEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
 					return this.color;
 				}
 				
@@ -73,7 +74,7 @@ class Ray {
 					dPos[2] = this.world.sunVector[2];
 				}
 			} else if (safeDist < ray_nearDist) {
-				distObj.material.applyNearEffect(this);
+				distObj.material.applyNearEffect(this, distObj);
 			}
 
 			//move distance
@@ -81,10 +82,10 @@ class Ray {
 			pos[1] += dPos[1] * this.localDist;
 			pos[2] += dPos[2] * this.localDist;
 			this.totalDist += this.localDist;
-			this.world.preEffects(this);
+			this.world.preEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
 			this.iters += 1;
 		}
-		this.world.postEffects(this);
+		this.world.postEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
 		return this.color;
 	}
 	
