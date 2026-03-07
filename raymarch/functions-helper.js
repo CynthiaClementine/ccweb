@@ -224,13 +224,6 @@ for (var a=0; a<sqrtTable.length; a++) {
 	sqrtTable[a] = Math.sqrt(a);
 }
 
-//bit magic to get the bits out of a float
-function doubleToIEEE(f) {
-	var buf = new ArrayBuffer(8);
-	(new Float64Array(buf))[0] = f;
-	return [(new Uint32Array(buf))[0], (new Uint32Array(buf))[1]];
-}
-
 //warning - this function is slower somehow
 function fastSqrt(x) {
 	return Math.sqrt(x);
@@ -239,8 +232,7 @@ function fastSqrt(x) {
 		return Math.sqrt(x);
 	}
 
-	//bitshifting is faster than Math.floor
-	return sqrtTable[x << 1 >> 1];
+	return sqrtTable[x | 0];
 }
 
 function loadWorld(worldName) {
@@ -412,21 +404,6 @@ function quatMultiply(quat1, quat2) {
 		quat1[0] * quat2[3] + quat1[1] * quat2[2] - quat1[2] * quat2[1] + quat1[3] * quat2[0]
 	]
 }
-
-/**
-* simple function that subtracts a from b and divides by d.
-* It's very simple but it's used a lot in grid calculations, so I wrote a function for it
- */
-function trans(a, b, d) {
-	return (a - b) / d;
-}
-
-
-
-
-
-
-
 
 
 
