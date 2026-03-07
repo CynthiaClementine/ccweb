@@ -14,6 +14,7 @@ var btx;
 
 //setup
 function setup() {
+	tree_sets = 7;
 	initiateWorkers();
 	createWorlds();
 	canvas = document.getElementById("artbox");
