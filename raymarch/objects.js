@@ -166,6 +166,10 @@ class Scene3dLoop {
 		this.material = object.material;
 	}
 	
+	normalAt(pos) {
+		return this.obj.normalAt(pos);
+	}
+	
 	applyHitEffect(object) {
 		this.obj.applyHitEffect(object);
 	}
@@ -190,7 +194,19 @@ class Scene3dLoop {
 	}
 	
 	serialize() {
-		return this.obj.map(a => a.serialize()).join("\n");
+		//TODO: doesn't work
+		return this.obj.serialize();
+	}
+	
+	serializeGPU() {
+		var serial = this.obj.serializeGPU();
+		serial[0] += 100;
+		//range replaces position
+		serial[1][0] = this.xRange;
+		serial[1][1] = this.yRange;
+		serial[1][2] = this.zRange;
+		serial[11] = this.d;
+		return serial;
 	}
 }
 
@@ -273,7 +289,7 @@ class Box_Moving extends Box {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx, this.ry, this.rz + 100);
+		return giveBounds(this.pos, this.rx, this.ry, this.rz + 400);
 	}
 	
 	//warning: does not mesh well with portal surfaces. fix before finishing
@@ -281,8 +297,12 @@ class Box_Moving extends Box {
 		this.pos = [
 			this.posBase[0],
 			this.posBase[1],
-			this.posBase[2] + 100 * Math.sin(world_time / 80)
+			this.posBase[2] + 400 * Math.sin(world_time / 160)
 		];
+		
+		if (gl && loading_world.objects.includes(this)) {
+			GPU_transferObj(loading_world, this);
+		}
 	}
 }
 

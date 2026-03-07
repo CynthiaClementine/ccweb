@@ -1,7 +1,3 @@
-function noop(ray) {
-
-}
-
 function world_loopRay(ray, width) {
 	var rPos = ray.pos;
 	var ww = ray.world.width ?? width;
@@ -10,10 +6,11 @@ function world_loopRay(ray, width) {
 	rPos[2] = modulate(rPos[2], ww);
 }
 
-function world_brighten(ray, r, g, b) {
-	ray.color[0] += r;
-	ray.color[1] += g;
-	ray.color[2] += b;
+function world_brighten(ray, color) {
+	ray.color[0] += color[0];
+	ray.color[1] += color[1];
+	ray.color[2] += color[2];
+	ray.color[3] += color[3] ?? 1;
 }
 
 function world_spherize(ray, sphereR) {
@@ -21,22 +18,40 @@ function world_spherize(ray, sphereR) {
 	ray.dPos = normalize(ray.dPos);
 }
 
+
+var map_idPre = {
+	10: world_loopRay,
+	20: world_brighten,
+	30: world_spherize
+};
+var map_preId = Object.fromEntries(Object.entries(map_idPre).map(a => [a[1].name, a[0]]));
+
+var map_idPost = {
+	0: bg,
+	1: bg_range,
+	2: bg_gradient,
+	10: bg_fadeTo,
+	11: bg_fadeToOld,
+	12: bg_fadeToRange,
+	20: bg_sun
+};
+var map_postId = Object.fromEntries(Object.entries(map_idPost).map(a => [a[1].name, a[0]]));
+
+
 //applies a background color.
 function bg(ray, color) {
-	applyColor(color, ray.color);
+	applyColor(Color4(color[0], color[1], color[2], 0), ray.color);
+}
+
+function bg_range(ray, color1, color2) {
+	var r1 = randomBounded(color1[0], color2[0]);
+	var r2 = randomBounded(color1[1], color2[1]);
+	var r3 = randomBounded(color1[2], color2[2]);
+	applyColor(Color(r1, r2, r3), ray.color);
 }
 
 function bg_gradient(ray, color, power) {
-
-}
-
-function bg_fadeToOld(ray, color, dist) {
-	var distPerc = clamp(ray.totalDist / dist, 0, 0.9) ** 2;
-	var logging = Math.random() < 0.001;
-
-	ray.color[0] = color[0]*distPerc + ray.color[0]*(1-distPerc);
-	ray.color[1] = color[1]*distPerc + ray.color[1]*(1-distPerc);
-	ray.color[2] = color[2]*distPerc + ray.color[2]*(1-distPerc);
+	applyColor(Color4(color[0], color[1], color[2], ray.dPos[1] ** power), ray.color);
 }
 
 function bg_fadeTo(ray, color, dist) {
@@ -44,6 +59,20 @@ function bg_fadeTo(ray, color, dist) {
 	ray.color[0] = color[0]*distPerc + ray.color[0]*(1-distPerc);
 	ray.color[1] = color[1]*distPerc + ray.color[1]*(1-distPerc);
 	ray.color[2] = color[2]*distPerc + ray.color[2]*(1-distPerc);
+}
+
+function bg_fadeToOld(ray, color, dist) {
+	var distPerc = clamp(ray.totalDist / dist, 0, 0.9) ** 2;
+	ray.color[0] = color[0]*distPerc + ray.color[0]*(1-distPerc);
+	ray.color[1] = color[1]*distPerc + ray.color[1]*(1-distPerc);
+	ray.color[2] = color[2]*distPerc + ray.color[2]*(1-distPerc);
+}
+
+function bg_fadeToRange(ray, color1, color2, dist) {
+	var r1 = randomBounded(color1[0], color2[0]);
+	var r2 = randomBounded(color1[1], color2[1]);
+	var r3 = randomBounded(color1[2], color2[2]);
+	bg_fadeTo(ray, Color(r1, r2, r3), dist);
 }
 
 function bg_sun(ray, color, sunSize) {
@@ -66,8 +95,8 @@ class World {
 	/**
 	 * Creates a World object
 	 * @param {String} name 
-	 * @param {Function} preEffects effects applied at every stage of a ray's march
-	 * @param {Function} effects effects applied after a ray finishes its march
+	 * @param {Function[]} preEffects effects applied at every stage of a ray's march
+	 * @param {Function[]} effects effects applied after a ray finishes its march
 	 * @param {Number[]} sunVector 
 	 * @param {Number[]} spawn 
 	 * @param {Scene3dObject[]} objects 
@@ -79,6 +108,13 @@ class World {
 		
 		this.preEffects = preEffects;
 		this.postEffects = effects;
+		
+		if (preEffects.length >= texture_worldCols) {
+			throw new Error(`World ${name}: too many pre-effects!`);
+		}
+		if (effects.length >= texture_worldCols) {
+			throw new Error(`World ${name}: too many post-effects!`);
+		}
 		
 		this.sunVector = sunVector;
 		this.spawn = spawn;
@@ -98,12 +134,16 @@ class World {
 				this.objects[o] = deserialize(this.objects[o]);
 			}
 		}
+		if (this.objects.length > world_maxObjs) {
+			throw new Error(`World ${this.name}: too many objects!`);
+		}
 		
 		this.id = Object.keys(worlds).length;
-		if (this.id >= world_maxID) {
-			throw new Error(`Attempting to defined more than the maximum number of worlds!`);
+		if (this.id >= universe_maxID) {
+			throw new Error(`World ${this.name}: too many worlds!`);
 		}
 		worlds[this.name] = this;
+		worldsByID[this.id] = this;
 		
 		//generate BrickMap
 		this.grid = new ObjectGrid(this, world_objectChunks);
@@ -158,7 +198,8 @@ class World_Looping {
 	/**
 	 * A World object that has built in looping effects, for pseudo-infinite space.
 	 * @param {String} name 
-	 * @param {Function} preEffects 
+	 * @param {Function[]} preEffects 
+	 * @param {Function[]} effects 
 	 * @param {Number[]} sunVector 
 	 * @param {Number[]} spawn 
 	 * @param {Scene3dObject[]} objects 
@@ -173,12 +214,23 @@ class World_Looping {
 		this.preEffects = preEffects;
 		this.postEffects = effects;
 		
+		if (preEffects.length >= texture_worldCols) {
+			throw new Error(`World ${name}: too many pre-effects!`);
+		}
+		if (effects.length >= texture_worldCols) {
+			throw new Error(`World ${name}: too many post-effects!`);
+		}
+		
 		this.sunVector = sunVector;
 		this.spawn = spawn;
 		this.objects = objects;
 		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
 		
 		var self = this;
+		this.id = Object.keys(worlds).length;
+		if (this.id >= universe_maxID) {
+			throw new Error(`World ${this.name}: too many worlds!`);
+		}
 		worlds[this.name] = self;
 		//because we're dealing with a small space, a BrickMap probably isn't necessary. 
 		//A single BrickGrid will do just fine
@@ -210,6 +262,9 @@ class World_Looping {
 			}
 		});
 		this.objects.push(...duplicates);
+		if (this.objects.length > world_maxObjs) {
+			throw new Error(`World ${this.name}: too many objects!`);
+		}
 	}
 	
 	tick() {
@@ -251,23 +306,23 @@ class World_Looping {
 }
 
 
+var worldsByID = [];
 
 function createWorlds() {
 	console.log(`creating worlds!`);
 	
-	new World("start",
-		noop,
-		(ray) => {
-			bg(ray, Color4(80, 70 + 20 * Math.cos(world_time / 80), 80, 0));
-			bg_sun(ray, Color(255, 255, 240), 0.002);
-		},
+	new World("start", 
+		[],[
+			[bg, Color(80, 90, 80)],
+			[bg_sun, Color(255, 255, 240), 0.002]
+		],
 		polToCart(0, 0.7, 1),
 		[0, 600, 0],
 		[
 			"CUBE|color:90~114~187|[-100,330,100]~45",
 			"PRISM-RHOMBUS|color:255~64~64|[0,300,-80]~5~24~30~17~50",
-			new Box(Pos(0, -50, 0), new M_Color(64, 255, 150), 1000, 100, 1000),
 			new BoxFrame(Pos(100, 100, 100), new M_Glass(255, 128, 255, 40), 50, 50, 50, 10),
+			new Box(Pos(0, -50, 0), new M_Color(64, 255, 150), 1000, 100, 1000),
 			new Capsule(Pos(-500, 300, 0), new M_Color(128, 128, 255), 100, 200),
 			new Ellipsoid(Pos(-300, 100, 200), new M_Mirror(128, 128, 255, 30), 100, 80, 60),
 			new Gyroid(Pos(100, 100, -300), new M_Color(255, 240, 10), 50, 50, 50, 0.08, 13, 10),
@@ -282,21 +337,28 @@ function createWorlds() {
 			
 			new Capsule(Pos(900, 50, -827), new M_Portal(`darkBright`, Pos(0, 0, 0)), 15, 20),
 			"BOX|portal:cubes~[0,50,0]|[746,60,-399]~10~10~10",
+			"BOX|portal:tinyObjs~[0,0,0]|[-100,385,100]~10~10~10",
 			// new DebugLines(Pos(-1000,-1000,-1000), Pos(1000,1000,1000))
-		]
+		],
+		0.4
 	);
 	
 	
+		// world.preEffects.forEach(e => {
+		// 	e[0](ray, e[1], e[2], e[3]);
+		// });
+		
+		// world.postEffects.forEach(e => {
+		// 	e[0](ray, e[1], e[2], e[3]);
+		// });
 
-	new World("darkBright",
-		(ray) => {
-			world_brighten(ray, 2, 1, 1);
-		},
-		(ray) => {
-			bg(ray, Color(randomBounded(10, 30), randomBounded(10, 30), randomBounded(10, 30), 0));
-			bg_fadeTo(ray, Color(randomBounded(10, 30),randomBounded(10, 30),randomBounded(10, 30)), 800);
-			bg_sun(ray, Color(255, 160, 140), 0.01);
-		},
+	new World("darkBright", [
+			[world_brighten, [1, 160/255, 140/255, 1.5]]
+		],[
+			[bg_range, Color(10, 10, 10), Color(30, 30, 30)],
+			[bg_fadeToRange, Color(10, 10, 10), Color(30, 30, 30), 800],
+			[bg_sun, Color(255, 160, 140), 0.01],
+		],
 		polToCart(0.1, Math.PI * 0.47, 1),
 		[101, 101, 101],
 		[
@@ -307,10 +369,11 @@ function createWorlds() {
 	);
 	
 	new World("tinyObjs",
-		noop,
-		(ray) => {
-			bg(ray, Color4(120, 120, 120, 0));
-		},
+		[
+			[world_spherize, 600]
+		],[
+			[bg, Color(120, 120, 120)]
+		],
 		polToCart(0, 1.04, 1),
 		[-19.85, 308.75, 241.36],
 		[
@@ -388,22 +451,21 @@ function createWorlds() {
 	}
 	
 	new World("cubes",
-		noop,
-		(ray) => {
-			bg(ray, Color4(5, 0, 10, 0));
-			bg_fadeTo(ray, Color(0, 0, 0), 1500);
-		},
+		[],[
+			[bg, Color(5,0,10)],
+			[bg_fadeTo, Color(0,0,0), 1500]
+		],
 		polToCart(0, Math.PI / 2, 1),
 		[197,349,-403],
 		objs
 	);
 	
-	new World_Looping("spheresForever",
-		world_loopRay,
-		function(ray) {
-			bg(ray, Color4(255, 227, 245, 0));
-			bg_fadeToOld(ray, Color(255, 227, 245), 1200);
-		},
+	new World_Looping("spheresForever", [
+			[world_loopRay, 120]
+		],[
+			[bg, Color(255,227,245)],
+			[bg_fadeToOld, Color(255,227,245), 1200]
+		],
 		polToCart(0.6, 0.4, 1),
 		[60.2, 100, 60.2],
 		[
@@ -423,27 +485,25 @@ function createWorlds() {
 		120
 	);
 	
-	new World_Looping("turtleHell",
-		world_loopRay,
-		(ray) => {
-			bg(ray, Color4(255, 227, 245, 0));
-			bg_fadeToOld(ray, Color(255, 227, 245, 255), 1200);
-		},
+	new World_Looping("turtleHell", [
+			[world_loopRay, 120]
+		],[
+			[bg, Color(255, 227, 245)],
+			[bg_fadeToOld, Color(255, 227, 245), 1200],
+		],
 		polToCart(0.6, 0.4, 1),
 		[60.2,100,60.2],
 		[new Ring(Pos(60, 40, 60), new M_Color(240, 180, 60), 60, 10)],
 		120
 	);
 	
-	new World("gyroidCaves",
-		(ray) => {
-			world_brighten(ray, 1, 1, 1);
-		},
-		(ray) => {
-			bg(ray, Color4(40, 30, 50, 0));
-			bg_sun(ray, Color(255, 255, 240), 0.0025);
-			bg_sun(ray, Color(0, 0, 0), 0.001);
-		},
+	new World("gyroidCaves", [
+			[world_brighten, Color(1,1,1)]
+		],[
+			[bg, Color(40, 30, 50)],
+			[bg_sun, Color(255, 255, 240), 0.0025],
+			[bg_sun, Color(0, 0, 0), 0.001]
+		],
 		polToCart(-0.82, 0.73, 1),
 		[17,22,-6],
 		[
@@ -453,18 +513,18 @@ function createWorlds() {
 		]
 	);
 	
-	new World("parkourSimple",
-		noop,
-		(ray) => {
-			bg(ray, Color4(80, 80, 120));
-			bg_sun(ray, Color(255, 200, 170), 0.003);
-			bg_sun(ray, Color(255, 255, 255), 0.001);
-		},
+	new World("parkourSimple", [
+		],[
+			[bg, Color(80, 80, 120)],
+			[bg_fadeTo, Color(80, 80, 120), 2000],
+			[bg_sun, Color(255, 200, 170), 0.003],
+			[bg_sun, Color(255, 255, 255), 0.001],
+		],
 		polToCart(0.2, 0.7, 1),
 		[-101, 400, 101],
 		[
 			"CUBE|rubber|[-100,330,100]~45",
-			"BOX|mirror:0~149~234~34|[-118,100,165]~300~80~260",
+			"BOX|mirror:0~149~234~34|[-118,100,165]~3200~80~3200",
 			"BOX|color:255~0~255|[-82.92654418945312,400.5628967285156,218.53836059570312]~10~10~10",
 			"BOX|color:255~0~255|[-147.37078857421875,428.16204833984375,298.4496765136719]~10~10~10",
 			"BOX|color:255~0~255|[-91.93114471435547,451.25103759765625,384.7395935058594]~10~10~10",
@@ -479,13 +539,12 @@ function createWorlds() {
 		]
 	);
 	
-	new World("speedCheck",
-		noop,
-		(ray) => {
-			bg(ray, Color4(80, 80, 120));
-			bg_sun(ray, Color(255, 200, 170), 0.003);
-			bg_sun(ray, Color(255, 255, 255), 0.001);
-		},
+	new World("speedCheck", [
+		],[
+			[bg, Color(80, 80, 120)],
+			[bg_sun, Color(255, 200, 170), 0.003],
+			[bg_sun, Color(255, 255, 255), 0.001]
+		],
 		polToCart(0.2, 0.7, 1),
 		[-101, 400, 101],
 		[
@@ -510,15 +569,15 @@ function createWorlds() {
 			new Capsule(Pos(1800, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1800, 80, -60), new M_Color(255, 240, 200), 15, 10),
 			new Capsule(Pos(1900, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(1900, 80, -60), new M_Color(255, 240, 200), 15, 10),
 			new Capsule(Pos(2000, 80, 60), new M_Color(255, 240, 200), 15, 10), new Capsule(Pos(2000, 80, -60), new M_Color(255, 240, 200), 15, 10),
+			new Octahedron(Pos(0, 200, 0), new M_Color(255, 0, 0), 10, 10, 10)
 		]
 	);
 	
-	new World("stairwell",
-		noop,
-		(ray) => {
-			bg_fadeTo(ray, Color4(128, 128, 128, 128), 100);
-			bg(ray, Color4(184, 255, 249, 0));
-		},
+	new World("stairwell", [
+		],[
+			[bg_fadeTo, Color4(128, 128, 128, 128), 100],
+			[bg, Color(184, 255, 249)]
+		],
 		polToCart(1.4, Math.PI * 0.4, 1),
 		[0, 0, 0],
 		[
