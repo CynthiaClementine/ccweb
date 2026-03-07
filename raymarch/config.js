@@ -32,6 +32,7 @@ function Color4(r, g, b, a) {
 var program;
 var vertexBuffer;
 var posLoc;
+var gl;
 
 const frameTime = 1000 / 60;
 
@@ -88,19 +89,95 @@ var render_goalN = render_n;
 var render_shadowPercent = 0.7;
 var render_linesDrawn = 0;
 
+const months = [`March`, `Jan`, `January`, `Fay`, `May`, `.`, `Sept`, `July`, `Aug`, `Auct`, `Dec`, `Enerch`];
+
+var date = new Date();
+
+const splashes = [
+	`Splash Text!`,
+	`Now with 60000% more pixels!`,
+	`Now with WebGL!`,
+	`We have soft shading`,
+	`As seen on TV!`,
+	`I'll Have You Know, I'm Moderately Popular With a Number of Extremely Mentally Ill Trans Women on a Failing Social Media Website`,
+	`Best in class!`,
+	`pure exhilaration.`,
+	`hi`,
+	`It sure is    here! `,
+	`Rearticulating spines!`,
+	`What do I do with this drunken sailor?`,
+	`Locally sourced.`,
+	`I put my friends on the GPU. I put my WIFE on the GPU!`,
+	`Jensen Huang is sobbing.`,
+	`Maximizing shareholder value since 1929!`,
+	`More heartwarming than a radioactive pacemaker! `,
+	`squircles now included!`,
+	`Limited Edition!`,
+	`I sold my car for this!!`,
+	`hi my name is john sTith PJEMBERTON`,
+	`I know you're playing this on ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`,
+	`A house? In this economy???`,
+	`I am in crippling financial debt!`,
+	`I am in crippling sleep debt!`,
+	`When was the last time you cleaned your keyboard?`,
+	`I still can't spell defenestrate!`,
+	`:3`,
+	`0-0`,
+	`0u0`,
+	`waow`,
+	`The governmental spending of the United States is untenable and its economy is only being held up by the quickly diminishing role it plays as the world's reserve currency!`,
+	`All the money is gone! Rush your bank!`,
+	`More hampered than a laundry basket! `,
+	`Hampter.`,
+	`Euclidean!*`,
+	`Beloved by millions!`,
+	`I can promise you much, but offer you little.`,
+	`Short and stout!`,
+	`Stop and smell the Rosen-Einstein bridge!`,
+	`The things you're nostalgic for are likely mediocre at best!`,
+	`INFDEAF `,
+	`Fascist takeover!`,
+	`Now with 80% more shariah law!`,
+	`March comes in like a lion!`,
+	`Babushka! `,
+	`Now you're thinking with portals!`,
+	`Turtle Hell 1999`,
+	`Also check out red pandas!`,
+	`See also: Laser broom`,
+	`Overpopulating pixels!!`,
+	`My goal is to integer overflow the number of bugs.`,
+	`Buckle your pants!`,
+	`Gullible is written on your forehead!`,
+	`RAaahaagagaggaggghsbhhhhhg`,
+	`And so on.`,
+	`Tacit approval by the United Nations!`,
+	`Perlin not included!`,
+	`Consider the lobster!`,
+	`Marching on the Sun!`,
+	`Dragon curve!`,
+	`Elbereth!`,
+	`Held under the dorsal guiding feathers?`,
+	`Don't trust people who say always or never!`,
+	`Spain without the 'a'!`,
+	`Question authority!`,
+	`Help, help, I'm being compressed!`
+];
+
 const tree_maxD = 5000;
 const tree_minD = 2;
 const tree_l = 41;
-const tree_sets = 3;
+var tree_sets = 3;
 
 const texture_rowsPerObj = 4;
 const texture_rowsPerMat = 3;
-const texture_maxObjs = 512;
+const texture_worldCols = 6;
 var texture_universe;
 var texture_universeArr;
 
+const universe_maxID = 20;
 
 //uniforms
+var uDebug;
 var uResolution;
 var uTime;
 var uCamPos;
@@ -114,7 +191,7 @@ var worker_ready = [];
 
 var loading_world;
 
-const world_maxID = 20;
+const world_maxObjs = 500;
 const world_objectChunks = Math.floor(Math.cbrt(10000));
 var worlds = {};
 var world_time = 0;
