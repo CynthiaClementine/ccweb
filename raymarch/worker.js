@@ -10,7 +10,9 @@ importScripts("objects.js");
 importScripts("worlds.js");
 //ough
 
+
 //workers all have a copy of the world state, so they can simulate raycasts
+tree_sets = 7;
 createWorlds();
 
 var player = new Player(loading_world, Pos(0, 0, 0));
