@@ -32,12 +32,14 @@ async function setup() {
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 	
+	document.title = `Raymarching: ${splashes[(Math.random() * splashes.length) | 0]}`;
+	
 	resize();
 	setupGLState(vertexShaderCode, fragmentShaderCode);
 	createWorlds();
 	createObjectsTexture();
 	
-	player = new Player_Noclip(loading_world, Pos(0, 0, 0));
+	player = new Player_Noclip(loading_world, Pos(...loading_world.spawn));
 	camera = new Camera(loading_world, Pos(0, 0, 0));
 	
 	window.requestAnimationFrame(main);
@@ -50,43 +52,62 @@ async function loadCode(url) {
 let last = 0;
 var time = 0;
 
-function main(t) {
+function main() {
+	perf_startT = performance.now();
+	world_time += 1;
+	//tick all world objects
+	loading_world = camera.world;
 	player.tick();
 	camera.tick();
+	
+	loading_world.objects.forEach(o => {
+		o.tick();
+	});
+	loading_world.tick();
+	
 	feedGPU();
-	window.requestAnimationFrame(main);
+
+	//end
+	finishMain();
 }
 
-function feedGPU() {
-	gl.uniform2f(uResolution, canvas.width, canvas.height);
-	gl.uniform1f(uTime, time);
+function finishMain() {
+	render_linesDrawn = 0;
 	
-	gl.activeTexture(gl.TEXTURE0);
-	gl.bindTexture(gl.TEXTURE_2D, texture_universe);
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
+	//calculate frame time
+	perf_endT = performance.now();
+	var elapsedMS = (perf_endT - perf_startT);
+	perf_log[perf_n] = elapsedMS;
+	perf_n = (perf_n + 1) % perf_len;
+	
+	//log performance
+	var avgElapsedMS = (perf_log.reduce((a, b) => a + b) / perf_len);
+	
+	//changing display size
+	if (render_n != render_goalN) {
+		render_n = render_goalN;
+		//ough
+		page_animation = window.setTimeout(main, 70);
+	} else {
+		//regular frame advance
+		// console.log(`calculating timeout for ${frameTime} - ${elapsedMS.toFixed(2)} = ${Math.max(1, frameTime - elapsedMS).toFixed(3)}`);
+		page_animation = window.setTimeout(main, Math.max(1, frameTime - elapsedMS));
+	}
 }
+
+
 
 
 function resize() {
-	// var width = window.innerWidth - 10;
-	// var height = window.innerHeight - 10;
-	// var blockSize = Math.min(width, height);
+	var width = window.innerWidth - 10;
+	var height = window.innerHeight - 10;
+	var blockSize = Math.min(width, height);
 	
-	// canvas.width = blockSize;
-	// banvas.width = blockSize;
-	// canvas.height = blockSize;
-	// banvas.height = blockSize;
+	canvas.width = blockSize;
+	banvas.width = blockSize;
+	canvas.height = blockSize;
+	banvas.height = blockSize;
 	// editorPanelGroup.style = `margin-left: ${blockSize + 20}px`;
-	
-	
-	
-	// Lookup the size the browser is displaying the canvas in CSS pixels.
-	const displayWidth  = canvas.clientWidth;
-	const displayHeight = canvas.clientHeight;
-	
-	// Make the canvas the same size
-	canvas.width  = displayWidth;
-	canvas.height = displayHeight;
 	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 }
 
