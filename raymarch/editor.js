@@ -63,12 +63,16 @@ class Slider {
 	}
 	
 	synchronize() {
+		var sigFigs = Math.min(-Math.log10(this.step), 0);
 		try {
-			this.offset = clamp(Math.round(eval(this.var) / this.step) * this.step, ...this.varRange);
+			var setVal = Math.round(eval(this.var) / this.step) * this.step;
+			this.offset = clamp(+(setVal.toFixed(sigFigs)), ...this.varRange);
 			if (!this.rel) {
 				this.sliderElem.value = this.offset;
 			}
-		} catch (e) {}
+		} catch (e) {
+			// console.error(e);
+		}
 		this.updateDisplay();
 	}
 
@@ -263,7 +267,7 @@ function editor_initialize() {
 	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -9999,9999);
 	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -9999,9999);
 	
-	var playerConstructors = [Player, Player_Debug];
+	var playerConstructors = [Player, Player_Debug, Player_Noclip];
 	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
 		if (val) {
 			if (editor_selected == player) {
@@ -352,6 +356,7 @@ function editor_initialize() {
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
 		"ELLIPSE": [...rxyz],
+		"GLOOP-SPHERE": [slider_rr],
 		//gyroid has a bunch of special properties because she's a beautiful princess
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
@@ -359,6 +364,7 @@ function editor_initialize() {
 		"PRISM-RHOMBUS": [...rxyz, slider_skew, dropdown_axes],
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
+		"SHELL": [slider_rr, slider_h],
 	};
 	
 	var rgb = [slider_r, slider_g, slider_b];
@@ -369,6 +375,7 @@ function editor_initialize() {
 		"ghost": [...rgba],
 		"glass": [...rgba],
 		"mirror": [...rgba],
+		"normal": [],
 		"portal": [textbox_world, slider_px, slider_py, slider_pz],
 		"rubber": [],
 	}

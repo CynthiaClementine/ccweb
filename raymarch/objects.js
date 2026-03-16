@@ -51,6 +51,12 @@ class Scene3dObject {
 		return -1;
 	}
 	
+	//how this object should interact with other objects
+	sceneSDF(pos, currentSDF) {
+		const d = this.distanceToPos(pos);
+		return [Math.min(currentSDF, d), d < currentSDF];
+	}
+	
 	/*
 	* 
 	 */
@@ -70,7 +76,6 @@ class Scene3dObject {
 	}
 	
 	serializeGPU() {
-		var color = this.material.color;
 		return [this.typeID, this.pos, this.material];
 	}
 }
@@ -166,6 +171,11 @@ class Scene3dLoop {
 		this.material = object.material;
 	}
 	
+	sceneSDF(pos, currentSDF) {
+		const d = this.distanceToPos(pos);
+		return [Math.min(currentSDF, d), d < currentSDF];
+	}
+	
 	normalAt(pos) {
 		return this.obj.normalAt(pos);
 	}
@@ -245,10 +255,13 @@ class Cube extends Scene3dObject {
 	distanceToPos(pos) {
 		const r = this.r;
 		const zeroPos = this.pos;
-		const x = Math.max(0, Math.abs(pos[0] - zeroPos[0]) - r);
-		const y = Math.max(0, Math.abs(pos[1] - zeroPos[1]) - r);
-		const z = Math.max(0, Math.abs(pos[2] - zeroPos[2]) - r);
-		return Math.sqrt(x * x + y * y + z * z);
+		const x = Math.abs(pos[0] - zeroPos[0]) - r;
+		const y = Math.abs(pos[1] - zeroPos[1]) - r;
+		const z = Math.abs(pos[2] - zeroPos[2]) - r;
+		const dExt = Math.hypot(Math.max(x, 0), Math.max(y, 0), Math.max(z, 0));
+		const dInt = Math.min(Math.max(x, y, z), 0);
+		
+		return dExt + dInt;
 	}
 
 	serialize() {
@@ -270,10 +283,14 @@ class Box extends Scene3dObject_Axes {
 	}
 
 	distanceToPos(pos) {
-		const x = Math.max(0, Math.abs(pos[0] - this.pos[0]) - this.rx);
-		const y = Math.max(0, Math.abs(pos[1] - this.pos[1]) - this.ry);
-		const z = Math.max(0, Math.abs(pos[2] - this.pos[2]) - this.rz);
-		return Math.sqrt(x * x + y * y + z * z);
+		const x = Math.abs(pos[0] - this.pos[0]) - this.rx;
+		const y = Math.abs(pos[1] - this.pos[1]) - this.ry;
+		const z = Math.abs(pos[2] - this.pos[2]) - this.rz;
+		
+		const dExt = Math.hypot(Math.max(x, 0), Math.max(y, 0), Math.max(z, 0));
+		const dInt = Math.min(Math.max(x, y, z), 0);
+		
+		return dExt + dInt;
 	}
 
 	serialize() {
@@ -349,7 +366,7 @@ class Capsule extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r, this.h, this.r);
+		return giveBounds(this.pos, this.r, this.h + this.r, this.r);
 	}
 
 	distanceToPos(pos) {
@@ -558,6 +575,10 @@ class Line extends Scene3dObject_Axes {
 	serialize() {
 		return `LINE${super.serialize()}~${this.e}`;
 	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(this.e);
+	}
 }
 
 class Octahedron extends Scene3dObject_Axes {
@@ -669,9 +690,39 @@ class Ring extends Scene3dObject {
 	}
 }
 
+class Shell extends Scene3dObject {
+	//like sphere but the inside is hollow
+	constructor(pos, material, r, thickness) {
+		super(0, pos, material);
+		this.r = r;
+		this.h = thickness;
+	}
+	
+	bounds() {
+		const re = this.r + this.h;
+		return giveBounds(this.pos, re, re, re);
+	}
+	
+	distanceToPos(pos) {
+		const relX = Math.abs(pos[0] - this.pos[0]);
+		const relY = Math.abs(pos[1] - this.pos[1]);
+		const relZ = Math.abs(pos[2] - this.pos[2]);
+		const sphereDist = Math.sqrt((relX * relX) + (relY * relY) + (relZ * relZ)) - this.r;
+		return Math.abs(sphereDist) - this.h;
+	}
+	
+	serialize() {
+		return `SHELL${super.serialize()}~${this.r}~${this.h}`;
+	}
+	
+	serializeGPU() {
+		return super.serializeGPU().concat(null, this.r, this.h);
+	}
+}
+
 class Sphere extends Scene3dObject {
 	constructor(pos, material, r) {
-		super(0, pos, material)
+		super(4, pos, material)
 		this.r = r;
 	}
 	
@@ -696,6 +747,25 @@ class Sphere extends Scene3dObject {
 	}
 }
 
+class GloopySphere extends Sphere {
+	constructor(pos, material, r, gloopR) {
+		super(pos, material, r);
+		this.gloop = gloopR;
+	}
+	
+	sceneSDF(pos, currentSDF) {
+		const d = this.distanceToPos(pos);
+		const k = 1;
+		const t = clamp(0.5 + 0.5 * (d - currentSDF) / k, 0, 1);
+		const res = linterp(d, currentSDF, t) - k * t * (1 - t);
+		return [res, res < currentSDF];
+	}
+	
+	serialize() {
+		return `GLOOP-${super.serialize()}~${this.gloop}`;
+	}
+}
+
 var map_strObj = {
 	"BOX": Box,
 	"BOX-FRAME": BoxFrame,
@@ -703,11 +773,13 @@ var map_strObj = {
 	"CAPSULE": Capsule,
 	"CYLINDER": Cylinder,
 	"ELLIPSE": Ellipsoid,
+	"GLOOP-SPHERE": GloopySphere,
 	"GYROID": Gyroid,
 	"LINE": Line,
 	"OCTAHEDRON": Octahedron,
 	"PRISM-RHOMBUS": PrismRhombus,
 	"RING": Ring,
+	"SHELL": Shell,
 	"SPHERE": Sphere,
 	
 	//it's in here for editor purposes
