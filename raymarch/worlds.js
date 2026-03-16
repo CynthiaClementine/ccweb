@@ -122,8 +122,9 @@ class World {
 		
 		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
 		
-		this.grid;
-		this.tree;
+		this.grid = null;
+		this.tree = null;
+		this.bvh = null;
 		this.finalize();
 	}
 	
@@ -146,9 +147,15 @@ class World {
 		worldsByID[this.id] = this;
 		
 		//generate BrickMap
-		this.grid = new ObjectGrid(this, world_objectChunks);
-		this.tree = new BrickMap(this, tree_maxD, tree_sets);
-		this.grid.generate();
+		// this.grid = new ObjectGrid(this, world_objectChunks);
+		// this.tree = new BrickMap(this, tree_maxD, tree_sets);
+		this.bvh = new BVH(this);
+		// this.grid.generate();
+		// this.tree.generate();
+		this.bvh.generate();
+		
+		
+		this.tree = new ObjectGrid(this, world_objectChunks);
 		this.tree.generate();
 		console.log(`finished ${this.name}!`);
 	}
@@ -190,7 +197,7 @@ class World {
 	}
 	
 	tick() {
-		this.tree.update();
+		// this.tree.update();
 	}
 }
 
@@ -226,17 +233,27 @@ class World_Looping {
 		this.objects = objects;
 		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
 		
-		var self = this;
+		//because we're dealing with a small space, a BrickMap probably isn't necessary. 
+		//A single BrickGrid will do just fine
+		this.tree = null;
+		this.bvh = null;
+		this.finalize();
+	}
+	
+	finalize() {
 		this.id = Object.keys(worlds).length;
 		if (this.id >= universe_maxID) {
 			throw new Error(`World ${this.name}: too many worlds!`);
 		}
-		worlds[this.name] = self;
-		//because we're dealing with a small space, a BrickMap probably isn't necessary. 
-		//A single BrickGrid will do just fine
+		worlds[this.name] = this;
+		worldsByID[this.id] = this;
+		
 		this.duplicateObjs();
-		this.tree = new ObjectGrid(self, world_objectChunks);
+		this.tree = new ObjectGrid(this, world_objectChunks);
+		this.bvh = new BVH(this);
 		this.tree.generate();
+		this.bvh.generate();
+		
 	}
 	
 	duplicateObjs() {
@@ -339,6 +356,7 @@ function createWorlds() {
 			"BOX|portal:cubes~[0,50,0]|[746,60,-399]~10~10~10",
 			"BOX|portal:tinyObjs~[0,0,0]|[-100,385,100]~10~10~10",
 			// new DebugLines(Pos(-1000,-1000,-1000), Pos(1000,1000,1000))
+			new GloopySphere(Pos(0, 0, 100), new M_Color(255, 255, 255), 40, 5),
 		],
 		0.4
 	);
@@ -351,7 +369,7 @@ function createWorlds() {
 		// world.postEffects.forEach(e => {
 		// 	e[0](ray, e[1], e[2], e[3]);
 		// });
-
+	
 	new World("darkBright", [
 			[world_brighten, [1, 160/255, 140/255, 1.5]]
 		],[
@@ -509,7 +527,8 @@ function createWorlds() {
 		[
 			new Gyroid(Pos(0, 0, 0), new M_Color(50,240,10), 200, 10, 200, 0.08, 13, 10),
 			new Box(Pos(112,22,105), new M_Rubber(), 30, 10, 30),
-			new Cylinder(Pos(-115,22,-59), new M_Portal("cubes", Pos(-70, 110, 30)), 10, 15)
+			new Cylinder(Pos(-115,22,-59), new M_Portal("cubes", Pos(-70, 110, 30)), 10, 15),
+			"BOX|portal:start~[0,0,0,0]|[112,193,105]~20~6~20",
 		]
 	);
 	
@@ -525,19 +544,40 @@ function createWorlds() {
 		[
 			"CUBE|rubber|[-100,330,100]~45",
 			"BOX|mirror:0~149~234~34|[-118,100,165]~3200~80~3200",
-			"BOX|color:255~0~255|[-82.92654418945312,400.5628967285156,218.53836059570312]~10~10~10",
-			"BOX|color:255~0~255|[-147.37078857421875,428.16204833984375,298.4496765136719]~10~10~10",
-			"BOX|color:255~0~255|[-91.93114471435547,451.25103759765625,384.7395935058594]~10~10~10",
-			"BOX|color:255~0~255|[-8.84300708770752,474,335.62628173828125]~10~10~10",
-			"BOX|color:255~0~255|[82.50881958007812,500,302.96343994140625]~10~10~10",
-			"BOX|color:255~0~255|[109.50541687011719,527,207.44947814941406]~10~10~10",
-			"BOX|color:255~0~255|[72.22925567626953,554,110.82789611816406]~10~10~10",
-			"BOX|color:255~0~255|[5.07427453994751,581.8301391601562,38.86457061767578]~10~10~10",
-			"BOX|color:255~0~255|[-82.90099334716797,600.4811401367188,-18.29030418395996]~10~10~10",
-			"BOX|color:255~0~255|[-225,628.0913696289062,225]~10~10~10",
+			"BOX|color:255~0~255|[-82,400,218]~10~10~10",
+			"BOX|color:255~0~255|[-147,428,298]~10~10~10",
+			"BOX|color:255~0~255|[-91,451,384]~10~10~10",
+			"BOX|color:255~0~255|[-8,474,335]~10~10~10",
+			"BOX|color:255~0~255|[82,500,302]~10~10~10",
+			"BOX|color:255~0~255|[109,527,207]~10~10~10",
+			"BOX|color:255~0~255|[72,554,110]~10~10~10",
+			"BOX|color:255~0~255|[5,581,38]~10~10~10",
+			"BOX|color:255~0~255|[-82,600,-18]~10~10~10",
+			"BOX|color:255~0~255|[-225,628,225]~10~10~10",
 			"BOX|color:186~197~203|[-88,370,116]~25~7~25"
 		]
 	);
+	
+	// var pks = worlds["parkourSimple"];
+	// function awawa(node, red) {
+	// 	if (!node) {
+	// 		return;
+	// 	}
+	// 	var x = (node.minPos[0] + node.maxPos[0]) / 2;
+	// 	var y = (node.minPos[1] + node.maxPos[1]) / 2;
+	// 	var z = (node.minPos[2] + node.maxPos[2]) / 2;
+	// 	var dx = (node.maxPos[0] - node.minPos[0]);
+	// 	var dy = (node.maxPos[1] - node.minPos[1]);
+	// 	var dz = (node.maxPos[2] - node.minPos[2]);
+	// 	var obj = new BoxFrame(Pos(x, y, z), new M_Glass(red, 255, 255, 30), dx / 2, dy / 2, dz / 2, 5);
+	// 	pks.objects.push(obj);
+		
+	// 	awawa(node.left, red + 20);
+	// 	awawa(node.right, red + 20);
+	// }
+	// awawa(pks.bvh.root, 0);
+	// editor_selected = camera;
+	// syncObject_send(pks, pks.objects[0]);
 	
 	new World("speedCheck", [
 		],[
@@ -597,6 +637,59 @@ function createWorlds() {
 		],
 		1
 	);
+	
+	
+	
+	
+	new World("spheres", [
+		],[
+			[bg_fadeTo, Color4(128, 128, 128, 128), 200],
+			[bg, Color(20, 1, 30)]
+		],
+		polToCart(1.4, Math.PI * 0.3, 1),
+		[0, 0, 0],
+		[
+			"BOX|color:255~255~255|[86,-7,-24]~200~20~200",
+			"SHELL|glass:191~243~255~217|[62,13,-35]~1510~10",
+			"SPHERE|glass:255~0~255~141|[87,18,99]~10",
+			"SPHERE|mirror:255~0~255~14|[76,19,70]~10",
+			"SPHERE|mirror:241~237~255~143|[43,31,36]~26",
+			"SPHERE|color:255~0~255|[-17,57,96]~10",
+			"SPHERE|color:104~0~0|[159,25,57]~10",
+			"SPHERE|mirror:255~0~255~0|[102,25,-60]~10",
+			"SPHERE|color:81~63~201|[-44,25,-44]~10",
+			"SPHERE|mirror:93~146~69~96|[82,25,21]~10",
+			"SPHERE|color:255~133~255|[159,25,-20]~10",
+			"SPHERE|color:255~0~255|[25,25,-104]~10",
+			"SPHERE|color:255~0~255|[192,25,-130]~10",
+			"SPHERE|color:255~0~255|[219,25,140]~10",
+			"SPHERE|mirror:0~0~0~9|[170,25,36]~10",
+			"SPHERE|color:255~0~255|[247,25,-32]~10",
+			"SPHERE|color:255~0~255|[-84,25,-145]~10",
+			"SPHERE|mirror:255~0~255~26|[-43,25,59]~10",
+			"SPHERE|color:255~0~255|[-1,25,150]~10",
+			"SPHERE|color:255~0~255|[118,20,184]~10",
+			"SPHERE|concrete|[82,77,-14]~20",
+			"SPHERE|color:255~0~255|[120,132,76]~15",
+			"SHELL|glass:255~0~255~36|[131,115,-3]~17~3.5",
+			"SPHERE|color:255~0~255|[139,149,-33]~10",
+			"SPHERE|color:255~0~255|[48,142,-124]~10",
+			"SPHERE|color:255~0~255|[-12,134,-14]~10",
+			"SPHERE|color:131~255~0|[100,183,-84]~10",
+			"SPHERE|color:255~0~255|[118,217,11]~10",
+			"SPHERE|color:255~0~255|[-18,171,-69]~10",
+			"SPHERE|glass:255~255~255~255|[132,697,771]~51",
+			"SPHERE|glass:255~203~136~94|[-5,824,-774]~110",
+			"SHELL|glass:255~109~255~44|[-591,1056,761]~122~10.6",
+			"SPHERE|glass:83~199~255~48|[1170,1571,-266]~110",
+			"BOX|color:0~121~0|[-69,-1481,46]~10~10~10",
+			"BOX|portal:stairwell~[0,255,0,0]|[-69,-1460,46]~10~10~10",
+		],
+		1
+	);
+	
+	
+	console.log(`finished loading ${worldsByID.length} worlds.`);
 	
 	loading_world = worlds["start"];
 }
