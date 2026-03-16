@@ -1,11 +1,30 @@
 #version 300 es
 
+#define fencepost 4278259968.
+
 #define ray_maxIters 500
 #define ray_maxDist 3000.0
 #define ray_nearDist 3.0
 #define ray_minDist 0.1
 #define render_shadowSteps 2.
 #define obj_maxNum 500
+//should be log2(obj_maxNum) + 1
+//but that's too difficult for the compiler to figure out
+#define bvh_maxNum 13
+
+
+
+#define SPHERE		0
+#define ELLIPSE		1
+#define CAPSULE		2
+#define CYLINDER	3
+#define BOX			10
+#define BOXFRAME	11
+#define GYROID		12
+#define LINE		20
+#define OCTAHEDRON	30
+#define RING		40
+#define RHOMBUSPRISM 51
 
 precision highp float;
 precision highp sampler2DArray;
@@ -27,20 +46,31 @@ struct Raydata {
 	vec4 color;
 };
 
-uniform bool uDebug;
+uniform int uDebug;
 uniform vec2 uResolution;
 uniform float uTime;
 uniform vec3 uCamPos;
 uniform mat3 uCamRot;
 uniform int uCamWorld;
 uniform sampler2DArray uUniverseTex;
+uniform sampler2D uUniverseBVHs;
 
 vec2 seed;
+
+int objIndices[obj_maxNum];
 
 Raydata stage[2] = Raydata[2](
 	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(0., 0., 0., 0.)),
 	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(0.1, 0.1, 0.1, 0.1))
 );
+
+void calcSceneObjs(int);
+
+void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
+	stage[stg].pos = newPos;
+	stage[stg].dPos = newDPos;
+	calcSceneObjs(stg);
+}
 
 
 
@@ -136,7 +166,7 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 	switch (effectType) {
 		//loop
 		case 10: {
-			stage[stg].pos = mod(stage[stg].pos, arg0[0]);
+			setStageRay(stg, mod(stage[stg].pos, arg0[0]), stage[stg].dPos);
 		} break;
 		//brighten
 		case 20: {
@@ -281,21 +311,19 @@ float ellipsoidSDF(vec3 point, vec4 data1, vec4 data2) {
 	return d * (d - 1.) / d2;
 }
 
+float lineSDF(vec3 point, vec4 data1, vec4 data2) {
+	point -= data1.xyz;
+	float lineDot = dot(data2.xyz, data2.xyz);
+	float lambda = clamp(dot(point, data2.xyz) / lineDot, 0., 1.);
+	return length(point - mix(vec3(0.), data2.xyz, lambda)) - data2[3];
+}
+
 float octahedronSDF(vec3 point, vec4 data1, vec4 data2) {
 	point -= data1.xyz;
 	point.xz = rotate(point.x, point.z, 0.7853981634);
 	point = abs(point);
 	
 	return 0.57735 * dot((point - data2.xyz), vec3(1, 1, 1));
-	// var relX = pos[0] - this.pos[0];
-	// var relY = pos[1] - this.pos[1];
-	// var relZ = pos[2] - this.pos[2];
-	// [relX, relZ] = rotate(relX, relZ, Math.PI / 4);
-	// relX = Math.abs(relX);
-	// relY = Math.abs(relY);
-	// relZ = Math.abs(relZ);
-	
-	// return ((relX - this.rx) + (relY - this.ry) + (relZ - this.rz)) * 0.57735;
 }
 
 float planeSDF(vec3 point, vec4 data1) {
@@ -336,41 +364,28 @@ float objSDF(vec3 p, int world, int index) {
 		data[1].xyz = vec3(0.);
 		p = mod(insideP, loopSize) + p - insideP - vec3(loopSize / 2.);
 	}
-	/*
-	0      sphere
-	1      ellipse
-	2      capsule
-	3      cylinder
-	10     box
-	11     boxFrame
-	12     gyroid
-	20     line
-	30     octahedron
-	40     ring
-	51     rhombus prism
-	*/
 	switch (type) {
-		case 0: 
+		case SPHERE: 
 			{d = sphereSDF(p, data[1]); /*stage[1].color[1] = data[1][0] / 4.0;*/} break;
-		case 1: 
+		case ELLIPSE: 
 			{d = ellipsoidSDF(p, data[1], data[2]);} break;
-		case 2:
+		case CAPSULE:
 			{d = capsuleSDF(p, data[1], data[2]);} break;
-		case 3:
+		case CYLINDER:
 			{d = cylinderSDF(p, data[1], data[2]);} break;
-		case 10:
+		case BOX:
 			{d = boxSDF(p, data[1], data[2]);} break;
-		case 11:
+		case BOXFRAME:
 			{d = boxFrameSDF(p, data[1], data[2]);} break;
-		case 12:
+		case GYROID:
 			{d = gyroidSDF(p, data[1], data[2], data[3]);} break;
-		case 20:
-			// {d = lineSDF(p, data[1], data[2]);} break;
-		case 30:
+		case LINE:
+			{d = lineSDF(p, data[1], data[2]);} break;
+		case OCTAHEDRON:
 			{d = octahedronSDF(p, data[1], data[2]);} break;
-		case 40:
+		case RING:
 			{d = ringSDF(p, data[1], data[2]);} break;
-		case 51:
+		case RHOMBUSPRISM:
 			// {d = rhombusPrismSDF(p, data[1], data[2]);} break;
 			
 		// case 5:
@@ -431,7 +446,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		//portal
 		case 20: {
 			stage[stg].world = int(data1[0]);
-			stage[stg].pos += data0.xyz;
+			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
 			stage[stg].localDist = ray_minDist * 2.;
 		} return 0;
 		//mirror
@@ -441,7 +456,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			vec3 normal = getNormal(stage[stg].pos, stage[stg].world, stage[stg].closestInd);
 			//vec3 normal = normalize(vec3(-1, -1, -1));
 			float product = dot(incident, normal);
-			stage[stg].dPos = incident - 2. * normal * product;	
+			setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
 			stage[stg].localDist = ray_minDist * 2.;
 			// return 1;
 		} return 0;
@@ -454,21 +469,135 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 }
 
 
+bool intersects(vec3 p, vec3 v, vec3 minPos, vec3 maxPos) {
+	vec3 invV = 1.0 / v;
+	vec3 tLow = (minPos - p) * invV;
+	vec3 tHigh = (maxPos - p) * invV;
+	vec3 tClose = min(tLow, tHigh);
+	vec3 tFar = max(tLow, tHigh);
+	
+	float tCloseReal = max(max(tClose.x, tClose.y), tClose.z);
+	float tFarReal = min(min(tFar.x, tFar.y), tFar.z);
+	
+	return (tFarReal > 0.) && (tCloseReal <= tFarReal);
+}
+		
+void calcSceneObjs(int stg) {
+	//set up array
+	int numObjs = objIndices[obj_maxNum - 1];
+	for (int o=0; o<numObjs; o++) {
+		objIndices[o] = -1;
+	}
+	objIndices[obj_maxNum - 1] = 0;
+	numObjs = 0;
+	
+	//add objects to array based on the tree
+	int nodeStack[bvh_maxNum];
+	for (int s=0; s<bvh_maxNum; s++) {
+		nodeStack[s] = -1;
+	}
+	nodeStack[0] = 0;
+	int nodeCount = 1;
+	
+	
+	//there are 2*objs nodes in the tree. At maximum, we explore every one of them
+	int len = 2 * w_objCount(stage[stg].world);
+	int explored = 0;
+	for (int f=0; f<len; f++) {
+		explored += 1;
+		nodeCount -= 1;
+		if (nodeCount < 0) {
+			break;
+		}
+		int nodeID = nodeStack[nodeCount];
+		nodeStack[nodeCount] = -1;
+		
+		
+		vec4 data0 = texelFetch(uUniverseBVHs, ivec2(nodeID, 2 * stage[stg].world), 0);
+		vec4 data1 = texelFetch(uUniverseBVHs, ivec2(nodeID, 2 * stage[stg].world + 1), 0);
+		
+		//make sure it's a valid node anyways
+		if (data1[3] != fencepost) {
+			continue;
+		}
+		
+		
+		//use slab method to figure out if the ray intersects the bounding box
+		if (!intersects(stage[stg].pos, stage[stg].dPos, data0.xyz, data1.xyz)) {
+			continue;
+		}
+		
+		//if the node has children, add them to the stack and recurse
+		if (data0[3] == -1. && nodeCount + 1 < bvh_maxNum) {
+			nodeStack[nodeCount] = 2 * nodeID + 1;
+			nodeStack[nodeCount+1] = 2 * nodeID + 2;
+			nodeCount += 2;
+			continue;
+		}
+		
+		//if the node does not have children, put it in the objs array
+		int held = int(data0[3]);
+		int temp;
+		for (int g=0; g<numObjs; g++) {
+			if (objIndices[g] > held) {
+				temp = objIndices[g];
+				objIndices[g] = held;
+				held = temp;
+			}
+		}
+		objIndices[numObjs] = held;
+		numObjs += 1;
+	}
+	// outColor = vec4(0., max(outColor.g, float(numObjs) / 50.), 0.5, 1.);
+
+	//return array with length info encoded
+	objIndices[obj_maxNum - 1] = numObjs;
+}
+
+		// const scene = this.world.bvh.objects(this);
+		// var dist = 2 * ray_maxDist;
+		// var distObj;
+		// var isObj;
+		// for (var a=0; a<scene.length; a++) {
+		// 	[dist, isObj] = scene[a].sceneSDF(pos, dist);
+		// 	if (isObj) {
+		// 		distObj = scene[a];
+		// 	}
+		// }
 float sceneSDF(vec3 p, int stg) {
-	int objCount = w_objCount(stage[stg].world);
+	int objCount = objIndices[obj_maxNum - 1];
 	float minDist = 1e9;
+	// objCount = w_objCount(stage[stg].world);
 	
 	for(int i=0; i<objCount; i++) {
-		float d = objSDF(p, stage[stg].world, i);
+		float d = objSDF(p, stage[stg].world, objIndices[i]);
+		// float d = objSDF(p, stage[stg].world, i);
 		
 		if(d < minDist) {
 			minDist = d;
-			stage[stg].closestInd = i;
+			stage[stg].closestInd = objIndices[i];
 		}
 	}
 	
 	return minDist;
 }
+
+
+// float sceneSDF(vec3 p, int stg) {
+// 	int objCount = w_objCount(stage[stg].world);
+// 	float minDist = 1e9;
+	
+// 	for(int i=0; i<objCount; i++) {
+// 		float d = objSDF(p, stage[stg].world, i);
+		
+// 		if(d < minDist) {
+// 			minDist = d;
+// 			stage[stg].closestInd = i;
+// 		}
+// 	}
+	
+// 	return minDist;
+// }
 
 
 
@@ -533,10 +662,27 @@ void shadow() {
 
 //actual fragment shader: what's done for a pixel
 
+void drawVal(float val, vec2 pos) {
+	if (val < 0.) {
+		outColor = vec4(-val, 0., 0., 1.0);
+	} else if (val > 0.0) {
+		if (val == fencepost) {
+			outColor = vec4(1., 0., 1., 1.0);
+		} else {
+			outColor = vec4(0., val, 0., 1.0);
+		}
+	} else {
+		if (mod(pos[0] / 10., 1.) < 0.03 || fract(pos[1]) < 0.02) {
+			return;
+		}
+		outColor = vec4(0.25, 0.1, 0.25, 1.0);
+	}
+}
+
 void drawWorld() {
 	vec2 uv = vec2(smoothstep(0.0, 1.0, vUV.x), vUV.y) * 1.05 - 0.025;
 	if (uv[0] < 0.0 || uv[0] > 1.0 || uv[1] < 0.0 || uv[1] > 1.0) {
-		outColor = vec4(0.5, 0.2, 0.5, 1.0);
+		outColor = vec4(0.4, 0.3, 0.4, 1.0);
 		return;
 	}
 	float worldWidth = float(obj_maxNum) + 6.;
@@ -548,33 +694,50 @@ void drawWorld() {
 	
 	vec4 fetched = texelFetch(uUniverseTex, ivec3(int(texPos.x), int(texPos.y), uCamWorld), 0);
 	float val = fetched[subpx];
-	if (val < 0.) {
-		outColor = vec4(-val, 0., 0., 1.0);
-	} else if (val > 0.0) {
-		outColor = vec4(0., val, 0., 1.0);
-	} else {
-		if (mod(texPos[0] / 10., 1.) < 0.03 || fract(texPos[1]) < 0.02) {
-			return;
-		}
-		outColor = vec4(0.25, 0.1, 0.25, 1.0);
+	drawVal(val, texPos);
+}
+
+void drawBvh() {
+	vec2 uv = vec2(vUV.x, vUV.y) * 1.05 - 0.025;
+	if (uv[0] < 0.0 || uv[0] > 1.0 || uv[1] < 0.0 || uv[1] > 1.0) {
+		outColor = vec4(0.5, 0.2, 0.5, 1.0);
+		return;
 	}
+	float width = float(obj_maxNum);
+	float height = 40.;
+	
+	vec2 texPos = vec2((width + 1.) * uv.x, (height + 1.) * uv.y);
+	int subpx = int(floor(mod(texPos[1], 1.0) * 4.0));
+	
+	
+	vec4 fetched = texelFetch(uUniverseBVHs, ivec2(int(texPos.x), int(texPos.y)), 0);
+	float val = fetched[subpx];
+	drawVal(val, texPos);
 }
 
 void main() {
-	stage[0].pos = uCamPos;
-	
-	if (uDebug) {
+	if (uDebug == 1) {
 		drawWorld();
 		return;
 	}
+	if (uDebug == 2) {
+		drawBvh();
+		return;
+	}
+	
+	for (int a=0; a<obj_maxNum; a++) {
+		objIndices[a] = -1;
+	}
+	objIndices[obj_maxNum - 1] = 0;
 	
 	//TODO: why does this go from -1 to 1?
 	vec2 uv = vUV * 2.0 - 1.0;
 	seed = vec2(vUV);
 	uv.x *= uResolution.x / uResolution.y;
 	
-	stage[0].dPos = normalize(uCamRot * vec3(uv, 1));
+	
 	stage[0].world = uCamWorld;
+	setStageRay(0, uCamPos, normalize(uCamRot * vec3(uv, 1)));
 	
 	//fetch world data
 	//??
@@ -584,11 +747,8 @@ void main() {
 	//stage 0
 	raymarch();
 	
-	if (stage[0].world != uCamWorld) {
-		outColor = vec4(stage[0].world / 3, 0.0, 0.0, 1.0);
-	}
-	
 	//stage 1
+	
 	if (stage[0].totalDist < ray_maxDist) {
 		currStg = 1;
 		//it's hit an object
@@ -596,10 +756,8 @@ void main() {
 		
 		vec3 sunVec = w_sunVec(stage[0].world);
 		vec3 normal = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
-		stage[1].pos = stage[0].pos - normal * ray_minDist * 2.;
 		stage[1].world = stage[0].world;
-		// stage[1].pos = stage[0].pos + sunVec * ray_minDist * 1.5;
-		stage[1].dPos = sunVec;
+		setStageRay(1, stage[0].pos - normal * ray_minDist * 2., sunVec);
 		shadow();
 	}
 	
@@ -622,7 +780,6 @@ void main() {
 	
 	// gradient postEffect:
 	// applyColor(0, vec4(0.1, 0.2, 0.3 + stage[1].dPos[1] * 0.7, 1.0));
-	
 	
 	//send to screem
 	outColor = vec4(stage[0].color.rgb, 1.0);

@@ -45,36 +45,50 @@ class Ray {
 			}
 	
 			//get distance
-			const distObj = this.world.tree.estimate(this);
-			const dist = distObj.distanceToPos(pos);
-			const safeDist = dist * ray_safetyMult;
-			this.localDist = safeDist;
+			const scene = this.world.bvh.objects(this);
+			var dist = 2 * ray_maxDist;
+			var distObj;
+			var isObj;
+			for (var a=0; a<scene.length; a++) {
+				[dist, isObj] = scene[a].sceneSDF(pos, dist);
+				if (isObj) {
+					distObj = scene[a];
+				}
+			}
+			
+			
+			this.localDist = dist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
 			// distObj = this.world.objects[distObj];
 	
 			//if distance is out of dist bounds
-			
-			if (safeDist < ray_minDist) {
-				//if it's hit:
-				this.hit += distObj.material.applyHitEffect(this, distObj);
-				
-				//a ray will go through normal (hit=0) -> shadow (hit=1) -> done (hit=2) span.
-				if (this.hit >= 2) {
-					//draw self as a shadow
-					this.shadow();
-					this.world.postEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
-					return this.color;
+			if (dist < ray_nearDist) {
+				if (dist < ray_minDist) {
+					//if it's hit:
+					this.hit += distObj.material.applyHitEffect(this, distObj);
+					
+					//a ray will go through normal (hit=0) -> shadow (hit=1) -> done (hit=2) span.
+					if (this.hit >= 2) {
+						//draw self as a shadow
+						this.shadow();
+						this.world.postEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
+						return this.color;
+					}
+					
+					//can be false if it's a portal
+					if (this.hit == 1) {
+						//try to not get stuck
+						// normal = distObj.normalAt(pos);
+						// var moveDist = (2 * ray_minDist - safeDist);
+						// pos[0]
+						this.hitDist = this.totalDist;
+						dPos[0] = this.world.sunVector[0];
+						dPos[1] = this.world.sunVector[1];
+						dPos[2] = this.world.sunVector[2];
+					}
+				} else {
+					distObj.material.applyNearEffect(this, distObj);
 				}
-				
-				//can be false if it's a portal
-				if (this.hit == 1) {
-					this.hitDist = this.totalDist;
-					dPos[0] = this.world.sunVector[0];
-					dPos[1] = this.world.sunVector[1];
-					dPos[2] = this.world.sunVector[2];
-				}
-			} else if (safeDist < ray_nearDist) {
-				distObj.material.applyNearEffect(this, distObj);
 			}
 
 			//move distance
@@ -157,6 +171,132 @@ class Ray_Tracking {
 }
 
 
+
+//BVH - Bounding Volume Hierarchy.
+//a collection of rectangular nodes that contain either one object or two sub-nodes.
+//used as a data structure that can speed up finding the closest object, while also fitting into a nice array that can go on the GPU
+class BVH {
+	constructor(world) {
+		this.world = world;
+		this.root = null;
+	}
+	
+	generate() {
+		var sorted = sortByMorton(this.world.objects);
+		this.root = this.generateSubtree(sorted, 0, sorted.length - 1);
+	}
+	
+	generateSubtree(list, startInd, endInd) {
+		//leaf case
+		if (startInd >= endInd) {
+			const o = list[startInd];
+			const bounds = o.bounds();
+			return new BVH_Node(bounds[0], bounds[1], o, null, null);
+		}
+		
+		//branch case
+		const m = ((startInd + endInd) / 2) | 0;
+		const left = this.generateSubtree(list, startInd, m);
+		const right = this.generateSubtree(list, m + 1, endInd);
+		return BVHUnion(left, right);
+	}
+	
+	// estimatePos(pos) {
+	// 	if (!this.root) {
+	// 		return [99999, this.objects[0]];
+	// 	}
+		
+	// 	//start at the top: get distance to node
+	// 	//
+	// }
+	
+	distance(obj) {
+		return this.root.distance(obj.pos, obj.dPos);
+	}
+	
+	objects(obj) {
+		return this.root.objects(obj.pos, obj.dPos);
+	}
+}
+
+class BVH_Node {
+	constructor(minPos, maxPos, obj, left, right) {
+		this.minPos = minPos;
+		this.maxPos = maxPos;
+		this.obj = obj;
+		this.left = left;
+		this.right = right;
+	}
+	
+	distance(pos, dPos) {
+		//if it's a leaf node
+		if (this.obj != null) {
+			return this.obj.distanceToPos(pos);
+		}
+		
+		//no intersection, return huge distance
+		if (!this.rayIntersects(pos, dPos)) {
+			return 2 * ray_maxDist;
+		}
+		
+		//yes intersection! Recurse to children
+		var d1 = this.left.distance(pos, dPos);
+		var d2 = this.right.distance(pos, dPos);
+		console.log(`d1=${d1.toFixed(2)}, d2=${d2.toFixed(2)}`);
+		return Math.min(d1, d2);
+	}
+	
+	objects(pos, dPos) {
+		if (this.obj != null) {
+			return [this.obj];
+		}
+		
+		if (!this.rayIntersects(pos, dPos)) {
+			return [];
+		}
+		
+		var d1 = this.left.objects(pos, dPos);
+		var d2 = this.right.objects(pos, dPos);
+		return d1.concat(d2);
+	}
+	
+	rayIntersects(pos, dPos) {
+		/*
+		The Slab Method:
+			p(t) = o + t•v
+			if v = 0 ignore 
+		
+			tLow = (l - o) / v
+			tHigh = (h - o) / v
+			tClose = whichever's lesser (of tLow, tHigh)
+			tFar = whichever's greater (of tLow, tHigh)
+		
+			tClose = max of tCloses
+			tFar = min of tFars
+		
+			intersection exists only if tClose ≤ tFar
+		 */
+		var tClose = -1e1001;
+		var tFar = 1e1001;
+		
+		var tLow, tHigh;
+		for (var c=0; c<3; c++) {
+			//I'm just not going to do error checking on the potential divides by 0. I hope the world will forgive me
+			tLow = (this.minPos[c] - pos[c]) / dPos[c];
+			tHigh = (this.maxPos[c] - pos[c]) / dPos[c];
+			if (tLow > tHigh) {
+				[tLow, tHigh] = [tHigh, tLow];
+			}
+			
+			tClose = Math.max(tClose, tLow);
+			tFar = Math.min(tFar, tHigh);
+		}
+		
+		return (tClose <= tFar);
+	}
+}
+
+
 class ObjectGrid {
 	/**
 	* @param {World} world the world to break into a grid
@@ -206,6 +346,7 @@ class ObjectGrid {
 	}
 	
 	generate() {
+		this.objects = this.world.objects;
 		//generate bounds
 		var min = [1e1001, 1e1001, 1e1001];
 		var max = [-1e101, -1e101, -1e101];
@@ -305,7 +446,42 @@ class ObjectGrid {
 	
 	estimate(obj) {
 		//technically a little bit of wasted work. But it's probably fine
-		return this.world.objects[this.estimatePos(obj.pos)[1]];
+		return this.objects[this.estimatePos(obj.pos)[1]];
+	}
+}
+
+//unused
+class ObjectSubGrid {
+	constructor(world, minPos, maxPos) {
+		this.world = world;
+		this.minPos = minPos;
+		this.maxPos = maxPos;
+		this.l = 4;
+		this.xd = (maxPos[0] - minPos[0]) / this.l;
+		this.yd = (maxPos[1] - minPos[1]) / this.l;
+		this.zd = (maxPos[2] - minPos[2]) / this.l;
+		this.objects = world.objects;
+		this.chunks = new Array(this.l ** 3).fill(new Set());
+	}
+	
+	binObject(obj) {
+		
+	}
+	
+	calcGridCoords(pos) {
+	
+	}
+	
+	generate() {
+	
+	}
+	
+	estimatePos(pos) {
+	
+	}
+	
+	estimate(obj) {
+	
 	}
 }
 
@@ -393,8 +569,6 @@ class BrickGridTor {
 		// console.log(`grid with d=${this.d} shifting by ${xBlocks} ${yBlocks} ${zBlocks}`);
 
 		//only shift a little
-
-		var maxBlock = this.l - 1;
 		var range = ((this.l - 1) * this.d) / 2;
 		
 		//coordinate updates can be first because generation only depends on cornercoords

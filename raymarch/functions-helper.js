@@ -297,6 +297,78 @@ function projectOct(x, pixelsInX, y, pixelsInY) {
 	return n;
 }
 
+
+function sortByMorton(objsList) {
+	//takes in a list of objects [obj1, obj2, obj3..] 
+	//and returns a list of objects [obj3, obj1, obj2...] sorted by their morton code. Since we're just constructing a BVH
+	//it doesn't really matter whether it sorts high - low or low - high.
+	var sortList = objsList.map((a) => {
+		const bounds = a.bounds();
+		return [a, calcMorton(a, bounds[0], bounds[1])];
+	});
+	
+	sortList.sort((a, b) => {
+		return a[1] - b[1];
+	});
+	
+	return sortList.map(a => a[0]);
+}
+
+function interleaveMorton(x, y, z) {
+	return swizzleMorton(x) | (swizzleMorton(y) << 1) | (swizzleMorton(z) << 2);
+}
+
+function swizzleMorton(x) {
+	x = (x * 0x00010001) & 0xFF0000FF;
+	x = (x * 0x00000101) & 0x0F00F00F;
+	x = (x * 0x00000011) & 0xC30C30C3;
+	x = (x * 0x00000005) & 0x49249249;
+	return x;
+}
+
+function calcMorton(pos, lowestPos, highestPos) {
+	const mortonRange = (2 ** 10) - 1;
+	
+	const xRange = highestPos[0] - lowestPos[0];
+	const yRange = highestPos[1] - lowestPos[1];
+	const zRange = highestPos[2] - lowestPos[2];
+	
+	//normalize all coordinates
+	var x = (pos[0] - lowestPos[0]) / xRange;
+	var y = (pos[1] - lowestPos[1]) / yRange;
+	var z = (pos[2] - lowestPos[2]) / zRange;
+	
+	x = (x * mortonRange) | 0;
+	y = (y * mortonRange) | 0;
+	z = (z * mortonRange) | 0;
+	
+	return interleaveMorton(x, y, z);
+}
+
+//determines if aabb2 is completely inside aabb1
+function aabbInside(minPos1, maxPos1, minPos2, maxPos2) {
+	return  (minPos1[0] <= minPos2[0]) && (maxPos1[0] >= maxPos2[0]) && 
+			(minPos1[1] <= minPos2[1]) && (maxPos1[1] >= maxPos2[1]) && 
+			(minPos1[2] <= minPos2[2]) && (maxPos1[2] >= maxPos2[2]);
+}
+
+function BVHUnion(node1, node2) {
+	const minPos = Pos(
+		Math.min(node1.minPos[0], node2.minPos[0]),
+		Math.min(node1.minPos[1], node2.minPos[1]),
+		Math.min(node1.minPos[2], node2.minPos[2]),
+	);
+	
+	const maxPos = Pos(
+		Math.max(node1.maxPos[0], node2.maxPos[0]),
+		Math.max(node1.maxPos[1], node2.maxPos[1]),
+		Math.max(node1.maxPos[2], node2.maxPos[2]),
+	);
+	
+	return new BVH_Node(minPos, maxPos, null, node1, node2);
+}
+
+
 function syncObject_send(world, object) {
 	var reselect = world.objects.indexOf(editor_selected);
 	
