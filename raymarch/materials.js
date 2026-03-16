@@ -1,3 +1,15 @@
+/* 
+MATERIAL TYPES
+0     color
+1     concrete
+2     rubber
+3     normal
+10   glass
+11    ghost
+20   portal
+30   mirror
+*/
+
 class Material {
 	constructor(type, color, bounciness) {
 		this.color = color ?? Color4(255, 0, 255, 255);
@@ -17,18 +29,19 @@ class Material {
 		console.error(`Hit effect not initialized for material ${this.constructor.name}!`);
 	}
 	
-	pushOut(ray, object) {
-		ray.localDist = ray_minDist * 2;
-		
+	pushOut(ray, object, recursed) {
 		const pos = ray.pos;
 		const norm = object.normalAt(pos);
-		if (Number.isNaN(norm[0])) {
-			return;
-		}
-		const dist = ray_minDist * 2;
+		const dist = ray_minDist * 2 - ray.localDist;
 		pos[0] += norm[0] * dist;
 		pos[1] += norm[1] * dist;
 		pos[2] += norm[2] * dist;
+		ray.localDist = object.distanceToPos(pos);
+		if (ray.localDist < ray_minDist) {
+			if (!recursed) {
+				this.pushOut(ray, object, true);
+			}
+		}
 	}
 	
 	serialize() {
@@ -80,7 +93,7 @@ class M_Concrete extends M_Color {
 	
 	applyHitEffect(ray, obj) {
 		if (ray.totalDist > 40) {
-			return super.applyHitEffect(ray);
+			return super.applyHitEffect(ray, obj);
 		}
 		const colors = (ray.totalDist > 20) ? this.farColors : this.closeColors;
 		const shimmer = this.shimmer;
@@ -141,12 +154,33 @@ class M_Glass extends Material {
 	}
 }
 
+class M_Normal extends Material {
+	constructor() {
+		super(3, Color4(0, 0, 0, 255), 0);
+	}
+	
+	applyHitEffect(ray, object) {
+		const normal = object.normalAt(ray.pos);
+		const color = Color4(128 + normal[0] * 127, 128 + normal[1] * 127, 128 + normal[2] * 127, 255);
+		applyColor(color, ray.color);
+		return true;
+	}
+	
+	serialize() {
+		return `normal`;
+	}
+}
+
 class M_Portal extends Material {
 	constructor(newWorldName, posOffset) {
 		super(20, Color4(255, 255, 255, 255), 0);
 		this.str = newWorldName;
 		this.offset = posOffset;
-		this.newWorld;
+		this.newWorld = null;
+		var self = this;
+		setTimeout(() => {
+			self.sync();
+		}, 5);
 	}
 	
 	sync() {
@@ -268,6 +302,7 @@ var map_strMat = {
 	"ghost": M_Ghost,
 	"glass": M_Glass,
 	"mirror": M_Mirror,
+	"normal": M_Normal,
 	"portal": M_Portal,
 	"rubber": M_Rubber,
 };
