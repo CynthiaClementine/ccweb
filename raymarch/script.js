@@ -27,6 +27,10 @@ async function setup() {
 		alert("WebGL2 not supported. This program will not run correctly.");
 		throw new Error("WebGL2 not supported");
 	}
+	if (!gl.getExtension(`EXT_color_buffer_float`)) {
+		alert(`Float colors not supported. This program will not run correctly.`);
+		throw new Error("float colors not supported");
+	}
 	
 	banvas.requestPointerLock = banvas.requestPointerLock || banvas.mozRequestPointerLock;
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
@@ -37,9 +41,10 @@ async function setup() {
 	resize();
 	setupGLState(vertexShaderCode, fragmentShaderCode);
 	createWorlds();
+	createBVHTexture();
 	createObjectsTexture();
 	
-	player = new Player_Noclip(loading_world, Pos(...loading_world.spawn));
+	player = new Player_Debug(loading_world, Pos(...loading_world.spawn));
 	camera = new Camera(loading_world, Pos(0, 0, 0));
 	
 	window.requestAnimationFrame(main);

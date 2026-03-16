@@ -3,6 +3,8 @@
 
 const degToRad = (Math.PI / 180);
 
+const fencepost32 = 0xff0110ff;
+
 //quick type
 const U8Arr = Uint8Array;
 const F32Arr = Float32Array; //f16 is smaller but not supported on safari
@@ -36,6 +38,8 @@ var gl;
 
 const frameTime = 1000 / 60;
 
+const bvhTolerance = 8;
+
 var camera_FOV = 90;
 var camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
 var camera_halfTanVert = Math.tan((camera_FOV / 2) * degToRad);
@@ -59,6 +63,8 @@ var editor_active = false;
 var lineBuffers = [];
 var lineBuffer_num = -1;
 
+var mortonBits = 10;
+
 var page_animation;
 
 var perf_log = [];
@@ -79,7 +85,7 @@ const ray_maxDist = 3000;
 const ray_nearDist = 3;
 const ray_minDist = 0.1;
 const ray_maxIters = 500;
-var ray_safetyMult = 0.95;
+var ray_safetyMult = 1;
 
 
 var render_crosshair = true;
@@ -120,7 +126,7 @@ const splashes = [
 	`I am in crippling financial debt!`,
 	`I am in crippling sleep debt!`,
 	`When was the last time you cleaned your keyboard?`,
-	`I still can't spell defenestrate!`,
+	`I still can't spell defenestrate.`,
 	`:3`,
 	`0-0`,
 	`0u0`,
@@ -139,16 +145,21 @@ const splashes = [
 	`Fascist takeover!`,
 	`Now with 80% more shariah law!`,
 	`March comes in like a lion!`,
+	`I would go on the internet and write a callout post. About the porcupine.`,
 	`Babushka! `,
 	`Now you're thinking with portals!`,
 	`Turtle Hell 1999`,
 	`Also check out red pandas!`,
 	`See also: Laser broom`,
 	`Overpopulating pixels!!`,
+	`All your friends are coefficient hacking!`,
+	`The sky of the spheres is not as it seems.`,
 	`My goal is to integer overflow the number of bugs.`,
 	`Buckle your pants!`,
 	`Gullible is written on your forehead!`,
 	`RAaahaagagaggaggghsbhhhhhg`,
+	`I would never lie to you!`,
+	`I would never not lie to you!`,
 	`And so on.`,
 	`Tacit approval by the United Nations!`,
 	`Perlin not included!`,
@@ -170,9 +181,12 @@ var tree_sets = 3;
 
 const texture_rowsPerObj = 4;
 const texture_rowsPerMat = 3;
+const texture_rowsPerNode = 2;
 const texture_worldCols = 6;
 var texture_universe;
 var texture_universeArr;
+var texture_bvh;
+var texture_bvhArr;
 
 const universe_maxID = 20;
 
@@ -184,6 +198,8 @@ var uCamPos;
 var uCamRot;
 var uCamWorld;
 var uObjectCount;
+var uUniverseTex;
+var uUniverseBVH;
 
 var worker_num = 8;
 var worker_pool = [];
