@@ -108,31 +108,80 @@ class Player {
 		
 		
 		//go up
-		var lookRay = new Ray_Tracking(this.world, feetCoords, Pos(0, 1, 0), player_stepHeight);
+		var lookRay = new Ray_Tracking(this.world, feetCoords, axisVecs[1], player_stepHeight);
 		lookRay.iterate(0);
 		feetCoords[1] += lookRay.distance;
 		
 		//sideways
+		var trueI = 0;
 		for (var i=0; i<3; i++) {
-			var obj1 = this.tryMovementOnAxis(feetCoords, axisVecs[i], dVec[i]);
-			var obj2 = this.tryMovementOnAxis(headCoords, axisVecs[i], dVec[i]);
-			if (obj1 || obj2) {
-				//there comes a point at which you just give up and make a special case for portals
-				var trueObj = (obj1 ?? obj2);
-				this.portalTest(trueObj, feetCoords);
+			var vHat = axisVecs[i];
+			var len = dVec[i];
+			
+			var obj1 = this.tryMovementOnAxis(feetCoords, vHat, len);
+			var obj2 = this.tryMovementOnAxis(headCoords, vHat, len);
+			var trueObj = (obj1 ?? obj2);
+			
+			//simple unobstructed movement
+			if (!trueObj) {
+				feetCoords[0] += vHat[0] * len;
+				feetCoords[1] += vHat[1] * len;
+				feetCoords[2] += vHat[2] * len;
+				
+				headCoords[0] += vHat[0] * len;
+				headCoords[1] += vHat[1] * len;
+				headCoords[2] += vHat[2] * len;
+				continue;
+			}
+			
+			//there comes a point at which you just give up and make a special case for portals
+			this.portalTest(trueObj, feetCoords);
+			
+			//landing on the ground
+			if (i == 1) {
 				if (Math.abs(dVec[i]) > player_bounceThreshold) {
 					dVec[i] *= -trueObj.material.bounciness;
 				} else {
 					dVec[i] = 0;
 				}
-				if (i == 1) {
-					this.onGround = true;
-				} else {
-					//push away from objects a bit
-					// if (Math.abs(dVec[i]) < 0.1 && dVec[i] != 0) {
-					// 	dVec[i] = 0.1 * (dVec[i] / Math.abs(dVec[i]));
-					// }
-				}
+				this.onGround = true;
+				continue;
+			}
+			
+			//use SDF + normal to push self out
+			var [dist, normal] = [trueObj.distanceToPos(feetCoords), trueObj.normalAt(feetCoords)];
+			var [dist2, normal2] = [trueObj.distanceToPos(headCoords), trueObj.normalAt(headCoords)];
+			// var obj = this.tryMovementOnAxis(feetCoords, axisVecs[i], -Math.sign(dVec[i]));
+			if (dist > dist2) {
+				dist = dist2;
+				normal = normal2;
+			}
+			
+			if (true || dist < 0) {
+				var vDot = dot(vHat, normal);
+				var vProj = [normal[0] * vDot, normal[1] * vDot, normal[2] * vDot];
+				vHat[0] -= vProj[0];
+				vHat[1] -= vProj[1];
+				vHat[2] -= vProj[2];
+				dVec[i] *= clamp(0.7 + 0.3 * Math.cos(vDot), 0, 1);
+				// dVec[i] = dVec[i] * Math.sqrt(dot(axisVecs[i], axisVecs[i]));
+				axisVecs[i] = normalize(vHat);
+				i -= 1;
+				trueI += 1;
+			}
+			
+			var squidgeLen = -Math.min(dist - this.width * ray_minDist, 0);
+			feetCoords[0] += normal[0] * squidgeLen;
+			feetCoords[1] += normal[1] * squidgeLen;
+			feetCoords[2] += normal[2] * squidgeLen;
+			
+			headCoords[0] += normal[0] * squidgeLen;
+			headCoords[1] += normal[1] * squidgeLen;
+			headCoords[2] += normal[2] * squidgeLen;
+			
+			if (trueI > 10) {
+				console.error(`too many movement iterations!`);
+				i = trueI;
 			}
 		}
 		
@@ -164,24 +213,21 @@ class Player {
 		}
 	}
 	
+	pushOut(feetCoords, headCoords, object) {
+		
+	}
+	
 	tryMovementOnAxis(pos, axisVec, distance) {
 		if (distance < 0) {
 			axisVec = [-axisVec[0], -axisVec[1], -axisVec[2]];
 			distance = -distance;
 		}
-		if (distance > this.dMin) {
+		if (true || distance > this.dMin) {
 			//cast ray sideways
 			var lookRay = new Ray_Tracking(this.world, pos, axisVec, this.width + distance + 1);
 			lookRay.iterate(0);
 			//if the ray's gone far enough, then move there
 			if (lookRay.distance > this.width + distance) {
-				//doesn't need a y because phi is always 0
-				pos[0] += axisVec[0] * distance;
-				pos[1] += axisVec[1] * distance;
-				pos[2] += axisVec[2] * distance;
-				// if (lookRay.world != this.world) {
-				// 	this.world = lookRay.world;
-				// }
 				return undefined;
 			} else {
 				return lookRay.object;
