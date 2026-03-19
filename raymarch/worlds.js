@@ -102,12 +102,13 @@ class World {
 	 * @param {Scene3dObject[]} objects 
 	 * @param {Number|none} shadowPercent a number from 0 to 1 representing the brightness of shadowed areas. At 0, shadows do nothing. At 1, shadows are pure black.
 	 */
-	constructor(name, preEffects, effects, sunVector, spawn, objects, shadowPercent) {
+	constructor(name, preEffects, effects, sunVector, spawn, objects, shadowPercent, tickFunc) {
 		console.log(`started ${name}..`);
 		this.name = name;
 		
 		this.preEffects = preEffects;
 		this.postEffects = effects;
+		this.tickFunc = tickFunc;
 		
 		if (preEffects.length >= texture_worldCols) {
 			throw new Error(`World ${name}: too many pre-effects!`);
@@ -198,6 +199,9 @@ class World {
 	
 	tick() {
 		// this.tree.update();
+		if (loading_world == this && this.tickFunc) {
+			this.tickFunc();
+		}
 	}
 }
 
@@ -288,9 +292,7 @@ class World_Looping {
 		if (loading_world != this) {
 			return;
 		}
-		player.pos[0] = modulate(player.pos[0], this.width);
-		player.pos[1] = modulate(player.pos[1], this.width);
-		player.pos[2] = modulate(player.pos[2], this.width);
+		
 	}
 	
 	estimateObj(obj) {
@@ -346,7 +348,7 @@ function createWorlds() {
 			new Ring(Pos(500, 400, 0), new M_Color(128, 255, 255), 100, 20),
 			// ...createCloud(),
 			// new CloudSeed(Pos(-80,516,-387), 5),
-			new Box_Moving(Pos(-80,120,-387), new M_Color(40, 0, 255), 10, 10, 10),
+			new Box_Moving(Pos(-80,100,-387), new M_Color(40, 0, 255), 10, 10, 10),
 			
 			"BOX|mirror:255~0~255~7|[-587,60,-777]~10~10~5",
 			"BOX|mirror:255~0~255~57|[-573,60,-763]~5~10~10",
@@ -356,19 +358,11 @@ function createWorlds() {
 			"BOX|portal:cubes~[0,50,0]|[746,60,-399]~10~10~10",
 			"BOX|portal:tinyObjs~[0,0,0]|[-100,385,100]~10~10~10",
 			// new DebugLines(Pos(-1000,-1000,-1000), Pos(1000,1000,1000))
-			new GloopySphere(Pos(0, 0, 100), new M_Color(255, 255, 255), 40, 5),
+			new GloopySphere(Pos(70, 90, 511), new M_Color(255, 255, 255), 40, 5),
+			new Sphere(Pos(177, 90, 511), new M_Color(255, 255, 255), 40, 5)
 		],
 		0.4
 	);
-	
-	
-		// world.preEffects.forEach(e => {
-		// 	e[0](ray, e[1], e[2], e[3]);
-		// });
-		
-		// world.postEffects.forEach(e => {
-		// 	e[0](ray, e[1], e[2], e[3]);
-		// });
 	
 	new World("darkBright", [
 			[world_brighten, [1, 160/255, 140/255, 1.5]]
@@ -442,7 +436,7 @@ function createWorlds() {
 		]
 	);
 	
-	//cubes test world
+	//cubes world
 	var objs = [
 		new Line(Pos(60, 60, 60), new M_Color(240, 180, 60), 80, 60, 80, 3),
 		new Line(Pos(45,128,117), new M_Color(255, 0, 255), 81, 82, 83, 3),
@@ -452,7 +446,9 @@ function createWorlds() {
 		"PRISM-RHOMBUS|color:255~255~255|[373,124,-399]~10~70~25~1~-74",
 		
 		new Cylinder(Pos(-202,121,19), new M_Portal("gyroidCaves", Pos(-62, -100, -104)), 15, 10),
-		"CYLINDER|portal:turtleHell~[7,68,105]|[1073,109,-404]~10~15"
+		"CYLINDER|portal:turtleHell~[7,68,105]|[1073,109,-404]~10~15",
+		"LINE|color:255~224~255|[-2,117,-636]~118~6~11~8",
+		"CAPSULE|portal:spheres~[193,18,0,0]|[-226,134,-676]~15~7.5"
 	];
 	var acceptableMats = [
 		new M_Color(57, 0, 64), new M_Color(133, 111, 132), new M_Color(124, 80, 119), new M_Color(115, 0, 113), 
@@ -503,16 +499,22 @@ function createWorlds() {
 		120
 	);
 	
-	new World_Looping("turtleHell", [
-			[world_loopRay, 120]
+	new World("turtleHell", [
+			// [world_loopRay, 120]
 		],[
 			[bg, Color(255, 227, 245)],
-			[bg_fadeToOld, Color(255, 227, 245), 1200],
+			[bg_fadeToOld, Color(255, 227, 245), 800],
 		],
 		polToCart(0.6, 0.4, 1),
 		[60.2,100,60.2],
-		[new Ring(Pos(60, 40, 60), new M_Color(240, 180, 60), 60, 10)],
-		120
+		[
+			new Scene3dLoop(8000, 8000, 8000, 120, new Ring(Pos(60, 40, 60), new M_Color(240, 180, 60), 60, 10)),
+			new Sphere(Pos(1500, -460, -1620), new M_Portal("parkourSimple", Pos(-1600, 860, 1700)), 40)
+		],
+		null,
+		() => {
+			constrainPlayer(5040, 5040, 5040);
+		}
 	);
 	
 	new World("gyroidCaves", [
@@ -683,7 +685,7 @@ function createWorlds() {
 			"SHELL|glass:255~109~255~44|[-591,1056,761]~122~10.6",
 			"SPHERE|glass:83~199~255~48|[1170,1571,-266]~110",
 			"BOX|color:0~121~0|[-69,-1481,46]~10~10~10",
-			"BOX|portal:stairwell~[0,255,0,0]|[-69,-1460,46]~10~10~10",
+			"BOX|portal:stairwell~[0,1460,0,0]|[-69,-1460,46]~10~10~10",
 		],
 		1
 	);
