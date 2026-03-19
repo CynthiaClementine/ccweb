@@ -13,8 +13,9 @@
 #define bvh_maxNum 13
 
 
-
+//shapes
 #define SPHERE		0
+#define SHELL		4
 #define ELLIPSE		1
 #define CAPSULE		2
 #define CYLINDER	3
@@ -25,6 +26,37 @@
 #define OCTAHEDRON	30
 #define RING		40
 #define RHOMBUSPRISM 51
+
+//pre-effects
+#define E_LOOP			10
+#define E_BRIGHTEN		20
+#define E_WHITEN		21
+#define E_SPHERIZE		30
+
+//post-effects
+#define E_BG			0
+#define E_BG_RANGE		1
+#define E_GRADIENT		2
+#define E_FADE			10
+#define E_FADE_OLD		11
+#define E_FADE_RANGE	12
+#define E_SUN			20
+
+//natures
+#define N_NORMAL	0
+#define N_GLOOPY	1
+#define N_ANTI		2
+#define N_FOG		4
+
+//materials
+#define M_COLOR		0
+#define M_CONCRETE	1
+#define M_RUBBER	2
+#define M_NORMAL	3
+#define M_GLASS		10
+#define M_GHOST		11
+#define M_PORTAL	20
+#define M_MIRROR	30
 
 precision highp float;
 precision highp sampler2DArray;
@@ -117,8 +149,7 @@ vec2 w_effectCounts(int worldID) {
 }
 
 mat4 objData(int world, int index) {
-	//data0 will be: ID, materialID, x, x
-	//data0 is now:  ID, r, g, b
+	//data0 is: ID, materialID, nature, __
 	//data1 is x, y, z, r
 	//data2 is //rx, ry, rz, ?
 	//data3 and data4 are more misc. 
@@ -165,11 +196,11 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 	vec3 arg0 = data0.gba;
 	switch (effectType) {
 		//loop
-		case 10: {
+		case E_LOOP: {
 			setStageRay(stg, mod(stage[stg].pos, arg0[0]), stage[stg].dPos);
 		} break;
 		//brighten
-		case 20: {
+		case E_BRIGHTEN: {
 			if (stage[stg].color.a >= 1.0) {
 				return;
 			}
@@ -182,12 +213,12 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			stage[stg].color.a += 2./255.;
 		} break;
 		//whiten
-		case 21: {
+		case E_WHITEN: {
 			stage[stg].color.rgb += vec3(1./255., 1./255., 1./255.);
 			stage[stg].color.a += 1.;
 		} break;
 		//spherize
-		case 30: {
+		case E_SPHERIZE: {
 			
 		} break;
 		case 3: {
@@ -216,21 +247,21 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 	vec3 arg0 = data0.gba;
 	switch (effectType) {
 		//bg
-		case 0: {
+		case E_BG: {
 			if (stg > 0) {
 				return;
 			}
 			applyColor(0, vec4(arg0, 1.0));
 		} break;
 		//bg_range
-		case 1: {
+		case E_BG_RANGE: {
 			if (stg > 0) {
 				return;
 			}
 			applyColor(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 1.0));
 		} break;
 		//bg_gradient
-		case 2: {
+		case E_GRADIENT: {
 			
 		} break;
 		//bg_fadeTo
@@ -336,6 +367,12 @@ float ringSDF(vec3 point, vec4 data1, vec4 data2) {
 	return sqrt(q * q + dist.y * dist.y) - data2[1];
 }
 
+float shellSDF(vec3 point, vec4 data1, vec4 data2) {
+	point -= data1.xyz;
+	float sphereD = length(point) - data2[0];
+	return abs(sphereD) - data2[1];
+}
+
 float sphereSDF(vec3 point, vec4 data1) {
 	return length(point - data1.xyz) - data1[3];
 }
@@ -354,6 +391,7 @@ float objSDF(vec3 p, int world, int index) {
 	mat4 data = objData(world, index);
 	
 	int type = int(data[0][0]);
+	int nature = int(data[0][2]);
 	float d = 9999.;
 	
 	//it's a loop object. Do the modulation beforehand
@@ -367,6 +405,8 @@ float objSDF(vec3 p, int world, int index) {
 	switch (type) {
 		case SPHERE: 
 			{d = sphereSDF(p, data[1]); /*stage[1].color[1] = data[1][0] / 4.0;*/} break;
+		case SHELL:
+			{d = shellSDF(p, data[1], data[2]);} break;
 		case ELLIPSE: 
 			{d = ellipsoidSDF(p, data[1], data[2]);} break;
 		case CAPSULE:
@@ -393,6 +433,9 @@ float objSDF(vec3 p, int world, int index) {
 		default: 
 			{d = 9999.;} break;
 	}
+	if ((nature & N_FOG) > 0) {
+		d = max(d, ray_nearDist - ray_minDist);
+	}
 	return d;
 }
 
@@ -411,19 +454,18 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 
 int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 	// mat4 data = matData(stage[stg].world, stage[stg].closestInd);
-	
 	switch (matType) {
 		//color
 		default:
-		case 0: {
+		case M_COLOR: {
 			applyColor(1, data0);
 		} return 1;
 		//concrete
-		case 1: {
+		case M_CONCRETE: {
 		
 		} return 1;
 		//rubber
-		case 2: {
+		case M_RUBBER: {
 			float localVal = mod(stage[stg].pos[0] + stage[stg].pos[2], 10.) - 5.;
 			vec3 mult = vec3(4.0/255., 4.0/255., 4.8/255.);
 			vec4 paint = vec4(vec3(47./255., 48./255., 66./255.) + localVal * mult, 1.0);
@@ -432,7 +474,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			stage[stg].localDist = ray_minDist * 2.;
 		} return 1;
 		//glass
-		case 10: {
+		case M_GLASS: {
 			if (abs(stage[stg].localDist) < ray_minDist * 2.) {
 				applyColor(stg, data0);
 				stage[stg].localDist = ray_minDist * 2.;
@@ -441,16 +483,16 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			}
 		} return 0;
 		//ghost
-		case 11: {
+		case M_GHOST: {
 		} return 1;
 		//portal
-		case 20: {
+		case M_PORTAL: {
 			stage[stg].world = int(data1[0]);
 			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
 			stage[stg].localDist = ray_minDist * 2.;
 		} return 0;
 		//mirror
-		case 30: {
+		case M_MIRROR: {
 			applyColor(stg, data0);
 			vec3 incident = stage[stg].dPos;
 			vec3 normal = getNormal(stage[stg].pos, stage[stg].world, stage[stg].closestInd);
@@ -459,7 +501,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
 			stage[stg].localDist = ray_minDist * 2.;
 			// return 1;
-		} return 0;
+		} return stg;
 	}
 	return 1;
 }
@@ -521,7 +563,6 @@ void calcSceneObjs(int stg) {
 			continue;
 		}
 		
-		
 		//use slab method to figure out if the ray intersects the bounding box
 		if (!intersects(stage[stg].pos, stage[stg].dPos, data0.xyz, data1.xyz)) {
 			continue;
@@ -548,34 +589,74 @@ void calcSceneObjs(int stg) {
 		objIndices[numObjs] = held;
 		numObjs += 1;
 	}
-	// outColor = vec4(0., max(outColor.g, float(numObjs) / 50.), 0.5, 1.);
 
 	//return array with length info encoded
 	objIndices[obj_maxNum - 1] = numObjs;
 }
 
-		// const scene = this.world.bvh.objects(this);
-		// var dist = 2 * ray_maxDist;
-		// var distObj;
-		// var isObj;
-		// for (var a=0; a<scene.length; a++) {
-		// 	[dist, isObj] = scene[a].sceneSDF(pos, dist);
-		// 	if (isObj) {
-		// 		distObj = scene[a];
-		// 	}
-		// }
+//from iq - smoothly blends between the minimum of two function outputs. 
+//k is the range within which values will blend.
+//note: d1 and d2 are interchangable
+float smoothMin(float d1, float d2, float k) {
+	k *= 16.0/3.0;
+	float h = max(k - abs(d1 - d2), 0.) / k;
+	return min(d1, d2) - h*h*h * (4. - h) * (k / 16.);
+}
+
+float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
+	if ((nature & N_FOG) > 0) {
+		nature ^= N_FOG;
+	}
+
+	if (nature == N_NORMAL) {
+		if (newDist < oldDist) {
+			stage[stg].closestInd = index;
+			return newDist;
+		}
+		return oldDist;
+	}
+	
+	if ((nature & N_GLOOPY) > 0) {
+		if (newDist < oldDist) {
+			stage[stg].closestInd = index;
+			return smoothMin(oldDist, newDist, ray_nearDist);
+		}
+	}
+	if ((nature & N_ANTI) > 0) {
+		if (newDist > oldDist) {
+			stage[stg].closestInd = index;
+			return newDist;
+		}
+	}
+	return oldDist;
+}
+
 float sceneSDF(vec3 p, int stg) {
 	int objCount = objIndices[obj_maxNum - 1];
-	float minDist = 1e9;
-	// objCount = w_objCount(stage[stg].world);
+	float sceneDist = 1e9;
 	
 	for(int i=0; i<objCount; i++) {
 		float d = objSDF(p, stage[stg].world, objIndices[i]);
+		int nature = int(texelFetch(uUniverseTex, ivec3(objIndices[i], 0, stage[stg].world), 0)[2]);
 		// float d = objSDF(p, stage[stg].world, i);
+		
+		sceneDist = applyDist(stg, sceneDist, d, nature, objIndices[i]);
+	}
+	
+	return sceneDist;
+}
+
+
+float sceneSDF_naive(vec3 p, int stg) {
+	int objCount = w_objCount(stage[stg].world);
+	float minDist = 1e9;
+	
+	for(int i=0; i<objCount; i++) {
+		float d = objSDF(p, stage[stg].world, i);
 		
 		if(d < minDist) {
 			minDist = d;
-			stage[stg].closestInd = objIndices[i];
+			stage[stg].closestInd = i;
 		}
 	}
 	
@@ -583,25 +664,11 @@ float sceneSDF(vec3 p, int stg) {
 }
 
 
-// float sceneSDF(vec3 p, int stg) {
-// 	int objCount = w_objCount(stage[stg].world);
-// 	float minDist = 1e9;
-	
-// 	for(int i=0; i<objCount; i++) {
-// 		float d = objSDF(p, stage[stg].world, i);
-		
-// 		if(d < minDist) {
-// 			minDist = d;
-// 			stage[stg].closestInd = i;
-// 		}
-// 	}
-	
-// 	return minDist;
-// }
-
-
-
 // Raymarching steps
+
+int matType(int world, int id) {
+	return int(texelFetch(uUniverseTex, ivec3(id, 0, world), 0)[1]);
+}
 
 void raymarch() {
 	for(int i=0; i<ray_maxIters; i++) {
@@ -610,8 +677,7 @@ void raymarch() {
 
 		if (stage[0].localDist < ray_nearDist) {
 			mat4 matDat = matData(stage[0].world, stage[0].closestInd);
-			vec4 fetched = texelFetch(uUniverseTex, ivec3(stage[0].closestInd, 0, stage[0].world), 0);
-			int type = int(fetched[1]);
+			int type = matType(stage[0].world, stage[0].closestInd);
 			// stage[1].color = fetched;
 			
 		
@@ -639,20 +705,33 @@ void shadow() {
 	float result = 1.0;
 	stage[1].totalDist = 0.02;
 	for(int i=0; i<40; i++) {
-		float h = sceneSDF(stage[1].pos, 1);
-		float shadowTolerance = min(stage[1].totalDist, 80.);
-		result = min(result, 4.0 * (h / shadowTolerance));
+		stage[1].localDist = sceneSDF(stage[1].pos, 1);
+		int res = 0;
 		
-		stage[1].localDist = max(h, ray_minDist);
+		if (stage[1].localDist < ray_minDist) {
+			mat4 matDat = matData(stage[1].world, stage[1].closestInd);
+			int type = matType(stage[1].world, stage[1].closestInd);
+			res = applyHitEffect(1, type, matDat[0], matDat[1], matDat[2]);
+			
+		}
+		
+		float shadowTolerance = min(stage[1].totalDist, 80.);
+		result = min(result, 4.0 * (stage[1].localDist / shadowTolerance));
+		
+		stage[1].localDist = max(stage[1].localDist, ray_minDist);
 		stage[1].totalDist += stage[1].localDist;
 		stage[1].pos += stage[1].dPos * stage[1].localDist;
 		//potentially add t cutoff here (far away objects won't cast shadows)
-		if(h < ray_minDist * 0.1) {
+		if (res > 0) {
+			result = 0.0;
 			break;
 		}
 		applyPreEffects(1);
 	}
 	//quantize shadows for cell shading effect
+	if (result > 0.) {
+		result = max(result, (1.1 / render_shadowSteps));
+	}
 	result = floor(result * render_shadowSteps) / render_shadowSteps;
 	float ambience = w_ambientLight(stage[1].world);
 	stage[1].color *= ambience + ((1. - ambience) * clamp(result, 0.0, 1.0));
