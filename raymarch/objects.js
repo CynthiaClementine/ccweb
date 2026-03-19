@@ -28,10 +28,12 @@ templates/abstract:
 
 //main object contract
 class Scene3dObject {
-	constructor(type, pos, material) {
+	constructor(type, pos, material, nature) {
 		this.pos = pos;
 		this.material = material;
-		this.typeID = type;
+		this.type = type;
+		this.nature = nature ?? N_NORMAL;
+		this.gloopiness = ray_nearDist;
 	}
 	
 	//gives the axis-aligned bounding box of the object, in [smallest pos, largest pos] terms
@@ -76,7 +78,7 @@ class Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return [this.typeID, this.pos, this.material];
+		return [];
 	}
 }
 
@@ -97,7 +99,7 @@ class Scene3dObject_Axes extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(null, this.rx, this.ry, this.rz);
+		return [null, this.rx, this.ry, this.rz];
 	}
 }
 
@@ -145,7 +147,7 @@ class Prism extends Scene3dObject_Axes {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(this.calcAxisType(this.swapXY, this.swapYZ, this.swapXZ));
+		return [this.calcAxisType(this.swapXY, this.swapYZ, this.swapXZ)];
 	}
 }
 
@@ -156,6 +158,7 @@ class Scene3dLoop {
 	* @param {Number} xRange min/max X to be in the loop
 	* @param {Number} yRange min/max Y to be in the loop
 	* @param {Number} zRange min/max Z to be in the loop
+	* @param {Number} loopSize the 
 	* @param {Scene3dObject} object the object to construct the loop out of
 	 */
 	constructor(xRange, yRange, zRange, loopSize, object) {
@@ -167,8 +170,11 @@ class Scene3dLoop {
 		object.pos[1] = loopSize / 2;
 		object.pos[2] = loopSize / 2;
 		this.obj = object;
+		
+		this.type = object.type + 100;
 		this.pos = object.pos;
 		this.material = object.material;
+		this.nature = object.nature;
 	}
 	
 	sceneSDF(pos, currentSDF) {
@@ -210,19 +216,14 @@ class Scene3dLoop {
 	
 	serializeGPU() {
 		var serial = this.obj.serializeGPU();
-		serial[0] += 100;
-		//range replaces position
-		serial[1][0] = this.xRange;
-		serial[1][1] = this.yRange;
-		serial[1][2] = this.zRange;
-		serial[11] = this.d;
+		serial[8] = this.d;
 		return serial;
 	}
 }
 
 class CloudSeed extends Scene3dObject {
 	constructor(pos, r) {
-		super(99, pos, materialCloud);
+		super(TYPE_CLOUD, pos, materialCloud);
 		this.minR = r;
 	}
 	
@@ -244,7 +245,7 @@ class CloudSeed extends Scene3dObject {
 //cube, standard object
 class Cube extends Scene3dObject {
 	constructor(pos, material, r) {
-		super(10, pos, material);
+		super(TYPE_BOX, pos, material);
 		this.r = r;
 	}
 	
@@ -269,13 +270,13 @@ class Cube extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(null, this.r, this.r, this.r)
+		return [null, this.r, this.r, this.r];
 	}
 }
 
 class Box extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz) {
-		super(10, pos, material, rx, ry, rz);
+		super(TYPE_BOX, pos, material, rx, ry, rz);
 	}
 	
 	bounds() {
@@ -303,29 +304,32 @@ class Box_Moving extends Box {
 		super(pos, material, rx, ry, rz);
 		this.posBase = Pos(...this.pos);
 		this.posEnd = pos2;
+		this.nature = N_GLOOP;
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx, this.ry, this.rz + 400);
+		return giveBounds(this.pos, this.rx + 12, this.ry + 12, this.rz + 12);
 	}
 	
 	//warning: does not mesh well with portal surfaces. fix before finishing
 	tick() {
 		this.pos = [
 			this.posBase[0],
-			this.posBase[1],
-			this.posBase[2] + 400 * Math.sin(world_time / 160)
+			this.posBase[1] + 50 * Math.sin(world_time / 100),
+			this.posBase[2]
 		];
 		
 		if (gl && loading_world.objects.includes(this)) {
-			GPU_transferObj(loading_world, this);
+			loading_world.bvh.generate();
+			createGPUWorld(loading_world);
+			// GPU_transferObj(loading_world, this);
 		}
 	}
 }
 
 class BoxFrame extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz, thickness) {
-		super(11, pos, material, rx, ry, rz);
+		super(TYPE_BOXFRAME, pos, material, rx, ry, rz);
 		this.e = thickness;
 	}
 	
@@ -360,7 +364,7 @@ class BoxFrame extends Scene3dObject_Axes {
 
 class Capsule extends Scene3dObject {
 	constructor(pos, material, r, h) {
-		super(2, pos, material);
+		super(TYPE_CAPSULE, pos, material);
 		this.r = r;
 		this.h = h;
 	}
@@ -382,13 +386,13 @@ class Capsule extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(this.r, this.h);
+		return [this.r, this.h];
 	}
 }
 
 class Cylinder extends Scene3dObject {
 	constructor(pos, material, r, h) {
-		super(3, pos, material);
+		super(TYPE_CYLINDER, pos, material);
 		this.r = r;
 		this.h = h;
 	}
@@ -412,13 +416,13 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(this.r, this.h);
+		return [this.r, this.h];
 	}
 }
 
 class DebugLines extends Scene3dObject {
 	constructor(minPos, maxPos) {
-		super(11, Pos(0, 0, 0), new M_Color(255, 0, 255));
+		super(TYPE_BOXFRAME, Pos(0, 0, 0), new M_Color(255, 0, 255));
 		this.minPos = minPos;
 		this.maxPos = maxPos;
 		this.frame = new BoxFrame(Pos(0, 0, 0), 10, 10, 10, 2);
@@ -451,14 +455,14 @@ class DebugLines extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(null, this.frame.rx, this.frame.ry, this.frame.rz, 2);
+		return [null, this.frame.rx, this.frame.ry, this.frame.rz, 2];
 	}
 }
 
 //TODO: SDF is wrong, not a proper euclidian distance
 class Ellipsoid extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz) {
-		super(1, pos, material, rx, ry, rz);
+		super(TYPE_ELLIPSE, pos, material, rx, ry, rz);
 	}
 	
 	distanceToPos(pos) {
@@ -488,7 +492,7 @@ class Ellipsoid extends Scene3dObject_Axes {
 
 class Gyroid extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz, a, b, h) {
-		super(12, pos, material, rx, ry, rz);
+		super(TYPE_GYROID, pos, material, rx, ry, rz);
 		this.a = a ?? 0.08;
 		this.b = b ?? 13;
 		this.h = h;
@@ -520,9 +524,9 @@ class Gyroid extends Scene3dObject_Axes {
 	}
 	
 	serializeGPU() {
-	//[x, y, z, a, rx, ry, rz, b, h, 0, 0, 0]
+	//[a, rx, ry, rz, b, h, 0, 0, 0]
 		var params = super.serializeGPU();
-		params[3] = this.a;
+		params[0] = this.a;
 		return params.concat(this.b, this.h);
 	}
 }
@@ -536,8 +540,8 @@ class Line extends Scene3dObject_Axes {
 			thickness = ry;
 			[rx, ry, rz] = [rx[0] - pos1[0], rx[1] - pos1[1], rx[2] - pos1[2]];
 		}
-		super(20, pos1, material, rx, ry, rz);
-		this.e = thickness;
+		super(TYPE_LINE, pos1, material, rx, ry, rz);
+		this.r = thickness;
 		this.calc();
 	}
 	
@@ -548,7 +552,7 @@ class Line extends Scene3dObject_Axes {
 	}
 	
 	bounds() {
-		const r = this.e;
+		const r = this.r;
 		return [Pos(
 			Math.min(this.pos[0] - r, this.posEnd[0] - r),
 			Math.min(this.pos[1] - r, this.posEnd[1] - r),
@@ -569,21 +573,21 @@ class Line extends Scene3dObject_Axes {
 		const l = clamp(dot(apVec, this.lineVec) / this.lineDot, 0, 1);
 			
 		return (getDistance(pos[0], pos[1], pos[2], 
-				linterp(base[0], this.posEnd[0], l), linterp(base[1], this.posEnd[1], l), linterp(base[2], this.posEnd[2], l)) - this.e);
+				linterp(base[0], this.posEnd[0], l), linterp(base[1], this.posEnd[1], l), linterp(base[2], this.posEnd[2], l)) - this.r);
 	}
 	
 	serialize() {
-		return `LINE${super.serialize()}~${this.e}`;
+		return `LINE${super.serialize()}~${this.r}`;
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(this.e);
+		return super.serializeGPU().concat(this.r);
 	}
 }
 
 class Octahedron extends Scene3dObject_Axes {
 	constructor(pos, material, rx, ry, rz) {
-		super(30, pos, material, rx, ry, rz);
+		super(TYPE_OCTAHEDRON, pos, material, rx, ry, rz);
 	}
 	
 	//TODO: probably broken in some way
@@ -606,7 +610,7 @@ class Octahedron extends Scene3dObject_Axes {
 
 class PrismRhombus extends Prism {
 	constructor(pos, material, rx, ry, h, axisType, skew) {
-		super(51, pos, material, rx, ry, h, axisType);
+		super(TYPE_PRISM_RHOMBUS, pos, material, rx, ry, h, axisType);
 		this.skew = skew;
 	}
 	
@@ -664,7 +668,7 @@ class Ramp extends PrismRhombus {
 
 class Ring extends Scene3dObject {
 	constructor(pos, material, r, ringR) {
-		super(40, pos, material);
+		super(TYPE_RING, pos, material);
 		this.r = r;
 		this.ringR = ringR;
 	}
@@ -686,14 +690,14 @@ class Ring extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(null, this.r, this.ringR);
+		return [null, this.r, this.ringR];
 	}
 }
 
 class Shell extends Scene3dObject {
 	//like sphere but the inside is hollow
 	constructor(pos, material, r, thickness) {
-		super(0, pos, material);
+		super(TYPE_SHELL, pos, material);
 		this.r = r;
 		this.h = thickness;
 	}
@@ -716,13 +720,13 @@ class Shell extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(null, this.r, this.h);
+		return [null, this.r, this.h];
 	}
 }
 
 class Sphere extends Scene3dObject {
 	constructor(pos, material, r) {
-		super(4, pos, material)
+		super(TYPE_SPHERE, pos, material)
 		this.r = r;
 	}
 	
@@ -743,14 +747,15 @@ class Sphere extends Scene3dObject {
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(this.r);
+		return [this.r];
 	}
 }
 
 class GloopySphere extends Sphere {
 	constructor(pos, material, r, gloopR) {
 		super(pos, material, r);
-		this.gloop = gloopR;
+		this.nature = N_GLOOP;
+		this.gloopiness = gloopR;
 	}
 	
 	sceneSDF(pos, currentSDF) {

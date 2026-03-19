@@ -1,29 +1,45 @@
-
 window.onload = setup;
-window.onresize = typeIt;
+window.onresize = resize;
 window.addEventListener("keydown", handleKeyPress, false);
 window.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener('pointerlockchange', handleCursorLockChange, false);
 document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
 
 var canvas;
-var ctx;
+var gl;
 
 var banvas;
 var btx;
 
-//setup
-function setup() {
+var useCPU = false;
+
+
+
+async function setup() {
 	tree_sets = 7;
-	initiateWorkers();
+	if (useCPU) {
+		initiateWorkers();
+	}
 	createWorlds();
-	canvas = document.getElementById("artbox");
-	ctx = canvas.getContext("2d");
-	banvas = document.getElementById("uibox");
+	canvas = document.getElementById(`glbox`);
+	banvas = document.getElementById(`viewbox`);
 	btx = banvas.getContext("2d");
+	btx.imageSmoothingEnabled = false;
+	var vertexShaderCode = await loadCode(`shaderV.glsl`);
+	var fragmentShaderCode = await loadCode(`shaderF.glsl`);
 	
+	gl = canvas.getContext("webgl2", {preserveDrawingBuffer: true});
+	gl.imageSmoothingEnabled = false;
+	if (!gl) {
+		alert("WebGL2 not supported. This program will not run correctly.");
+		throw new Error("WebGL2 not supported");
+	}
+	if (!gl.getExtension(`EXT_color_buffer_float`)) {
+		alert(`Float colors not supported. This program will not run correctly.`);
+		throw new Error("float colors not supported");
+	}
 	
-	typeIt();
+	resize();
 	updateFOV(camera_FOV, false);
 
 	banvas.requestPointerLock = banvas.requestPointerLock || banvas.mozRequestPointerLock;
@@ -36,6 +52,7 @@ function setup() {
 	
 	editor_initialize();
 	editor_select();
+	document.title = `Raymarching: ${splashes[(Math.random() * splashes.length) | 0]}`;
 	
 	//serializing / editor error checking
 	if (!keysMatch(map_strObj, objectEditables)) {
@@ -44,6 +61,10 @@ function setup() {
 	if (!keysMatch(map_strMat, materialEditables)) {
 		throw new Error(`Mismatch between editor objects and defined objects!`);
 	}
+	resize();
+	setupGLState(vertexShaderCode, fragmentShaderCode);
+	createBVHTexture();
+	createObjectsTexture();
 	
 	
 	window.setTimeout(main, 10);
@@ -66,18 +87,22 @@ function initiateWorkers() {
 	}
 }
 
-function typeIt() {
+function resize() {
 	var width = window.innerWidth - 10;
 	var height = window.innerHeight - 10;
 	var blockSize = Math.min(width, height);
 	
-	canvas.width = blockSize;
 	banvas.width = blockSize;
-	editorPanelGroup.style = `margin-left: ${blockSize + 20}px`;
-	canvas.height = blockSize;
 	banvas.height = blockSize;
-	
-	// page_animation = window.setTimeout(main, 10);
+	canvas.width = render_n;
+	canvas.height = render_n;
+	canvas.style = `width: ${blockSize}px; height: ${blockSize}px;`;
+	editorPanelGroup.style = `margin-left: ${blockSize + 20}px`;
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+}
+
+async function loadCode(url) {
+	return await (await fetch(url)).text();
 }
 
 function main() {
@@ -86,25 +111,30 @@ function main() {
 	//tick all world objects
 	loading_world = camera.world;
 	player.tick();
+	camera.tick();
+	
 	//editor syncing
-	var ab = Math.abs;
-	var dp = player.dPos;
-	if (debug_listening && Math.max(ab(dp[0]), ab(dp[1]), ab(dp[2])) > 0.1) {
-		editor_controls.forEach(c => {
-			try {
-				c.synchronize();
-			} catch (e) {}
-		});
+	if (debug_listening) {
+		var ab = Math.abs;
+		var dp = player.dPos;
+		if (Math.max(ab(dp[0]), ab(dp[1]), ab(dp[2])) > 0.1) {
+			editor_controls.forEach(c => {
+				try {
+					c.synchronize();
+				} catch (e) {}
+			});
+		}
 	}
 	loading_world.objects.forEach(o => {
 		o.tick();
 	});
 	loading_world.tick();
 	
-	worker_pool.forEach(w => {
-		w.postMessage(["updateCamera", camera.world.name, camera.pos[0], camera.pos[1], camera.pos[2], camera.theta, camera.phi]);
-	});
-	
+	if (useCPU) {
+		worker_pool.forEach(w => {
+			w.postMessage(["updateCamera", camera.world.name, camera.pos[0], camera.pos[1], camera.pos[2], camera.theta, camera.phi]);
+		});
+	}
 	draw();
 
 	//end
@@ -134,7 +164,7 @@ function finishMain() {
 	//changing display size
 	if (render_n != render_goalN) {
 		render_n = render_goalN;
-		typeIt();
+		resize();
 		updateFOV(camera_FOV);
 		//ough
 		page_animation = window.setTimeout(main, 70);
@@ -146,6 +176,16 @@ function finishMain() {
 }
 
 function draw() {
+	if (!useCPU) {
+		feedGPU();
+		//draw GPU's result to the drawing canvas
+		btx.drawImage(gl.canvas,
+			0, 0, canvas.width, canvas.height,
+			0, 0, banvas.width, banvas.height);
+		render_linesDrawn = render_n;
+		return;
+	}
+
 	//draw everything
 	const pixelsInX = render_n;
 	const pixelsInY = render_n;
@@ -170,17 +210,18 @@ function draw() {
 }
 
 function drawUI() {
-	var cw = canvas.width;
-	var ch = canvas.height;
-	var center = [canvas.width / 2, canvas.height / 2];
+	var cvs = banvas;
+	var cw = cvs.width;
+	var ch = cvs.height;
+	var center = [cvs.width / 2, cvs.height / 2];
 	
 	//debug bars
-	btx.clearRect(0, 0, canvas.width, canvas.height);
+	btx.clearRect(0, 0, cvs.width, cvs.height);
 	btx.globalAlpha = 0.3;
 	if (debug_listening) {
 		btx.fillStyle = color_editor_border;
-		btx.fillRect(0, 0, canvas.width, canvas.height * 0.03);
-		btx.fillRect(0, canvas.height * 0.97, canvas.width, canvas.height * 0.03);
+		btx.fillRect(0, 0, cvs.width, cvs.height * 0.03);
+		btx.fillRect(0, cvs.height * 0.97, cvs.width, cvs.height * 0.03);
 	}
 	
 	//crosshair

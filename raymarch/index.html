@@ -33,6 +33,16 @@
 				position: absolute;
 				top: 0;
 				left: 0;
+				
+				image-rendering: optimizeSpeed;
+				image-rendering: -webkit-crisp-edges;
+				image-rendering: -moz-crisp-edges;
+				image-rendering: -o-crisp-edges;
+				image-rendering: crisp-edges;
+				image-rendering: -webkit-optimize-contrast;
+				image-rendering: optimize-contrast;
+				image-rendering: pixelated;
+				-ms-interpolation-mode: nearest-neighbor;
 			}
 	
 			#centerModule {
@@ -91,6 +101,7 @@
 		<script src="../common/functions-coordinate.js"></script>
 		<script src="../common/functions-math.js"></script>
 		<script src="functions-helper.js"></script>
+		<script src="functions-gpu.js"></script>
 	
 		<script src="config.js"></script>
 		<script src="editor.js"></script>
@@ -103,8 +114,8 @@
 	</head>
 	<body>
 		<div id="wrapper">
-			<canvas id="artbox"></canvas>
-			<canvas id="uibox"></canvas>
+			<canvas id="glbox"></canvas>
+			<canvas id="viewbox"></canvas>
 			<div id="editorPanelGroup" x="600">
 				<div id="editorSpace">
 					<div>
@@ -118,6 +129,9 @@
 					
 					<div class="separator">OBJECT</div>
 					<select id="objectDropdown"></select>
+					
+					<div id="group_nature">
+					</div>
 	
 					<div id="group_pos">
 						<div>Pos controls</div>

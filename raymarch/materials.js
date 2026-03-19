@@ -56,7 +56,7 @@ class Material {
 
 class M_Color extends Material {
 	constructor(r, g, b) {
-		super(0, Color4(r, g, b, 255), 0.3);
+		super(M_COLOR, Color4(r, g, b, 255), 0.3);
 	}
 	
 	applyNearEffect(ray) {}
@@ -75,7 +75,7 @@ class M_Color extends Material {
 class M_Concrete extends M_Color {
 	constructor() {
 		super(249, 248, 243);
-		this.type = 1;
+		this.type = M_CONCRETE;
 		this.closeColors = [
 			Color4(255, 255, 255, 255),
 			Color4(255, 249, 224, 255),
@@ -114,7 +114,7 @@ class M_Concrete extends M_Color {
 
 class M_Ghost extends Material {
 	constructor(r, g, b, opacity) {
-		super(11, Color4(r, g, b, opacity), 0.1);
+		super(M_GHOST, Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {
@@ -134,7 +134,7 @@ class M_Ghost extends Material {
 
 class M_Glass extends Material {
 	constructor(r, g, b, opacity) {
-		super(10, Color4(r, g, b, opacity), 0.1);
+		super(M_GLASS, Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {}
@@ -156,7 +156,7 @@ class M_Glass extends Material {
 
 class M_Normal extends Material {
 	constructor() {
-		super(3, Color4(0, 0, 0, 255), 0);
+		super(M_NORMAL, Color4(0, 0, 0, 255), 0);
 	}
 	
 	applyHitEffect(ray, object) {
@@ -173,9 +173,9 @@ class M_Normal extends Material {
 
 class M_Portal extends Material {
 	constructor(newWorldName, posOffset) {
-		super(20, Color4(255, 255, 255, 255), 0);
+		super(M_PORTAL, Color4(255, 255, 255, 255), 0);
 		this.str = newWorldName;
-		this.offset = posOffset;
+		this.offset = Pos(...posOffset);
 		this.newWorld = null;
 		var self = this;
 		setTimeout(() => {
@@ -231,7 +231,7 @@ class M_Portal extends Material {
 
 class M_Mirror extends Material {
 	constructor(r, g, b, absorbance) {
-		super(30, Color4(r, g, b, absorbance), 0.1);
+		super(M_MIRROR, Color4(r, g, b, absorbance), 0.1);
 	}
 	
 	applyNearEffect(ray) {}
@@ -268,7 +268,7 @@ class M_Mirror extends Material {
 
 class M_Rubber extends Material {
 	constructor() {
-		super(2, Color4(47, 48, 66, 255), 1);
+		super(M_RUBBER, Color4(47, 48, 66, 255), 1);
 		this.lumi = 4;
 	}
 	

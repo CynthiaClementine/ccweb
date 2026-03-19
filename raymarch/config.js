@@ -5,6 +5,36 @@ const degToRad = (Math.PI / 180);
 
 const fencepost32 = 0xff0110ff;
 
+const N_NORMAL = 0;
+const N_GLOOP = 1;
+const N_ANTI = 2;
+const N_FOG = 4;
+
+const M_COLOR = 0;
+const M_CONCRETE = 1;
+const M_RUBBER = 2;
+const M_NORMAL = 3;
+const M_GLASS = 10;
+const M_GHOST = 11;
+const M_PORTAL = 20;
+const M_MIRROR = 30;
+
+
+const TYPE_SPHERE = 0;
+const TYPE_ELLIPSE = 1;
+const TYPE_CAPSULE = 2;
+const TYPE_CYLINDER = 3;
+const TYPE_SHELL = 4;
+const TYPE_BOX = 10;
+const TYPE_BOXFRAME = 11;
+const TYPE_GYROID = 12;
+const TYPE_LINE = 20;
+const TYPE_OCTAHEDRON = 30;
+const TYPE_RING = 40;
+const TYPE_PRISM_RHOMBUS = 51;
+//should maybe be a material?
+const TYPE_CLOUD = 99;
+
 //quick type
 const U8Arr = Uint8Array;
 const F32Arr = Float32Array; //f16 is smaller but not supported on safari
@@ -90,7 +120,7 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 120;
+var render_n = 512;
 var render_goalN = render_n;
 var render_shadowPercent = 0.7;
 var render_linesDrawn = 0;

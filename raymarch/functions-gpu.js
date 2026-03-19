@@ -61,14 +61,17 @@ function createBVHTexture() {
 	gl.bindTexture(gl.TEXTURE_2D, texture_bvh);
 }
 
+/**
+ * takes a world object and puts it on the GPU's textures.
+ * @param {World} worldObj the world to put on the GPU.
+ */
 function createGPUWorld(worldObj) {
-	console.log(`putting world ${worldObj.name} on the GPU:.`);
 	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
 	const worldOffset = worldObj.id * (texture_rowsPerObj + texture_rowsPerMat) * rowOffset;
 	//objects
 	const objs = worldObj.objects;
 	for (var o=0; o<objs.length; o++) {
-		setObject(worldOffset, rowOffset, o, ...objs[o].serializeGPU());
+		setObject(worldOffset, rowOffset, o, objs[o]);
 		setMaterial(worldOffset, rowOffset, o, ...objs[o].material.serializeGPU());
 	}
 	
@@ -80,6 +83,26 @@ function createGPUWorld(worldObj) {
 	
 	updateWorldTexture();
 	updateBvhTexture();
+}
+
+/**
+ * sets an object and its material on the GPU, with as little information passed in as possible.
+ * @param {World} world the world the object is a part of
+ * @param {Scene3dObject} obj the index of the object in the world's object array
+ */
+function setObjectEasy(world, obj) {
+	createGPUWorld(world);
+	return;
+	const index = world.objects.indexOf(obj);
+	if (index < 0) {
+		console.error(`${obj.serialize()} is not a valid object in world ${world.name}!`);
+		return;
+	}
+	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
+	const worldOffset = world.id * (texture_rowsPerObj + texture_rowsPerMat) * rowOffset;
+	//objects
+	setObject(worldOffset, rowOffset, index, obj);
+	setMaterial(worldOffset, rowOffset, index, ...obj.material.serializeGPU());
 }
 
 function setupGLState(vertexShaderCode, fragmentShaderCode) {
@@ -173,7 +196,6 @@ function setEffects(world, worldOff, rowOff, doPreEffects) {
 		//write to data array
 		data[base + 0] = id;
 		data[base + 1] = args[0] ?? 0;
-		console.log(args[0], args[1], args[2]);
 		data[base + 2] = args[1] ?? 0;
 		data[base + 3] = args[2] ?? 0;
 		
@@ -247,37 +269,37 @@ function updateWorldTexture() {
 	);
 }
 
-// function createTestGPUWorld() {
-// 	setObject(0, 10, [0, 30, -8], [1, 1, 0], null, 4, 4, 3);
-// 	setObject(1, 2, [-500, 300, 0], [128 / 255, 128 / 255, 1], 100, 200)
-// }
-
-function setObject(worldOff, rowOff, objInd, id, pos, materialRef, pram0, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
+function setObject(worldOff, rowOff, objInd, objRef) {
 	var base = worldOff + objInd * 4;
 	
 	const data = texture_universeArr;
-	const materialID = materialRef.type;
 	
-	// Row 0
-	data[base + 0] = id; // type
-	data[base + 1] = materialID; // material id
-	data[base + 2] = fencepost32; //these two are unused for now
+	const type = objRef.type;
+	const pos = (objRef.constructor.name == "Scene3dLoop") ? [objRef.xRange, objRef.yRange, objRef.zRange] : objRef.pos;
+	const material = objRef.material.type;
+	const nature = objRef.nature;
+	const args = objRef.serializeGPU();
+	
+	// Row 0: type, material, nature, unused
+	data[base + 0] = type;
+	data[base + 1] = material;
+	data[base + 2] = nature;
 	data[base + 3] = fencepost32;
 	base += rowOff;
-	data[base + 0] = pos[0];  //pos
+	data[base + 0] = pos[0];
 	data[base + 1] = pos[1];
 	data[base + 2] = pos[2];
-	data[base + 3] = pram0;
+	data[base + 3] = args[0];
 	base += rowOff;
-	data[base + 0] = pram1_1; //rx, ry, rz
-	data[base + 1] = pram1_2;
-	data[base + 2] = pram1_3;
-	data[base + 3] = pram1_4;
+	data[base + 0] = args[1]; //rx, ry, rz
+	data[base + 1] = args[2];
+	data[base + 2] = args[3];
+	data[base + 3] = args[4];
 	base += rowOff;
-	data[base + 0] = pram2_1;
-	data[base + 1] = pram2_2;
-	data[base + 2] = pram2_3;
-	data[base + 3] = pram2_4;
+	data[base + 0] = args[5];
+	data[base + 1] = args[6];
+	data[base + 2] = args[7];
+	data[base + 3] = args[8];
 }
 
 function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
@@ -321,7 +343,7 @@ function feedGPU() {
 function GPU_transferObj(world, object) {
 	const worldOffset = world.id * (texture_rowsPerObj + texture_rowsPerMat) * (world_maxObjs + texture_worldCols) * 4;
 	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
-	setObject(worldOffset, rowOffset, world.objects.indexOf(object), ...object.serializeGPU());
+	setObject(worldOffset, rowOffset, world.objects.indexOf(object), object);
 	updateWorldTexture();
 }
 

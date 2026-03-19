@@ -45,17 +45,8 @@ class Ray {
 			}
 	
 			//get distance
-			const scene = this.world.bvh.objects(this);
-			var dist = 2 * ray_maxDist;
-			var distObj;
-			var isObj;
-			for (var a=0; a<scene.length; a++) {
-				[dist, isObj] = scene[a].sceneSDF(pos, dist);
-				if (isObj) {
-					distObj = scene[a];
-				}
-			}
-			
+			const distObj = this.world.tree.estimate(this);
+			var dist = distObj.distanceToPos(this.pos) * ray_safetyMult;
 			
 			this.localDist = dist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
@@ -126,7 +117,6 @@ class Ray_Tracking {
 	constructor(world, pos, dPos, maxDist) {
 		this.world = world;
 		this.pos = new Float32Array(pos);
-		// console.trace(this.pos, pos);
 		this.dPos = dPos;
 		this.distance = 0;
 		this.distCap = maxDist ?? ray_maxDist;
@@ -449,42 +439,6 @@ class ObjectGrid {
 		return this.objects[this.estimatePos(obj.pos)[1]];
 	}
 }
-
-//unused
-class ObjectSubGrid {
-	constructor(world, minPos, maxPos) {
-		this.world = world;
-		this.minPos = minPos;
-		this.maxPos = maxPos;
-		this.l = 4;
-		this.xd = (maxPos[0] - minPos[0]) / this.l;
-		this.yd = (maxPos[1] - minPos[1]) / this.l;
-		this.zd = (maxPos[2] - minPos[2]) / this.l;
-		this.objects = world.objects;
-		this.chunks = new Array(this.l ** 3).fill(new Set());
-	}
-	
-	binObject(obj) {
-		
-	}
-	
-	calcGridCoords(pos) {
-	
-	}
-	
-	generate() {
-	
-	}
-	
-	estimatePos(pos) {
-	
-	}
-	
-	estimate(obj) {
-	
-	}
-}
-
 
 
 //test version of the BrickGrid class

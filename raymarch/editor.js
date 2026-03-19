@@ -30,14 +30,18 @@ class Slider {
 		createHTMLSliderAt(spl[0], spl[1]);
 		this.label = label;
 		this.rel = !(Number.isNaN(+numMin));
+		
 		this.groupElem = document.getElementById(spl[1]);
 		this.valueElem = this.groupElem.children[0];
 		this.sliderElem = this.groupElem.children[1];
+		
 		this.numRange = [min ?? -100, max ?? 100];
 		this.varRange = this.rel ? [numMin, numMax] : [min, max];
 		this.step = stepSize;
 		this.var = variable;
-		this.offset = 0;
+		
+		this.locked = false;
+		this.offsetLock = 0;
 		this.init();
 	}
 	
@@ -49,12 +53,16 @@ class Slider {
 	}
 	
 	value() {
-		return clamp(+this.sliderElem.value + (this.rel ? this.offset : 0), ...this.varRange);
+		return clamp(+this.sliderElem.value + (this.rel ? this.offsetLock : 0), ...this.varRange);
 	}
 
 	init() {
-		this.sliderElem.addEventListener('input', this.updateDisplay.bind(this));
-		this.sliderElem.addEventListener('change', this.updateValue.bind(this));
+		this.sliderElem.oninput = (() => {
+			this.updateValue();
+			this.updateDisplay();
+		}).bind(this);
+		this.sliderElem.onmousedown = this.mouseDown.bind(this);
+		this.sliderElem.onmouseup = this.mouseUp.bind(this);
 		this.sliderElem.setAttribute(`min`, this.numRange[0]);
 		this.sliderElem.setAttribute(`max`, this.numRange[1]);
 		this.sliderElem.setAttribute(`step`, this.step);
@@ -62,13 +70,29 @@ class Slider {
 		this.synchronize();
 	}
 	
+	mouseDown() {
+		this.locked = true;
+	}
+	
+	mouseUp() {
+		this.locked = false;
+		this.offsetLock = this.value();
+		if (this.rel) {
+			this.sliderElem.value = 0;
+		}
+	}
+	
 	synchronize() {
+		if (this.locked) {
+			return;
+		}
+		
 		var sigFigs = Math.min(-Math.log10(this.step), 0);
 		try {
 			var setVal = Math.round(eval(this.var) / this.step) * this.step;
-			this.offset = clamp(+(setVal.toFixed(sigFigs)), ...this.varRange);
+			this.offsetLock = clamp(+(setVal.toFixed(sigFigs)), ...this.varRange);
 			if (!this.rel) {
-				this.sliderElem.value = this.offset;
+				this.sliderElem.value = this.offsetLock;
 			}
 		} catch (e) {
 			// console.error(e);
@@ -83,27 +107,24 @@ class Slider {
 			neg = true;
 			val = -val;
 		}
-		var digitsNeeded = Math.max(Math.abs(this.varRange[0]), Math.abs(this.varRange[1]));
+		//tiny values take up more space too. So they're factored in
+		var digitsNeeded = Math.max(Math.abs(this.varRange[0]), Math.abs(this.varRange[1]), 100 / Math.abs(this.step));
 		//log offset says number of digits - 1. Negative sign gives an extra positive digit (-99 vs 999)
 		digitsNeeded = 1 + (Math.log10(digitsNeeded) | 0) + (this.varRange[0] < 0);
 		this.valueElem.innerHTML = this.label + (neg ? `-` : ``) + val.toString().padStart(digitsNeeded - neg, "0");
 	}
 	
-	updateValue(e) {
-		this.offset = this.value();
+	updateValue() {
+		var val = this.value();
 		try {
-			console.log(`setting ${this.var} = ${clamp(this.offset, this.varRange[0], this.varRange[1])};`);
-			eval(`${this.var} = ${clamp(this.offset, ...this.varRange)};`);
+			console.log(`setting ${this.var} = ${clamp(val, this.varRange[0], this.varRange[1])};`);
+			eval(`${this.var} = ${clamp(val, ...this.varRange)};`);
 			if (this.var.includes(`editor_selected`) && editor_selected != player) {
 				syncObject_send(loading_world, editor_selected);
 			}
 		} catch (e) {
-			console.error(`cannot send ${this.offset} -- >${this.varRange}< -- ${this.var}`, e);
+			console.error(`cannot send ${val} -- >${this.varRange}< -- ${this.var}`, e);
 		}
-		if (this.rel) {
-			this.sliderElem.value = 0;
-		}
-		this.updateDisplay();
 	}
 }
 
@@ -124,8 +145,8 @@ class SliderCustom extends Slider {
 		if (!this.validVals) {
 			return;
 		}
-		this.offset = this.validVals.indexOf(this.updateFunc());
-		this.sliderElem.value = this.offset;
+		this.offsetLock = this.validVals.indexOf(this.updateFunc());
+		this.sliderElem.value = this.offsetLock;
 		this.updateDisplay();
 	}
 	
@@ -134,8 +155,8 @@ class SliderCustom extends Slider {
 	}
 	
 	updateValue(e) {
-		this.offset = this.value();
-		this.updateFunc(this.validVals[this.offset]);
+		this.offsetLock = this.value();
+		this.updateFunc(this.validVals[this.offsetLock]);
 		this.updateDisplay();
 	}
 }
@@ -202,8 +223,8 @@ var slider_fov, slider_res;
 var slider_x, slider_y, slider_z;
 
 var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR;
-var slider_gyrA, slider_gyrB, slider_h;
-
+var slider_gyrA, slider_gyrB, slider_h, slider_e;
+var slider_skew;
 
 var slider_r, slider_g, slider_b, slider_a;
 var slider_px, slider_py, slider_pz;
@@ -238,7 +259,7 @@ function editor_initialize() {
 			render_goalN = val;
 		}
 		return render_goalN;
-	}, [40, 60, 80, 100, 120, 150, 180, 240, 300, 360]);
+	}, [40, 60, 80, 100, 120, 150, 180, 240, 300, 360, 512, 720, 1080, 1440]);
 	
 	//object sliders
 	
@@ -255,7 +276,8 @@ function editor_initialize() {
 	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0,1, 0.01);
 	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,20, 0.1);
 	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -5,5, 0.1, -9999,9999);
-	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, )
+	slider_e = new Slider(`group_special.eSlider`, `editor_selected.e`, `e: `, -10,10, 1, -999,999);
+	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, );
 	
 	//material sliders
 	slider_r = new Slider(`group_color.rSlider`, `editor_selected.material.color[0]`, `r: `, 0,255, 1);
@@ -329,12 +351,14 @@ function editor_initialize() {
 		return editor_selected.material.str;
 	});
 	
+	// checkbox_gloop = new Checkbox(`group_nature.gloop`, )
+	
 	editor_controls = [
 		slider_fov, slider_res,
 		slider_x, slider_y, slider_z,
 		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR,
 		slider_gyrA, slider_gyrB, slider_h, slider_skew,
-		slider_r, slider_g, slider_b, slider_a,
+		slider_r, slider_g, slider_b, slider_a, slider_e,
 		slider_px, slider_py, slider_pz,
 
 		dropdown_obj, dropdown_mat, dropdown_axes,
@@ -351,7 +375,7 @@ function editor_initialize() {
 		"PLAYER-DEBUG": [],
 		"PLAYER-NOCLIP": [],
 		"BOX": [...rxyz],
-		"BOX-FRAME": [...rxyz],
+		"BOX-FRAME": [...rxyz, slider_e],
 		"CAPSULE": [slider_rr, slider_h],
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],

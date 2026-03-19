@@ -85,6 +85,12 @@ function createCloud() {
 
 }
 
+function constrainPlayer(xRange, yRange, zRange) {
+	player.pos[0] = modulate(player.pos[0] + xRange, 2 * xRange) - xRange;
+	player.pos[1] = modulate(player.pos[1] + yRange, 2 * yRange) - yRange;
+	player.pos[2] = modulate(player.pos[2] + zRange, 2 * zRange) - zRange;
+}
+
 function createDefaultObject(constructorString, objRef) {
 	console.log(constructorString, objRef);
 	var type = map_strObj[constructorString];
@@ -375,14 +381,23 @@ function syncObject_send(world, object) {
 	//serialize object, then send it to all workers
 	var objStr = object.serialize();
 	var ind = world.objects.indexOf(object);
-	if (ind == -1) {
+	const adding = (ind == -1);
+	if (adding) {
 		ind = world.objects.length;
 	}
 	
 	syncObject_recieve(world.name, ind, objStr);
-	worker_pool.forEach(w => {
-		w.postMessage(["syncObject", world.name, ind, objStr]);
-	});
+	if (useCPU) {
+		worker_pool.forEach(w => {
+			w.postMessage(["syncObject", world.name, ind, objStr]);
+		});
+	} else {
+		if (!adding) {
+			setObjectEasy(world, world.objects[ind]);
+		} else {
+			createGPUWorld(world);
+		}
+	}
 	
 	if (reselect > -1) {
 		editor_select(world.objects[reselect]);
@@ -393,9 +408,14 @@ function syncObject_remove(world, object) {
 	var ind = world.objects.indexOf(object);
 	
 	syncObject_recieve(world.name, ind);
-	worker_pool.forEach(w => {
-		w.postMessage(["syncObject", world.name, ind]);
-	});
+	if (useCPU) {
+		worker_pool.forEach(w => {
+			w.postMessage(["syncObject", world.name, ind]);
+		});
+	} else {
+		//ouoghghh
+		createGPUWorld(world);
+	}
 }
 
 function syncObject_recieve(worldName, index, objStr) {
@@ -418,13 +438,10 @@ function syncObject_recieve(worldName, index, objStr) {
 	if (world.tree) {
 		world.tree.generate();
 	}
-}
-
-function synchronizeWorld(worldName) {
-	//serialize the world
-	//send to all threads
-	console.error(`unimplemented`);
-	
+	if (world.bvh) {
+		console.log(`regenerating bvh!`);
+		world.bvh.generate();
+	}
 }
 
 function modulate(x, num) {

@@ -117,13 +117,17 @@ function modularDifference(a, b, modulo) {
 //returns a vector with the same direction but magnitude 1
 function normalize(vector) {
 	var running = 0;
-	for (var f=0; f<vector.length; f++) {
+	const vLen = vector.length;
+	for (var f=0; f<vLen; f++) {
 		running += vector[f] * vector[f];
 	}
-	var len = Math.sqrt(running);
+	const len = Math.sqrt(running);
+	if (len == 0) {
+		return vector;
+	}
 	
 	var newVec = [];
-	for (f=vector.length-1; f>=0; f--) {
+	for (f=vLen-1; f>=0; f--) {
 		newVec[f] = vector[f] / len;
 	}
 	return newVec;
@@ -221,8 +225,8 @@ function rootsQuadratic(a, b, c) {
 }
 
 function rotate(x, z, radians) {
-	var sin = Math.sin(radians);
-	var cos = Math.cos(radians);
+	const sin = Math.sin(radians);
+	const cos = Math.cos(radians);
 	return [x * cos - z * sin, z * cos + x * sin];
 }
 
