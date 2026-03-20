@@ -59,9 +59,6 @@ class Scene3dObject {
 		return [Math.min(currentSDF, d), d < currentSDF];
 	}
 	
-	/*
-	* 
-	 */
 	normalAt(pos) {
 		const ε = 0.01;
 		const base = this.distanceToPos(pos);
@@ -74,7 +71,7 @@ class Scene3dObject {
 	}
 
 	serialize() {
-		return `|${this.material.serialize()}|[${this.pos}]`;
+		return `|${this.material.serialize()}|[${this.pos}]~${this.nature}`;
 	}
 	
 	serializeGPU() {
@@ -83,8 +80,8 @@ class Scene3dObject {
 }
 
 class Scene3dObject_Axes extends Scene3dObject {
-	constructor(type, pos, material, rx, ry, rz) {
-		super(type, pos, material);
+	constructor(type, pos, material, nature, rx, ry, rz) {
+		super(type, pos, material, nature);
 		this.rx = rx;
 		this.ry = ry;
 		this.rz = rz;
@@ -104,8 +101,8 @@ class Scene3dObject_Axes extends Scene3dObject {
 }
 
 class Prism extends Scene3dObject_Axes {
-	constructor(type, pos, material, rx, ry, h, axisType) {
-		super(type, pos, material, rx, ry, h);
+	constructor(type, pos, material, nature, rx, ry, h, axisType) {
+		super(type, pos, material, nature, rx, ry, h);
 		this.swapXY = axisType & 0b001;
 		this.swapYZ = axisType & 0b010;
 		this.swapXZ = axisType & 0b100;
@@ -186,10 +183,6 @@ class Scene3dLoop {
 		return this.obj.normalAt(pos);
 	}
 	
-	applyHitEffect(object) {
-		this.obj.applyHitEffect(object);
-	}
-	
 	bounds() {
 		return giveBounds([0, 0, 0], this.xRange, this.yRange, this.zRange);
 	}
@@ -222,8 +215,8 @@ class Scene3dLoop {
 }
 
 class CloudSeed extends Scene3dObject {
-	constructor(pos, r) {
-		super(TYPE_CLOUD, pos, materialCloud);
+	constructor(pos, r, nature) {
+		super(TYPE_CLOUD, pos, materialCloud, nature);
 		this.minR = r;
 	}
 	
@@ -244,8 +237,8 @@ class CloudSeed extends Scene3dObject {
 
 //cube, standard object
 class Cube extends Scene3dObject {
-	constructor(pos, material, r) {
-		super(TYPE_BOX, pos, material);
+	constructor(pos, material, nature, r) {
+		super(TYPE_BOX, pos, material, nature);
 		this.r = r;
 	}
 	
@@ -275,8 +268,8 @@ class Cube extends Scene3dObject {
 }
 
 class Box extends Scene3dObject_Axes {
-	constructor(pos, material, rx, ry, rz) {
-		super(TYPE_BOX, pos, material, rx, ry, rz);
+	constructor(pos, material, nature, rx, ry, rz) {
+		super(TYPE_BOX, pos, material, nature, rx, ry, rz);
 	}
 	
 	bounds() {
@@ -300,8 +293,8 @@ class Box extends Scene3dObject_Axes {
 }
 
 class Box_Moving extends Box {
-	constructor(pos, material, rx, ry, rz, pos2) {
-		super(pos, material, rx, ry, rz);
+	constructor(pos, material, nature, rx, ry, rz, pos2) {
+		super(pos, material, nature, rx, ry, rz);
 		this.posBase = Pos(...this.pos);
 		this.posEnd = pos2;
 		this.nature = N_GLOOP;
@@ -328,8 +321,8 @@ class Box_Moving extends Box {
 }
 
 class BoxFrame extends Scene3dObject_Axes {
-	constructor(pos, material, rx, ry, rz, thickness) {
-		super(TYPE_BOXFRAME, pos, material, rx, ry, rz);
+	constructor(pos, material, nature, rx, ry, rz, thickness) {
+		super(TYPE_BOXFRAME, pos, material, nature, rx, ry, rz);
 		this.e = thickness;
 	}
 	
@@ -363,8 +356,8 @@ class BoxFrame extends Scene3dObject_Axes {
 }
 
 class Capsule extends Scene3dObject {
-	constructor(pos, material, r, h) {
-		super(TYPE_CAPSULE, pos, material);
+	constructor(pos, material, nature, r, h) {
+		super(TYPE_CAPSULE, pos, material, nature);
 		this.r = r;
 		this.h = h;
 	}
@@ -391,8 +384,8 @@ class Capsule extends Scene3dObject {
 }
 
 class Cylinder extends Scene3dObject {
-	constructor(pos, material, r, h) {
-		super(TYPE_CYLINDER, pos, material);
+	constructor(pos, material, nature, r, h) {
+		super(TYPE_CYLINDER, pos, material, nature);
 		this.r = r;
 		this.h = h;
 	}
@@ -422,7 +415,7 @@ class Cylinder extends Scene3dObject {
 
 class DebugLines extends Scene3dObject {
 	constructor(minPos, maxPos) {
-		super(TYPE_BOXFRAME, Pos(0, 0, 0), new M_Color(255, 0, 255));
+		super(TYPE_BOXFRAME, Pos(0, 0, 0), new M_Color(255, 0, 255), N_NORMAL);
 		this.minPos = minPos;
 		this.maxPos = maxPos;
 		this.frame = new BoxFrame(Pos(0, 0, 0), 10, 10, 10, 2);
@@ -461,8 +454,8 @@ class DebugLines extends Scene3dObject {
 
 //TODO: SDF is wrong, not a proper euclidian distance
 class Ellipsoid extends Scene3dObject_Axes {
-	constructor(pos, material, rx, ry, rz) {
-		super(TYPE_ELLIPSE, pos, material, rx, ry, rz);
+	constructor(pos, material, nature, rx, ry, rz) {
+		super(TYPE_ELLIPSE, pos, material, nature, rx, ry, rz);
 	}
 	
 	distanceToPos(pos) {
@@ -491,8 +484,8 @@ class Ellipsoid extends Scene3dObject_Axes {
 }
 
 class Gyroid extends Scene3dObject_Axes {
-	constructor(pos, material, rx, ry, rz, a, b, h) {
-		super(TYPE_GYROID, pos, material, rx, ry, rz);
+	constructor(pos, material, nature, rx, ry, rz, a, b, h) {
+		super(TYPE_GYROID, pos, material, nature, rx, ry, rz);
 		this.a = a ?? 0.08;
 		this.b = b ?? 13;
 		this.h = h;
@@ -534,13 +527,13 @@ class Gyroid extends Scene3dObject_Axes {
 //line extends an axes object for the sake of constructor / editor simplicity. 
 //The offset point is not really a "radius" by any metric but eh. whatever.
 class Line extends Scene3dObject_Axes {
-	constructor(pos1, material, rx, ry, rz, thickness) {
+	constructor(pos1, material, nature, rx, ry, rz, thickness) {
 		//the constructor is flexible because I couldn't be bothered to rewrite everything
 		if (rx.constructor.name != "Number") {
 			thickness = ry;
 			[rx, ry, rz] = [rx[0] - pos1[0], rx[1] - pos1[1], rx[2] - pos1[2]];
 		}
-		super(TYPE_LINE, pos1, material, rx, ry, rz);
+		super(TYPE_LINE, pos1, material, nature, rx, ry, rz);
 		this.r = thickness;
 		this.calc();
 	}
@@ -586,8 +579,8 @@ class Line extends Scene3dObject_Axes {
 }
 
 class Octahedron extends Scene3dObject_Axes {
-	constructor(pos, material, rx, ry, rz) {
-		super(TYPE_OCTAHEDRON, pos, material, rx, ry, rz);
+	constructor(pos, material, nature, rx, ry, rz) {
+		super(TYPE_OCTAHEDRON, pos, material, nature, rx, ry, rz);
 	}
 	
 	//TODO: probably broken in some way
@@ -609,8 +602,8 @@ class Octahedron extends Scene3dObject_Axes {
 }
 
 class PrismRhombus extends Prism {
-	constructor(pos, material, rx, ry, h, axisType, skew) {
-		super(TYPE_PRISM_RHOMBUS, pos, material, rx, ry, h, axisType);
+	constructor(pos, material, nature, rx, ry, h, axisType, skew) {
+		super(TYPE_PRISM_RHOMBUS, pos, material, nature, rx, ry, h, axisType);
 		this.skew = skew;
 	}
 	
@@ -657,6 +650,20 @@ class PrismRhombus extends Prism {
 	}
 }
 
+class PrismHexagon extends Prism {
+	constructor(pos, material, nature, rx, ry, h, axisType) {
+		super(TYPE_PRISM_HEX, pos, material, nature, rx, ry, h, axisType);
+	}
+	
+	sdf2D(relX, relY) {
+		
+	}
+	
+	serialize() {
+		return `PRISM-HEXAGON${super.serialize()}`;
+	}
+}
+
 class Ramp extends PrismRhombus {
 	/**
 	* creates a ramp with given parameters that travels in the x direction.
@@ -667,8 +674,8 @@ class Ramp extends PrismRhombus {
 }
 
 class Ring extends Scene3dObject {
-	constructor(pos, material, r, ringR) {
-		super(TYPE_RING, pos, material);
+	constructor(pos, material, nature, r, ringR) {
+		super(TYPE_RING, pos, material, nature);
 		this.r = r;
 		this.ringR = ringR;
 	}
@@ -696,8 +703,8 @@ class Ring extends Scene3dObject {
 
 class Shell extends Scene3dObject {
 	//like sphere but the inside is hollow
-	constructor(pos, material, r, thickness) {
-		super(TYPE_SHELL, pos, material);
+	constructor(pos, material, nature, r, thickness) {
+		super(TYPE_SHELL, pos, material, nature);
 		this.r = r;
 		this.h = thickness;
 	}
@@ -725,8 +732,8 @@ class Shell extends Scene3dObject {
 }
 
 class Sphere extends Scene3dObject {
-	constructor(pos, material, r) {
-		super(TYPE_SPHERE, pos, material)
+	constructor(pos, material, nature, r) {
+		super(TYPE_SPHERE, pos, material, nature)
 		this.r = r;
 	}
 	
@@ -753,8 +760,7 @@ class Sphere extends Scene3dObject {
 
 class GloopySphere extends Sphere {
 	constructor(pos, material, r, gloopR) {
-		super(pos, material, r);
-		this.nature = N_GLOOP;
+		super(pos, material, N_GLOOP, r);
 		this.gloopiness = gloopR;
 	}
 	
