@@ -122,6 +122,12 @@ class Player {
 			var obj2 = this.tryMovementOnAxis(headCoords, vHat, len);
 			var trueObj = (obj1 ?? obj2);
 			
+			//there comes a point at which you just give up and make a special case for portals
+			if (trueObj && trueObj.material.constructor.name == `M_Portal`) {
+				this.portalTest(trueObj, headCoords);
+				trueObj = null;
+			}
+			
 			//simple unobstructed movement
 			if (!trueObj) {
 				feetCoords[0] += vHat[0] * len;
@@ -134,17 +140,14 @@ class Player {
 				continue;
 			}
 			
-			//there comes a point at which you just give up and make a special case for portals
-			this.portalTest(trueObj, feetCoords);
-			
 			//landing on the ground
 			if (i == 1) {
 				if (Math.abs(dVec[i]) > player_bounceThreshold) {
 					dVec[i] *= -trueObj.material.bounciness;
 				} else {
 					dVec[i] = 0;
+					this.onGround = true;
 				}
-				this.onGround = true;
 				continue;
 			}
 			
@@ -163,7 +166,7 @@ class Player {
 				vHat[0] -= vProj[0];
 				vHat[1] -= vProj[1];
 				vHat[2] -= vProj[2];
-				dVec[i] *= clamp(0.7 + 0.3 * Math.cos(vDot), 0, 1);
+				dVec[i] *= 0.7 + 0.3 * Math.cos(vDot);
 				// dVec[i] = dVec[i] * Math.sqrt(dot(axisVecs[i], axisVecs[i]));
 				axisVecs[i] = normalize(vHat);
 				i -= 1;
@@ -171,6 +174,13 @@ class Player {
 			}
 			
 			var squidgeLen = -Math.min(dist - this.width * ray_minDist, 0);
+			
+			if (trueI > 10) {
+				console.error(`too many movement iterations!`);
+				i = trueI;
+				squidgeLen = 1;
+			}
+			
 			feetCoords[0] += normal[0] * squidgeLen;
 			feetCoords[1] += normal[1] * squidgeLen;
 			feetCoords[2] += normal[2] * squidgeLen;
@@ -178,11 +188,6 @@ class Player {
 			headCoords[0] += normal[0] * squidgeLen;
 			headCoords[1] += normal[1] * squidgeLen;
 			headCoords[2] += normal[2] * squidgeLen;
-			
-			if (trueI > 10) {
-				console.error(`too many movement iterations!`);
-				i = trueI;
-			}
 		}
 		
 		//go back down. Hacky solution with the +1 but it works
@@ -200,21 +205,16 @@ class Player {
 		this.pos = Pos(feetCoords[0], feetCoords[1] + this.height, feetCoords[2]);
 	}
 	
-	portalTest(obj, feetCoords) {
-		// console.log(`portal testing ${obj.constructor.name}`);
+	portalTest(obj, coords) {
 		var mat = obj.material;
-		if (obj.distanceToPos(feetCoords) < ray_nearDist && mat.constructor.name == "M_Portal") {
+		if (obj.distanceToPos(coords) < ray_nearDist && mat.constructor.name == "M_Portal") {
 			if (mat.newWorld) {
 				this.world = mat.newWorld;
-				feetCoords[0] += mat.offset[0];
-				feetCoords[1] += mat.offset[1];
-				feetCoords[2] += mat.offset[2];
+				coords[0] += mat.offset[0];
+				coords[1] += mat.offset[1];
+				coords[2] += mat.offset[2];
 			}
 		}
-	}
-	
-	pushOut(feetCoords, headCoords, object) {
-		
 	}
 	
 	tryMovementOnAxis(pos, axisVec, distance) {
