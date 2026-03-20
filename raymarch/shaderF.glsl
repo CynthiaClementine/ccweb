@@ -265,7 +265,7 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			
 		} break;
 		//bg_fadeTo
-		case 10: {
+		case E_FADE: {
 			if (stg == 0) {
 				return;
 			}
@@ -273,12 +273,12 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			stage[0].color.rgb = mix(stage[0].color.rgb, arg0.rgb, distPerc * distPerc);
 		} break;
 		//bg_fadeToOld
-		case 11: {
+		case E_FADE_OLD: {
 			float distPerc = clamp((stage[0].totalDist + stage[1].totalDist) / data1[0], 0.0, 0.9);
 			stage[0].color.rgb = mix(stage[0].color.rgb, arg0.rgb, distPerc * distPerc);
 		} break;
 		//bg_fadeToRange
-		case 12: {
+		case E_FADE_RANGE: {
 			if (stg == 0) {
 				return;
 			}
@@ -299,6 +299,31 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			}
 		} break;
 	}
+}
+
+
+//2d SDFs
+float hexagonSDF(vec2 point, float r) {
+	vec3 magicNums = vec3(-0.86603, 0.5, 0.57735);
+	point = abs(point);
+	point -= 2. * min(dot(magicNums.xy, point), 0.) * magicNums.xy;
+	point.x -= clamp(point.x, -magicNums[2] * r, magicNums[2] * r);
+	point.y -= r;
+	return length(point) * sign(point.y);
+}
+
+float octagonSDF(vec2 point, float r) {
+	vec3 magicNums = vec3(-0.9238795325, 0.382683, 0.4142135);
+	point = abs(point);
+	point -= 2. * min(dot(magicNums.xy, point), 0.) * magicNums.xy;
+	point -= 2. * min(dot(vec2(-magicNums.x, magicNums.y), point), 0.) * vec2(-magicNums.x, magicNums.y);
+	point.x -= clamp(point.x, -magicNums.z * r, magicNums.z * r);
+	point.y = r;
+	return length(point) * sign(point.y);
+}
+
+float rhombusSDF(vec2 point) {
+	return 1.;
 }
 
 
@@ -507,7 +532,16 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 }
 
 void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
-
+	switch (matType) {
+		//color
+		default: {} return;
+		//ghost
+		case M_GHOST: {
+			if (stg == 0) {
+				applyColor(stg, data0);
+			}
+		} return;
+	}
 }
 
 
@@ -617,9 +651,10 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 	}
 	
 	if ((nature & N_GLOOPY) > 0) {
-		if (newDist < oldDist) {
+		float trueNewDist = smoothMin(oldDist, newDist, ray_nearDist / 2.);
+		if (trueNewDist < oldDist - ray_minDist / 2.) {
 			stage[stg].closestInd = index;
-			return smoothMin(oldDist, newDist, ray_nearDist);
+			return trueNewDist;
 		}
 	}
 	if ((nature & N_ANTI) > 0) {
@@ -695,7 +730,7 @@ void raymarch() {
 		
 		stage[0].totalDist += stage[0].localDist;
 		stage[0].pos += stage[0].localDist * stage[0].dPos;
-		if(stage[0].totalDist > ray_maxDist) {
+		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 1.) {
 			return;
 		}
 	}

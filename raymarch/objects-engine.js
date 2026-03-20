@@ -128,7 +128,11 @@ class Ray_Tracking {
 		while (iters < ray_maxIters) {
 			//get distance
 			const distObj = this.world.tree.estimate(this);
-			var dist = distObj.distanceToPos(this.pos) * ray_safetyMult;
+			var dist = distObj.distanceToPos(this.pos);
+			if (distObj.nature & N_FOG) {
+				dist = Math.max(dist, ray_nearDist * 0.9);
+			}
+			
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
 			// distObj = this.world.objects[distObj];
 	
