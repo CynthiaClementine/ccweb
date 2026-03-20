@@ -58,6 +58,10 @@
 				float: right;
 			}
 			
+			#group_nature {
+				padding: 8px 0px 4px 10px;
+			}
+			
 			.sliderGroup {
 				display: inline;
 			}
@@ -76,7 +80,6 @@
 				appearance: none;
 				width: 25px;
 				height: 25px;
-				/*border-radius: 50%;*/
 				border: #111 5px solid;
 				cursor: pointer;
 			}
@@ -93,9 +96,41 @@
 				width: 20px;
 				height: 20px;
 				border: 0;
-				/*border-radius: 50%;*/
 				background: #FFFFFF;
 				border: #111 5px solid; cursor: pointer;
+			}
+			
+			
+			/* checkboxes */
+			.checkboxGroup {
+				display: inline-block;
+				position: relative;
+				padding-left: 32px;
+				cursor: pointer;
+				font-size: 22px;
+				user-select: none;
+			}
+			
+			/* Hide the browser's default checkbox */
+			.checkboxGroup input {
+				display: none;
+			}
+			
+			.checkmark {
+				position: absolute;
+				top: -2.5px;
+				left: -2.5px;
+				height: 20px;
+				width: 20px;
+				border: #111 5px solid;
+			}
+			
+			.checkboxGroup:hover input ~ .checkmark {
+				background-color: #88A;
+			}
+			
+			.checkboxGroup input:checked ~ .checkmark {
+				background-color: #111;
 			}
 		</style>
 		<script src="../common/functions-coordinate.js"></script>

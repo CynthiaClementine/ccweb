@@ -1,7 +1,6 @@
 var editor_selected = undefined;
 
 function createHTMLSliderAt(parentName, sliderName) {
-	console.log(`creating ${parentName}->${sliderName}`);
 	var dummy = document.createElement(`div`);
 	var parent = document.getElementById(parentName);
 	dummy.innerHTML = `
@@ -11,6 +10,17 @@ function createHTMLSliderAt(parentName, sliderName) {
 	</div><br id="${sliderName}_br">`;
 	// console.log(dummy, dummy.children);
 	parent.appendChild(dummy.children[0]);
+	parent.appendChild(dummy.children[0]);
+}
+
+function createHTMLCheckboxAt(parentName, checkboxName, label) {
+	var dummy = document.createElement(`div`);
+	var parent = document.getElementById(parentName);
+	dummy.innerHTML = `
+	<label class="checkboxGroup" id=${checkboxName}>${label}
+		<input type="checkbox">
+		<span class="checkmark"></span>
+	</label>`;
 	parent.appendChild(dummy.children[0]);
 }
 
@@ -117,7 +127,7 @@ class Slider {
 	updateValue() {
 		var val = this.value();
 		try {
-			console.log(`setting ${this.var} = ${clamp(val, this.varRange[0], this.varRange[1])};`);
+			// console.log(`setting ${this.var} = ${clamp(val, this.varRange[0], this.varRange[1])};`);
 			eval(`${this.var} = ${clamp(val, ...this.varRange)};`);
 			if (this.var.includes(`editor_selected`) && editor_selected != player) {
 				syncObject_send(loading_world, editor_selected);
@@ -189,7 +199,7 @@ class Dropdown {
 			optElem.text = o;
 			this.elem.appendChild(optElem);
 		});
-		this.elem.addEventListener('change', this.updateValue.bind(this));
+		this.elem.onchange = this.updateValue.bind(this);
 	}
 }
 
@@ -214,7 +224,36 @@ class Textbox {
 	}
 	
 	init() {
-		this.elem.addEventListener('change', this.updateValue.bind(this));
+		this.elem.onchange = this.updateValue.bind(this);
+	}
+}
+
+class Checkbox {
+	constructor(element, label, valueFunc) {
+		var spl = element.split(`.`);
+		createHTMLCheckboxAt(spl[0], spl[1], label);
+		this.elem = document.getElementById(spl[1]);
+		this.checkElem = this.elem.children[0];
+		this.valFunc = valueFunc;
+		
+		this.init();
+	}
+	
+	setVisibility(visible) {
+		this.elem.style = `display: ${visible ? "inline-block" : "none"}`;
+	}
+	
+	updateValue() {
+		this.valFunc(this.checkElem.checked);
+	}
+	
+	synchronize() {
+		var val = this.valFunc();
+		this.checkElem.checked = val;
+	}
+	
+	init() {
+		this.elem.onchange = this.updateValue.bind(this);
 	}
 }
 
@@ -232,6 +271,8 @@ var slider_px, slider_py, slider_pz;
 var textbox_world;
 
 var dropdown_obj, dropdown_mat, dropdown_axes;
+
+var checkbox_gloop, checkbox_anti, checkbox_fog;
 
 var editor_controls = [];
 
@@ -322,7 +363,7 @@ function editor_initialize() {
 	
 	dropdown_axes = new Dropdown(`axisDropdown`, (val) => {
 		var e = editor_selected;
-		if (val) {
+		if (val != null) {
 			e.swapXZ = +val[0];
 			e.swapYZ = +val[1];
 			e.swapXY = +val[2];
@@ -351,7 +392,20 @@ function editor_initialize() {
 		return editor_selected.material.str;
 	});
 	
-	// checkbox_gloop = new Checkbox(`group_nature.gloop`, )
+	function syncNature(val, nat) {
+		if (val != null) {
+			if (val) {
+				editor_selected.nature = editor_selected.nature | nat;
+			} else {
+				editor_selected.nature = editor_selected.nature & ~nat;
+			}
+		}
+		return editor_selected.nature & nat;
+	}
+	
+	checkbox_gloop = new Checkbox(`group_nature.gloopCheckbox`, `Gloop`, (val) => {return syncNature(val, N_GLOOP);});
+	checkbox_anti = new Checkbox(`group_nature.antiCheckbox`, `Anti`, (val) => {return syncNature(val, N_ANTI);});
+	checkbox_fog = new Checkbox(`group_nature.fogCheckbox`, `Fog`, (val) => {return syncNature(val, N_FOG);});
 	
 	editor_controls = [
 		slider_fov, slider_res,
@@ -362,13 +416,14 @@ function editor_initialize() {
 		slider_px, slider_py, slider_pz,
 
 		dropdown_obj, dropdown_mat, dropdown_axes,
-		textbox_world
+		textbox_world,
+		checkbox_gloop, checkbox_anti, checkbox_fog,
 	];
 	
 	slider_fov.synchronize();
 	slider_res.synchronize();
 	
-	//an assumption is made that every editable object uses the pos sliders, so they're omitted.
+	//an assumption is made that every editable object uses the pos sliders + nature checkboxes, so they're omitted.
 	var rxyz = [slider_rx, slider_ry, slider_rz];
 	objectEditables = {
 		"PLAYER": [],
@@ -436,6 +491,10 @@ function editor_select(object) {
 		dropdown_obj,
 		slider_x, slider_y, slider_z
 	];
+	if (editor_selected != player) {
+		shouldSee = shouldSee.concat(checkbox_gloop, checkbox_anti, checkbox_fog);
+	}
+	
 	shouldSee = shouldSee.concat(objectEditables[map_objStr[consName]]);
 	if (matName) {
 		shouldSee.push(dropdown_mat);

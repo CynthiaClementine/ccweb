@@ -115,7 +115,7 @@ function createDefaultObject(constructorString, objRef) {
 	}
 	
 	//actually create the thing
-	return new type(pos, material, arg1, arg2, arg3, arg4, arg5, arg6, 10, 10, 10, 10, 10);
+	return new type(pos, material, 0, arg1, arg2, arg3, arg4, arg5, arg6, 10, 10, 10, 10, 10);
 }	
 
 /**
@@ -194,7 +194,7 @@ function deserializeMat(str) {
 	
 	switch (name) {
 		case `portal`:
-			obj = new M_Portal(params[0], Color4(...JSON.parse(params[1])));
+			obj = new M_Portal(params[0], Pos(...JSON.parse(params[1])));
 			break;
 		default:
 			try {
