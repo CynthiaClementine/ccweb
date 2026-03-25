@@ -71,8 +71,12 @@ function createGPUWorld(worldObj) {
 	//objects
 	const objs = worldObj.objects;
 	for (var o=0; o<objs.length; o++) {
-		setObject(worldOffset, rowOffset, o, objs[o]);
-		setMaterial(worldOffset, rowOffset, o, ...objs[o].material.serializeGPU());
+		try {
+			setObject(worldOffset, rowOffset, o, objs[o]);
+			setMaterial(worldOffset, rowOffset, o, ...objs[o].material.serializeGPU());
+		} catch (error) {
+			console.error(`cannot send object ${worldObj.name}:${o} to the GPU!`, error);
+		}
 	}
 	
 	//attributes, pre-effects, post-effects
@@ -271,19 +275,29 @@ function updateWorldTexture() {
 
 function setObject(worldOff, rowOff, objInd, objRef) {
 	var base = worldOff + objInd * 4;
+	var deg = (a) => {return Math.round(a / degToRad);};
 	
 	const data = texture_universeArr;
 	
 	const type = objRef.type;
-	const pos = (objRef.constructor.name == "Scene3dLoop") ? [objRef.xRange, objRef.yRange, objRef.zRange] : objRef.pos;
 	const material = objRef.material.type;
+	const pos = (objRef.constructor.name == "Scene3dLoop") ? [objRef.xRange, objRef.yRange, objRef.zRange] : objRef.pos;
+	const [theta, phi, rot] = [deg(objRef.theta), deg(objRef.phi) + 90, deg(objRef.rot)];
 	const nature = objRef.nature;
 	const args = objRef.serializeGPU();
 	
-	// Row 0: type, material, nature, unused
-	data[base + 0] = type;
-	data[base + 1] = material;
-	data[base + 2] = nature;
+	//bit packing to fit the common params into row 0
+	
+	buf32_int[0] = ((type & 0xFFFF) << 0) | ((material & 0xFFFF) << 16);
+	const typeMat = buf32_float[0];
+	buf32_int[0] = ((theta & 0x1FF) << 0) | ((phi & 0x1FF) << 9) | ((rot & 0x1FF) << 18);
+	const rotation = buf32_float[0];
+	// console.log(typeMat, rotation);
+	
+	// Row 0: object type + material type, nature, unused
+	data[base + 0] = typeMat;
+	data[base + 1] = nature;
+	data[base + 2] = rotation;
 	data[base + 3] = fencepost32;
 	base += rowOff;
 	data[base + 0] = pos[0];

@@ -15,17 +15,19 @@
 
 //shapes
 #define SPHERE		0
-#define SHELL		4
 #define ELLIPSE		1
 #define CAPSULE		2
 #define CYLINDER	3
+#define SHELL		4
 #define BOX			10
 #define BOXFRAME	11
 #define GYROID		12
 #define LINE		20
 #define OCTAHEDRON	30
 #define RING		40
-#define RHOMBUSPRISM 51
+#define PRISM_RHOMB	51
+#define PRISM_HEX	53
+#define PRISM_OCT	55
 
 //pre-effects
 #define E_LOOP			10
@@ -119,10 +121,17 @@ float rand(float low, float high) {
 	return low + (high - low) * fract(sin(sn) * c);
 }
 
-vec2 rotate(float x, float z, float angle) {
+vec2 rotate(vec2 pos, int deg) {
+	float angle = float(deg) * 0.01745329252;
 	float sn = sin(angle);
 	float cs = cos(angle);
-	return vec2(x * cs - z * sn, z * cs + x * sn);
+	return vec2(pos.x * cs - pos.y * sn, pos.y * cs + pos.x * sn);
+}
+
+vec2 rotate(vec2 pos, float rad) {
+	float sn = sin(rad);
+	float cs = cos(rad);
+	return vec2(pos.x * cs - pos.y * sn, pos.y * cs + pos.x * sn);
 }
 
 
@@ -302,6 +311,8 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 }
 
 
+
+
 //2d SDFs
 float hexagonSDF(vec2 point, float r) {
 	vec3 magicNums = vec3(-0.86603, 0.5, 0.57735);
@@ -318,38 +329,100 @@ float octagonSDF(vec2 point, float r) {
 	point -= 2. * min(dot(magicNums.xy, point), 0.) * magicNums.xy;
 	point -= 2. * min(dot(vec2(-magicNums.x, magicNums.y), point), 0.) * vec2(-magicNums.x, magicNums.y);
 	point.x -= clamp(point.x, -magicNums.z * r, magicNums.z * r);
-	point.y = r;
+	point.y -= r;
 	return length(point) * sign(point.y);
 }
 
-float rhombusSDF(vec2 point) {
-	return 1.;
+
+float rhombusSDF(vec2 point, vec2 r, float skew) {
+	float relX = point.x;
+	float relY = point.y;
+	
+	if (relY < 0.) {
+		relX = -relX;
+		relY = -relY;
+	}
+	
+	skew /= 2.;
+	float hegt = r.y;
+	float widt = r.x;
+	
+	float w0 = relX - skew;
+	float w1 = relY - hegt;
+	w0 = w0 - clamp(w0, -widt, widt);
+	float d0 = w0*w0 + w1*w1;
+	float d1 = -w1;
+	
+	float s = relX * hegt - relY * skew;
+	if (s < 0.) {
+		relX = -relX;
+		relY = -relY;
+	}
+	float v0 = relX - widt;
+	float v1 = relY;
+	
+	float ve = v0 * skew   + v1 * hegt;
+	float ee = skew * skew + hegt * hegt;
+	float gweh = clamp(ve / ee, -1., 1.);
+	
+	v0 = v0 - skew * gweh;
+	v1 = v1 - hegt * gweh;
+	float vv = v0 * v0 + v1 * v1;
+	
+	d0 = min(d0, vv);
+	d1 = min(d1, widt * hegt - abs(s));
+	
+	return sqrt(d0) * sign(-d1);
+}
+
+float prismSDF(vec3 point, int type, float data1, vec4 data2) {
+	//data1: [x, y, z, axisType]
+	int axisType = int(data1);
+	if ((axisType & 1) > 0) {
+		point.xy = point.yx;
+	}
+	if ((axisType & 2) > 0) {
+		point.yz = point.zy;
+	}
+	if ((axisType & 4) > 0) {
+		point.xz = point.zx;
+	}
+	float shapeDist = 9999.;
+	//data2: [rx, ry, rz, skew]
+	switch (type) {
+		case PRISM_RHOMB:{shapeDist = rhombusSDF(point.xy, data2.xy, data2[3]);} break;
+		case PRISM_HEX:  {shapeDist = hexagonSDF(point.xy, data2.x);} break;
+		case PRISM_OCT:  {shapeDist = octagonSDF(point.xy, data2.x);} break;
+		default:		 {} break;
+	}
+
+	float vertDist = abs(point.z) - data2.z;
+	float negPart = min(max(shapeDist, vertDist), 0.);
+	float posPart = length(vec2(max(shapeDist, 0.), max(vertDist, 0.)));
+	return negPart + posPart;
 }
 
 
 //SDFs
-float boxSDF(vec3 point, vec4 data1, vec4 data2) {
-	vec3 q = abs(point - data1.xyz) - data2.xyz;
+float boxSDF(vec3 point, float data1, vec4 data2) {
+	vec3 q = abs(point) - data2.xyz;
 	return length(max(q, vec3(0.))) + min(max(q.x, max(q.y, q.z)), 0.);
 }
 
-float capsuleSDF(vec3 point, vec4 data1, vec4 data2) {
-	point -= data1.xyz;
+float capsuleSDF(vec3 point, float data1, vec4 data2) {
 	vec3 q = vec3(point.x, point.y - clamp(point.y, -data2[0], data2[0]), point.z);
-	return length(q) - data1[3];
+	return length(q) - data1;
 }
 
-float cylinderSDF(vec3 point, vec4 data1, vec4 data2) {
-	point -= data1.xyz;
-	float r = data1[3];
+float cylinderSDF(vec3 point, float data1, vec4 data2) {
+	float r = data1;
 	float h = data2[0];
 	vec2 d = abs(vec2(length(point.xz), point.y)) - vec2(r, h);
 	return min(max(d.x, d.y), 0.) + length(max(d, vec2(0.)));
 }
 
-float gyroidSDF(vec3 point, vec4 data1, vec4 data2, vec4 data3) {
-	point -= data1.xyz;
-	float dot = dot(sin(data1[3] * point.xyz), cos(data1[3] * point.zxy));
+float gyroidSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
+	float dot = dot(sin(data1 * point.xyz), cos(data1 * point.zxy));
 	vec3 relBoxPos = max(vec3(0.), abs(point) - data2.xyz);
 	
 	float gyrsdf = abs(data2[3] * dot) - data3[0];
@@ -358,8 +431,8 @@ float gyroidSDF(vec3 point, vec4 data1, vec4 data2, vec4 data3) {
 	return max(boxsdf, gyrsdf);
 }
 
-float ellipsoidSDF(vec3 point, vec4 data1, vec4 data2) {
-	vec3 relPos = abs(point - data1.xyz) / data2.xyz;
+float ellipsoidSDF(vec3 point, float data1, vec4 data2) {
+	vec3 relPos = abs(point) / data2.xyz;
 	vec3 rrPos = relPos / data2.xyz;
 	
 	float d = length(relPos);
@@ -367,43 +440,36 @@ float ellipsoidSDF(vec3 point, vec4 data1, vec4 data2) {
 	return d * (d - 1.) / d2;
 }
 
-float lineSDF(vec3 point, vec4 data1, vec4 data2) {
-	point -= data1.xyz;
+float lineSDF(vec3 point, float data1, vec4 data2) {
 	float lineDot = dot(data2.xyz, data2.xyz);
 	float lambda = clamp(dot(point, data2.xyz) / lineDot, 0., 1.);
 	return length(point - mix(vec3(0.), data2.xyz, lambda)) - data2[3];
 }
 
-float octahedronSDF(vec3 point, vec4 data1, vec4 data2) {
-	point -= data1.xyz;
-	point.xz = rotate(point.x, point.z, 0.7853981634);
+float octahedronSDF(vec3 point, float data1, vec4 data2) {
+	point.xz = rotate(point.xz, 0.7853981634);
 	point = abs(point);
 	
 	return 0.57735 * dot((point - data2.xyz), vec3(1, 1, 1));
 }
 
-float planeSDF(vec3 point, vec4 data1) {
-	return point[1] - data1[2];
-}
-
-float ringSDF(vec3 point, vec4 data1, vec4 data2) {
-	vec3 dist = abs(point - data1.xyz);
+float ringSDF(vec3 point, float data1, vec4 data2) {
+	vec3 dist = abs(point);
 	float q = length(dist.xz) - data2[0];
 	return sqrt(q * q + dist.y * dist.y) - data2[1];
 }
 
-float shellSDF(vec3 point, vec4 data1, vec4 data2) {
-	point -= data1.xyz;
+float shellSDF(vec3 point, float data1, vec4 data2) {
 	float sphereD = length(point) - data2[0];
 	return abs(sphereD) - data2[1];
 }
 
-float sphereSDF(vec3 point, vec4 data1) {
-	return length(point - data1.xyz) - data1[3];
+float sphereSDF(vec3 point, float data1) {
+	return length(point) - data1;
 }
 
-float boxFrameSDF(vec3 point, vec4 data1, vec4 data2) {
-	vec3 q = abs(point - data1.xyz) - data2.xyz;
+float boxFrameSDF(vec3 point, float data1, vec4 data2) {
+	vec3 q = abs(point) - data2.xyz;
 	vec3 w = abs(q + data2[3]) - data2[3];
 	return min(min(
 		length(max(vec3(q.x, w.y, w.z), vec3(0.))) + min(max(q.x, max(w.y, w.z)), 0.),
@@ -415,8 +481,12 @@ float boxFrameSDF(vec3 point, vec4 data1, vec4 data2) {
 float objSDF(vec3 p, int world, int index) {
 	mat4 data = objData(world, index);
 	
-	int type = int(data[0][0]);
-	int nature = int(data[0][2]);
+	int type = (floatBitsToInt(data[0][0]) & 0xFFFF);
+	int nature = int(data[0][1]);
+	int rotations = floatBitsToInt(data[0][2]);
+	int theta = rotations       & 0x1FF;
+	int phi = ((rotations >> 9 ) & 0x1FF) - 90;
+	int rot = (rotations >> 18) & 0x1FF;
 	float d = 9999.;
 	
 	//it's a loop object. Do the modulation beforehand
@@ -427,36 +497,41 @@ float objSDF(vec3 p, int world, int index) {
 		data[1].xyz = vec3(0.);
 		p = mod(insideP, loopSize) + p - insideP - vec3(loopSize / 2.);
 	}
+	
+	//transform to object coordinates
+	p -= data[1].xyz;
+	p.xz = rotate(p.xz, -theta);
+	p.yz = rotate(p.yz, phi);
+	p.xy = rotate(p.xy, -rot);
+	
 	switch (type) {
 		case SPHERE: 
-			{d = sphereSDF(p, data[1]); /*stage[1].color[1] = data[1][0] / 4.0;*/} break;
+			{d = sphereSDF(p, data[1][3]);} break;
 		case SHELL:
-			{d = shellSDF(p, data[1], data[2]);} break;
+			{d = shellSDF(p, data[1][3], data[2]);} break;
 		case ELLIPSE: 
-			{d = ellipsoidSDF(p, data[1], data[2]);} break;
+			{d = ellipsoidSDF(p, data[1][3], data[2]);} break;
 		case CAPSULE:
-			{d = capsuleSDF(p, data[1], data[2]);} break;
+			{d = capsuleSDF(p, data[1][3], data[2]);} break;
 		case CYLINDER:
-			{d = cylinderSDF(p, data[1], data[2]);} break;
+			{d = cylinderSDF(p, data[1][3], data[2]);} break;
 		case BOX:
-			{d = boxSDF(p, data[1], data[2]);} break;
+			{d = boxSDF(p, data[1][3], data[2]);} break;
 		case BOXFRAME:
-			{d = boxFrameSDF(p, data[1], data[2]);} break;
+			{d = boxFrameSDF(p, data[1][3], data[2]);} break;
 		case GYROID:
-			{d = gyroidSDF(p, data[1], data[2], data[3]);} break;
+			{d = gyroidSDF(p, data[1][3], data[2], data[3]);} break;
 		case LINE:
-			{d = lineSDF(p, data[1], data[2]);} break;
+			{d = lineSDF(p, data[1][3], data[2]);} break;
 		case OCTAHEDRON:
-			{d = octahedronSDF(p, data[1], data[2]);} break;
+			{d = octahedronSDF(p, data[1][3], data[2]);} break;
 		case RING:
-			{d = ringSDF(p, data[1], data[2]);} break;
-		case RHOMBUSPRISM:
-			// {d = rhombusPrismSDF(p, data[1], data[2]);} break;
-			
-		// case 5:
-		// 	{d = SDF(p, data[1], data[2]);} break;
-		default: 
-			{d = 9999.;} break;
+			{d = ringSDF(p, data[1][3], data[2]);} break;
+		case PRISM_RHOMB:
+		case PRISM_HEX:
+		case PRISM_OCT: 
+			{d = prismSDF(p, type, data[1][3], data[2]);} break;
+		default: {} break;
 	}
 	if ((nature & N_FOG) > 0) {
 		d = max(d, ray_nearDist - ray_minDist);
@@ -628,7 +703,7 @@ void calcSceneObjs(int stg) {
 	objIndices[obj_maxNum - 1] = numObjs;
 }
 
-//from iq - smoothly blends between the minimum of two function outputs. 
+//from inigo quilez - smoothly blends between the minimum of two function outputs. 
 //k is the range within which values will blend.
 //note: d1 and d2 are interchangable
 float smoothMin(float d1, float d2, float k) {
@@ -658,9 +733,10 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 		}
 	}
 	if ((nature & N_ANTI) > 0) {
-		if (newDist > oldDist) {
+		float trueNewDist = max(oldDist, -newDist);
+		if (trueNewDist != oldDist) {
 			stage[stg].closestInd = index;
-			return newDist;
+			return trueNewDist;
 		}
 	}
 	return oldDist;
@@ -672,7 +748,7 @@ float sceneSDF(vec3 p, int stg) {
 	
 	for(int i=0; i<objCount; i++) {
 		float d = objSDF(p, stage[stg].world, objIndices[i]);
-		int nature = int(texelFetch(uUniverseTex, ivec3(objIndices[i], 0, stage[stg].world), 0)[2]);
+		int nature = int(texelFetch(uUniverseTex, ivec3(objIndices[i], 0, stage[stg].world), 0)[1]);
 		// float d = objSDF(p, stage[stg].world, i);
 		
 		sceneDist = applyDist(stg, sceneDist, d, nature, objIndices[i]);
@@ -702,7 +778,8 @@ float sceneSDF_naive(vec3 p, int stg) {
 // Raymarching steps
 
 int matType(int world, int id) {
-	return int(texelFetch(uUniverseTex, ivec3(id, 0, world), 0)[1]);
+	float bits = texelFetch(uUniverseTex, ivec3(id, 0, world), 0)[0];
+	return (floatBitsToInt(bits) >> 16);
 }
 
 void raymarch() {

@@ -260,6 +260,7 @@ class Checkbox {
 var slider_fov, slider_res;
 
 var slider_x, slider_y, slider_z;
+var slider_tht, slider_phi, slider_rot;
 
 var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR;
 var slider_gyrA, slider_gyrB, slider_h, slider_e;
@@ -307,6 +308,10 @@ function editor_initialize() {
 	slider_x = new Slider(`group_pos.xSlider`, `editor_selected.pos[0]`, ``, -100,100, 1, -9999,9999);
 	slider_y = new Slider(`group_pos.ySlider`, `editor_selected.pos[1]`, ``, -100,100, 1, -9999,9999);
 	slider_z = new Slider(`group_pos.zSlider`, `editor_selected.pos[2]`, ``, -100,100, 1, -9999,9999);
+	
+	slider_tht = new Slider(`group_pos.thtSlider`, `editor_selected.theta`, ``, 0, 6.283, 0.01745);
+	slider_phi = new Slider(`group_pos.phiSlider`, `editor_selected.phi`, ``, -1.571, 1.571, 0.01745);
+	slider_rot = new Slider(`group_pos.rotSlider`, `editor_selected.rot`, ``, 0, 6.283, 0.01745);
 	
 	slider_rr = new Slider(`group_radius.rrSlider`, `editor_selected.r`, `r: ${s}`, -100,100, 1, 0,1E4);
 	slider_rx = new Slider(`group_radius.rxSlider`, `editor_selected.rx`, `rx: `, -100,100, 1, 0,1E4);
@@ -410,6 +415,7 @@ function editor_initialize() {
 	editor_controls = [
 		slider_fov, slider_res,
 		slider_x, slider_y, slider_z,
+		slider_tht, slider_phi, slider_rot,
 		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR,
 		slider_gyrA, slider_gyrB, slider_h, slider_skew,
 		slider_r, slider_g, slider_b, slider_a, slider_e,
@@ -431,16 +437,17 @@ function editor_initialize() {
 		"PLAYER-NOCLIP": [],
 		"BOX": [...rxyz],
 		"BOX-FRAME": [...rxyz, slider_e],
+		"BOX-MOVING": [...rxyz],
 		"CAPSULE": [slider_rr, slider_h],
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
 		"ELLIPSE": [...rxyz],
-		"GLOOP-SPHERE": [slider_rr],
-		//gyroid has a bunch of special properties because she's a beautiful princess
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
 		"OCTAHEDRON": [...rxyz],
 		"PRISM-RHOMBUS": [...rxyz, slider_skew, dropdown_axes],
+		"PRISM-OCTAGON": [...rxyz, dropdown_axes],
+		"PRISM-HEXAGON": [...rxyz, dropdown_axes],
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
 		"SHELL": [slider_rr, slider_h],
@@ -489,7 +496,8 @@ function editor_select(object) {
 	var shouldSee = [
 		slider_fov, slider_res, 
 		dropdown_obj,
-		slider_x, slider_y, slider_z
+		slider_x, slider_y, slider_z,
+		slider_tht, slider_phi, slider_rot
 	];
 	if (editor_selected != player) {
 		shouldSee = shouldSee.concat(checkbox_gloop, checkbox_anti, checkbox_fog);

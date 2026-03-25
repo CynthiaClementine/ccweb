@@ -32,12 +32,35 @@ function applyColor(paintColor, baseColor) {
 	baseColor[3] += paintColor[3] * availableOpacity;
 }
 
-function giveBounds(pos, rx, ry, rz) {
+function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
+	var xVec = transform([rx, 0, 0], [0, 0, 0], theta, phi, rot);
+	var yVec = transform([0, ry, 0], [0, 0, 0], theta, phi, rot);
+	var zVec = transform([0, 0, rz], [0, 0, 0], theta, phi, rot);
+	
+	//since a cube gives every combination of ±vec, it's possible to just decompose the vectors and take the min / max variance
+	
+	const bestX = (Math.abs(xVec[0]) + Math.abs(yVec[0]) + Math.abs(zVec[0]));
+	const bestY = (Math.abs(xVec[1]) + Math.abs(yVec[1]) + Math.abs(zVec[1]));
+	const bestZ = (Math.abs(xVec[2]) + Math.abs(yVec[2]) + Math.abs(zVec[2]));
+	
+	console.log(bestX, bestY, bestZ);
+
 	return [
-		Pos(pos[0] - rx, pos[1] - ry, pos[2] - rz),
-		Pos(pos[0] + rx, pos[1] + ry, pos[2] + rz),
+		Pos(pos[0] - bestX, pos[1] - bestY, pos[2] - bestZ),
+		Pos(pos[0] + bestX, pos[1] + bestY, pos[2] + bestZ),
 	];
 }
+
+//gives the "bounds angle" - the angle between 0 and pi/2 that acts the same as the given angle for bounding boxes.
+	function boundsAngle(radians) {
+		if (radians >= Math.PI) {
+			radians -= Math.PI;
+		}
+		if (radians < Math.PI / 2) {
+			return radians;
+		}
+		return Math.PI - radians;
+	}
 
 
 function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
@@ -170,16 +193,37 @@ function keysMatch(dictA, dictB) {
 
 
 function deserialize(str) {
-	var [type, material, params] = str.split(`|`);
-	material = deserializeMat(material);
-	const spl = params.split(`~`);
-	const pos = JSON.parse(spl[0]);
-	const construct = map_strObj[type];
-	if (!construct) {
-		throw new Error(`cannot deserialize type "${type}"!`);
+	str = str.split(`||`);
+	
+	if (str.length > 1) {
+		//it's a scene3dLoop
+		var containedObj = deserialize(str[1]);
+		var base = str[0].split(`~`);
+		return new Scene3dLoop(+base[1], +base[2], +base[3], +base[4], containedObj);
 	}
 	
-	return new construct(Pos(...pos), material, ...spl.slice(1).map(a => +a));
+	//initial processing
+	var [base, material, params] = str[0].split(`|`);
+	base = base.split(`~`);
+	material = deserializeMat(material);
+	params = params.split(`~`);
+	
+	//base structure is consistent across objects
+	var [type, pos, nature, theta, phi, rot] = base;
+	type = map_strObj[type];
+	if (!type) {
+		throw new Error(`cannot deserialize type "${type}"!`);
+	}
+	pos = JSON.parse(pos);
+	[nature, theta, phi, rot] = [+nature, +theta, +phi, +rot];
+	var posRotObj = {
+		pos: Pos(...pos),
+		theta: theta,
+		phi: phi,
+		rot: rot
+	};
+	
+	return new type(posRotObj, material, nature, ...params.map(a => +a));
 }
 
 function deserializeMat(str) {
@@ -206,6 +250,12 @@ function deserializeMat(str) {
 	return obj;
 }
 
+/**
+ * dot product of two positions/vectors
+ * @param {Number[]} a first 3d vector
+ * @param {Number[]} b second 3d vector
+ * @returns {Number}
+ */
 function dot(a, b) {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
@@ -224,23 +274,6 @@ function getDistancePos(pos1, pos2) {
 	return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-//does square root, but faster. Theoretically
-var sqrtTable = new Float32Array(10000);
-for (var a=0; a<sqrtTable.length; a++) {
-	sqrtTable[a] = Math.sqrt(a);
-}
-
-//warning - this function is slower somehow
-function fastSqrt(x) {
-	return Math.sqrt(x);
-	//if x is less than 10, just use the square root - the precision is important for small numbers
-	if (x <= 10 || x > ray_maxDist) {
-		return Math.sqrt(x);
-	}
-
-	return sqrtTable[x | 0];
-}
-
 function loadWorld(worldName) {
 	var obj = worlds[worldName];
 	if (!obj) {
@@ -254,7 +287,7 @@ function loadWorld(worldName) {
 
 //pixel ray essentially starts behind the camera, from the back of the panini circle.
 function projectPanini(x, pixelsInX, y, pixelsInY) {
-	var screenDist = (camera_paniniR); //1 + camera_paniniR 		?
+	var screenDist = (camera_paniniR); //1 + camera_paniniR ?
 	var halfPixX = pixelsInX / 2;
 	var halfPixY = pixelsInY / 2;
 
@@ -484,52 +517,40 @@ function performanceTest2() {
 	return;
 }
 
-//ack this is a mess
-function quatMultiply(quat1, quat2) {
-	return [
-		quat1[0] * quat2[0] - quat1[1] * quat2[1] - quat1[2] * quat2[2] - quat1[3] * quat2[3],
-		quat1[0] * quat2[1] + quat1[1] * quat2[0] + quat1[2] * quat2[3] - quat1[3] * quat2[2],
-		quat1[0] * quat2[2] - quat1[1] * quat2[3] + quat1[2] * quat2[0] + quat1[3] * quat2[1],
-		quat1[0] * quat2[3] + quat1[1] * quat2[2] - quat1[2] * quat2[1] + quat1[3] * quat2[0]
-	]
+/**
+ * Returns the image of a given point when transformed by the given offset / angles
+ * @param {Number[]} point the point to transform
+ * @param {Number[]} offset the Pos to transform by
+ * @param {Number} theta XZ rotation, in radians
+ * @param {Number} phi YZ rotation, in radians 
+ * @param {Number} rot XY rotation, in radians
+ */
+function transform(point, offset, theta, phi, rot) {
+	var [x, y, z] = point;
+	[x, y] = rotate(x, y, rot);
+	[y, z] = rotate(y, z, -phi);
+	[x, z] = rotate(x, z, theta);
+	return [x + offset[0], y + offset[1], z + offset[2]];
 }
 
+/**
+ * Returns the pre-image of a given point under the given offset / angles
+ * @param {Number[]} point the point to transform
+ * @param {Number[]} offset the Pos to transform by
+ * @param {Number} theta XZ rotation, in radians
+ * @param {Number} phi YZ rotation, in radians 
+ * @param {Number} rot XY rotation, in radians
+ */
+function transformInverse(point, offset, theta, phi, rot) {
+	var [x, y, z] = [point[0] - offset[0], point[1] - offset[1], point[2] - offset[2]];
 
-
-//functions that apply to vectors
-function vAdd(vec1, vec2) {
-	var newVec = [];
-	//go backwards so the array only needs to be lengthened once
-	for (var n=vec1.length-1; n>-1; n--) {
-		newVec[n] = vec1[n] + vec2[n];
+	if (theta || phi || rot) {
+		[x, z] = rotate(x, z, -theta);
+		[y, z] = rotate(y, z, phi);
+		[x, y] = rotate(x, y, -rot);
 	}
-	return newVec;
-}
-
-//returns the dot product of two matching vectors
-function vDot(vec1, vec2) {
-	var sum = 0;
-	for (var n=0; n<vec1.length; n++) {
-		sum += vec1[n] * vec2[n];
-	}
-	return sum;
-}
-
-//returns the length of a vector
-function vLen(vector) {
-	var midPoint = 0;
-	vector.forEach(v => {
-		midPoint += v * v;
-	});
-	return Math.sqrt(midPoint);
-}
-
-function vSub(vec1, vec2) {
-	var newVec = [];
-	for (var n=vec1.length-1; n>-1; n--) {
-		newVec[n] = vec1[n] - vec2[n];
-	}
-	return newVec;
+	
+	return [x, y, z];
 }
 
 function prand(min, max) {
@@ -629,5 +650,4 @@ function updateFOV_work(data) {
 			console.error(`something went wrong with FOV=${newFOV} ):`);
 			break;
 	}
-	
 }

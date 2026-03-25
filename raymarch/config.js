@@ -9,6 +9,7 @@ const N_NORMAL = 0;
 const N_GLOOP = 1;
 const N_ANTI = 2;
 const N_FOG = 4;
+const N_SMOOTH = 8;
 
 const M_COLOR = 0;
 const M_CONCRETE = 1;
@@ -18,7 +19,6 @@ const M_GLASS = 10;
 const M_GHOST = 11;
 const M_PORTAL = 20;
 const M_MIRROR = 30;
-
 
 const TYPE_SPHERE = 0;
 const TYPE_ELLIPSE = 1;
@@ -32,8 +32,8 @@ const TYPE_LINE = 20;
 const TYPE_OCTAHEDRON = 30;
 const TYPE_RING = 40;
 const TYPE_PRISM_RHOMBUS = 51;
-//should maybe be a material?
-const TYPE_CLOUD = 99;
+const TYPE_PRISM_HEX = 53;
+const TYPE_PRISM_OCT = 55;
 
 //quick type
 const U8Arr = Uint8Array;
@@ -60,6 +60,10 @@ function Color4(r, g, b, a) {
 	q[3] = a;
 	return q;
 }
+
+var buf32 = new ArrayBuffer(4);
+var buf32_float = new Float32Array(buf32);
+var buf32_int = new Int32Array(buf32);
 
 var program;
 var vertexBuffer;
