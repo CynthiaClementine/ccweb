@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>WebGL 2 Example: Just a Triangle</title>
+	<meta charset="utf-8">
+</head>
+<body>
+	<div id="example-title">
+		<header>WebGL 2 Example: Just a Triangle</header>
+		<div id="features">
+			Features: Vertex Arrays
+		</div>
+	</div>
+	<script type="vertex" id="vs">
+		#version 300 es
+		
+		in vec2 position;
+		in vec3 color;
+		
+		out vec3 vColor; 
+
+		void main() {
+			vColor = color;
+			gl_Position = vec4(position, 0.0, 1.0);
+		}
+	</script>
+	<script type="fragment" id="fs">
+		#version 300 es
+		precision highp float;
+		// precision highp sampler2DArray;
+		
+		in vec3 vColor;
+		out vec4 fragColor;
+		
+		// uniform int uDebug;
+		// uniform vec2 uResolution;
+		// uniform float uTime;
+		// uniform vec3 uCamPos;
+		// uniform mat3 uCamRot;
+		// uniform int uCamWorld;
+		// uniform sampler2DArray uUniverseTex;
+		// uniform sampler2D uUniverseBVHs;
+
+		void main() {
+			fragColor = vec4(vColor, 1.0);
+		}
+	</script>
+	
+	<canvas id="glbox"></canvas>
+	<script>
+	
+	
+	
+render_n = 512;
+
+
+window.onload = setup;
+
+var canvas;
+var gl;
+var program;
+
+async function loadCode(url) {
+	return await (await fetch(url)).text();
+}
+
+
+
+
+function compile(type, source) {
+	var shader = gl.createShader(type);
+	gl.shaderSource(shader, source);
+	gl.compileShader(shader);
+	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+	if (success) {
+		return shader;
+	}
+	
+	console.log(gl.getShaderInfoLog(shader));
+	gl.deleteShader(shader);
+}
+
+var uDebug;
+var uResolution;
+var uTime;
+var uCamPos;
+var uCamRot;
+var uCamWorld;
+var quadBuffer;
+
+function setupGLState(vertexShaderCode, fragmentShaderCode) {
+	program = gl.createProgram();
+	gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexShaderCode));
+	gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentShaderCode));
+	gl.linkProgram(program);
+	
+	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+	if (!success) {
+		console.log(gl.getProgramInfoLog(program));
+		gl.deleteProgram(program);
+		return;
+	}
+	
+	gl.useProgram(program);
+	
+	//vertices
+	quadBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+		-1,-1,
+		1,-1,
+		-1, 1,
+		-1, 1,
+		1,-1,
+		1, 1
+	]), gl.STATIC_DRAW);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+	gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+	gl.enableVertexAttribArray(0);
+	
+	uDebug = gl.getUniformLocation(program, `uDebug`);
+	uResolution = gl.getUniformLocation(program,`uResolution`);
+	uTime = gl.getUniformLocation(program,`uTime`);
+	uCamPos = gl.getUniformLocation(program,`uCamPos`);
+	uCamRot = gl.getUniformLocation(program,`uCamRot`);
+	uCamWorld = gl.getUniformLocation(program,`uCamWorld`);
+	// uUniverseTex = gl.getUniformLocation(program, `uUniverseTex`);
+	// uUniverseBVH = gl.getUniformLocation(program, `uUniverseBVHs`);
+	
+}
+
+
+function feedGPU() {
+	gl.uniform2f(uResolution, canvas.width, canvas.height);
+	gl.uniform1f(uTime, 1);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+	
+	const err = gl.getError();
+	if (err !== gl.NO_ERROR) {
+		console.log(`GL ERROR`, err);
+	}
+}
+
+function draw() {
+	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+function GPU_transferObj(world, object) {
+	const worldOffset = world.id * (texture_rowsPerObj + texture_rowsPerMat) * (world_maxObjs + texture_worldCols) * 4;
+	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
+	setObject(worldOffset, rowOffset, world.objects.indexOf(object), object);
+	updateWorldTexture();
+}
+
+function GPU_toggleDebug() {
+	var val = gl.getUniform(program, uDebug);
+	console.log(val, (val + 1) % 3);
+	gl.uniform1i(uDebug, (val + 1) % 3);
+}
+
+
+
+async function setup() {
+	canvas = document.getElementById(`glbox`);
+	var vertexShaderCode = document.getElementById("vs").text.trim();
+	var fragmentShaderCode = document.getElementById("fs").text.trim();
+	
+	gl = canvas.getContext("webgl2", {preserveDrawingBuffer: true});
+	gl.imageSmoothingEnabled = false;
+	if (!gl) {
+		alert("WebGL2 not supported. This program will not run correctly.");
+		throw new Error("WebGL2 not supported");
+	}
+	if (!gl.getExtension(`EXT_color_buffer_float`)) {
+		alert(`Float colors not supported. This program will not run correctly.`);
+		throw new Error("float colors not supported");
+	}
+	
+	// resize();
+	document.title = `Raymarching: {}`;
+	setupGLState(vertexShaderCode, fragmentShaderCode);
+	
+	window.setTimeout(main, 10);
+}
+
+function main() {
+	feedGPU();
+}
+
+function resize() {
+	var width = window.innerWidth - 10;
+	var height = window.innerHeight - 10;
+	var blockSize = Math.min(width, height);
+
+	canvas.width = render_n;
+	canvas.height = render_n;
+	canvas.style = `width: ${blockSize}px; height: ${blockSize}px;`;
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+}
+
+</script>
+</body>
+</html>

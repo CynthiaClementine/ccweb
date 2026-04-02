@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>WebGL 2 Example: Just a Triangle</title>
+	<meta charset="utf-8">
+</head>
+<body>
+	<div id="example-title">
+		<header>WebGL 2 Example: Just a Triangle</header>
+		<div id="features">
+			Features: Vertex Arrays
+		</div>
+	</div>
+	<script type="vertex" id="vs">
+		#version 300 es
+		
+		in vec2 position;
+		in vec3 color;
+		
+		out vec3 vColor; 
+
+		void main() {
+			vColor = color;
+			gl_Position = vec4(position, 0.0, 1.0);
+		}
+	</script>
+	<script type="fragment" id="fs">
+		#version 300 es
+		precision highp float;
+		
+		in vec3 vColor;
+		out vec4 fragColor;
+
+		void main() {
+			fragColor = vec4(vColor, 1.0);
+		}
+	</script>
+	
+	<canvas id="webgl-canvas"></canvas>
+	<script>
+		window.onload = setup;
+		
+		var canvas;
+		var gl;
+		var program;
+		
+		async function loadCode(url) {
+			return await (await fetch(url)).text();
+		}
+		
+		async function setup() {
+			canvas = document.getElementById("webgl-canvas");
+			gl = canvas.getContext("webgl2");
+			if (!gl) {
+				console.error("WebGL 2 not available");
+				document.body.innerHTML = "This example requires WebGL 2 which is unavailable on this system."
+			}
+			if (!gl.getExtension(`EXT_color_buffer_float`)) {
+				alert(`Float colors not supported. This program will not run correctly.`);
+				throw new Error("float colors not supported");
+			}
+			
+			resize();
+
+			gl.clearColor(0, 0, 0, 1);
+
+			var vsSource = document.getElementById("vs").text.trim();
+			var fsSource = document.getElementById("fs").text.trim();
+			
+			var program = gl.createProgram();
+			gl.attachShader(program, compile(gl.VERTEX_SHADER, vsSource));
+			gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fsSource));
+			gl.linkProgram(program);
+
+			if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+				console.error(gl.getProgramInfoLog(program));
+			}
+
+			gl.useProgram(program);
+			geometry();
+		}
+		
+		function compile(type, source) {
+			var shader = gl.createShader(type);
+			gl.shaderSource(shader, source);
+			gl.compileShader(shader);
+			var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+			if (success) {
+				return shader;
+			}
+			
+			console.log(gl.getShaderInfoLog(shader));
+			gl.deleteShader(shader);
+		}
+
+		function geometry() {
+			var triangleArray = gl.createVertexArray();
+			gl.bindVertexArray(triangleArray);
+	
+			var positionBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+				-1, -1,
+				1, -1,
+				1, 1,
+				
+				-1, 1,
+				1, 1,
+				-1, -1
+			]), gl.STATIC_DRAW);
+			gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(0);
+			
+			
+	
+			var colors = new Float32Array([
+				1.0, 0.0, 0.0,
+				0.0, 1.0, 0.0,
+				0.0, 0.0, 1.0,
+				1.0, 0.0, 0.0,
+				0.0, 1.0, 0.0,
+				0.0, 0.0, 1.0
+			]);
+	
+			var colorBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+			gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(1);
+			draw();
+		}
+	
+		function draw() {
+			gl.clear(gl.COLOR_BUFFER_BIT);
+			gl.drawArrays(gl.TRIANGLES, 0, 6);
+		}
+		
+		function resize() {
+		
+		}
+	</script>
+</body>
+</html>
