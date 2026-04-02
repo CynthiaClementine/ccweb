@@ -34,9 +34,9 @@ class Scene3dObject {
 		//doesn't do anything right now
 		this.gloopiness = ray_nearDist;
 
-		this.theta = (posRot.theta ?? 0) * degToRad;
-		this.phi = ((posRot.phi ?? 90) - 90) * degToRad;
-		this.rot = (posRot.rot ?? 0) * degToRad;
+		this.theta = posRot.theta ?? 0;
+		this.phi = posRot.phi ?? 0;
+		this.rot = posRot.rot ?? 0;
 	}
 	
 	//gives the axis-aligned bounding box of the object, in [smallest pos, largest pos] terms
@@ -63,7 +63,7 @@ class Scene3dObject {
 	}
 	
 	normalAt(pos) {
-		const ε = 0.01;
+		const ε = 0.01 - 0.02 * (this.nature & N_ANTI != 0);
 		const base = this.distanceToPos(pos);
 		const grad = [
 			this.distanceToPos(Pos(pos[0] + ε, pos[1], pos[2])) - base,
@@ -90,9 +90,9 @@ class Scene3dObject {
 class Scene3dObject_Axes extends Scene3dObject {
 	constructor(type, posRot, material, nature, rx, ry, rz) {
 		super(type, posRot, material, nature);
-		this.rx = rx;
-		this.ry = ry;
-		this.rz = rz;
+		this.rx = Math.max(rx, 0);
+		this.ry = Math.max(ry, 0);
+		this.rz = Math.max(rz, 0);
 	}
 	
 	bounds() {
@@ -128,23 +128,15 @@ class Prism extends Scene3dObject_Axes {
 		var relY = relPos[1];
 		var relZ = relPos[2];
 		
-		const faceDist = this.sdf2D(relX, relZ);
-		const vertDist = Math.abs(relY) - this.ry;
+		const faceDist = this.sdf2D(relX, relY);
+		const vertDist = Math.abs(relZ) - this.rz;
 		const negPart = Math.min(Math.max(faceDist, vertDist), 0);
 		const posPart = Math.hypot(Math.max(faceDist, 0), Math.max(vertDist, 0));
 		return (negPart + posPart);
 	}
 	
-	calcAxisType(swapXY, swapYZ, swapXZ) {
-		return swapXY + 2 * swapYZ + 4 * swapXZ;
-	}
-	
-	serialize() {
-		return `${super.serialize()}~${this.calcAxisType(this.swapXY, this.swapYZ, this.swapXZ)}`;
-	}
-	
 	serializeGPU() {
-		return [this.calcAxisType(this.swapXY, this.swapYZ, this.swapXZ), this.rx, this.ry, this.rz];
+		return [null, this.rx, this.ry, this.rz];
 	}
 }
 
@@ -358,15 +350,15 @@ class Capsule extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r, this.h + this.r, this.r, this.theta, this.phi, this.rot);
+		return giveBounds(this.pos, this.r, this.r, this.h + this.r, this.theta, this.phi, this.rot);
 	}
 
 	distanceToPos(pos) {
 		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
 		const relX = Math.abs(relPos[0]);
-		var   relY = Math.abs(relPos[1]);
-		const relZ = Math.abs(relPos[2]);
-		relY -= clamp(relY, 0, this.h);
+		const relY = Math.abs(relPos[1]);
+		var   relZ = Math.abs(relPos[2]);
+		relZ -= clamp(relZ, 0, this.h);
 		return Math.sqrt(relX * relX + relY * relY + relZ * relZ) - this.r;
 	}
 	
@@ -387,7 +379,7 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r, this.h, this.r, this.theta, this.phi, this.rot);
+		return giveBounds(this.pos, this.r, this.r, this.h, this.theta, this.phi, this.rot);
 	}
 	
 	distanceToPos(pos) {
@@ -396,8 +388,8 @@ class Cylinder extends Scene3dObject {
 		const relY = relPos[1];
 		const relZ = relPos[2];
 		
-		const hDist = Math.abs(relY) - this.h;
-		const xyDist = Math.hypot(relX, relZ) - this.r;
+		const hDist = Math.abs(relZ) - this.h;
+		const xyDist = Math.hypot(relX, relY) - this.r;
 		return Math.min(Math.max(hDist, xyDist), 0) + Math.hypot(Math.max(xyDist, 0), Math.max(hDist, 0));
 	}
 	
@@ -477,6 +469,84 @@ class Ellipsoid extends Scene3dObject_Axes {
 	}
 }
 
+class Fractal extends Scene3dObject {
+	constructor(posRot, material, nature, r, scale, shiftX, shiftY, shiftZ) {
+		super(TYPE_FRACTAL, posRot, material, nature);
+		this.r = r;
+		this.scale = scale;
+		this.shift = Pos(shiftX, shiftY, shiftZ);
+	}
+	
+	tick() {
+		// [this.shift[0], this.shift[2]] = rotate(this.shift[0], this.shift[2], 0.005);
+		// if (gl && loading_world.objects.includes(this)) {
+		// 	loading_world.bvh.generate();
+		// 	createGPUWorld(loading_world);
+		// }
+	}
+	
+	//copy from shaderF but with less swizzling
+	distanceToPos(pos) {
+		//setup
+		const r = this.r;
+		const scale = this.scale;
+		const shift = this.shift;
+		const a1 = -this.theta;
+		const a2 = -this.phi;
+		
+		var px = pos[0] / r;
+		var py = pos[1] / r;
+		var pz = pos[2] / r;
+		var pw = 1;
+		
+		//recursion
+		for (var f=0; f<fractal_iters; f++) {
+			px = Math.abs(px);
+			py = Math.abs(py);
+			pz = Math.abs(pz);
+			[px, py] = rotate(px, py, a1);
+			
+			var a = Math.min(px - py, 0);
+			px -= a;
+			py += a;
+			a = Math.min(px - pz, 0);
+			px -= a;
+			pz += a;
+			a = Math.min(py - pz, 0);
+			py -= a;
+			pz += a;
+			
+			[py, pz] = rotate(py, pz, a2);
+			px *= scale;
+			px += shift[0];
+			py *= scale;
+			py += shift[1];
+			pz *= scale;
+			pz += shift[2];
+			pw *= scale;
+		}
+		
+		px -= 6;
+		py -= 6;
+		pz -= 6;
+		
+		const len = Math.hypot(Math.max(0, px), Math.max(0, py), Math.max(0, pz));
+		return r * (Math.min(0, Math.max(px, py, pz)) + len) / pw;
+	}
+	
+	bounds() {
+		return giveBounds(this.pos, 10000, 10000, 10000, this.theta, this.phi, this.rot);
+	}
+	
+	serialize() {
+		return `FRACTAL${super.serialize()}${this.r}~${this.scale}~${this.shift[0]}~${this.shift[1]}~${this.shift[2]}`;
+	}
+	
+	serializeGPU() {
+		return [this.r, this.scale, this.theta, this.phi, fencepost32, ...this.shift];
+	}
+}
+
 class Gyroid extends Scene3dObject_Axes {
 	constructor(posRot, material, nature, rx, ry, rz, a, b, h) {
 		super(TYPE_GYROID, posRot, material, nature, rx, ry, rz);
@@ -519,13 +589,16 @@ class Gyroid extends Scene3dObject_Axes {
 	}
 }
 
-//line extends an axes object for the sake of constructor / editor simplicity. 
+//line has 3d radii for the sake of constructor / editor simplicity.
 //The offset point is not really a "radius" by any metric but eh. whatever.
-class Line extends Scene3dObject_Axes {
+class Line extends Scene3dObject {
 	constructor(posRot, material, nature, rx, ry, rz, thickness) {
-		super(TYPE_LINE, posRot, material, nature, rx, ry, rz);
+		super(TYPE_LINE, posRot, material, nature);
+		this.rx = rx;
+		this.ry = ry;
+		this.rz = rz;
 		//it doesn't really make sense for lines to be affected by transformations. So they're not.
-		if (this.theta || (this.phi) || this.rot) {
+		if (this.theta || this.phi || this.rot) {
 			console.error(`${this.serialize()}: Lines should not be rotated!`);
 			this.theta = 0;
 			this.phi = 0;
@@ -567,11 +640,11 @@ class Line extends Scene3dObject_Axes {
 	}
 	
 	serialize() {
-		return `LINE${super.serialize()}~${this.r}`;
+		return `LINE${super.serialize()}${this.rx}~${this.ry}~${this.rz}~${this.r}`;
 	}
 	
 	serializeGPU() {
-		return super.serializeGPU().concat(this.r);
+		return [null, this.rx, this.ry, this.rz, this.r];
 	}
 }
 
@@ -599,17 +672,13 @@ class Octahedron extends Scene3dObject_Axes {
 }
 
 class PrismRhombus extends Prism {
-	constructor(posRot, material, nature, rx, ry, h, skew) {
-		super(TYPE_PRISM_RHOMBUS, posRot, material, nature, rx, ry, h);
+	constructor(posRot, material, nature, rx, h, rz, skew) {
+		super(TYPE_PRISM_RHOMBUS, posRot, material, nature, rx, h, rz);
 		this.skew = skew;
 	}
 	
 	bounds() {
-		const error = Math.abs(this.skew / 2);
-		this.rx += error;
-		var b = super.bounds();
-		this.rx -= error;
-		return b;
+		return giveBounds(this.pos, this.rx + Math.abs(this.skew / 2), this.ry, this.rz, this.theta, this.phi, this.rot);
 	}
 	
 	sdf2D(relX, relY) {
@@ -734,7 +803,7 @@ class Ring extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r + this.ringR, this.ringR, this.r + this.ringR, this.theta, this.phi, this.rot);
+		return giveBounds(this.pos, this.r + this.ringR, this.r + this.ringR, this.ringR, this.theta, this.phi, this.rot);
 	}
 
 	distanceToPos(pos) {
@@ -742,8 +811,8 @@ class Ring extends Scene3dObject {
 		const distX = Math.abs(relPos[0]);
 		const distY = Math.abs(relPos[1]);
 		const distZ = Math.abs(relPos[2]);
-		const q = Math.sqrt(distX * distX + distZ * distZ) - this.r;
-		return Math.sqrt(q * q + distY * distY) - this.ringR;
+		const q = Math.sqrt(distX * distX + distY * distY) - this.r;
+		return Math.sqrt(q * q + distZ * distZ) - this.ringR;
 	}
 	
 	serialize() {
@@ -807,6 +876,56 @@ class Sphere extends Scene3dObject {
 	}
 }
 
+class Voxel extends Scene3dObject {
+	constructor(posRot, material, nature, d, c1, c2, c3, c4, c5, c6, c7, c8) {
+		super(TYPE_VOXEL, posRot, material, nature);
+		this.d = d;
+		this.c = [c1, c2, c3, c4, c5, c6, c7, c8];
+	}
+	
+	bounds() {
+		var halfD = this.d / 2;
+		return giveBounds(this.pos, halfD, halfD, halfD, this.theta, this.phi, this.rot);
+	}
+	
+	distanceToPos(pos) {
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		const d = this.d;
+		const halfD = this.d / 2;
+		var relX = relPos[0];
+		var relY = relPos[1];
+		var relZ = relPos[2];
+	
+		const x = Math.max(0, Math.abs(relX) - halfD);
+		const y = Math.max(0, Math.abs(relY) - halfD);
+		const z = Math.max(0, Math.abs(relZ) - halfD);
+		const boxSDF = Math.sqrt(x * x + y * y + z * z);
+		
+		//put into percentage coordinates
+		relX = (relX / d) + 0.5;
+		relY = (relY / d) + 0.5;
+		relZ = (relZ / d) + 0.5;
+		
+		//interpolate
+		const cc = this.c;
+		const A = linterp(cc[0], cc[4], relY);
+		const B = linterp(cc[1], cc[5], relY);
+		const C = linterp(cc[2], cc[6], relY);
+		const D = linterp(cc[3], cc[7], relY);
+		
+		const voxelSDF = halfD * linterp(linterp(A, B, relX), linterp(D, C, relX), relZ);
+		return Math.max(boxSDF, voxelSDF);
+	}
+	
+	serialize() {
+		return `VOXEL${super.serialize()}${this.d}~${this.c[0]}~${this.c[1]}~${this.c[2]}~${this.c[3]}~${this.c[4]}~${this.c[5]}~${this.c[6]}~${this.c[7]}`
+	}
+	
+	serializeGPU() {
+		return [this.d, ...this.c];
+	}
+}
+
 var map_strObj = {
 	"BOX": Box,
 	"BOX-FRAME": BoxFrame,
@@ -815,6 +934,7 @@ var map_strObj = {
 	"CAPSULE": Capsule,
 	"CYLINDER": Cylinder,
 	"ELLIPSE": Ellipsoid,
+	"FRACTAL": Fractal,
 	"GYROID": Gyroid,
 	"LINE": Line,
 	"OCTAHEDRON": Octahedron,
@@ -824,6 +944,7 @@ var map_strObj = {
 	"RING": Ring,
 	"SHELL": Shell,
 	"SPHERE": Sphere,
+	"VOXEL": Voxel,
 	
 	//in here for editor purposes
 	"PLAYER": Player,

@@ -12,6 +12,8 @@
 //but that's too difficult for the compiler to figure out
 #define bvh_maxNum 13
 
+#define fractal_iters 10
+
 
 //shapes
 #define SPHERE		0
@@ -22,12 +24,14 @@
 #define BOX			10
 #define BOXFRAME	11
 #define GYROID		12
+#define VOXEL		13
 #define LINE		20
 #define OCTAHEDRON	30
 #define RING		40
 #define PRISM_RHOMB	51
 #define PRISM_HEX	53
 #define PRISM_OCT	55
+#define FRACTAL		70
 
 //pre-effects
 #define E_LOOP			10
@@ -376,17 +380,7 @@ float rhombusSDF(vec2 point, vec2 r, float skew) {
 }
 
 float prismSDF(vec3 point, int type, float data1, vec4 data2) {
-	//data1: [x, y, z, axisType]
-	int axisType = int(data1);
-	if ((axisType & 1) > 0) {
-		point.xy = point.yx;
-	}
-	if ((axisType & 2) > 0) {
-		point.yz = point.zy;
-	}
-	if ((axisType & 4) > 0) {
-		point.xz = point.zx;
-	}
+	//data1: [x, y, z, null]
 	float shapeDist = 9999.;
 	//data2: [rx, ry, rz, skew]
 	switch (type) {
@@ -404,29 +398,72 @@ float prismSDF(vec3 point, int type, float data1, vec4 data2) {
 
 
 //SDFs
-float boxSDF(vec3 point, float data1, vec4 data2) {
+float boxSDF(vec3 point, vec4 data2) {
 	vec3 q = abs(point) - data2.xyz;
 	return length(max(q, vec3(0.))) + min(max(q.x, max(q.y, q.z)), 0.);
 }
 
 float capsuleSDF(vec3 point, float data1, vec4 data2) {
-	vec3 q = vec3(point.x, point.y - clamp(point.y, -data2[0], data2[0]), point.z);
+	vec3 q = vec3(point.x, point.y, point.z - clamp(point.z, -data2[0], data2[0]));
 	return length(q) - data1;
 }
 
 float cylinderSDF(vec3 point, float data1, vec4 data2) {
 	float r = data1;
 	float h = data2[0];
-	vec2 d = abs(vec2(length(point.xz), point.y)) - vec2(r, h);
+	vec2 d = abs(vec2(length(point.xy), point.z)) - vec2(r, h);
 	return min(max(d.x, d.y), 0.) + length(max(d, vec2(0.)));
+}
+
+//shamelessly stolen from marble marcher. Marble marcher is cool
+float fractalSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
+	point /= data1;
+	//data2: [scale, a1, a2]
+	//data3: [shift amount]
+	float scale = data2[0];
+	float a1 = data2[1];
+	float a2 = data2[2];
+	vec3 shift = data3.xyz;
+	
+	vec4 p = vec4(point, 1.);
+	for (int i=0; i<fractal_iters; i++) {
+		//absolute fold
+		p.xyz = abs(p.xyz);
+		
+		//rot
+		p.xy = rotate(p.xy, -a1);
+		
+		//menger fold (???????)
+		float a = min(p.x - p.y, 0.);
+		p.x -= a;
+		p.y += a;
+		a = min(p.x - p.z, 0.);
+		p.x -= a;
+		p.z += a;
+		a = min(p.y - p.z, 0.);
+		p.y -= a;
+		p.z += a;
+		
+		//phi
+		p.yz = rotate(p.yz, -a2);
+		
+		//scaling + translation
+		p *= scale;
+		p.xyz += shift;
+	}
+	
+	//extra ending bit
+	vec3 a = abs(p.xyz) - vec3(6.);
+	float finalVal = (min(max(max(a.x, a.y), a.z), 0.) + length(max(a, 0.))) / p.w;
+	return finalVal * data1;
 }
 
 float gyroidSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	float dot = dot(sin(data1 * point.xyz), cos(data1 * point.zxy));
 	vec3 relBoxPos = max(vec3(0.), abs(point) - data2.xyz);
+	float boxsdf = length(relBoxPos);
 	
 	float gyrsdf = abs(data2[3] * dot) - data3[0];
-	float boxsdf = length(relBoxPos);
 	
 	return max(boxsdf, gyrsdf);
 }
@@ -455,8 +492,8 @@ float octahedronSDF(vec3 point, float data1, vec4 data2) {
 
 float ringSDF(vec3 point, float data1, vec4 data2) {
 	vec3 dist = abs(point);
-	float q = length(dist.xz) - data2[0];
-	return sqrt(q * q + dist.y * dist.y) - data2[1];
+	float q = length(dist.xy) - data2[0];
+	return sqrt(q * q + dist.z * dist.z) - data2[1];
 }
 
 float shellSDF(vec3 point, float data1, vec4 data2) {
@@ -466,6 +503,19 @@ float shellSDF(vec3 point, float data1, vec4 data2) {
 
 float sphereSDF(vec3 point, float data1) {
 	return length(point) - data1;
+}
+
+float voxelSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
+	float halfD = data1 / 2.;
+	float boxsdf = boxSDF(point, vec4(halfD));
+	
+	point = clamp((point / data1) + 0.5, 0., 1.);
+	
+	vec4 plane = mix(data2, data3, vec4(point.y));
+	vec2 line = mix(plane.xw, plane.yz, vec2(point.x));
+	float voxelsdf = halfD * mix(line[0], line[1], point.z);
+	
+	return max(boxsdf, voxelsdf);
 }
 
 float boxFrameSDF(vec3 point, float data1, vec4 data2) {
@@ -516,9 +566,11 @@ float objSDF(vec3 p, int world, int index) {
 		case CYLINDER:
 			{d = cylinderSDF(p, data[1][3], data[2]);} break;
 		case BOX:
-			{d = boxSDF(p, data[1][3], data[2]);} break;
+			{d = boxSDF(p, data[2]);} break;
 		case BOXFRAME:
 			{d = boxFrameSDF(p, data[1][3], data[2]);} break;
+		case FRACTAL:
+			{d = fractalSDF(p, data[1][3], data[2], data[3]);} break;
 		case GYROID:
 			{d = gyroidSDF(p, data[1][3], data[2], data[3]);} break;
 		case LINE:
@@ -531,7 +583,12 @@ float objSDF(vec3 p, int world, int index) {
 		case PRISM_HEX:
 		case PRISM_OCT: 
 			{d = prismSDF(p, type, data[1][3], data[2]);} break;
+		case VOXEL:
+			{d = voxelSDF(p, data[1][3], data[2], data[3]);} break;
 		default: {} break;
+	}
+	if ((nature & N_ANTI) > 0) {
+		d = -d;
 	}
 	if ((nature & N_FOG) > 0) {
 		d = max(d, ray_nearDist - ray_minDist);
@@ -555,25 +612,28 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 	// mat4 data = matData(stage[stg].world, stage[stg].closestInd);
 	switch (matType) {
-		//color
 		default:
 		case M_COLOR: {
 			applyColor(1, data0);
 		} return 1;
-		//concrete
+		
 		case M_CONCRETE: {
 		
 		} return 1;
-		//rubber
+		
+		case M_NORMAL: {
+			//theoretically this should work. try 0 -> stg if not
+			vec3 norm = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
+			applyColor(1, vec4((norm + 1.) / 2., 1.));
+		} return 1;
+		
 		case M_RUBBER: {
 			float localVal = mod(stage[stg].pos[0] + stage[stg].pos[2], 10.) - 5.;
 			vec3 mult = vec3(4.0/255., 4.0/255., 4.8/255.);
 			vec4 paint = vec4(vec3(47./255., 48./255., 66./255.) + localVal * mult, 1.0);
-			
-			applyColor(stg, paint);
-			stage[stg].localDist = ray_minDist * 2.;
+			applyColor(1, paint);
 		} return 1;
-		//glass
+		
 		case M_GLASS: {
 			if (abs(stage[stg].localDist) < ray_minDist * 2.) {
 				applyColor(stg, data0);
@@ -582,16 +642,16 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 				stage[stg].localDist = -stage[stg].localDist;
 			}
 		} return 0;
-		//ghost
+
 		case M_GHOST: {
 		} return 1;
-		//portal
+
 		case M_PORTAL: {
 			stage[stg].world = int(data1[0]);
 			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
 			stage[stg].localDist = ray_minDist * 2.;
 		} return 0;
-		//mirror
+
 		case M_MIRROR: {
 			applyColor(stg, data0);
 			vec3 incident = stage[stg].dPos;
@@ -733,6 +793,10 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 		}
 	}
 	if ((nature & N_ANTI) > 0) {
+		newDist = -newDist;
+		if (newDist < ray_minDist) {
+			newDist = min(newDist, -ray_minDist);
+		}
 		float trueNewDist = max(oldDist, -newDist);
 		if (trueNewDist != oldDist) {
 			stage[stg].closestInd = index;
