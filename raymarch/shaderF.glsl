@@ -67,6 +67,8 @@
 precision highp float;
 precision highp sampler2DArray;
 
+
+
 in vec2 vUV;
 out vec4 outColor;
 
@@ -231,18 +233,9 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			stage[stg].color.a += 1.;
 		} break;
 		//spherize
-		case E_SPHERIZE: {
+		// case E_SPHERIZE: {
 			
-		} break;
-		case 3: {
-			
-		} break;
-		case 4: {
-			
-		} break;
-		case 5: {
-			
-		} break;
+		// } break;
 	}
 }
 
@@ -274,9 +267,8 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			applyColor(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 1.0));
 		} break;
 		//bg_gradient
-		case E_GRADIENT: {
-			
-		} break;
+		case E_GRADIENT:
+			break;
 		//bg_fadeTo
 		case E_FADE: {
 			if (stg == 0) {
@@ -387,7 +379,8 @@ float prismSDF(vec3 point, int type, float data1, vec4 data2) {
 		case PRISM_RHOMB:{shapeDist = rhombusSDF(point.xy, data2.xy, data2[3]);} break;
 		case PRISM_HEX:  {shapeDist = hexagonSDF(point.xy, data2.x);} break;
 		case PRISM_OCT:  {shapeDist = octagonSDF(point.xy, data2.x);} break;
-		default:		 {} break;
+		default:
+			break;
 	}
 
 	float vertDist = abs(point.z) - data2.z;
@@ -585,7 +578,8 @@ float objSDF(vec3 p, int world, int index) {
 			{d = prismSDF(p, type, data[1][3], data[2]);} break;
 		case VOXEL:
 			{d = voxelSDF(p, data[1][3], data[2], data[3]);} break;
-		default: {} break;
+		default:
+			{d = 999.;} break;
 	}
 	if ((nature & N_ANTI) > 0) {
 		d = -d;
@@ -611,28 +605,31 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 
 int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 	// mat4 data = matData(stage[stg].world, stage[stg].closestInd);
+	int res = 1;
 	switch (matType) {
-		default:
 		case M_COLOR: {
 			applyColor(1, data0);
-		} return 1;
+			res = 1;
+		} break;
 		
 		case M_CONCRETE: {
-		
-		} return 1;
+			res = 1;
+		} break;
 		
 		case M_NORMAL: {
 			//theoretically this should work. try 0 -> stg if not
 			vec3 norm = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
 			applyColor(1, vec4((norm + 1.) / 2., 1.));
-		} return 1;
+			res = 1;
+		} break;
 		
 		case M_RUBBER: {
 			float localVal = mod(stage[stg].pos[0] + stage[stg].pos[2], 10.) - 5.;
 			vec3 mult = vec3(4.0/255., 4.0/255., 4.8/255.);
 			vec4 paint = vec4(vec3(47./255., 48./255., 66./255.) + localVal * mult, 1.0);
 			applyColor(1, paint);
-		} return 1;
+			res = 1;
+		} break;
 		
 		case M_GLASS: {
 			if (abs(stage[stg].localDist) < ray_minDist * 2.) {
@@ -641,17 +638,19 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			} else {
 				stage[stg].localDist = -stage[stg].localDist;
 			}
-		} return 0;
+			res = 0;
+		} break;
 
 		case M_GHOST: {
-		} return 1;
+			res = 1;
+		} break;
 
 		case M_PORTAL: {
 			stage[stg].world = int(data1[0]);
 			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
 			stage[stg].localDist = ray_minDist * 2.;
-		} return 0;
-
+			res = 0;
+		} break;
 		case M_MIRROR: {
 			applyColor(stg, data0);
 			vec3 incident = stage[stg].dPos;
@@ -660,16 +659,20 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			float product = dot(incident, normal);
 			setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
 			stage[stg].localDist = ray_minDist * 2.;
-			// return 1;
-		} return stg;
+			res = stg;
+		} break;
+		default: {
+			res = 1;
+		} break;
 	}
-	return 1;
+	return res;
 }
 
 void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 	switch (matType) {
 		//color
-		default: {} return;
+		default:
+			break;
 		//ghost
 		case M_GHOST: {
 			if (stg == 0) {
@@ -694,6 +697,7 @@ bool intersects(vec3 p, vec3 v, vec3 minPos, vec3 maxPos) {
 }
 		
 void calcSceneObjs(int stg) {
+	stage[1].totalDist = 128.;
 	//set up array
 	int numObjs = objIndices[obj_maxNum - 1];
 	for (int o=0; o<numObjs; o++) {
@@ -808,7 +812,7 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 
 float sceneSDF(vec3 p, int stg) {
 	int objCount = objIndices[obj_maxNum - 1];
-	float sceneDist = 1e9;
+	float sceneDist = 9999999.;
 	
 	for(int i=0; i<objCount; i++) {
 		float d = objSDF(p, stage[stg].world, objIndices[i]);
@@ -867,7 +871,6 @@ void raymarch() {
 			}
 		}
 		applyPreEffects(0);
-		
 		
 		stage[0].totalDist += stage[0].localDist;
 		stage[0].pos += stage[0].localDist * stage[0].dPos;
@@ -1001,9 +1004,10 @@ void main() {
 	
 	//stage 0
 	raymarch();
+	// outColor = vec4(stage[0].color.rgb, 1.0);
+	// return;
 	
-	//stage 1
-	
+	// stage 1
 	if (stage[0].totalDist < ray_maxDist) {
 		currStg = 1;
 		//it's hit an object
@@ -1038,6 +1042,6 @@ void main() {
 	
 	//send to screem
 	outColor = vec4(stage[0].color.rgb, 1.0);
-	
+	// outColor = vec4(stage[0].totalDist / 19999999., stage[1].totalDist / 255., 0.5, 1.0);
 	// outColor = vec4(vec3(uTime / 255., 0., 0.), 1.0);
 }

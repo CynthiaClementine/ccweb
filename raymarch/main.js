@@ -27,7 +27,7 @@ async function setup() {
 	btx.imageSmoothingEnabled = false;
 	var vertexShaderCode = await loadCode(`shaderV.glsl`);
 	var fragmentShaderCode = await loadCode(`shaderF.glsl`);
-	
+
 	gl = canvas.getContext("webgl2", {preserveDrawingBuffer: true});
 	gl.imageSmoothingEnabled = false;
 	if (!gl) {
@@ -39,14 +39,13 @@ async function setup() {
 		throw new Error("float colors not supported");
 	}
 	
-	resize();
 	updateFOV(camera_FOV, false);
 
 	banvas.requestPointerLock = banvas.requestPointerLock || banvas.mozRequestPointerLock;
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 
-	player = new Player(loading_world, Pos(...loading_world.spawn));
+	player = new Player_Debug(loading_world, Pos(...loading_world.spawn));
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
 	
@@ -61,12 +60,14 @@ async function setup() {
 	if (!keysMatch(map_strMat, materialEditables)) {
 		throw new Error(`Mismatch between editor objects and defined objects!`);
 	}
-	resize();
+	
+
 	setupGLState(vertexShaderCode, fragmentShaderCode);
 	createBVHTexture();
 	createObjectsTexture();
 	
 	
+	resize();
 	window.setTimeout(main, 10);
 }
 
@@ -214,6 +215,7 @@ function drawUI() {
 	var cw = cvs.width;
 	var ch = cvs.height;
 	var center = [cvs.width / 2, cvs.height / 2];
+	const crossLen = (render_n < 100) ? (1 / render_n) : 0.04;
 	
 	//debug bars
 	btx.clearRect(0, 0, cvs.width, cvs.height);
@@ -227,11 +229,11 @@ function drawUI() {
 	//crosshair
 	btx.beginPath();
 	btx.strokeStyle = color_editor_border;
-	btx.lineWidth = Math.ceil(ch / 200);
-	btx.moveTo(center[0] - ch * 0.05, center[1]);
-	btx.lineTo(center[0] + ch * 0.05, center[1]);
-	btx.moveTo(center[0], center[1] - ch * 0.05);
-	btx.lineTo(center[0], center[1] + ch * 0.05);
+	btx.lineWidth = Math.ceil(ch * (1.5 / render_n));
+	btx.moveTo(center[0] - ch * crossLen, center[1]);
+	btx.lineTo(center[0] + ch * crossLen, center[1]);
+	btx.moveTo(center[0], center[1] - ch * crossLen);
+	btx.lineTo(center[0], center[1] + ch * crossLen);
 	btx.stroke();
 	btx.globalAlpha = 1;
 }
@@ -291,14 +293,22 @@ function handleKeyPress(a) {
 		DEBUG EFFECTS:
 			C - copy current pos to clipboard
 			O - select crosshair's object
+			B - toggle bounding box highlights
 		*/
 		
 		switch (a.code) {
+			case "KeyB":
+				if (loading_world.preEffects.length < 1 || loading_world.preEffects[0][0] != world_brighten) {
+					loading_world.preEffects.splice(0, 0, [world_brighten, [4, 4, 4, 4]]);
+				} else if (loading_world.preEffects[0][0] == world_brighten) {
+					loading_world.preEffects.splice(0, 1);
+				}
+				break;
 			case "KeyC":
 				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
 				break;
 			case "KeyO":
-				var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist);
+				var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist / 4);
 				ray.iterate();
 				if (ray.world != loading_world) {
 					//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business
@@ -399,8 +409,14 @@ function handleCursorLockChange() {
 }
 
 function handleMouseMove(a) {
-	player.theta += a.movementX * controls_sensitivity;
+	var dTheta = a.movementX * controls_sensitivity;
+	player.theta += dTheta;
 	player.phi -= (a.movementY) * controls_sensitivity;
 	var phiLimit = (camera_projFunc == projectPanini) ? Math.PI * 0.2 : Math.PI * 0.49;
 	player.phi = clamp(player.phi, -phiLimit, phiLimit);
+	
+	//change velocity in the case of rotating, since dPos is based on view angle
+	if (Math.abs(a.movementX) > 2) {
+		[player.dPos[0], player.dPos[2]] = rotate(player.dPos[0], player.dPos[2], dTheta - (2 * controls_sensitivity));
+	}
 }

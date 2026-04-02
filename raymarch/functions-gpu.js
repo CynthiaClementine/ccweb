@@ -3,12 +3,15 @@ function compile(type, source) {
 	gl.shaderSource(shader, source);
 	gl.compileShader(shader);
 	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	if (success) {
-		return shader;
-	}
-	
 	console.log(gl.getShaderInfoLog(shader));
-	gl.deleteShader(shader);
+
+	if (!success) {
+		console.error(`shader creation failed.`);
+		console.log(gl.getShaderInfoLog(shader));
+		gl.deleteShader(shader);
+	}
+
+	return shader;
 }
 
 function createObjectsTexture() {
@@ -110,14 +113,23 @@ function setObjectEasy(world, obj) {
 }
 
 function setupGLState(vertexShaderCode, fragmentShaderCode) {
+	const shaderV = compile(gl.VERTEX_SHADER, vertexShaderCode);
+	const shaderF = compile(gl.FRAGMENT_SHADER, fragmentShaderCode);
+
 	program = gl.createProgram();
-	gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexShaderCode));
-	gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentShaderCode));
+	gl.attachShader(program, shaderV);
+	gl.attachShader(program, shaderF);
 	gl.linkProgram(program);
 	
 	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+
+	console.log(gl.getAttachedShaders(program));
+	console.log(gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES));
+	console.log(gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS));
+	console.log(gl.getProgramInfoLog(program));
+
 	if (!success) {
-		console.log(gl.getProgramInfoLog(program));
+		console.error(`program creation failure: ${success}`);
 		gl.deleteProgram(program);
 		return;
 	}
@@ -137,8 +149,8 @@ function setupGLState(vertexShaderCode, fragmentShaderCode) {
 	]), gl.STATIC_DRAW);
 	
 	gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-	gl.enableVertexAttribArray(posLoc);
-	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+	gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+	gl.enableVertexAttribArray(0);
 	
 	uDebug = gl.getUniformLocation(program, `uDebug`);
 	uResolution = gl.getUniformLocation(program,`uResolution`);
@@ -282,7 +294,10 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 	const type = objRef.type;
 	const material = objRef.material.type;
 	const pos = (objRef.constructor.name == "Scene3dLoop") ? [objRef.xRange, objRef.yRange, objRef.zRange] : objRef.pos;
-	const [theta, phi, rot] = [deg(objRef.theta), deg(objRef.phi) + 90, deg(objRef.rot)];
+	var [theta, phi, rot] = [0, 90, 0];
+	if (objRef.constructor.name != `Fractal`) {
+		[theta, phi, rot] = [deg(objRef.theta), deg(objRef.phi) + 90, deg(objRef.rot)];
+	}
 	const nature = objRef.nature;
 	const args = objRef.serializeGPU();
 	
@@ -346,7 +361,9 @@ function feedGPU() {
 	gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture_universe);
 	gl.activeTexture(gl.TEXTURE1);
 	gl.bindTexture(gl.TEXTURE_2D, texture_bvh);
+	gl.clear(gl.COLOR_BUFFER_BIT);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
+	
 	
 	const err = gl.getError();
 	if (err !== gl.NO_ERROR) {
@@ -364,5 +381,5 @@ function GPU_transferObj(world, object) {
 function GPU_toggleDebug() {
 	var val = gl.getUniform(program, uDebug);
 	console.log(val, (val + 1) % 3);
-	gl.uniform1i(uDebug, (val + 1) % 3);
+		gl.uniform1i(uDebug, (val + 1) % 3);
 }
