@@ -1,5 +1,63 @@
 var editor_selected = undefined;
 
+
+//editor functions
+function createDefaultObject(constructorString, objRef) {
+	var type = map_strObj[constructorString];
+	objRef = objRef ?? {
+		theta: 0,
+		phi: 0,
+		rot: 0,
+	};
+	
+	//steal properties from old object
+	var material = objRef.material ?? new M_Color(255, 0, 255);
+	pos = objRef.pos;
+	if (!pos) {
+		var offset = polToCart(camera.theta, camera.phi, 100);
+		var r = Math.round;
+		pos = Pos(r(camera.pos[0] + offset[0]), r(camera.pos[1] + offset[1]), r(camera.pos[2] + offset[2]));
+	}
+	
+	var [theta, phi, rot] = [objRef.theta, objRef.phi, objRef.rot];
+	var nature = objRef.nature ?? 0;
+	
+	var arg1 = objRef.r ?? objRef.rx ?? 10;
+	var arg2 = objRef.h ?? objRef.ry ?? 10;
+	var arg3 = objRef.rz ?? 10;
+	var arg4 = objRef.e ?? 1;
+	var arg5 = 12;
+	var arg6 = 6;
+	if (objRef.constructor.name == `Gyroid` && type.constructor.name == `Gyroid`) {
+		[arg4, arg5, arg6] = [objRef.a, objRef.b, objRef.h];
+	}
+	
+	//actually create the thing
+	return new type({pos: pos, theta: theta, phi: phi, rot: rot},
+		material, nature, arg1, arg2, arg3, arg4, arg5, arg6, 10, 10, 10, 10, 10);
+}	
+
+/**
+* @param {String} constructorString
+* @param {Color4|undefined} color
+ */
+function createDefaultMaterial(constructorString, color) {
+	color = color ?? [];
+	color[0] = color[0] ?? 255;
+	color[1] = color[1] ?? 0;
+	color[2] = color[2] ?? 255;
+	color[3] = color[3] ?? 128;
+	var type = map_strMat[constructorString];
+	switch (type) {
+		case M_Portal:
+			return new M_Portal(`start`, Pos(0, 0, 0));
+		case undefined:
+			console.error(`ough`);
+		default:
+			return new type(...color);
+	}
+}
+
 function createHTMLSliderAt(parentName, sliderName) {
 	var dummy = document.createElement(`div`);
 	var parent = document.getElementById(parentName);
@@ -8,7 +66,6 @@ function createHTMLSliderAt(parentName, sliderName) {
 		<span class="value">[!]</span>
 		<input class="slider" type="range"/>
 	</div><br id="${sliderName}_br">`;
-	// console.log(dummy, dummy.children);
 	parent.appendChild(dummy.children[0]);
 	parent.appendChild(dummy.children[0]);
 }
@@ -24,6 +81,136 @@ function createHTMLCheckboxAt(parentName, checkboxName, label) {
 	parent.appendChild(dummy.children[0]);
 }
 
+function deserialize(str) {
+	str = str.split(`||`);
+	
+	if (str.length > 1) {
+		//it's a scene3dLoop
+		var containedObj = deserialize(str[1]);
+		var base = str[0].split(`~`);
+		return new Scene3dLoop(+base[1], +base[2], +base[3], +base[4], containedObj);
+	}
+	
+	//initial processing
+	var [base, material, params] = str[0].split(`|`);
+	base = base.split(`~`);
+	material = deserializeMat(material);
+	params = params.split(`~`);
+	
+	//base structure is consistent across objects
+	var [type, pos, nature, theta, phi, rot] = base;
+	type = map_strObj[type];
+	if (!type) {
+		throw new Error(`cannot deserialize type "${type}"!`);
+	}
+	pos = JSON.parse(pos);
+	[nature, theta, phi, rot] = [+nature, +theta, +phi, +rot];
+	var posRotObj = {
+		pos: Pos(...pos),
+		theta: theta * degToRad,
+		phi: (phi - 90) * degToRad,
+		rot: rot * degToRad
+	};
+	
+	return new type(posRotObj, material, nature, ...params.map(a => +a));
+}
+
+function deserializeMat(str) {
+	var [name, params] = str.split(`:`);
+	if (params) {
+		params = params.split(`~`);
+	} else {
+		params = [];
+	}
+	var obj;
+	var type = map_strMat[name];
+	
+	switch (name) {
+		case `portal`:
+			obj = new M_Portal(params[0], Pos(...JSON.parse(params[1])));
+			break;
+		default:
+			try {
+				obj = new type(...params.map(a => +a));
+			} catch (e) {
+				console.error(`cannot parse material "${str}"!`, e);
+			}
+	}
+	return obj;
+}
+
+function syncObject_send(world, object) {
+	var reselect = world.objects.indexOf(editor_selected);
+	
+	//serialize object, then send it to all workers
+	var objStr = object.serialize();
+	var ind = world.objects.indexOf(object);
+	const adding = (ind == -1);
+	if (adding) {
+		ind = world.objects.length;
+	}
+	
+	syncObject_recieve(world.name, ind, objStr);
+	if (useCPU) {
+		worker_pool.forEach(w => {
+			w.postMessage(["syncObject", world.name, ind, objStr]);
+		});
+	} else {
+		if (!adding) {
+			setObjectEasy(world, world.objects[ind]);
+		} else {
+			createGPUWorld(world);
+		}
+	}
+	
+	if (reselect > -1) {
+		editor_select(world.objects[reselect]);
+	}
+}
+
+function syncObject_remove(world, object) {
+	var ind = world.objects.indexOf(object);
+	
+	syncObject_recieve(world.name, ind);
+	if (useCPU) {
+		worker_pool.forEach(w => {
+			w.postMessage(["syncObject", world.name, ind]);
+		});
+	} else {
+		//ouoghghh
+		createGPUWorld(world);
+	}
+}
+
+function syncObject_recieve(worldName, index, objStr) {
+	var world = worlds[worldName];
+	
+	if (!objStr) {
+		world.objects.splice(index, 1);
+	} else {
+		//replace the old object with the new object
+		var oldObj = world.objects[index];
+		var newObj = deserialize(objStr);
+		world.objects[index] = newObj;
+	}
+	
+	//update the part of the grid/tree containing the old object and new object
+	//naive approach: just replace entire grid/tree
+	if (world.grid) {
+		world.grid.generate();
+	}
+	if (world.tree) {
+		world.tree.generate();
+	}
+	if (world.bvh) {
+		console.log(`regenerating bvh!`);
+		world.bvh.generate();
+	}
+}
+
+
+
+//classes
 class Slider {
 	/**
 	* @param {String} elemGroup string in the form `parentName.sliderName`
@@ -48,6 +235,7 @@ class Slider {
 		this.numRange = [min ?? -100, max ?? 100];
 		this.varRange = this.rel ? [numMin, numMax] : [min, max];
 		this.step = stepSize;
+		this.sigFigs = Math.max(this.varRange[0].toString().length, this.varRange[1].toString().length);
 		this.var = variable;
 		
 		this.locked = false;
@@ -97,10 +285,9 @@ class Slider {
 			return;
 		}
 		
-		var sigFigs = Math.min(-Math.log10(this.step), 0);
 		try {
 			var setVal = Math.round(eval(this.var) / this.step) * this.step;
-			this.offsetLock = clamp(+(setVal.toFixed(sigFigs)), ...this.varRange);
+			this.offsetLock = clamp(+(setVal.toFixed(this.sigFigs)), ...this.varRange);
 			if (!this.rel) {
 				this.sliderElem.value = this.offsetLock;
 			}
@@ -117,11 +304,8 @@ class Slider {
 			neg = true;
 			val = -val;
 		}
-		//tiny values take up more space too. So they're factored in
-		var digitsNeeded = Math.max(Math.abs(this.varRange[0]), Math.abs(this.varRange[1]), 100 / Math.abs(this.step));
-		//log offset says number of digits - 1. Negative sign gives an extra positive digit (-99 vs 999)
-		digitsNeeded = 1 + (Math.log10(digitsNeeded) | 0) + (this.varRange[0] < 0);
-		this.valueElem.innerHTML = this.label + (neg ? `-` : ``) + val.toString().padStart(digitsNeeded - neg, "0");
+		val = val.toString().slice(0, this.sigFigs - neg).padStart(this.sigFigs - neg, `0`);
+		this.valueElem.innerHTML = this.label + (neg ? `-` : ``) + val;
 	}
 	
 	updateValue() {
@@ -265,13 +449,14 @@ var slider_tht, slider_phi, slider_rot;
 var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR;
 var slider_gyrA, slider_gyrB, slider_h, slider_e;
 var slider_skew;
+var slider_shiftX, slider_shiftY, slider_shiftZ;
 
 var slider_r, slider_g, slider_b, slider_a;
 var slider_px, slider_py, slider_pz;
 
 var textbox_world;
 
-var dropdown_obj, dropdown_mat, dropdown_axes;
+var dropdown_obj, dropdown_mat;
 
 var checkbox_gloop, checkbox_anti, checkbox_fog;
 
@@ -310,20 +495,24 @@ function editor_initialize() {
 	slider_z = new Slider(`group_pos.zSlider`, `editor_selected.pos[2]`, ``, -100,100, 1, -9999,9999);
 	
 	slider_tht = new Slider(`group_pos.thtSlider`, `editor_selected.theta`, ``, 0, 6.283, 0.01745);
-	slider_phi = new Slider(`group_pos.phiSlider`, `editor_selected.phi`, ``, -1.571, 1.571, 0.01745);
+	slider_phi = new Slider(`group_pos.phiSlider`, `editor_selected.phi`, ``, -1.57, 1.571, 0.01745);
 	slider_rot = new Slider(`group_pos.rotSlider`, `editor_selected.rot`, ``, 0, 6.283, 0.01745);
 	
 	slider_rr = new Slider(`group_radius.rrSlider`, `editor_selected.r`, `r: ${s}`, -100,100, 1, 0,1E4);
-	slider_rx = new Slider(`group_radius.rxSlider`, `editor_selected.rx`, `rx: `, -100,100, 1, 0,1E4);
-	slider_ry = new Slider(`group_radius.rySlider`, `editor_selected.ry`, `ry: `, -100,100, 1, 0,1E4);
-	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, 0,1E4);
+	slider_rx = new Slider(`group_radius.rxSlider`, `editor_selected.rx`, `rx: `, -100,100, 1, -1E3,1E4);
+	slider_ry = new Slider(`group_radius.rySlider`, `editor_selected.ry`, `ry: `, -100,100, 1, -1E3,1E4);
+	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, -1E3,1E4);
 	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, 0,20, 1, 0,1E4);
 	
 	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0,1, 0.01);
 	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,20, 0.1);
 	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -5,5, 0.1, -9999,9999);
 	slider_e = new Slider(`group_special.eSlider`, `editor_selected.e`, `e: `, -10,10, 1, -999,999);
-	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, );
+	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, -500, 500);
+	
+	slider_shiftX = new Slider(`group_special.sxSlider`, `editor_selected.shift[0]`, `sx: `, -5.999, 5.999, 0.001, );
+	slider_shiftY = new Slider(`group_special.sySlider`, `editor_selected.shift[1]`, `sy: `, -5.999, 5.999, 0.001, );
+	slider_shiftZ = new Slider(`group_special.szSlider`, `editor_selected.shift[2]`, `sz: `, -5.999, 5.999, 0.001, );
 	
 	//material sliders
 	slider_r = new Slider(`group_color.rSlider`, `editor_selected.material.color[0]`, `r: `, 0,255, 1);
@@ -366,18 +555,6 @@ function editor_initialize() {
 		return map_objStr[type];
 	}, Object.keys(map_strObj));
 	
-	dropdown_axes = new Dropdown(`axisDropdown`, (val) => {
-		var e = editor_selected;
-		if (val != null) {
-			e.swapXZ = +val[0];
-			e.swapYZ = +val[1];
-			e.swapXY = +val[2];
-			syncObject_send(loading_world, editor_selected);
-		}
-		
-		return `${e.swapXZ}${e.swapYZ}${e.swapXY}`;
-	}, [`000`, `001`, `010`, `011`, `100`, `101`, `110`, `111`]);
-	
 	dropdown_mat = new Dropdown(`materialDropdown`, (val) => {
 		if (val) {
 			var mat = createDefaultMaterial(val, editor_selected.material.color);
@@ -415,13 +592,14 @@ function editor_initialize() {
 	editor_controls = [
 		slider_fov, slider_res,
 		slider_x, slider_y, slider_z,
+		slider_shiftX, slider_shiftY, slider_shiftZ,
 		slider_tht, slider_phi, slider_rot,
 		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR,
 		slider_gyrA, slider_gyrB, slider_h, slider_skew,
 		slider_r, slider_g, slider_b, slider_a, slider_e,
 		slider_px, slider_py, slider_pz,
 
-		dropdown_obj, dropdown_mat, dropdown_axes,
+		dropdown_obj, dropdown_mat,
 		textbox_world,
 		checkbox_gloop, checkbox_anti, checkbox_fog,
 	];
@@ -442,15 +620,17 @@ function editor_initialize() {
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
 		"ELLIPSE": [...rxyz],
+		"FRACTAL": [slider_shiftX, slider_shiftY, slider_shiftZ],
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
 		"OCTAHEDRON": [...rxyz],
-		"PRISM-RHOMBUS": [...rxyz, slider_skew, dropdown_axes],
-		"PRISM-OCTAGON": [...rxyz, dropdown_axes],
-		"PRISM-HEXAGON": [...rxyz, dropdown_axes],
+		"PRISM-RHOMBUS": [...rxyz, slider_skew],
+		"PRISM-OCTAGON": [...rxyz],
+		"PRISM-HEXAGON": [...rxyz],
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
 		"SHELL": [slider_rr, slider_h],
+		"VOXEL": [],
 	};
 	
 	var rgb = [slider_r, slider_g, slider_b];
@@ -468,7 +648,6 @@ function editor_initialize() {
 }
 
 function editor_addObj(e, optionalConstructor) {
-	console.log(e, optionalConstructor);
 	var obj = createDefaultObject(optionalConstructor ?? `BOX`);
 	syncObject_send(loading_world, obj);
 }
@@ -493,12 +672,28 @@ function editor_select(object) {
 	});
 	
 	//show the appropriate editor panel and appropriate material panel
+	
+	//default sliders everything should see
 	var shouldSee = [
 		slider_fov, slider_res, 
 		dropdown_obj,
 		slider_x, slider_y, slider_z,
-		slider_tht, slider_phi, slider_rot
 	];
+	
+	var thetaless = [Sphere, Shell];
+	var philess = [Sphere, Shell];
+	var rotless = [Sphere, Shell, Capsule, Cylinder, Ring, Fractal];
+	
+	if (!thetaless.includes(editor_selected.constructor)) {
+		shouldSee.push(slider_tht);
+	}
+	if (!philess.includes(editor_selected.constructor)) {
+		shouldSee.push(slider_phi);
+	}
+	if (!rotless.includes(editor_selected.constructor)) {
+		shouldSee.push(slider_rot);
+	}
+	
 	if (editor_selected != player) {
 		shouldSee = shouldSee.concat(checkbox_gloop, checkbox_anti, checkbox_fog);
 	}
