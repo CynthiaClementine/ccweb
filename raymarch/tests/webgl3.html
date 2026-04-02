@@ -27,10 +27,13 @@
 	<script type="fragment" id="fs">
 		#version 300 es
 		precision highp float;
-		// precision highp sampler2DArray;
 		
 		in vec3 vColor;
 		out vec4 fragColor;
+		
+		void main() {
+			fragColor = vec4(0.1, 0.2, 0.3, 1.0);
+		}
 		
 		// uniform int uDebug;
 		// uniform vec2 uResolution;
@@ -40,22 +43,11 @@
 		// uniform int uCamWorld;
 		// uniform sampler2DArray uUniverseTex;
 		// uniform sampler2D uUniverseBVHs;
-
-		void main() {
-			fragColor = vec4(vColor, 1.0);
-		}
 	</script>
 	
 	<canvas id="glbox"></canvas>
 	<script>
-	
-	
-	
-render_n = 512;
-
-
-window.onload = setup;
-
+		window.onload = setup;
 var canvas;
 var gl;
 var program;
@@ -134,17 +126,13 @@ function setupGLState(vertexShaderCode, fragmentShaderCode) {
 function feedGPU() {
 	gl.uniform2f(uResolution, canvas.width, canvas.height);
 	gl.uniform1f(uTime, 1);
+	gl.clear(gl.COLOR_BUFFER_BIT);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 	
 	const err = gl.getError();
 	if (err !== gl.NO_ERROR) {
 		console.log(`GL ERROR`, err);
 	}
-}
-
-function draw() {
-	gl.clear(gl.COLOR_BUFFER_BIT);
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
 function GPU_transferObj(world, object) {
@@ -189,6 +177,7 @@ function main() {
 	feedGPU();
 }
 
+var render_n = 512;
 function resize() {
 	var width = window.innerWidth - 10;
 	var height = window.innerHeight - 10;

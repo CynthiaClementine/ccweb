@@ -36,7 +36,7 @@
 		}
 	</script>
 	
-	<canvas id="webgl-canvas"></canvas>
+	<canvas id="glbox"></canvas>
 	<script>
 		window.onload = setup;
 		
@@ -49,7 +49,7 @@
 		}
 		
 		async function setup() {
-			canvas = document.getElementById("webgl-canvas");
+			canvas = document.getElementById("glbox");
 			gl = canvas.getContext("webgl2");
 			if (!gl) {
 				console.error("WebGL 2 not available");
