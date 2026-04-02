@@ -41,49 +41,161 @@ class Player {
 		this.dMin = 0.05;
 
 		this.speed = 0.07;
-		this.jumpSpeed = 3;
-		this.friction = 0.8;
+		this.jumpSpeed = 6;
+		this.dashBase = 3;
+		this.dashMult = 1.5;
+		this.frictionBrake = 0.8;
+		this.frictionGround = 0.98;
+		this.frictionAir = 0.995;
 
 		this.gravity = 0.1;
 		this.fallMax = 10;
-		this.onGround = false;
 
-		this.height = 10;
+		this.height = player_width;
 		this.width = player_width;
 
+		this.colPoints = 16;
+		this.colPanicThreshold = 0.75;
+		
 		this.theta = 0;
 		this.phi = 0;
 	}
 
 	tick() {
 		this.updateMomentum();
+		
+		//take 2 half-steps
+		this.dPos[0] /= 2;
+		this.dPos[1] /= 2;
+		this.dPos[2] /= 2;
 		this.updatePosition();
+		this.updatePosition();
+		this.dPos[0] *= 2;
+		this.dPos[1] *= 2;
+		this.dPos[2] *= 2;
+		
+		
 		camera.world = this.world;
-		camera.pos = this.pos;
+		camera.pos = Pos(this.pos[0], this.pos[1] + this.height / 2, this.pos[2]);
 		camera.theta = this.theta;
 		camera.phi = this.phi;
 	}
 
 	updateMomentum() {
+		//transform dPos to relative coordinates
+		[this.dPos[0], this.dPos[2]] = rotate(this.dPos[0], this.dPos[2], this.theta);
+		
+		this.updateSubMomentum();
+		
+		//transform back to real coordinates
+		[this.dPos[0], this.dPos[2]] = rotate(this.dPos[0], this.dPos[2], -this.theta);
+	}
+	
+	updateSubMomentum() {
+		//update each axis
 		this.updateMomentumAxis(0);
 
 		//gravity
-		this.dPos[1] -= this.gravity;
+		if (this.onGround()) {
+			this.dPos[1] *= this.frictionBrake;
+		} else {
+			this.dPos[1] -= this.gravity;
+		}
 		this.dPos[1] = clamp(this.dPos[1], -this.fallMax, this.fallMax);
+		this.dPos[1] *= this.frictionAir;
 		
 		this.updateMomentumAxis(2);
 	}
 	
 	updateMomentumAxis(num) {
-		this.dPos[num] += this.aPos[num];
-		if (Math.abs(this.dPos[num]) > this.dMax) {
-			this.dPos[num] = clamp(this.dPos[num], -this.dMax, this.dMax);
+		const inRange = (Math.abs(this.dPos[num]) < this.dMax);
+		const decelerating = (this.aPos[num] * this.dPos[num] <= 0);
+		if (inRange) {
+			this.dPos[num] += this.aPos[num];
 		}
-		if (this.aPos[num] * this.dPos[num] <= 0) {
-			this.dPos[num] *= this.friction;
+		if (decelerating) {
+			this.dPos[num] *= this.frictionBrake;
+		}
+		if (!inRange && this.onGround()) {
+			this.dPos[num] *= this.frictionGround;
+		}
+		if (!inRange) {
+			this.dPos[num] *= this.frictionAir;
 		}
 	}
-
+	
+	//collides as a sphere with the terrain, modifies dPos, returns the number of places the sphere has collided
+	sphereBounce(spherePos, dPos, div) {
+		const pi = Math.PI;
+		const twoPi = 2 * pi;
+		const halfPi = pi / 2;
+		const [max, abs] = [Math.max, Math.abs];
+		const needsAdjustment = (max(abs(dPos[0]), abs(dPos[1]), abs(dPos[2])) > 0.0001) 
+							 && (max(abs(dPos[0]), abs(dPos[1]), abs(dPos[2])) > 0.0001);
+		
+		var numCollisions = 0;
+		var colVec = [0, 0, 0];
+		//go through the surface of the sphere in equal-angle measurements
+		//collide with each point to approximate colliding with the sphere
+		for (var p=-div/4; p<=div/4; p++) {
+			const phi = p * twoPi / div;
+			const tSteps = (Math.abs(p) == div / 4) ? 1 : div;
+			
+			for (var t=0; t<tSteps; t++) {
+				const theta = t * twoPi / div;
+				const offsetVec = polToCart(theta, phi, 1);
+				if (this.rayBounce(spherePos, [0, 0, 0], offsetVec)) {
+					//if we've collided, bounce and change velocity
+					numCollisions += 1;
+					
+					if (needsAdjustment) {
+						colVec = normalize(colVec);
+						var colProj = proj(dPos, offsetVec);
+						dPos[0] -= colProj[0];
+						dPos[1] -= colProj[1];
+						dPos[2] -= colProj[2];
+					}
+				}
+			}
+		}
+		
+		return numCollisions;
+	}
+	
+	rayBounce(spherePos, dPos, vec) {
+		const w = this.width;
+		var pos = Pos(spherePos[0] + vec[0]*w, spherePos[1] + vec[1]*w, spherePos[2] + vec[2]*w);
+		var [dist, distObj] = this.world.tree.estimatePos(pos);
+		distObj = this.world.objects[distObj];
+		
+		//hit
+		if (dist < ray_minDist) {
+			var saved = distObj.material;
+			//weirdness because the actual pos being passed out is different from the test pos
+			if (this.portalTest(distObj, pos)) {
+				spherePos[0] += saved.offset[0];
+				spherePos[1] += saved.offset[1];
+				spherePos[2] += saved.offset[2];
+				return 0;
+			}
+			
+			//if the normal is pointing in roughly the right direction, push out slightly to prevent clipping into surfaces
+			var normal = distObj.normalAt(pos);
+			if (dot(normal, vec) < -0.5) {
+				var e = 0.05;
+				spherePos[0] += normal[0] * e;
+				spherePos[1] += normal[1] * e;
+				spherePos[2] += normal[2] * e;
+			}
+			
+			dPos[0] -= vec[0];
+			dPos[1] -= vec[1];
+			dPos[2] -= vec[2];
+			return 1;
+		}
+		return 0;
+	}
+	
 	updatePosition() {
 		/* movement follows a simple 3-part plan
 		1. cast ray upwards from self's feet
@@ -93,116 +205,115 @@ class Player {
 		This makes sure that the movement is always valid, because there has to be an unobstructed path 
 		between the previous position and the new position.
 		It also allows the player to step up slopes.
+		
+		The basic idea for every individual movement part is this:
+			use a sphere to detect collisions. Any collisions will change momentum and prevent the sphere from moving,
+			So there's this repeated pattern of
+			move a tiny bit -> check if collision
+			if no: cool
+			if yes: move back that same tiny bit -> break
 		 */
 
 		//before any raycasts, housekeeping
-		var speedMultiplier = 1 + controls_shiftPressed * (1 + editor_active * 7);
-		var feetCoords = Pos(this.pos[0], this.pos[1] - this.height + 1, this.pos[2]);
-		var headCoords = Pos(this.pos[0], this.pos[1], this.pos[2]);
-		var axisVecs = [
-			polToCart(this.theta + (Math.PI / 2), 0, 1),
-			[0, 1, 0],
-			polToCart(this.theta, 0, 1),
-		];
-		var dVec = Pos(this.dPos[0] * speedMultiplier, this.dPos[1], this.dPos[2] * speedMultiplier);
+		const zeroPos = Pos(0, 0, 0);
+		//calculate number of collision points on the sphere. If we ever collide with too many, the sphere is being CRUSHED!
+		const panicPoints = (this.colPoints * (this.colPoints / 2 - 1) + 2) * this.colPanicThreshold;
+		var coords = Pos(this.pos[0], this.pos[1], this.pos[2]);
+		var dChange = Pos(...this.dPos);
+		var dHat = normalize(this.dPos);
 		
+		//don't even bother if dPos is too small
+		var [max, abs] = [Math.max, Math.abs];
+		if (max(abs(dChange[0]), abs(dChange[1]), abs(dChange[2])) < 0.0001) {
+			this.dPos[0] = 0;
+			this.dPos[1] = 0;
+			this.dPos[2] = 0;
+			return;
+		}
+		
+		if (dChange[0] != 0 || dChange[1] != 0 || dChange[2] != 0) {
+			var simp = (a) => {return a.map(b => b.toFixed(2));};
+		}
+		
+		//sphereBounce at the start for portals!
+		// this.sphereBounce(coords, [0, 0, 0], this.colPoints);
 		
 		//go up
-		var lookRay = new Ray_Tracking(this.world, feetCoords, axisVecs[1], player_stepHeight);
-		lookRay.iterate(0);
-		feetCoords[1] += lookRay.distance;
+		this.updateSubPosition(Pos(0, 1, 0), player_stepHeight, coords, Pos(0, 0, 0), panicPoints);
 		
-		//sideways
-		var trueI = 0;
-		for (var i=0; i<3; i++) {
-			var vHat = axisVecs[i];
-			var len = dVec[i];
-			
-			var obj1 = this.tryMovementOnAxis(feetCoords, vHat, len);
-			var obj2 = this.tryMovementOnAxis(headCoords, vHat, len);
-			var trueObj = (obj1 ?? obj2);
-			
-			//there comes a point at which you just give up and make a special case for portals
-			if (trueObj && trueObj.material.constructor.name == `M_Portal`) {
-				this.portalTest(trueObj, headCoords);
-				trueObj = null;
-			}
-			
-			//simple unobstructed movement
-			if (!trueObj) {
-				feetCoords[0] += vHat[0] * len;
-				feetCoords[1] += vHat[1] * len;
-				feetCoords[2] += vHat[2] * len;
-				
-				headCoords[0] += vHat[0] * len;
-				headCoords[1] += vHat[1] * len;
-				headCoords[2] += vHat[2] * len;
-				continue;
-			}
-			
-			//landing on the ground
-			if (i == 1) {
-				if (Math.abs(dVec[i]) > player_bounceThreshold) {
-					dVec[i] *= -trueObj.material.bounciness;
-				} else {
-					dVec[i] = 0;
-					this.onGround = true;
-				}
-				continue;
-			}
-			
-			//use SDF + normal to push self out
-			var [dist, normal] = [trueObj.distanceToPos(feetCoords), trueObj.normalAt(feetCoords)];
-			var [dist2, normal2] = [trueObj.distanceToPos(headCoords), trueObj.normalAt(headCoords)];
-			// var obj = this.tryMovementOnAxis(feetCoords, axisVecs[i], -Math.sign(dVec[i]));
-			if (dist > dist2) {
-				dist = dist2;
-				normal = normal2;
-			}
-			
-			if (true || dist < 0) {
-				var vDot = dot(vHat, normal);
-				var vProj = [normal[0] * vDot, normal[1] * vDot, normal[2] * vDot];
-				vHat[0] -= vProj[0];
-				vHat[1] -= vProj[1];
-				vHat[2] -= vProj[2];
-				dVec[i] *= 0.7 + 0.3 * Math.cos(vDot);
-				// dVec[i] = dVec[i] * Math.sqrt(dot(axisVecs[i], axisVecs[i]));
-				axisVecs[i] = normalize(vHat);
-				i -= 1;
-				trueI += 1;
-			}
-			
-			var squidgeLen = -Math.min(dist - this.width * ray_minDist, 0);
-			
-			if (trueI > 10) {
-				console.error(`too many movement iterations!`);
-				i = trueI;
-				squidgeLen = 1;
-			}
-			
-			feetCoords[0] += normal[0] * squidgeLen;
-			feetCoords[1] += normal[1] * squidgeLen;
-			feetCoords[2] += normal[2] * squidgeLen;
-			
-			headCoords[0] += normal[0] * squidgeLen;
-			headCoords[1] += normal[1] * squidgeLen;
-			headCoords[2] += normal[2] * squidgeLen;
+		//"sideways" (in reality can have a vertical component. This just means apply dPos)
+		var speed = getDistancePos(this.dPos, zeroPos);
+		if (speed > 30) {
+			console.log(`too fast!`);
+			speed = 30;
 		}
 		
-		//go back down. Hacky solution with the +1 but it works
-		var lookRay = new Ray_Tracking(this.world, feetCoords, Pos(0, -1, 0), (player_stepHeight + 1));
-		lookRay.iterate(0);
-		if (lookRay.object) {
-			this.portalTest(lookRay.object, feetCoords);
-		}
-		feetCoords[1] -= lookRay.distance;
+		this.updateSubPosition(dHat, speed, coords, dChange, panicPoints);
+		
+		//go back down
+		this.updateSubPosition(Pos(0, -1, 0), player_stepHeight + 1, coords, Pos(0, 0, 0), panicPoints);
+		
+		//never bounce back faster than we started
 		
 		//update real coordinates
-		this.dPos[0] = dVec[0] / speedMultiplier;
-		this.dPos[1] = dVec[1];
-		this.dPos[2] = dVec[2] / speedMultiplier;
-		this.pos = Pos(feetCoords[0], feetCoords[1] + this.height, feetCoords[2]);
+		// var initialSpeed = getDistancePos(this.dPos, zeroPos);
+		this.dPos[0] = dChange[0];
+		this.dPos[1] = dChange[1];
+		this.dPos[2] = dChange[2];
+		// var finalSpeed = getDistancePos(this.dPos, zeroPos);
+		// if (finalSpeed > initialSpeed) {
+		// 	this.dPos[0] *= initialSpeed / finalSpeed;
+		// 	this.dPos[1] *= initialSpeed / finalSpeed;
+		// 	this.dPos[2] *= initialSpeed / finalSpeed;
+		// }
+		
+		this.pos[0] = coords[0];
+		this.pos[1] = coords[1];
+		this.pos[2] = coords[2];
+	}
+	
+	/**
+	* Updates the current position based on a vector.
+	* @param {Pos} vHat vector to move in the direction of. Is modified by the function.
+	* @param {Number} speed the speed at which to move in said direction
+	* @param {Pos} coords the current player position. Is modified by the function.
+	* @param {Pos} vChange buffer to store how the dPos should be changed. Is modified by the function.
+	* @param {Number} panicPoints number of collision points to panic at
+	 */
+	updateSubPosition(vHat, speed, coords, vChange, panicPoints) {
+		//take tiny steps - max dist of 1 for each step
+		for (0; speed>0; speed-=1) {
+			var tickDist = Math.min(1, speed);
+			var frameOffset = [vHat[0] * tickDist, vHat[1] * tickDist, vHat[2] * tickDist];
+			
+			coords[0] += frameOffset[0];
+			coords[1] += frameOffset[1];
+			coords[2] += frameOffset[2];
+			var colNum = this.sphereBounce(coords, vChange, this.colPoints);
+			
+			//if we've collided
+			if (colNum > 0) {
+				coords[0] -= frameOffset[0];
+				coords[1] -= frameOffset[1];
+				coords[2] -= frameOffset[2];
+			
+				if (colNum < panicPoints) {
+					speed *= 0.7;
+					//counteract the -1 from looping if we are moving
+					if (speed > 0.01) {
+						speed += 1;
+					}
+				} else {
+					//panic collision
+					console.log(`panic!`);
+					coords[1] += 1.5;
+					vChange[0] *= 1.1;
+					vChange[1] *= 1.1;
+					vChange[2] *= 1.1;
+					speed = 0;
+				}
+			}
+		}
 	}
 	
 	portalTest(obj, coords) {
@@ -213,8 +324,10 @@ class Player {
 				coords[0] += mat.offset[0];
 				coords[1] += mat.offset[1];
 				coords[2] += mat.offset[2];
+				return true;
 			}
 		}
+		return false;
 	}
 	
 	tryMovementOnAxis(pos, axisVec, distance) {
@@ -235,14 +348,29 @@ class Player {
 		}
 	}
 	
+	onGround() {
+		var lookRay = new Ray_Tracking(this.world, this.pos, Pos(0, -1, 0), this.width + player_stepHeight);
+		lookRay.iterate(0);
+		return (lookRay.object != null);
+	}
+	
 	dash() {
-		
+		var speed = getDistancePos(this.dPos, Pos(0, 0, 0));
+		if (speed > this.speed && speed < this.dashBase) {
+			this.dPos = normalize(this.dPos);
+			this.dPos[0] *= this.dashBase;
+			this.dPos[1] *= this.dashBase;
+			this.dPos[2] *= this.dashBase;
+		}
+		this.dPos[0] *= this.dashMult;
+		this.dPos[1] *= this.dashMult;
+		this.dPos[2] *= this.dashMult;
 	}
 
 	jump() {
-		if (true || this.onGround) {
+		//if the ray's hit an object then the player is on the ground
+		if (this.onGround()) {
 			this.dPos[1] = this.jumpSpeed;
-			this.onGround = false;
 		}
 	}
 }
@@ -254,9 +382,12 @@ class Player_Debug extends Player {
 		this.speed = 0.4;
 	}
 	
-	updateMomentum() {
+	updateSubMomentum() {
 		this.updateMomentumAxis(0);
+		//player will fall slowly due to stepping if they're not rising constantly
+		this.dPos[1] -= 2;
 		this.updateMomentumAxis(1);
+		this.dPos[1] += 2;
 		this.updateMomentumAxis(2);
 	}
 }
@@ -268,21 +399,16 @@ class Player_Noclip extends Player {
 		this.speed = 0.4;
 	}
 	
-	updateMomentum() {
+	updateSubMomentum() {
 		this.updateMomentumAxis(0);
 		this.updateMomentumAxis(1);
 		this.updateMomentumAxis(2);
 	}
 	
 	updatePosition() {
-		var axisVecs = [
-			polToCart(this.theta + (Math.PI / 2), 0, 1),
-			[0, 1, 0],
-			polToCart(this.theta, 0, 1),
-		];
 		const dPos = this.dPos;
-		this.pos[0] += axisVecs[0][0] * dPos[0] + axisVecs[1][0] * dPos[1] + axisVecs[2][0] * dPos[2];
-		this.pos[1] += axisVecs[0][1] * dPos[0] + axisVecs[1][1] * dPos[1] + axisVecs[2][1] * dPos[2];
-		this.pos[2] += axisVecs[0][2] * dPos[0] + axisVecs[1][2] * dPos[1] + axisVecs[2][2] * dPos[2];
+		this.pos[0] += dPos[0];
+		this.pos[1] += dPos[1];
+		this.pos[2] += dPos[2];
 	}
 }
