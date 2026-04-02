@@ -47,6 +47,9 @@ class Ray {
 			//get distance
 			const distObj = this.world.tree.estimate(this);
 			var dist = distObj.distanceToPos(this.pos) * ray_safetyMult;
+			if (distObj.nature & N_ANTI) {
+				dist = -dist;
+			}
 			
 			this.localDist = dist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
@@ -129,6 +132,10 @@ class Ray_Tracking {
 			//get distance
 			const distObj = this.world.tree.estimate(this);
 			var dist = distObj.distanceToPos(this.pos);
+			if (distObj.nature & N_ANTI) {
+				dist = -dist;
+			// 	dist = Math.max(-dist, ray_minDist * 1.1);
+			}
 			if (distObj.nature & N_FOG) {
 				dist = Math.max(dist, ray_nearDist * 0.9);
 			}
@@ -176,6 +183,10 @@ class BVH {
 	}
 	
 	generate() {
+		if (this.world.objects.length == 0) {
+			this.root = new BVH_Node(Pos(0, 0, 0), Pos(0, 0, 0), -1, null, null);
+			return;
+		}
 		var sorted = sortByMorton(this.world.objects);
 		this.root = this.generateSubtree(sorted, 0, sorted.length - 1);
 	}
@@ -299,7 +310,7 @@ class ObjectGrid {
 	constructor(world, l) {
 		this.l = l;
 		this.world = world;
-		this.objects = world.objects;
+		this.objs = world.objects;
 		this.chunks = [];
 		this.xd = 0;
 		this.yd = 0;
@@ -309,7 +320,7 @@ class ObjectGrid {
 	}
 	
 	binObject(obj) {
-		var index = this.objects.indexOf(obj);
+		var index = this.objs.indexOf(obj);
 		var [min, max] = obj.bounds();
 		min = this.calcGridCoords(min);
 		max = this.calcGridCoords(max);
@@ -340,25 +351,33 @@ class ObjectGrid {
 	}
 	
 	generate() {
-		this.objects = this.world.objects;
+		this.objs = this.world.objects;
 		//generate bounds
 		var min = [1e1001, 1e1001, 1e1001];
 		var max = [-1e101, -1e101, -1e101];
-		this.objects.forEach(o => {
+		this.objs.forEach(o => {
+			if (!o) {
+				throw new Error(`Block Bounds Error: undefined object!`);
+			}
 			var bounds = o.bounds();
 			for (var a=0; a<=2; a++) {
 				min[a] = Math.min(min[a], bounds[0][a]);
 				max[a] = Math.max(max[a], bounds[1][a]);
-				if (Number.isNaN(min[a]) || Number.isNaN(bounds[0][a])) {
-					throw new Error("something has gone horribly wrong with block bounds.");
+				if (Number.isNaN(bounds[0][a])) {
+					console.error(bounds);
+					throw new Error(`Block Bounds Error: bounds aren't calculated correctly!`);
+				}
+				if (Number.isNaN(min[a])) {
+					throw new Error(`Block Bounds Error: what`);
 				}
 			}
 		});
 		this.minPos = min;
 		this.maxPos = max;
-		this.xd = (max[0] - min[0]) / this.l;
-		this.yd = (max[1] - min[1]) / this.l;
-		this.zd = (max[2] - min[2]) / this.l;
+		const len = this.l;
+		this.xd = (max[0] - min[0]) / len;
+		this.yd = (max[1] - min[1]) / len;
+		this.zd = (max[2] - min[2]) / len;
 		
 		if (Number.isNaN(this.xd)) {
 			throw new Error("something has gone horribly wrong with block bounds..");
@@ -368,7 +387,6 @@ class ObjectGrid {
 		
 		//generate object estimate grid
 		this.chunks = [];
-		const len = this.l;
 		for (var x=0; x<len; x++) {
 			this.chunks[x] = [];
 			for (var y=0; y<len; y++) {
@@ -408,7 +426,7 @@ class ObjectGrid {
 		}
 		
 		//add all objects to the estimate grid
-		this.objects.forEach(o => {
+		this.objs.forEach(o => {
 			this.binObject(o);
 		});
 	}
@@ -425,8 +443,8 @@ class ObjectGrid {
 		
 		var set = this.chunks[gridPos[0]][gridPos[1]][gridPos[2]];
 		set.forEach(i => {
-			var testDist = this.objects[i].distanceToPos(pos);
-			if (testDist < dist) {
+			var testDist = applyDist(dist, this.objs[i].distanceToPos(pos), this.objs[i].nature);
+			if (testDist != dist) {
 				dist = testDist;
 				distInd = i;
 			}
@@ -440,7 +458,7 @@ class ObjectGrid {
 	
 	estimate(obj) {
 		//technically a little bit of wasted work. But it's probably fine
-		return this.objects[this.estimatePos(obj.pos)[1]];
+		return this.objs[this.estimatePos(obj.pos)[1]];
 	}
 }
 
@@ -455,7 +473,6 @@ TINYOBJS:
 	ind:		9--60ms, uses 5mb
 	tor:		9--60ms, uses 2mb
 */
-
 class BrickGridTor {
 	constructor(world, l, d) {
 		this.l = l;

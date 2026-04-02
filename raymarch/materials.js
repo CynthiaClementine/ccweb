@@ -159,6 +159,8 @@ class M_Normal extends Material {
 		super(M_NORMAL, Color4(0, 0, 0, 255), 0);
 	}
 	
+	applyNearEffect(ray) {}
+	
 	applyHitEffect(ray, object) {
 		const normal = object.normalAt(ray.pos);
 		const color = Color4(128 + normal[0] * 127, 128 + normal[1] * 127, 128 + normal[2] * 127, 255);

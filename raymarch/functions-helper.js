@@ -32,6 +32,20 @@ function applyColor(paintColor, baseColor) {
 	baseColor[3] += paintColor[3] * availableOpacity;
 }
 
+/**
+* returns an updated signed distance based on an old/new distance and an object's nature.
+ */
+function applyDist(oldDist, testDist, nature) {
+	if (nature & N_FOG) {
+		testDist = Math.max(testDist, ray_nearDist * 0.9);
+	}
+	if (nature & N_ANTI) {
+		return Math.max(-testDist, oldDist);
+	}
+
+	return Math.min(testDist, oldDist);
+}
+
 function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
 	var xVec = transform([rx, 0, 0], [0, 0, 0], theta, phi, rot);
 	var yVec = transform([0, ry, 0], [0, 0, 0], theta, phi, rot);
@@ -42,8 +56,6 @@ function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
 	const bestX = (Math.abs(xVec[0]) + Math.abs(yVec[0]) + Math.abs(zVec[0]));
 	const bestY = (Math.abs(xVec[1]) + Math.abs(yVec[1]) + Math.abs(zVec[1]));
 	const bestZ = (Math.abs(xVec[2]) + Math.abs(yVec[2]) + Math.abs(zVec[2]));
-	
-	console.log(bestX, bestY, bestZ);
 
 	return [
 		Pos(pos[0] - bestX, pos[1] - bestY, pos[2] - bestZ),
@@ -52,15 +64,15 @@ function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
 }
 
 //gives the "bounds angle" - the angle between 0 and pi/2 that acts the same as the given angle for bounding boxes.
-	function boundsAngle(radians) {
-		if (radians >= Math.PI) {
-			radians -= Math.PI;
-		}
-		if (radians < Math.PI / 2) {
-			return radians;
-		}
-		return Math.PI - radians;
+function boundsAngle(radians) {
+	if (radians >= Math.PI) {
+		radians -= Math.PI;
 	}
+	if (radians < Math.PI / 2) {
+		return radians;
+	}
+	return Math.PI - radians;
+}
 
 
 function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
@@ -104,68 +116,10 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 	return colors;
 }
 
-function createCloud() {
-
-}
-
 function constrainPlayer(xRange, yRange, zRange) {
 	player.pos[0] = modulate(player.pos[0] + xRange, 2 * xRange) - xRange;
 	player.pos[1] = modulate(player.pos[1] + yRange, 2 * yRange) - yRange;
 	player.pos[2] = modulate(player.pos[2] + zRange, 2 * zRange) - zRange;
-}
-
-function createDefaultObject(constructorString, objRef) {
-	console.log(constructorString, objRef);
-	var type = map_strObj[constructorString];
-	objRef = objRef ?? {};
-	
-	//steal properties from old object
-	var material = objRef.material ?? new M_Color(255, 0, 255);
-	pos = objRef.pos;
-	if (!pos) {
-		var offset = polToCart(camera.theta, camera.phi, 100);
-		var r = Math.round;
-		pos = Pos(r(camera.pos[0] + offset[0]), r(camera.pos[1] + offset[1]), r(camera.pos[2] + offset[2]));
-	}
-	var arg1 = objRef.r ?? objRef.rx ?? 10;
-	var arg2 = objRef.h ?? objRef.ry ?? 10;
-	var arg3 = objRef.rz ?? 10;
-	var arg4 = objRef.e ?? 1;
-	var arg5 = 12;
-	var arg6 = 6;
-	if (objRef.constructor.name == `Gyroid` && type.constructor.name == `Gyroid`) {
-		[arg4, arg5, arg6] = [objRef.a, objRef.b, objRef.h];
-	}
-	
-	//actually create the thing
-	return new type(pos, material, 0, arg1, arg2, arg3, arg4, arg5, arg6, 10, 10, 10, 10, 10);
-}	
-
-/**
-* @param {String} constructorString
-* @param {Color4|undefined} color
- */
-function createDefaultMaterial(constructorString, color) {
-	color = color ?? [];
-	color[0] = color[0] ?? 255;
-	color[1] = color[1] ?? 0;
-	color[2] = color[2] ?? 255;
-	color[3] = color[3] ?? 128;
-	var type = map_strMat[constructorString];
-	switch (type) {
-		case M_Portal:
-			return new M_Portal(`start`, Pos(0, 0, 0));
-		case undefined:
-		default:
-			console.error(`ough`);
-		case M_Color:
-		case M_Concrete:
-		case M_Ghost:
-		case M_Glass:
-		case M_Mirror:
-		case M_Rubber:
-			return new type(...color);
-	}
 }
 
 //tests whether the keys in dictionary A and B are the same
@@ -191,63 +145,17 @@ function keysMatch(dictA, dictB) {
 	return (s.size == 0);
 }
 
-
-function deserialize(str) {
-	str = str.split(`||`);
-	
-	if (str.length > 1) {
-		//it's a scene3dLoop
-		var containedObj = deserialize(str[1]);
-		var base = str[0].split(`~`);
-		return new Scene3dLoop(+base[1], +base[2], +base[3], +base[4], containedObj);
-	}
-	
-	//initial processing
-	var [base, material, params] = str[0].split(`|`);
-	base = base.split(`~`);
-	material = deserializeMat(material);
-	params = params.split(`~`);
-	
-	//base structure is consistent across objects
-	var [type, pos, nature, theta, phi, rot] = base;
-	type = map_strObj[type];
-	if (!type) {
-		throw new Error(`cannot deserialize type "${type}"!`);
-	}
-	pos = JSON.parse(pos);
-	[nature, theta, phi, rot] = [+nature, +theta, +phi, +rot];
-	var posRotObj = {
-		pos: Pos(...pos),
-		theta: theta,
-		phi: phi,
-		rot: rot
-	};
-	
-	return new type(posRotObj, material, nature, ...params.map(a => +a));
-}
-
-function deserializeMat(str) {
-	var [name, params] = str.split(`:`);
-	if (params) {
-		params = params.split(`~`);
-	} else {
-		params = [];
-	}
-	var obj;
-	var type = map_strMat[name];
-	
-	switch (name) {
-		case `portal`:
-			obj = new M_Portal(params[0], Pos(...JSON.parse(params[1])));
-			break;
-		default:
-			try {
-				obj = new type(...params.map(a => +a));
-			} catch (e) {
-				console.error(`cannot parse material "${str}"!`, e);
-			}
-	}
-	return obj;
+/**
+* takes in two 3d vectors and returns the projection of a onto b
+* @param {Number[]} a the first 3d vector
+* @param {Number[]} b the direction to project to
+ */
+function proj(a, b) {
+	const ab = dot(a, b);
+	const bb = dot(b, b);
+	const mult = ab / bb;
+	//proj = v(u•v / v•v)
+	return [b[0] * mult, b[1] * mult, b[2] * mult];
 }
 
 /**
@@ -407,76 +315,6 @@ function BVHUnion(node1, node2) {
 	return new BVH_Node(minPos, maxPos, null, node1, node2);
 }
 
-
-function syncObject_send(world, object) {
-	var reselect = world.objects.indexOf(editor_selected);
-	
-	//serialize object, then send it to all workers
-	var objStr = object.serialize();
-	var ind = world.objects.indexOf(object);
-	const adding = (ind == -1);
-	if (adding) {
-		ind = world.objects.length;
-	}
-	
-	syncObject_recieve(world.name, ind, objStr);
-	if (useCPU) {
-		worker_pool.forEach(w => {
-			w.postMessage(["syncObject", world.name, ind, objStr]);
-		});
-	} else {
-		if (!adding) {
-			setObjectEasy(world, world.objects[ind]);
-		} else {
-			createGPUWorld(world);
-		}
-	}
-	
-	if (reselect > -1) {
-		editor_select(world.objects[reselect]);
-	}
-}
-
-function syncObject_remove(world, object) {
-	var ind = world.objects.indexOf(object);
-	
-	syncObject_recieve(world.name, ind);
-	if (useCPU) {
-		worker_pool.forEach(w => {
-			w.postMessage(["syncObject", world.name, ind]);
-		});
-	} else {
-		//ouoghghh
-		createGPUWorld(world);
-	}
-}
-
-function syncObject_recieve(worldName, index, objStr) {
-	var world = worlds[worldName];
-	
-	if (!objStr) {
-		world.objects.splice(index, 1);
-	} else {
-		//replace the old object with the new object
-		var oldObj = world.objects[index];
-		var newObj = deserialize(objStr);
-		world.objects[index] = newObj;
-	}
-	
-	//update the part of the grid/tree containing the old object and new object
-	//naive approach: just replace entire grid/tree
-	if (world.grid) {
-		world.grid.generate();
-	}
-	if (world.tree) {
-		world.tree.generate();
-	}
-	if (world.bvh) {
-		console.log(`regenerating bvh!`);
-		world.bvh.generate();
-	}
-}
-
 function modulate(x, num) {
 	return (x < 0) ? num + (x % num) : x % num;
 }
@@ -497,19 +335,6 @@ function performanceTest() {
 
 	for (var x=0; x<100000000; x++) {
 		storage += Math.sqrt(x % 10000) * (2 * (x % 1) - 1);
-	}
-
-	perf[1] = performance.now();
-	console.log(storage, perf[1] - perf[0]);
-	return;
-}
-
-function performanceTest2() {
-	var perf = [performance.now(), 0];
-	var storage = 0;
-
-	for (var x=0; x<100000000; x++) {
-		storage += fastSqrt(x % 10000) * (2 * (x % 1) - 1);
 	}
 
 	perf[1] = performance.now();
@@ -567,48 +392,6 @@ function threadExec(code) {
 	worker_pool.forEach(w => {
 		w.postMessage([`test`, code]);
 	});
-}
-
-function test_gridVsTree(x, y, z) {
-	var grid = loading_world.grid;
-	var tempObj = {pos: Pos(x, y, z)};
-	var a = loading_world.tree.estimate(tempObj);
-	a = [distObj.distanceToPos(tempObj.pos), a];
-	var b = grid.estimatePos(Pos(x,y,z));
-	if (Math.abs(a[0] - b[0]) > 0.01 || a[1] != loading_world.objects[b[1]]) {
-		console.log(`pos (${x},${y},${z}) or grid (${(x-grid.minPos[0])/grid.xd},${(y-grid.minPos[1])/grid.yd},${(z-grid.minPos[2])/grid.zd}) fails test! 
-			Tree: o@${loading_world.objects.indexOf(a[1])} w/ ${a[0]}
-			Grid: o@${b[1]} w/ ${b[0]}`);
-		return false;
-	}
-	return true;
-}
-function test_gridVsWorld(x, y, z) {
-	var grid = loading_world.grid;
-	var a = grid.estimatePos(Pos(x,y,z));
-	var b = loading_world.estimatePos(Pos(x,y,z));
-	
-	function f(x) {
-		return x.toFixed(2);
-	}
-	if ((a[0] - b[0]) > 0.01 || a[1] != b[1]) {
-		console.log(`pos (${f(x)},${f(y)},${f(z)}) or grid (${f((x-grid.minPos[0])/grid.xd)},${f((y-grid.minPos[1])/grid.yd)},${f((z-grid.minPos[2])/grid.zd)}) fails test! 
-			Grid: o@${a[1]} w/ ${f(a[0])}
-			World: o@${b[1]} w/ ${f(b[0])}`);
-		return false;
-	}
-	return true;
-}
-function test_gridMany() {
-	var passed = 0;
-	var total = 40000;
-	for (var a=0; a<total; a++) {
-		var x = prand(-800, 800);
-		var y = prand(0, 500);
-		var z = prand(-800, 800);
-		passed += +test_gridVsWorld(x, y, z);
-	}
-	console.log(`in total: ${passed} / ${total} passed`);
 }
 
 function updateFOV(newFOV) {

@@ -28,12 +28,14 @@ const TYPE_SHELL = 4;
 const TYPE_BOX = 10;
 const TYPE_BOXFRAME = 11;
 const TYPE_GYROID = 12;
+const TYPE_VOXEL = 13;
 const TYPE_LINE = 20;
 const TYPE_OCTAHEDRON = 30;
 const TYPE_RING = 40;
 const TYPE_PRISM_RHOMBUS = 51;
 const TYPE_PRISM_HEX = 53;
 const TYPE_PRISM_OCT = 55;
+const TYPE_FRACTAL = 70;
 
 //quick type
 const U8Arr = Uint8Array;
@@ -94,6 +96,8 @@ var controls_sensitivity = 0.005;
 
 var editor_active = false;
 
+const fractal_iters = 10;
+
 var lineBuffers = [];
 var lineBuffer_num = -1;
 
@@ -143,6 +147,7 @@ const splashes = [
 	`Best in class!`,
 	`pure exhilaration.`,
 	`hi`,
+	`.... hi....`,
 	`It sure is    here! `,
 	`Rearticulating spines!`,
 	`What do I do with this drunken sailor?`,
@@ -190,6 +195,7 @@ const splashes = [
 	`The sky of the spheres is not as it seems.`,
 	`My goal is to integer overflow the number of bugs.`,
 	`Buckle your pants!`,
+	`Just two triangles!`,
 	`Gullible is written on your forehead!`,
 	`RAaahaagagaggaggghsbhhhhhg`,
 	`I would never lie to you!`,
