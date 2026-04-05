@@ -89,6 +89,9 @@ class Player {
 		
 		//transform back to real coordinates
 		[this.dPos[0], this.dPos[2]] = rotate(this.dPos[0], this.dPos[2], -this.theta);
+
+		//update grounding
+		this.grounded = clamp(this.grounded - 1, 0, player_coyote);
 	}
 	
 	updateSubMomentum() {
@@ -96,8 +99,10 @@ class Player {
 		this.updateMomentumAxis(0);
 
 		//gravity
-		if (this.onGround()) {
-			this.dPos[1] *= this.frictionBrake;
+		if (this.grounded) {
+			if (this.dPos[1] < 0) {
+				this.dPos[1] *= this.frictionBrake;
+			}
 		} else {
 			this.dPos[1] -= this.gravity;
 		}
@@ -147,6 +152,9 @@ class Player {
 				if (this.rayBounce(spherePos, [0, 0, 0], offsetVec)) {
 					//if we've collided, bounce and change velocity
 					numCollisions += 1;
+					if (p < 0) {
+						this.grounded += 1;
+					}
 					
 					if (needsAdjustment) {
 						colVec = normalize(colVec);
@@ -187,10 +195,6 @@ class Player {
 				spherePos[1] += normal[1] * e;
 				spherePos[2] += normal[2] * e;
 			}
-			
-			dPos[0] -= vec[0];
-			dPos[1] -= vec[1];
-			dPos[2] -= vec[2];
 			return 1;
 		}
 		return 0;
@@ -351,6 +355,9 @@ class Player {
 	onGround() {
 		var lookRay = new Ray_Tracking(this.world, this.pos, Pos(0, -1, 0), this.width + player_stepHeight);
 		lookRay.iterate(0);
+		if (lookRay.object != null) {
+			this.grounded = player_coyote;
+		}
 		return (lookRay.object != null);
 	}
 	
@@ -369,8 +376,9 @@ class Player {
 
 	jump() {
 		//if the ray's hit an object then the player is on the ground
-		if (this.onGround()) {
+		if (this.grounded) {
 			this.dPos[1] = this.jumpSpeed;
+			this.grounded = 0;
 		}
 	}
 }
