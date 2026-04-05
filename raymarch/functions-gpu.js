@@ -3,7 +3,6 @@ function compile(type, source) {
 	gl.shaderSource(shader, source);
 	gl.compileShader(shader);
 	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	console.log(gl.getShaderInfoLog(shader));
 
 	if (!success) {
 		console.error(`shader creation failed.`);
@@ -36,8 +35,8 @@ function createObjectsTexture() {
 	gl.activeTexture(gl.TEXTURE0);
 	gl.bindTexture(gl.TEXTURE_2D_ARRAY, texture_universe);
 	
-	Object.keys(worlds).forEach(k => {
-		createGPUWorld(worlds[k]);
+	worldsByID.forEach(w => {
+		createGPUWorld(w);
 	});
 }
 
@@ -72,7 +71,7 @@ function createGPUWorld(worldObj) {
 	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
 	const worldOffset = worldObj.id * (texture_rowsPerObj + texture_rowsPerMat) * rowOffset;
 	//objects
-	const objs = worldObj.objects;
+	const objs = worldObj.expObjs;
 	for (var o=0; o<objs.length; o++) {
 		try {
 			setObject(worldOffset, rowOffset, o, objs[o]);
@@ -92,26 +91,6 @@ function createGPUWorld(worldObj) {
 	updateBvhTexture();
 }
 
-/**
- * sets an object and its material on the GPU, with as little information passed in as possible.
- * @param {World} world the world the object is a part of
- * @param {Scene3dObject} obj the index of the object in the world's object array
- */
-function setObjectEasy(world, obj) {
-	createGPUWorld(world);
-	return;
-	const index = world.objects.indexOf(obj);
-	if (index < 0) {
-		console.error(`${obj.serialize()} is not a valid object in world ${world.name}!`);
-		return;
-	}
-	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
-	const worldOffset = world.id * (texture_rowsPerObj + texture_rowsPerMat) * rowOffset;
-	//objects
-	setObject(worldOffset, rowOffset, index, obj);
-	setMaterial(worldOffset, rowOffset, index, ...obj.material.serializeGPU());
-}
-
 function setupGLState(vertexShaderCode, fragmentShaderCode) {
 	const shaderV = compile(gl.VERTEX_SHADER, vertexShaderCode);
 	const shaderF = compile(gl.FRAGMENT_SHADER, fragmentShaderCode);
@@ -123,15 +102,10 @@ function setupGLState(vertexShaderCode, fragmentShaderCode) {
 	
 	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
 
-	console.log(gl.getAttachedShaders(program));
-	console.log(gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES));
-	console.log(gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS));
-	console.log(gl.getProgramInfoLog(program));
-
 	if (!success) {
 		console.error(`program creation failure: ${success}`);
 		gl.deleteProgram(program);
-		return;
+		return;xw
 	}
 	
 	gl.useProgram(program);
@@ -171,7 +145,7 @@ function setWorldAttribs(world, worldOff, rowOff) {
 	data[base + 0] = world.spawn[0];
 	data[base + 1] = world.spawn[1];
 	data[base + 2] = world.spawn[2];
-	data[base + 3] = world.objects.length;
+	data[base + 3] = world.expObjs.length;
 	base += rowOff;
 	data[base + 0] = world.sunVector[0];
 	data[base + 1] = world.sunVector[1];
@@ -238,7 +212,7 @@ function setBvhArr(node, world, arrIndex) {
 	data[arrIndex + 0] = node.minPos[0] - bvhTolerance;
 	data[arrIndex + 1] = node.minPos[1] - bvhTolerance;
 	data[arrIndex + 2] = node.minPos[2] - bvhTolerance;
-	data[arrIndex + 3] = world.objects.indexOf(node.obj);
+	data[arrIndex + 3] = world.expObjs.indexOf(node.obj);
 	//highPos
 	arrIndex += indicesPerRow;
 	data[arrIndex + 0] = node.maxPos[0] + bvhTolerance;
@@ -374,7 +348,7 @@ function feedGPU() {
 function GPU_transferObj(world, object) {
 	const worldOffset = world.id * (texture_rowsPerObj + texture_rowsPerMat) * (world_maxObjs + texture_worldCols) * 4;
 	const rowOffset = (world_maxObjs + texture_worldCols) * 4;
-	setObject(worldOffset, rowOffset, world.objects.indexOf(object), object);
+	setObject(worldOffset, rowOffset, world.expObjs.indexOf(object), object);
 	updateWorldTexture();
 }
 

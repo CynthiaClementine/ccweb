@@ -146,7 +146,7 @@ class World {
 	}
 	
 	finalize() {
-		//serialize objects
+		//deserialize objects
 		for (var o=0; o<this.objects.length; o++) {
 			if (this.objects[o].constructor.name == "String") {
 				this.objects[o] = deserialize(this.objects[o]);
@@ -161,22 +161,31 @@ class World {
 		worlds[this.name] = this;
 		worldsByID[this.id] = this;
 		
-		//generate BrickMap
-		// this.grid = new ObjectGrid(this, world_objectChunks);
-		// this.tree = new BrickMap(this, tree_maxD, tree_sets);
 		this.bvh = new BVH(this);
-		// this.grid.generate();
-		// this.tree.generate();
-		this.bvh.generate();
-		
-		
 		this.tree = new ObjectGrid(this, world_objectChunks);
-		this.tree.generate();
+		this.generate();
 		console.log(`finished ${this.name}!`);
 	}
 	
 	serialize() {
 		return "`" + this.objects.map(a => a.serialize()).join("`,\n`") + "`";
+	}
+
+	express() {
+		var expObjs = [];
+		this.expObjs = expObjs;
+		this.objects.forEach(o => {
+			o.express().forEach(q => {
+				expObjs.push(q);
+			});
+		});
+	}
+
+	generate() {
+		this.express();
+		this.bvh.generate();
+		// this.grid.generate();
+		this.tree.generate();
 	}
 	
 	//estimate distance at a given point. Returns both distance and the object that gave that distance
@@ -217,131 +226,12 @@ class World {
 			this.tickFunc();
 		}
 		if (this.shouldRegen) {
-			
+			this.generate();
+			createGPUWorld(this);
 			this.shouldRegen = false;
 		}
 	}
 }
-
-class World_Looping {
-	/**
-	 * A World object that has built in looping effects, for pseudo-infinite space.
-	 * @param {String} name 
-	 * @param {Function[]} preEffects 
-	 * @param {Function[]} effects 
-	 * @param {Number[]} sunVector 
-	 * @param {Number[]} spawn 
-	 * @param {Scene3dObject[]} objects 
-	 * @param {Number} size 
-	 * @param {Number|none} shadowPercent 
-	 */
-	constructor(name, preEffects, effects, sunVector, spawn, objects, size, shadowPercent) {
-		console.log(`started ${name}..`);
-		this.name = name;
-		this.width = size;
-		
-		this.preEffects = preEffects;
-		this.postEffects = effects;
-		
-		if (preEffects.length >= texture_worldCols) {
-			throw new Error(`World ${name}: too many pre-effects!`);
-		}
-		if (effects.length >= texture_worldCols) {
-			throw new Error(`World ${name}: too many post-effects!`);
-		}
-		
-		this.sunVector = sunVector;
-		this.spawn = spawn;
-		this.objects = objects;
-		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
-		
-		//because we're dealing with a small space, a BrickMap probably isn't necessary. 
-		//A single BrickGrid will do just fine
-		this.tree = null;
-		this.bvh = null;
-		this.finalize();
-	}
-	
-	finalize() {
-		this.id = Object.keys(worlds).length;
-		if (this.id >= universe_maxID) {
-			throw new Error(`World ${this.name}: too many worlds!`);
-		}
-		worlds[this.name] = this;
-		worldsByID[this.id] = this;
-		
-		this.duplicateObjs();
-		this.tree = new ObjectGrid(this, world_objectChunks);
-		this.bvh = new BVH(this);
-		this.tree.generate();
-		this.bvh.generate();
-		
-	}
-	
-	duplicateObjs() {
-		var duplicates = [];
-		this.objects.forEach(o => {
-			for (var x=-1; x<=1; x++) {
-				for (var y=-1; y<=1; y++) {
-					for (var z=-1; z<=1; z++) {
-						if (x || y || z) {
-							var dupe = deserialize(o.serialize());
-							dupe.pos[0] += x * this.width;
-							dupe.pos[1] += y * this.width;
-							dupe.pos[2] += z * this.width;
-							if (dupe.posEnd) {
-								dupe.posEnd[0] += x * this.width;
-								dupe.posEnd[1] += y * this.width;
-								dupe.posEnd[2] += z * this.width;
-							}
-							duplicates.push(dupe);
-						}
-					}
-				}
-			}
-		});
-		this.objects.push(...duplicates);
-		if (this.objects.length > world_maxObjs) {
-			throw new Error(`World ${this.name}: too many objects!`);
-		}
-	}
-	
-	tick() {
-		if (loading_world != this) {
-			return;
-		}
-		
-	}
-	
-	estimateObj(obj) {
-		var dist = 1e1001;
-		var distObj = undefined;
-		var testDist;
-		this.objects.forEach(o => {
-			testDist = o.distanceToObj(obj);
-			if (testDist < dist) {
-				dist = testDist;
-				distObj = o;
-			}
-		});
-		return [dist, distObj];
-	}
-	
-	estimatePos(pos) {
-		var dist = 1e1001;
-		var distInd = -1;
-		var testDist;
-		for (var i=0; i<this.objects.length; i++) {
-			testDist = this.objects[i].distanceToPos(pos);
-			if (testDist < dist) {
-				dist = testDist;
-				distInd = i;
-			}
-		}
-		return [dist, distInd];
-	}
-}
-
 
 var worldsByID = [];
 
@@ -413,10 +303,30 @@ function createWorlds() {
 		// new Fractal({pos: Pos(0, 0, 0), theta: 0.04, phi: 0.6, rot: 0}, new M_Normal(), 0, 200, 1.3, -2, 1, 0.0), //a mess
 		// new Fractal({pos: Pos(0, 0, 0), theta: 5.112, phi: -1.571, rot: 0}, new M_Normal(), 0, 200, 1.3, -2, 1, 0.0), //the cool ring
 		
-		`FRACTAL~[0,0,0]~0~293~360~0|normal|200~1.3~-2~1~0`,
-		`BOX~[0,-200,0]~0~0~90~0|portal:start~[0,261,0]|10~10~10`
+		// `FRACTAL~[0,0,0]~0~256~67~0|normal|200~1.3~0.161~-0.820~3.795`, //weird spidery thing
+		// `SPHERE~[0,-200,0]~0~0~90~0|portal:fractal~[29233,261,0]|35`,
+
+		// `FRACTAL~[0,0,0]~0~293~0~0|normal|200~1.3~-2~1~0`, //cool ring
+		// `FRACTAL~[0,0,0]~0~90~90~0|normal|200~1.95~-6.75~-3~0`, //pylons
+		// `FRACTAL~[0,0,0]~0~0~90~0|normal|100~1.95~-6.75~0~0`, //sierpenski
+		`FRACTAL~[0,0.30000,0]~0~0~0~0|normal|200~1.95~-2~1~0`, //boxy bit
+		// `FRACTAL~[.30000,0,.30000]~0~35~179~0|color:255~0~255|200~10~-4.677000045776367~1.534000039100647~-1.1180000305175781`,
 	]);
-	
+
+	// new World("tree", [
+
+	// 	[world_brighten, [1, 160/255, 140/255, 1.5]]
+	// 	],[
+	// 		[bg_range, Color(10, 10, 10), Color(30, 30, 30)],
+	// 		[bg_fadeToRange, Color(10, 10, 10), Color(30, 30, 30), 800],
+	// 		[bg_sun, Color(255, 160, 140), 0.01],
+	// 	],
+	// 	polToCart(0.1, Math.PI * 0.47, 1),
+	// 	[0, 0, 0],
+	// 	[
+	// 		'PRISM-OCTAGON~[150, -9, -408]~'
+	// 	]
+	// );
 	new World("darkBright", [
 			[world_brighten, [1, 160/255, 140/255, 1.5]]
 		],[
@@ -731,8 +641,10 @@ function createWorlds() {
 		],
 		polToCart(0.6, 0.4, 1),
 		[60.2,100,60.2],
-		[	`Scene3dLoop~8000~8000~8000~120||RING~[60,60,60]~0~0~0~0|color:240~180~60|60~10`,
-			`SPHERE~[1500,-460,-1620]~0~0~90~0|portal:parkourSimple~[-1600,860,1700]|40`
+		[	
+			`Scene3dLoop~8000~8000~8000~120||RING~[60,60,60]~0~0~0~0|color:240~180~60|60~10`,
+			`SPHERE~[1500,-485,-1620]~0~0~90~0|portal:parkourSimple~[-1600,860,1700]|40`,
+			`SPHERE~[1620,-245,60]~0~0~90~0|portal:fractal~[-859,1422,343]|40`
 		],
 		null,
 		() => {
@@ -893,7 +805,8 @@ function createWorlds() {
 	],
 	polToCart(0.2, 0.01, 1),
 	[0, 0, 0],
-	[	`BOX~[0,-100,0]~0~0~90~0|color:119~0~64|6000~50~6000`,
+	[	
+		`BOX~[0,-100,0]~0~0~90~0|color:119~0~64|6000~50~6000`,
 		`BOX~[257,-16,-828]~0~103~380~227|color:255~0~255|1~35~80`,
 		`BOX~[336,-16,-749]~0~93~428~164|color:255~0~255|80~35~1`,
 		`BOX~[415,-16,-892]~0~223~433~171|color:255~0~255|1~35~16`,
@@ -901,12 +814,24 @@ function createWorlds() {
 		`BOX~[331,-11,-871]~0~111~138~230|color:128~128~255|32~31~40`,
 		`BOX~[-12,-37,-124]~2~23~90~0|color:255~0~255|47~137~48`,
 		`BOX~[-85,-44,-154]~2~111~95~0|color:255~0~255|25~10~36`,
-		`CAPSULE~[198,-40,-298]~0~0~0~0|portal:start~[0,100,0]|10~10`
+		`CAPSULE~[198,-40,-298]~0~0~360~0|portal:start~[0,100,0]|10~10`,
+		`PRISM-OCTAGON~[150,-9,-408]~0~0~180~21|color:161~99~104|5~5~41`,
+		`PRISM-OCTAGON~[150,26,-420]~0~0~412~0|color:160~100~102|2~2~13`,
+		`PRISM-OCTAGON~[145,-44,-546]~1~6~116~0|color:162~99~102|7~7~26`,
+		`PRISM-OCTAGON~[140,-10,-538]~1~0~397~0|color:160~99~106|6~6~31`,
+		`PRISM-OCTAGON~[142,-4,-511]~0~167~385~63|color:162~102~113|5~5~27`,
+		`PRISM-OCTAGON~[144,31,-509]~1~4~387~0|color:162~99~109|5~5~18`,
+		`PRISM-OCTAGON~[134,35,-490]~1~36~140~0|color:160~101~110|3~3~25`,
+		`PRISM-OCTAGON~[128,28,-563]~1~128~134~0|color:160~101~111|3~3~24`,
+		`PRISM-OCTAGON~[153,23,-572]~1~38~418~0|color:159~101~111|3~3~31`,
+		`PRISM-OCTAGON~[164,33,-569]~1~125~417~0|color:160~99~112|2~2~14`,
+		`PRISM-OCTAGON~[118,41,-555]~1~190~419~0|color:160~101~109|2~2~11`,
+		`BOX~[-9,-122,-121]~0~24~90~0|portal:turtleHell~[0,1389,0]|65~6~65`
 	]
 	);
 	
 	
 	console.log(`finished loading ${worldsByID.length} worlds.`);
 	
-	loading_world = worlds["fractal"];
+	loading_world = worlds["desert"];
 }
