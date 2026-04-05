@@ -11,10 +11,11 @@ MATERIAL TYPES
 */
 
 class Material {
-	constructor(type, color, bounciness) {
+	static type = -1;
+	constructor(color, bounciness) {
 		this.color = color ?? Color4(255, 0, 255, 255);
 		this.bounciness = bounciness ?? 0;
-		this.type = type;
+		this.type = this.constructor.type;
 	}
 	
 	applySDFEffect(val) {
@@ -55,8 +56,9 @@ class Material {
 }
 
 class M_Color extends Material {
+	static type = M_COLOR;
 	constructor(r, g, b) {
-		super(M_COLOR, Color4(r, g, b, 255), 0.3);
+		super(Color4(r, g, b, 255), 0.3);
 	}
 	
 	applyNearEffect(ray) {}
@@ -73,9 +75,9 @@ class M_Color extends Material {
 }
 
 class M_Concrete extends M_Color {
+	static type = M_CONCRETE;
 	constructor() {
 		super(249, 248, 243);
-		this.type = M_CONCRETE;
 		this.closeColors = [
 			Color4(255, 255, 255, 255),
 			Color4(255, 249, 224, 255),
@@ -113,8 +115,9 @@ class M_Concrete extends M_Color {
 }
 
 class M_Ghost extends Material {
+	static type = M_GHOST;
 	constructor(r, g, b, opacity) {
-		super(M_GHOST, Color4(r, g, b, opacity), 0.1);
+		super(Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {
@@ -133,8 +136,9 @@ class M_Ghost extends Material {
 }
 
 class M_Glass extends Material {
+	static type = M_GLASS;
 	constructor(r, g, b, opacity) {
-		super(M_GLASS, Color4(r, g, b, opacity), 0.1);
+		super(Color4(r, g, b, opacity), 0.1);
 	}
 	
 	applyNearEffect(ray) {}
@@ -155,8 +159,9 @@ class M_Glass extends Material {
 }
 
 class M_Normal extends Material {
+	static type = M_NORMAL;
 	constructor() {
-		super(M_NORMAL, Color4(0, 0, 0, 255), 0);
+		super(Color4(0, 0, 0, 255), 0);
 	}
 	
 	applyNearEffect(ray) {}
@@ -174,8 +179,9 @@ class M_Normal extends Material {
 }
 
 class M_Portal extends Material {
+	static type = M_PORTAL;
 	constructor(newWorldName, posOffset) {
-		super(M_PORTAL, Color4(255, 255, 255, 255), 0);
+		super(Color4(255, 255, 255, 255), 0);
 		this.str = newWorldName;
 		this.offset = Pos(...posOffset);
 		this.newWorld = null;
@@ -232,8 +238,9 @@ class M_Portal extends Material {
 }
 
 class M_Mirror extends Material {
+	static type = M_MIRROR;
 	constructor(r, g, b, absorbance) {
-		super(M_MIRROR, Color4(r, g, b, absorbance), 0.1);
+		super(Color4(r, g, b, absorbance), 0.1);
 	}
 	
 	applyNearEffect(ray) {}
@@ -269,8 +276,9 @@ class M_Mirror extends Material {
 }
 
 class M_Rubber extends Material {
+	static type = M_RUBBER;
 	constructor() {
-		super(M_RUBBER, Color4(47, 48, 66, 255), 1);
+		super(Color4(47, 48, 66, 255), 1);
 		this.lumi = 4;
 	}
 	
@@ -309,3 +317,8 @@ var map_strMat = {
 	"rubber": M_Rubber,
 };
 var map_matStr = Object.fromEntries(Object.entries(map_strMat).map(a => [a[1].name, a[0]]));
+
+var map_typeMat = {};
+Object.entries(map_strMat).forEach(e => {
+	map_typeObj[e.type] = e;
+});
