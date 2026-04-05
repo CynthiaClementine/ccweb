@@ -1,60 +1,28 @@
 var editor_selected = undefined;
 
-
 //editor functions
-function createDefaultObject(constructorString, objRef) {
-	var type = map_strObj[constructorString];
-	objRef = objRef ?? {
-		theta: 0,
-		phi: 0,
-		rot: 0,
-	};
-	
-	//steal properties from old object
-	var material = objRef.material ?? new M_Color(255, 0, 255);
-	pos = objRef.pos;
-	if (!pos) {
-		var offset = polToCart(camera.theta, camera.phi, 100);
-		var r = Math.round;
-		pos = Pos(r(camera.pos[0] + offset[0]), r(camera.pos[1] + offset[1]), r(camera.pos[2] + offset[2]));
-	}
-	
-	var [theta, phi, rot] = [objRef.theta, objRef.phi, objRef.rot];
-	var nature = objRef.nature ?? 0;
-	
-	var arg1 = objRef.r ?? objRef.rx ?? 10;
-	var arg2 = objRef.h ?? objRef.ry ?? 10;
-	var arg3 = objRef.rz ?? 10;
-	var arg4 = objRef.e ?? 1;
-	var arg5 = 12;
-	var arg6 = 6;
-	if (objRef.constructor.name == `Gyroid` && type.constructor.name == `Gyroid`) {
-		[arg4, arg5, arg6] = [objRef.a, objRef.b, objRef.h];
-	}
-	
-	//actually create the thing
-	return new type({pos: pos, theta: theta, phi: phi, rot: rot},
-		material, nature, arg1, arg2, arg3, arg4, arg5, arg6, 10, 10, 10, 10, 10);
-}	
+/**
+* creates a default object given a constructor type. For the list of types, see all TYPE_ declarations in config.js
+* @param {Integer} objType an integer representing the type of object to create.
+ */
+function createDefaultObject(objType) {
+	var type = map_typeObj[objType];
+	return new type({pos: Pos(0, 0, 0), theta: 0, phi: 0, rot: 0}, new M_Color(255, 0, 255), 0, 10, 10, 10, 1, 12, 6, 10, 10, 10, 10, 10);
+}
 
 /**
-* @param {String} constructorString
-* @param {Color4|undefined} color
+* creates a default material given a constructor string.
+* @param {String} conStr the string representation of the type.
  */
-function createDefaultMaterial(constructorString, color) {
-	color = color ?? [];
-	color[0] = color[0] ?? 255;
-	color[1] = color[1] ?? 0;
-	color[2] = color[2] ?? 255;
-	color[3] = color[3] ?? 128;
-	var type = map_strMat[constructorString];
+function createDefaultMaterial(conStr) {
+	var type = map_strMat[conStr];
 	switch (type) {
 		case M_Portal:
 			return new M_Portal(`start`, Pos(0, 0, 0));
 		case undefined:
 			console.error(`ough`);
 		default:
-			return new type(...color);
+			return new type(255, 0, 255, 128);
 	}
 }
 
@@ -79,6 +47,41 @@ function createHTMLCheckboxAt(parentName, checkboxName, label) {
 		<span class="checkmark"></span>
 	</label>`;
 	parent.appendChild(dummy.children[0]);
+}
+
+/**
+* attempts to transfer an object's properties from one to another. 
+ */
+function transferProperties(oldObj, newObj) {
+	var refuseTransfer = [`pos`, `material`, `type`];
+	
+	var materialCopy = deserializeMat(oldObj.material.serialize());
+	newObj.material = materialCopy;
+	
+	//standard translation
+	newObj.pos = Pos(...oldObj.pos);
+	
+	//try to transfer as many properties as possible
+	Object.keys(oldObj).forEach(p => {
+		if (oldObj[p] && newObj[p] && !refuseTransfer.includes(p)) {
+			newObj[p] = oldObj[p];
+		}
+	});
+}
+
+/**
+* transfers properties of a material.
+* @param {Material} oldMat the old material object
+* @param {Material} newMat the new material object
+ */
+function transferPropertiesMat(oldMat, newMat) {
+	//basically the only thing to transfer is color. idk
+	var refuseTransfer = [`bounciness`, `type`];
+	Object.keys(oldMat).forEach(p => {
+		if (oldMat[p] && newMat[p] && !refuseTransfer.includes(p)) {
+			newMat[p] = oldMat[p];
+		}
+	});
 }
 
 function deserialize(str) {
@@ -139,75 +142,11 @@ function deserializeMat(str) {
 	return obj;
 }
 
-function syncObject_send(world, object) {
-	var reselect = world.objects.indexOf(editor_selected);
-	
-	//serialize object, then send it to all workers
-	var objStr = object.serialize();
-	var ind = world.objects.indexOf(object);
-	const adding = (ind == -1);
-	if (adding) {
-		ind = world.objects.length;
-	}
-	
-	syncObject_recieve(world.name, ind, objStr);
-	if (useCPU) {
-		worker_pool.forEach(w => {
-			w.postMessage(["syncObject", world.name, ind, objStr]);
-		});
-	} else {
-		if (!adding) {
-			setObjectEasy(world, world.objects[ind]);
-		} else {
-			createGPUWorld(world);
-		}
-	}
-	
-	if (reselect > -1) {
-		editor_select(world.objects[reselect]);
-	}
+function calcPlacePos() {
+	var offset = polToCart(camera.theta, camera.phi, 100);
+	var r = Math.round;
+	return Pos(r(camera.pos[0] + offset[0]), r(camera.pos[1] + offset[1]), r(camera.pos[2] + offset[2]));
 }
-
-function syncObject_remove(world, object) {
-	var ind = world.objects.indexOf(object);
-	
-	syncObject_recieve(world.name, ind);
-	if (useCPU) {
-		worker_pool.forEach(w => {
-			w.postMessage(["syncObject", world.name, ind]);
-		});
-	} else {
-		//ouoghghh
-		createGPUWorld(world);
-	}
-}
-
-function syncObject_recieve(worldName, index, objStr) {
-	var world = worlds[worldName];
-	
-	if (!objStr) {
-		world.objects.splice(index, 1);
-	} else {
-		//replace the old object with the new object
-		var oldObj = world.objects[index];
-		var newObj = deserialize(objStr);
-		world.objects[index] = newObj;
-	}
-	
-	//update the part of the grid/tree containing the old object and new object
-	//naive approach: just replace entire grid/tree
-	if (world.grid) {
-		world.grid.generate();
-	}
-	if (world.tree) {
-		world.tree.generate();
-	}
-	if (world.bvh) {
-		console.log(`regenerating bvh!`);
-		world.bvh.generate();
-	}
-}
-
 
 
 //classes
@@ -314,10 +253,10 @@ class Slider {
 			// console.log(`setting ${this.var} = ${clamp(val, this.varRange[0], this.varRange[1])};`);
 			eval(`${this.var} = ${clamp(val, ...this.varRange)};`);
 			if (this.var.includes(`editor_selected`) && editor_selected != player) {
-				syncObject_send(loading_world, editor_selected);
+				loading_world.shouldRegen = true;
 			}
 		} catch (e) {
-			console.error(`cannot send ${val} -- >${this.varRange}< -- ${this.var}`, e);
+			console.error(`cannot send ${val} --> [${this.varRange}] --> ${this.var}`, e);
 		}
 	}
 }
@@ -489,10 +428,11 @@ function editor_initialize() {
 	}, [40, 60, 80, 100, 120, 150, 180, 240, 300, 360, 512, 720, 1080, 1440]);
 	
 	//object sliders
+	var posLim = 99999;
 	
-	slider_x = new Slider(`group_pos.xSlider`, `editor_selected.pos[0]`, ``, -100,100, 1, -9999,9999);
-	slider_y = new Slider(`group_pos.ySlider`, `editor_selected.pos[1]`, ``, -100,100, 1, -9999,9999);
-	slider_z = new Slider(`group_pos.zSlider`, `editor_selected.pos[2]`, ``, -100,100, 1, -9999,9999);
+	slider_x = new Slider(`group_pos.xSlider`, `editor_selected.pos[0]`, ``, -100,100, 1, -posLim,posLim);
+	slider_y = new Slider(`group_pos.ySlider`, `editor_selected.pos[1]`, ``, -100,100, 1, -posLim,posLim);
+	slider_z = new Slider(`group_pos.zSlider`, `editor_selected.pos[2]`, ``, -100,100, 1, -posLim,posLim);
 	
 	slider_tht = new Slider(`group_pos.thtSlider`, `editor_selected.theta`, ``, 0, 6.283, 0.01745);
 	slider_phi = new Slider(`group_pos.phiSlider`, `editor_selected.phi`, ``, -1.57, 1.571, 0.01745);
@@ -505,14 +445,14 @@ function editor_initialize() {
 	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, 0,20, 1, 0,1E4);
 	
 	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0,1, 0.01);
-	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,20, 0.1);
-	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -5,5, 0.1, -9999,9999);
+	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,19.95, 0.05);
+	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -99,99, 0.1, -posLim,posLim);
 	slider_e = new Slider(`group_special.eSlider`, `editor_selected.e`, `e: `, -10,10, 1, -999,999);
 	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, -500, 500);
 	
-	slider_shiftX = new Slider(`group_special.sxSlider`, `editor_selected.shift[0]`, `sx: `, -5.999, 5.999, 0.001, );
-	slider_shiftY = new Slider(`group_special.sySlider`, `editor_selected.shift[1]`, `sy: `, -5.999, 5.999, 0.001, );
-	slider_shiftZ = new Slider(`group_special.szSlider`, `editor_selected.shift[2]`, `sz: `, -5.999, 5.999, 0.001, );
+	slider_shiftX = new Slider(`group_special.sxSlider`, `editor_selected.shift[0]`, `sx: `, -5.999, 5.999, 0.005);
+	slider_shiftY = new Slider(`group_special.sySlider`, `editor_selected.shift[1]`, `sy: `, -5.999, 5.999, 0.005);
+	slider_shiftZ = new Slider(`group_special.szSlider`, `editor_selected.shift[2]`, `sz: `, -5.999, 5.999, 0.005);
 	
 	//material sliders
 	slider_r = new Slider(`group_color.rSlider`, `editor_selected.material.color[0]`, `r: `, 0,255, 1);
@@ -520,33 +460,36 @@ function editor_initialize() {
 	slider_b = new Slider(`group_color.bSlider`, `editor_selected.material.color[2]`, `b: `, 0,255, 1);
 	slider_a = new Slider(`group_color.aSlider`, `editor_selected.material.color[3]`, `a: `, 0,255, 1);
 	
-	slider_px = new Slider(`group_matSpecial.pxSlider`, `editor_selected.material.offset[0]`, `offX: `, -100,100, 1, -9999,9999);
-	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -9999,9999);
-	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -9999,9999);
+	slider_px = new Slider(`group_matSpecial.pxSlider`, `editor_selected.material.offset[0]`, `offX: `, -100,100, 1, -posLim,posLim);
+	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -posLim,posLim);
+	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -posLim,posLim);
 	
 	var playerConstructors = [Player, Player_Debug, Player_Noclip];
 	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
 		if (val) {
-			if (editor_selected == player) {
-				if (playerConstructors.includes(map_strObj[val])) {
-					var oldPlayer = player;
-					player = new map_strObj[val](player.world, player.pos);
-					player.dPos = oldPlayer.dPos;
-					player.theta = oldPlayer.theta;
-					player.phi = oldPlayer.phi;
-					editor_selected = player;
-				} else {
-					editor_addObj(undefined, val);
-				}
+			if (playerConstructors.includes(map_strObj[val])) {
+				//if it's a type of player, convert the player to that type
+				const oldPlayer = player;
+				player = new map_strObj[val](player.world, player.pos);
+				player.dPos = oldPlayer.dPos;
+				player.theta = oldPlayer.theta;
+				player.phi = oldPlayer.phi;
+				editor_select(player);
 			} else {
-				var obj = createDefaultObject(val, editor_selected);
+				//change the constructor. If nothing's selected, act as a plus button
 				var ind = loading_world.objects.indexOf(editor_selected);
-				loading_world.objects[ind] = obj;
-				editor_selected = obj;
-			}
-			
-			if (editor_selected != player) {
-				syncObject_send(loading_world, editor_selected);
+				if (ind < 0) {
+					ind = loading_world.objects.length;
+					editor_addObj(e, TYPE_SPHERE);
+				}
+				
+				const oldObj = loading_world.objects[ind];
+				const newType = map_strObj[val].type;
+				const newObj = createDefaultObject(newType);
+				loading_world.objects[ind] = newObj;
+				transferProperties(oldObj, newObj);
+				loading_world.shouldRegen = true;
+				editor_select(newObj);
 			}
 		}
 		
@@ -559,7 +502,8 @@ function editor_initialize() {
 		if (val) {
 			var mat = createDefaultMaterial(val, editor_selected.material.color);
 			editor_selected.material = mat;
-			syncObject_send(loading_world, editor_selected);
+			loading_world.shouldRegen = true;
+			editor_select(editor_selected);
 		}
 	
 		var type = editor_selected.material.constructor.name;
@@ -581,6 +525,7 @@ function editor_initialize() {
 			} else {
 				editor_selected.nature = editor_selected.nature & ~nat;
 			}
+			loading_world.shouldRegen = true;
 		}
 		return editor_selected.nature & nat;
 	}
@@ -620,7 +565,7 @@ function editor_initialize() {
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
 		"ELLIPSE": [...rxyz],
-		"FRACTAL": [slider_shiftX, slider_shiftY, slider_shiftZ],
+		"FRACTAL": [slider_rr, slider_gyrB, slider_shiftX, slider_shiftY, slider_shiftZ],
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
 		"OCTAHEDRON": [...rxyz],
@@ -647,15 +592,34 @@ function editor_initialize() {
 	}
 }
 
-function editor_addObj(e, optionalConstructor) {
-	var obj = createDefaultObject(optionalConstructor ?? `BOX`);
-	syncObject_send(loading_world, obj);
+/**
+* creates an object and adds it to the loading world. Returns said object.
+* @param e an event handle. Nothing is done with this, leave as null.
+* @param {Integer} objType the type of the object
+ */
+function editor_addObj(e, objType) {
+	var obj = createDefaultObject(objType ?? TYPE_SPHERE);
+	obj.pos = calcPlacePos();
+	loading_world.objects.push(obj);
+	loading_world.shouldRegen = true;
+	return obj;
 }
 
-function editor_removeObj() {
-	if (editor_selected != player) {
-		syncObject_remove(loading_world, editor_selected);
+/**
+* removes an object from the loading world. Returns said object
+ */
+function editor_removeObj(e, object) {
+	if (object == player) {
+		return null;
 	}
+	
+	var index = loading_world.objects.indexOf(editor_selected);
+	if (index < 0) {
+		console.error(`cannot remove object ${object.serialize()} from loading world!`);
+		return;
+	}
+	loading_world.shouldRegen = true;
+	return loading_world.objects.splice(index, 1)[0];
 }
 
 function editor_select(object) {
