@@ -16,10 +16,6 @@ var useCPU = false;
 
 
 async function setup() {
-	tree_sets = 7;
-	if (useCPU) {
-		initiateWorkers();
-	}
 	createWorlds();
 	canvas = document.getElementById(`glbox`);
 	banvas = document.getElementById(`viewbox`);
@@ -58,39 +54,21 @@ async function setup() {
 		throw new Error(`Mismatch between editor objects and defined objects!`);
 	}
 	if (!keysMatch(map_strMat, materialEditables)) {
-		throw new Error(`Mismatch between editor objects and defined objects!`);
+		throw new Error(`Mismatch between editor materials and defined materials!`);
 	}
-	
 
 	setupGLState(vertexShaderCode, fragmentShaderCode);
 	createBVHTexture();
 	createObjectsTexture();
 	
-	
 	resize();
 	window.setTimeout(main, 10);
 }
 
-function initiateWorkers() {
-	//if there are workers already, kill them
-	if (worker_pool[0]) {
-		for (var e=0; e<worker_pool.length; e++) {
-			worker_pool[e].terminate();
-		}
-	}
-	
-	
-	for (var e=0; e<worker_num; e++) {
-		worker_pool[e] = new Worker("worker.js");
-		worker_pool[e].onmessage = handleWorkerMsg;
-		worker_pool[e].postMessage(["ID", e]);
-		worker_ready[e] = false;
-	}
-}
-
 function resize() {
-	var width = window.innerWidth - 10;
-	var height = window.innerHeight - 10;
+	var dpr = window.devicePixelRatio;
+	var width = Math.round(window.innerWidth - 10);
+	var height = Math.round(window.innerHeight - 10);
 	var blockSize = Math.min(width, height);
 	
 	banvas.width = blockSize;
@@ -115,27 +93,19 @@ function main() {
 	camera.tick();
 	
 	//editor syncing
-	if (debug_listening) {
-		var ab = Math.abs;
-		var dp = player.dPos;
-		if (Math.max(ab(dp[0]), ab(dp[1]), ab(dp[2])) > 0.1) {
-			editor_controls.forEach(c => {
-				try {
-					c.synchronize();
-				} catch (e) {}
-			});
-		}
+	if (debug_listening && controls_cursorLock) {
+		editor_controls.forEach(c => {
+			try {
+				c.synchronize();
+			} catch (e) {}
+		});
 	}
+	
 	loading_world.objects.forEach(o => {
 		o.tick();
 	});
 	loading_world.tick();
 	
-	if (useCPU) {
-		worker_pool.forEach(w => {
-			w.postMessage(["updateCamera", camera.world.name, camera.pos[0], camera.pos[1], camera.pos[2], camera.theta, camera.phi]);
-		});
-	}
 	draw();
 
 	//end
@@ -194,19 +164,9 @@ function draw() {
 	const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
 	const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
 	const zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
-	
-	var workerInd = -1;
 
 	for (var x=0; x<pixelsInX; x++) {
-		workerInd = (workerInd + 1) % (worker_pool.length);
-		// workerInd = 10;
-		if (worker_num > 0) {
-			worker_pool[workerInd].postMessage(["calcLine", x, pixelsInX, pixelsInY]);
-		} else {
-			//compute in the main thread
-			drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
-			
-		}
+		drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
 	}
 }
 
@@ -291,9 +251,12 @@ function handleKeyPress(a) {
 		/*
 		all debug effects are activated by pressing ] and then another key.
 		DEBUG EFFECTS:
-			C - copy current pos to clipboard
-			O - select crosshair's object
-			B - toggle bounding box highlights
+			C - copy selected object
+			V - paste selected object
+			
+			B - toggle Bounding Box highlights
+			O - select crosshair's Object
+			P - copy current Pos to clipboard
 		*/
 		
 		switch (a.code) {
@@ -305,7 +268,14 @@ function handleKeyPress(a) {
 				}
 				break;
 			case "KeyC":
-				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
+				if (editor_selected != player) {
+					clipboard = editor_selected.serialize();
+				}
+				break;
+			case "KeyV":
+				if (clipboard) {
+					var newObj = deserialize(clipboard);
+				}
 				break;
 			case "KeyO":
 				var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist / 4);
@@ -325,8 +295,10 @@ function handleKeyPress(a) {
 				if (ray.object) {
 					console.log(`selecting`, ray.object);
 				}
-				
 				editor_select(ray.object);
+				break;
+			case "KeyP":
+				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
 				break;
 		}
 	}

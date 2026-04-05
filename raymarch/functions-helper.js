@@ -388,12 +388,6 @@ function prand(min, max) {
 	return min + (((t = t ^ t >>> 15) >>> 0) / 4294967296) * (max - min);
 }
 
-function threadExec(code) {
-	worker_pool.forEach(w => {
-		w.postMessage([`test`, code]);
-	});
-}
-
 function updateFOV(newFOV) {
 	updateFOV_work([newFOV]);
 	worker_pool.forEach(w => {
