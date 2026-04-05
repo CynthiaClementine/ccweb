@@ -3,9 +3,9 @@
 #define fencepost 4278259968.
 
 #define ray_maxIters 500
-#define ray_maxDist 3000.0
+#define ray_maxDist 5000.0
 #define ray_nearDist 3.0
-#define ray_minDist 0.1
+#define ray_minDist 0.15
 #define render_shadowSteps 2.
 #define obj_maxNum 500
 //should be log2(obj_maxNum) + 1
@@ -25,6 +25,7 @@
 #define BOXFRAME	11
 #define GYROID		12
 #define VOXEL		13
+#define CUBE		14
 #define LINE		20
 #define OCTAHEDRON	30
 #define RING		40
@@ -73,7 +74,7 @@ in vec2 vUV;
 out vec4 outColor;
 
 struct Raydata {
-	int hitMode;
+	int iters;
 	
 	int closestInd;
 	float totalDist;
@@ -257,14 +258,14 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			if (stg > 0) {
 				return;
 			}
-			applyColor(0, vec4(arg0, 1.0));
+			applyColor(0, vec4(arg0, 0.0));
 		} break;
 		//bg_range
 		case E_BG_RANGE: {
 			if (stg > 0) {
 				return;
 			}
-			applyColor(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 1.0));
+			applyColor(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 0.0));
 		} break;
 		//bg_gradient
 		case E_GRADIENT:
@@ -292,15 +293,15 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			stage[0].color.rgb = mix(stage[0].color.rgb, col, distPerc * distPerc);
 		} break;
 		//sun
-		case 20: {
+		case E_SUN: {
 			if (stg != 0) {
 				return;
 			}
 			float sunSize = data1[0];
 			float dotted = max(dot(stage[0].dPos, w_sunVec(stage[0].world)) - 1. + sunSize, 0.);
-			dotted = min(2. * dotted / sunSize, 1.);
+			dotted = clamp(2. * dotted / sunSize, 0.0, 1.0);
 			if (dotted > 0.0) {
-				stage[0].color.rgb = mix(stage[0].color.rgb, arg0.rgb, dotted);
+				applyColor(0, vec4(mix(stage[0].color.rgb, arg0.rgb, dotted), 0.));
 			}
 		} break;
 	}
@@ -448,7 +449,7 @@ float fractalSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	//extra ending bit
 	vec3 a = abs(p.xyz) - vec3(6.);
 	float finalVal = (min(max(max(a.x, a.y), a.z), 0.) + length(max(a, 0.))) / p.w;
-	return finalVal * data1;
+	return (finalVal * data1) - ray_minDist;
 }
 
 float gyroidSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
@@ -559,6 +560,7 @@ float objSDF(vec3 p, int world, int index) {
 		case CYLINDER:
 			{d = cylinderSDF(p, data[1][3], data[2]);} break;
 		case BOX:
+		case CUBE:
 			{d = boxSDF(p, data[2]);} break;
 		case BOXFRAME:
 			{d = boxFrameSDF(p, data[1][3], data[2]);} break;
@@ -653,13 +655,17 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		} break;
 		case M_MIRROR: {
 			applyColor(stg, data0);
-			vec3 incident = stage[stg].dPos;
-			vec3 normal = getNormal(stage[stg].pos, stage[stg].world, stage[stg].closestInd);
-			//vec3 normal = normalize(vec3(-1, -1, -1));
-			float product = dot(incident, normal);
-			setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
+			if (stg == 0) {
+				vec3 incident = stage[stg].dPos;
+				vec3 normal = getNormal(stage[stg].pos, stage[stg].world, stage[stg].closestInd);
+				//vec3 normal = normalize(vec3(-1, -1, -1));
+				float product = dot(incident, normal);
+				setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
+				res = int(stage[stg].color.a >= 1.);
+			} else {
+				res = 1;
+			}
 			stage[stg].localDist = ray_minDist * 2.;
-			res = stg;
 		} break;
 		default: {
 			res = 1;
@@ -695,7 +701,7 @@ bool intersects(vec3 p, vec3 v, vec3 minPos, vec3 maxPos) {
 	
 	return (tFarReal > 0.) && (tCloseReal <= tFarReal);
 }
-		
+
 void calcSceneObjs(int stg) {
 	stage[1].totalDist = 128.;
 	//set up array
@@ -853,6 +859,7 @@ int matType(int world, int id) {
 void raymarch() {
 	for(int i=0; i<ray_maxIters; i++) {
 		// vec3 p = startP + dPos * totalDist;
+		stage[0].iters = i;
 		stage[0].localDist = sceneSDF(stage[0].pos, 0);
 
 		if (stage[0].localDist < ray_nearDist) {
@@ -883,7 +890,9 @@ void raymarch() {
 void shadow() {
 	float result = 1.0;
 	stage[1].totalDist = 0.02;
-	for(int i=0; i<40; i++) {
+	int count = 80;
+	for(int i=0; i<count; i++) {
+		stage[1].iters = i;
 		stage[1].localDist = sceneSDF(stage[1].pos, 1);
 		int res = 0;
 		
@@ -1008,7 +1017,7 @@ void main() {
 	// return;
 	
 	// stage 1
-	if (stage[0].totalDist < ray_maxDist) {
+	if (stage[0].totalDist < ray_maxDist && stage[0].iters + 1 < ray_maxIters) {
 		currStg = 1;
 		//it's hit an object
 		// mat4 hitData = objData(stage[0].closestInd);
