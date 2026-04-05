@@ -29,6 +29,7 @@ const TYPE_BOX = 10;
 const TYPE_BOXFRAME = 11;
 const TYPE_GYROID = 12;
 const TYPE_VOXEL = 13;
+const TYPE_CUBE = 14;
 const TYPE_LINE = 20;
 const TYPE_OCTAHEDRON = 30;
 const TYPE_RING = 40;
@@ -84,15 +85,15 @@ var camera_projFunc = projectOct;
 var camera_paniniR = 0.3;
 var camera;
 
+var clipboard = null;
 
-var color_editor_bg = "#207";
-var color_editor_border = "#FFF";
-
-var debug_listening = false;
+var color_editor_border = `#FFF`;
 
 var controls_cursorLock = false;
 var controls_shiftPressed = false;
 var controls_sensitivity = 0.005;
+
+var debug_listening = false;
 
 var editor_active = false;
 
@@ -113,6 +114,7 @@ var perf_endT = 0;
 
 var player;
 var player_bounceThreshold = 1;
+var player_coyote = 5;
 var player_stepHeight = 2;
 var player_width = 3;
 
@@ -217,7 +219,7 @@ const splashes = [
 const tree_maxD = 5000;
 const tree_minD = 2;
 const tree_l = 41;
-var tree_sets = 3;
+var tree_sets = 7;
 
 const texture_rowsPerObj = 4;
 const texture_rowsPerMat = 3;
