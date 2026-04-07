@@ -240,6 +240,7 @@ function createWorlds() {
 	
 	new World("fractal", [], [
 		[bg, Color(80, 90, 80)],
+		[bg_sun, Color(255, 255, 255), 0.002],
 	],
 	polToCart(0.6, 1.2, 1),
 	[0, 57, -920], 
