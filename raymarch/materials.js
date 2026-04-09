@@ -320,5 +320,5 @@ var map_matStr = Object.fromEntries(Object.entries(map_strMat).map(a => [a[1].na
 
 var map_typeMat = {};
 Object.entries(map_strMat).forEach(e => {
-	map_typeObj[e.type] = e;
+	map_typeMat[e.type] = e;
 });
