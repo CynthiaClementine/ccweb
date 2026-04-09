@@ -50,6 +50,8 @@ class Player {
 
 		this.gravity = 0.1;
 		this.fallMax = 10;
+		this.grounded = 0;
+		this.maxGroundDot = 0.1;
 
 		this.height = player_width;
 		this.width = player_width;
@@ -76,7 +78,12 @@ class Player {
 		
 		
 		camera.world = this.world;
-		camera.pos = Pos(this.pos[0], this.pos[1] + this.height / 2, this.pos[2]);
+		if (getDistancePos(camera.pos, this.pos) < 10) {
+			camera.pos = Pos(...linterpMulti(camera.pos, Pos(this.pos[0], this.pos[1] + this.height / 2, this.pos[2]), 0.6));
+		} else {
+			camera.pos = Pos(this.pos[0], this.pos[1] + this.height / 2, this.pos[2]);
+		
+		}
 		camera.theta = this.theta;
 		camera.phi = this.phi;
 	}
@@ -99,9 +106,11 @@ class Player {
 		this.updateMomentumAxis(0);
 
 		//gravity
-		if (this.grounded) {
+		this.onGround();
+		if (this.grounded > 0) {
 			if (this.dPos[1] < 0) {
 				this.dPos[1] *= this.frictionBrake;
+				console.log(`braking`);
 			}
 		} else {
 			this.dPos[1] -= this.gravity;
@@ -130,16 +139,13 @@ class Player {
 	}
 	
 	//collides as a sphere with the terrain, modifies dPos, returns the number of places the sphere has collided
-	sphereBounce(spherePos, dPos, div) {
+	sphereBounce(spherePos, div, vHat) {
 		const pi = Math.PI;
 		const twoPi = 2 * pi;
 		const halfPi = pi / 2;
-		const [max, abs] = [Math.max, Math.abs];
-		const needsAdjustment = (max(abs(dPos[0]), abs(dPos[1]), abs(dPos[2])) > 0.0001) 
-							 && (max(abs(dPos[0]), abs(dPos[1]), abs(dPos[2])) > 0.0001);
 		
 		var numCollisions = 0;
-		var colVec = [0, 0, 0];
+		var normals = [];
 		//go through the surface of the sphere in equal-angle measurements
 		//collide with each point to approximate colliding with the sphere
 		for (var p=-div/4; p<=div/4; p++) {
@@ -149,32 +155,51 @@ class Player {
 			for (var t=0; t<tSteps; t++) {
 				const theta = t * twoPi / div;
 				const offsetVec = polToCart(theta, phi, 1);
-				if (this.rayBounce(spherePos, [0, 0, 0], offsetVec)) {
+				const bounceResult = this.rayBounce(spherePos, [0, 0, 0], offsetVec);
+				if (bounceResult) {
 					//if we've collided, bounce and change velocity
 					numCollisions += 1;
-					if (p < 0) {
+					if (p < 0 && this.grounded < player_coyote) {
 						this.grounded += 1;
 					}
 					
-					if (needsAdjustment) {
-						colVec = normalize(colVec);
-						var colProj = proj(dPos, offsetVec);
-						dPos[0] -= colProj[0];
-						dPos[1] -= colProj[1];
-						dPos[2] -= colProj[2];
+					if (dot(vHat, offsetVec) > 0.001) {
+						normals.push([-offsetVec[0], -offsetVec[1], -offsetVec[2], bounceResult.bounciness]);
 					}
 				}
 			}
 		}
-		
-		return numCollisions;
+		normals.length = numCollisions;
+		return normals;
+	}
+	
+	//slightly simpler sphere calculation that just says if the sphere collides. Returns after the first collision.
+	sphereBounceTest(spherePos, div, vHat) {
+		const pi = Math.PI;
+		const twoPi = 2 * pi;
+		const halfPi = pi / 2;
+
+		for (var p=-div/4; p<=div/4; p++) {
+			const phi = p * twoPi / div;
+			const tSteps = (Math.abs(p) == div / 4) ? 1 : div;
+			
+			for (var t=0; t<tSteps; t++) {
+				const theta = t * twoPi / div;
+				const offsetVec = polToCart(theta, phi, 1);
+				if (this.rayBounce(spherePos, [0, 0, 0], offsetVec) && dot(vHat, offsetVec) > 0.001) {
+					return true;
+				}
+			}
+		}
+		normals.length = numCollisions;
+		return false;
 	}
 	
 	rayBounce(spherePos, dPos, vec) {
 		const w = this.width;
 		var pos = Pos(spherePos[0] + vec[0]*w, spherePos[1] + vec[1]*w, spherePos[2] + vec[2]*w);
 		var [dist, distObj] = this.world.tree.estimatePos(pos);
-		distObj = this.world.objects[distObj];
+		distObj = this.world.expObjs[distObj];
 		
 		//hit
 		if (dist < ray_minDist) {
@@ -184,20 +209,11 @@ class Player {
 				spherePos[0] += saved.offset[0];
 				spherePos[1] += saved.offset[1];
 				spherePos[2] += saved.offset[2];
-				return 0;
+				return null;
 			}
-			
-			//if the normal is pointing in roughly the right direction, push out slightly to prevent clipping into surfaces
-			var normal = distObj.normalAt(pos);
-			if (dot(normal, vec) < -0.5) {
-				var e = 0.05;
-				spherePos[0] += normal[0] * e;
-				spherePos[1] += normal[1] * e;
-				spherePos[2] += normal[2] * e;
-			}
-			return 1;
+			return saved;
 		}
-		return 0;
+		return null;
 	}
 	
 	updatePosition() {
@@ -215,7 +231,7 @@ class Player {
 			So there's this repeated pattern of
 			move a tiny bit -> check if collision
 			if no: cool
-			if yes: move back that same tiny bit -> break
+			if yes: move back that same tiny bit -> try again
 		 */
 
 		//before any raycasts, housekeeping
@@ -285,39 +301,118 @@ class Player {
 	* @param {Number} panicPoints number of collision points to panic at
 	 */
 	updateSubPosition(vHat, speed, coords, vChange, panicPoints) {
-		//take tiny steps - max dist of 1 for each step
-		for (0; speed>0; speed-=1) {
-			var tickDist = Math.min(1, speed);
-			var frameOffset = [vHat[0] * tickDist, vHat[1] * tickDist, vHat[2] * tickDist];
-			
-			coords[0] += frameOffset[0];
-			coords[1] += frameOffset[1];
-			coords[2] += frameOffset[2];
-			var colNum = this.sphereBounce(coords, vChange, this.colPoints);
-			
-			//if we've collided
-			if (colNum > 0) {
-				coords[0] -= frameOffset[0];
-				coords[1] -= frameOffset[1];
-				coords[2] -= frameOffset[2];
-			
-				if (colNum < panicPoints) {
-					speed *= 0.7;
-					//counteract the -1 from looping if we are moving
-					if (speed > 0.01) {
-						speed += 1;
-					}
-				} else {
-					//panic collision
-					console.log(`panic!`);
-					coords[1] += 1.5;
-					vChange[0] *= 1.1;
-					vChange[1] *= 1.1;
-					vChange[2] *= 1.1;
-					speed = 0;
-				}
+		var safeSpeed = speed;
+		// console.log(`starting at ${printPos(coords)}`);
+		//take tiny steps - max dist of 2 for each step
+		const maxTickDist = 2;
+		var k = 0;
+		while (speed > 0.01) {
+			k += 1;
+			if (k > 30) {
+				console.error(`too many iterations!`);
+				return;
 			}
+			var tickDist = Math.min(maxTickDist, speed);
+			var normalsList;
+			
+			var p0 = coords;
+			var pX = coords;
+			var pY = [
+				coords[0] + vHat[0] * tickDist, 
+				coords[1] + vHat[1] * tickDist, 
+				coords[2] + vHat[2] * tickDist
+			];
+			var pM = linterpMulti(pX, pY, 0.5);
+			// console.log(`iter=${k}: at ${printPos(p0)} w/ completion=${tickDist}/${speed} towards ${printPos(vHat)}`);
+			
+			//test if there's a collision
+			normalsList = this.sphereBounce(pY, this.colPoints, vHat);
+			// console.log(`testing ${printPos(pY)}. collides: ${(normalsList[0] != undefined)}`);
+			speed -= tickDist;
+			if (normalsList[0] == undefined) {
+				// console.log(`good! Moving to ${printPos(pY)}`);
+				//that's good! Just move there
+				coords[0] = pY[0];
+				coords[1] = pY[1];
+				coords[2] = pY[2];
+				// if (Math.random() < 0.001) {console.log(`moving full distance`);}
+				continue;
+			}
+			
+			//figure out how far it's possible to go without colliding
+			//p0 - initial pos
+			//pX - last pos at which no collisions happen
+			//pM - middle test point
+			//pY - first pos at which collisions are happening
+			var stepDist = tickDist / 2;
+			tickDist = 0;
+			var bufferList = this.sphereBounce(pM, this.colPoints, vHat);
+			//use binary search, etc
+			for (var i=0; i<8; i++) {
+				if (bufferList[0]) {
+					pY = pM;
+				} else {
+					pX = pM;
+					tickDist += stepDist;
+				}
+				
+				pM = linterpMulti(pX, pY, 0.5);
+				stepDist /= 2;
+			
+				bufferList = this.sphereBounce(pM, this.colPoints, vHat);
+			}
+			
+			//sphere collision at pY gives list of normals we're colliding against
+			normalsList = bufferList;
+			// if (Math.random() < 0.01) {console.log(normalsList);}
+			
+			// console.log(`first: ${printPos(pX)}    last: ${printPos(pY)}`);
+			coords[0] = pX[0];
+			coords[1] = pX[1];
+			coords[2] = pX[2];
+			
+			//special case: if the number of normals > panicPoints, make the player FASTER and move them upwards
+			if (normalsList.length > panicPoints) {
+				console.log(`panic!`);
+				coords[1] += 1.5;
+				vChange[0] += this.dPos[0] * 0.1;
+				vChange[1] += this.dPos[1] * 0.1;
+				vChange[2] += this.dPos[2] * 0.1;
+				speed = 0;
+				continue;
+			}
+			
+			
+			//apply collide-and-slide with the normals, in no particular order
+			if (Math.random() < 0.01) {
+				// console.log(normalsList);
+			}
+			var n = 0;
+			const e = 0.01;
+			while (normalsList[n]) {
+				var colProj = proj(vHat, normalsList[n]);
+				var amt = (1 + normalsList[n][3]);
+				vHat[0] -= colProj[0] * amt;
+				vHat[1] -= colProj[1] * amt;
+				vHat[2] -= colProj[2] * amt;
+				// coords[0] -= normalsList[n][0] * e;
+				// coords[1] -= normalsList[n][1] * e;
+				// coords[2] -= normalsList[n][2] * e;
+				
+				//speed should be affected, but vHat needs to be a unit vector. So that's this
+				var newLen = getDistancePos(vHat, Pos(0, 0, 0));
+				speed *= newLen;
+				vHat = normalize(vHat);
+
+				vChange[0] -= colProj[0] * safeSpeed;
+				vChange[1] -= colProj[1] * safeSpeed;
+				vChange[2] -= colProj[2] * safeSpeed;
+				safeSpeed *= newLen;
+				n += 1;
+			}
+			// console.log(`collided with ${n} normals`);
 		}
+		// console.log(`ending at ${printPos(coords)}\n\n`);
 	}
 	
 	portalTest(obj, coords) {
@@ -376,7 +471,7 @@ class Player {
 
 	jump() {
 		//if the ray's hit an object then the player is on the ground
-		if (this.grounded) {
+		if (this.grounded > 0) {
 			this.dPos[1] = this.jumpSpeed;
 			this.grounded = 0;
 		}
