@@ -398,18 +398,22 @@ class ObjectGrid {
 		}
 		
 		//add closest object to the estimate grid
+		if (this.objs.length == 0) {
+			return;
+		}
 		const xd = this.xd;
 		const yd = this.yd;
 		const zd = this.zd;
+		const minPos = this.minPos;
 		const chunks = this.chunks;
 		for (var x=0; x<len; x++) {
-			var worldX = this.minPos[0] + x * xd;
+			const worldX = minPos[0] + x * xd;
 			for (var y=0; y<len; y++) {
-				var worldY = this.minPos[1] + y * yd;
+				const worldY = minPos[1] + y * yd;
 				for (var z=0; z<len; z++) {
 					//add the object that's closest
-					var worldZ = this.minPos[2] + z * zd;
-					var ind = this.world.estimatePos(Pos(worldX, worldY, worldZ))[1];
+					const worldZ = minPos[2] + z * zd;
+					const ind = this.world.estimatePos(Pos(worldX, worldY, worldZ))[1];
 					//add to all adjacents as well
 					[[1, 1, 1],[1, 1, -1],[1, -1, 1],[1, -1, -1],
 					[-1, 1, 1],[-1, 1, -1],[-1, -1, 1],[-1, -1, -1]].forEach(g => {
