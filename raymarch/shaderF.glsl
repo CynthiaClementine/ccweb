@@ -449,7 +449,7 @@ float fractalSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	//extra ending bit
 	vec3 a = abs(p.xyz) - vec3(6.);
 	float finalVal = (min(max(max(a.x, a.y), a.z), 0.) + length(max(a, 0.))) / p.w;
-	return (finalVal * data1) - ray_minDist;
+	return (finalVal * data1);
 }
 
 float gyroidSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
