@@ -84,7 +84,7 @@ class Scene3dObject {
 			radians /= degToRad;
 			return modulate(Math.round(radians), 360);
 		}
-		return `~[${this.pos}]~${this.nature}~${deg(t)}~${deg(p) + 90}~${deg(r)}|${this.material.serialize()}|`;
+		return `~[${this.pos}]~${this.nature}~${deg(t)}~${deg(p + (Math.PI / 2))}~${deg(r)}|${this.material.serialize()}|`;
 	}
 	
 	serializeGPU() {
@@ -222,11 +222,103 @@ class Scene3dLoop {
 class SceneCollection {
 	static type = -5;
 	/**
-	* An object that contains other objects. When editing, basic translations / rotations can be applied to all the objects in the collection.
-	* However, 
+	* An object that contains other serialized objects. 
+	* When editing, basic translations / rotations can be applied to all the objects in the collection.
 	*/
-	constructor() {
+	constructor(posRot, objects) {
+		this.type = this.constructor.type;
+		this.pos = posRot.pos;
+		this.theta = posRot.theta;
+		this.phi = posRot.phi;
+		this.rot = posRot.rot;
+		
+		this.baseObjects = objects;
+		this.expObjs = [];
+	}
 	
+	fixRotations() {
+		this.theta = modulate(this.theta, Math.PI * 2);
+		this.phi += Math.PI / 2;
+		this.phi = modulate(this.phi, Math.PI);
+		this.phi -= Math.PI / 2;
+		this.rot = modulate(this.rot, Math.PI * 2);
+	}
+	
+	bounds() {
+		console.error(`bounds are not defined for ${this.constructor.name}!`);
+		return giveBounds(this.pos, 1, 1, 1);
+	}
+	
+	/**
+	* apply any possible animations to a particular object group. 
+	* Examples: stretching legs, blinking, etc.
+	 */
+	animate(objGroup) {
+	
+	}
+	
+	/**
+	* apply transformations (position, rotation) to a particular object group. Happens after standard transform.
+	* Examples: moving
+	 */
+	transform(objGroup) {
+	
+	} 
+
+	express() {
+		/*
+		for a collection to express itself:
+			start with base objects
+			-> apply any animations
+			-> apply standard transform
+			-> profit!
+		 */
+		const [basePos, baseTheta, basePhi, baseRot] = [this.pos, this.theta, this.phi, this.rot];
+		const self = this;
+		var objs = this.baseObjects.map(s => deserialize(s));
+		this.animate(objs);
+		objs.forEach(o => {
+			var t = transformTransform(o.pos, o.theta, o.phi, o.rot, basePos, baseTheta, basePhi, baseRot);
+			o.parent = self;
+			o.pos = t.pos;
+			o.theta = t.theta;
+			o.phi = t.phi;
+			o.rot = t.rot;
+		});
+		this.transform(objs);
+		this.expObjs = objs;
+		return objs;
+	}
+
+	tick() {}
+	
+	distanceToPos(pos) {
+		console.error(`Do not call the SDF for SceneCollections!`);
+		return -1;
+	}
+	
+	//how this object should interact with other objects
+	sceneSDF(pos, currentSDF) {
+		const d = this.distanceToPos(pos);
+		return [Math.min(currentSDF, d), d < currentSDF];
+	}
+	
+	serializeKernel() {
+		const [t, p, r] = [this.theta, this.phi, this.rot];
+		function deg(radians) {
+			radians /= degToRad;
+			return modulate(Math.round(radians), 360);
+		}
+		return `~[${this.pos}]~X~${deg(t)}~${deg(p + (Math.PI / 2))}~${deg(r)}||`;
+	}
+
+	serialize() {
+		const [t, p, r] = [this.theta, this.phi, this.rot];
+		function deg(radians) {
+			radians /= degToRad;
+			return modulate(Math.round(radians), 360);
+		}
+		return `COLLECTION~[${this.pos}]~${this.nature}~${deg(t)}~${deg(p + (Math.PI / 2))}~${deg(r)}||${this.objects}`;
 	}
 }
 
@@ -960,35 +1052,3 @@ class Voxel extends Scene3dObject {
 		return [this.d, ...this.c];
 	}
 }
-
-var map_strObj = {
-	"BOX": Box,
-	"BOX-FRAME": BoxFrame,
-	"BOX-MOVING": Box_Moving,
-	"CUBE": Cube,
-	"CAPSULE": Capsule,
-	"CYLINDER": Cylinder,
-	"ELLIPSE": Ellipsoid,
-	"FRACTAL": Fractal,
-	"GYROID": Gyroid,
-	"LINE": Line,
-	"OCTAHEDRON": Octahedron,
-	"PRISM-HEXAGON": PrismHexagon,
-	"PRISM-OCTAGON": PrismOctagon,
-	"PRISM-RHOMBUS": PrismRhombus,
-	"RING": Ring,
-	"SHELL": Shell,
-	"SPHERE": Sphere,
-	"VOXEL": Voxel,
-	
-	//in here for editor purposes
-	"PLAYER": Player,
-	"PLAYER-DEBUG": Player_Debug,
-	"PLAYER-NOCLIP": Player_Noclip,
-};
-var map_objStr = Object.fromEntries(Object.entries(map_strObj).map(a => [a[1].name, a[0]]));
-
-var map_typeObj = {};
-Object.entries(map_strObj).forEach(e => {
-	map_typeObj[e.type] = e;
-});
