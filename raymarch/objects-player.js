@@ -57,7 +57,9 @@ class Player {
 		this.width = player_width;
 
 		this.colPoints = 16;
+		this.colObjs = new Set();
 		this.colPanicThreshold = 0.75;
+		this.mmtmFactor = 1 - (1 / Math.E);
 		
 		this.theta = 0;
 		this.phi = 0;
@@ -155,7 +157,7 @@ class Player {
 			for (var t=0; t<tSteps; t++) {
 				const theta = t * twoPi / div;
 				const offsetVec = polToCart(theta, phi, 1);
-				const bounceResult = this.rayBounce(spherePos, [0, 0, 0], offsetVec);
+				var bounceResult = this.rayBounce(spherePos, [0, 0, 0], offsetVec);
 				if (bounceResult) {
 					//if we've collided, bounce and change velocity
 					numCollisions += 1;
@@ -164,7 +166,13 @@ class Player {
 					}
 					
 					if (dot(vHat, offsetVec) > 0.001) {
-						normals.push([-offsetVec[0], -offsetVec[1], -offsetVec[2], bounceResult.bounciness]);
+						normals.push([-offsetVec[0], -offsetVec[1], -offsetVec[2], bounceResult.material.bounciness]);
+						while (bounceResult.parent) {
+							bounceResult = bounceResult.parent;
+						}
+						if (bounceResult.dPos) {
+							this.colObjs.add(bounceResult);
+						}
 					}
 				}
 			}
@@ -211,7 +219,7 @@ class Player {
 				spherePos[2] += saved.offset[2];
 				return null;
 			}
-			return saved;
+			return distObj;
 		}
 		return null;
 	}
@@ -251,10 +259,6 @@ class Player {
 			return;
 		}
 		
-		if (dChange[0] != 0 || dChange[1] != 0 || dChange[2] != 0) {
-			var simp = (a) => {return a.map(b => b.toFixed(2));};
-		}
-		
 		//sphereBounce at the start for portals!
 		// this.sphereBounce(coords, [0, 0, 0], this.colPoints);
 		
@@ -272,6 +276,17 @@ class Player {
 		
 		//go back down
 		this.updateSubPosition(Pos(0, -1, 0), player_stepHeight + 1, coords, Pos(0, 0, 0), panicPoints);
+		
+		//have objects bring the player up to speed
+		this.colObjs.forEach((obj => {
+			var vec = [
+				obj.dPos[0] * this.mmtmFactor,
+				obj.dPos[1] * this.mmtmFactor,
+				obj.dPos[2] * this.mmtmFactor,
+			]
+			dChange = linterpMulti(dChange, vec, 0.5);
+			this.colObjs.delete(obj);
+		}).bind(this));
 		
 		//never bounce back faster than we started
 		
