@@ -399,17 +399,18 @@ class Box_Moving extends Box {
 	
 	//warning: does not mesh well with portal surfaces. fix before finishing
 	tick() {
+		var lastPos = this.pos;
 		this.pos = [
-			this.posBase[0],
-			this.posBase[1] + 50 * Math.sin(world_time / 100),
+			this.posBase[0] + 100 * Math.sin(world_time / 80),
+			this.posBase[1],
 			this.posBase[2]
 		];
-		
-		if (gl && loading_world.objects.includes(this)) {
-			loading_world.bvh.generate();
-			createGPUWorld(loading_world);
-			// GPU_transferObj(loading_world, this);
-		}
+		this.dPos = [
+			(this.pos[0] - lastPos[0]),
+			(this.pos[1] - lastPos[1]),
+			(this.pos[2] - lastPos[2]),
+		]
+		loading_world.shouldRegen = true;
 	}
 }
 
@@ -1004,21 +1005,21 @@ class Sphere extends Scene3dObject {
 
 class Voxel extends Scene3dObject {
 	static type = TYPE_VOXEL;
-	constructor(posRot, material, nature, d, c1, c2, c3, c4, c5, c6, c7, c8) {
+	constructor(posRot, material, nature, r, c1, c2, c3, c4, c5, c6, c7, c8) {
 		super(posRot, material, nature);
-		this.d = d;
+		this.r = r;
 		this.c = [c1, c2, c3, c4, c5, c6, c7, c8];
 	}
 	
 	bounds() {
-		var halfD = this.d / 2;
+		var halfD = this.r;
 		return giveBounds(this.pos, halfD, halfD, halfD, this.theta, this.phi, this.rot);
 	}
 	
 	distanceToPos(pos) {
 		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
-		const d = this.d;
-		const halfD = this.d / 2;
+		const d = this.r * 2;
+		const halfD = this.r;
 		var relX = relPos[0];
 		var relY = relPos[1];
 		var relZ = relPos[2];
@@ -1045,10 +1046,10 @@ class Voxel extends Scene3dObject {
 	}
 	
 	serialize() {
-		return `VOXEL${super.serialize()}${this.d}~${this.c[0]}~${this.c[1]}~${this.c[2]}~${this.c[3]}~${this.c[4]}~${this.c[5]}~${this.c[6]}~${this.c[7]}`
+		return `VOXEL${super.serialize()}${this.r * 2}~${this.c[0]}~${this.c[1]}~${this.c[2]}~${this.c[3]}~${this.c[4]}~${this.c[5]}~${this.c[6]}~${this.c[7]}`
 	}
 	
 	serializeGPU() {
-		return [this.d, ...this.c];
+		return [this.r * 2, ...this.c];
 	}
 }
