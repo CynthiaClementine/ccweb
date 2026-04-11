@@ -123,7 +123,15 @@ class Ray_Tracking {
 		this.dPos = dPos;
 		this.distance = 0;
 		this.distCap = maxDist ?? ray_maxDist;
-		this.object = undefined;
+		this.object = null;
+	}
+	
+	reset(world, pos, dPos) {
+		this.world = world;
+		this.pos = new Float32Array(pos);
+		this.dPos = dPos;
+		this.distance = 0;
+		this.object = null;
 	}
 
 	iterate() {
@@ -410,10 +418,17 @@ class ObjectGrid {
 			const worldX = minPos[0] + x * xd;
 			for (var y=0; y<len; y++) {
 				const worldY = minPos[1] + y * yd;
+				var ind = -1;
+				var recheckZ = -1;
 				for (var z=0; z<len; z++) {
 					//add the object that's closest
 					const worldZ = minPos[2] + z * zd;
-					const ind = this.world.estimatePos(Pos(worldX, worldY, worldZ))[1];
+					if (recheckZ <= z) {
+						var result = this.world.estimatePosRanking(Pos(worldX, worldY, worldZ));
+						ind = result[0][1];
+						recheckZ = z + Math.floor((result[1][0] - result[0][0]) / zd);
+					}
+					
 					//add to all adjacents as well
 					[[1, 1, 1],[1, 1, -1],[1, -1, 1],[1, -1, -1],
 					[-1, 1, 1],[-1, 1, -1],[-1, -1, 1],[-1, -1, -1]].forEach(g => {
