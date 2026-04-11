@@ -113,12 +113,6 @@ function main() {
 }
 
 function finishMain() {
-	//first figure out if we can actually finish
-	if (render_linesDrawn < render_n) {
-		return;
-	}
-	render_linesDrawn = 0;
-	
 	drawUI();
 	
 	//calculate frame time
@@ -156,18 +150,6 @@ function draw() {
 		render_linesDrawn = render_n;
 		return;
 	}
-
-	//draw everything
-	const pixelsInX = render_n;
-	const pixelsInY = render_n;
-
-	const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
-	const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
-	const zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
-
-	for (var x=0; x<pixelsInX; x++) {
-		drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
-	}
 }
 
 function drawUI() {
@@ -186,6 +168,21 @@ function drawUI() {
 		btx.fillRect(0, cvs.height * 0.97, cvs.width, cvs.height * 0.03);
 	}
 	
+	//collision
+	//draw everything
+	if (debug_listening) {
+		const pixelsInX = render_n;
+		const pixelsInY = render_n;
+	
+		const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
+		const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
+		const zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
+	
+		for (var x=0; x<pixelsInX; x++) {
+			drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
+		}
+	}
+	
 	//crosshair
 	btx.beginPath();
 	btx.strokeStyle = color_editor_border;
@@ -200,8 +197,9 @@ function drawUI() {
 
 function drawLine(x, colorArr) {
 	//writing directly to imageData is theoretically faster than changing fillStyle a bunch
-	var blockSize = Math.round(canvas.width / render_n);
-	var imageData = ctx.createImageData(blockSize, canvas.height);
+	var blockSizeTrue = (banvas.width / render_n);
+	var blockSize = Math.round(banvas.width / render_n);
+	var imageData = btx.createImageData(blockSize, banvas.height);
 	var dataBlock = imageData.data;
 	for (var y=0; y<render_n; y++) {
 		var r = colorArr[3*y];
@@ -215,15 +213,13 @@ function drawLine(x, colorArr) {
 				dataBlock[pixelInd] = r;
 				dataBlock[pixelInd+1] = g;
 				dataBlock[pixelInd+2] = b;
-				dataBlock[pixelInd+3] = 255;
+				dataBlock[pixelInd+3] = 128;
 			}
 		}
 	}
 	
-	ctx.putImageData(imageData, x * blockSize, 0);
+	btx.putImageData(imageData, x * blockSizeTrue, 0);
 	render_linesDrawn += 1;
-	
-	finishMain();
 }
 
 function handleWorkerMsg(e) {
@@ -247,6 +243,9 @@ function handleWorkerMsg(e) {
 
 
 function handleKeyPress(a) {
+	if (!player) {
+		return;
+	}
 	if (debug_listening) {
 		/*
 		all debug effects are activated by pressing ] and then another key.
@@ -340,6 +339,9 @@ function handleKeyPress(a) {
 }
 
 function handleKeyNegate(a) {
+	if (!player) {
+		return;
+	}
 	switch(a.code) {
 		case "KeyA":
 		case "ArrowLeft":
