@@ -206,8 +206,8 @@ class World {
 	estimatePos(pos) {
 		var dist = 1e100;
 		var distInd = -1;
-		for (var i=0; i<this.objects.length; i++) {
-			var testDist = this.objects[i].distanceToPos(pos);
+		for (var i=0; i<this.expObjs.length; i++) {
+			var testDist = this.expObjs[i].distanceToPos(pos);
 			if (testDist < dist) {
 				dist = testDist;
 				distInd = i;
@@ -218,6 +218,30 @@ class World {
 			}
 		}
 		return [dist, distInd];
+	}
+	
+	/**
+	* returns the top 2 indices and their distances, instead of just the top one
+	 */
+	estimatePosRanking(pos) {
+		var dist_2nd = 1e100;
+		var dind_2nd = -1;
+		var dist = 1e99;
+		var dind = -1;
+		const expObjs = this.expObjs;
+		for (var i=0; i<expObjs.length; i++) {
+			const testDist = expObjs[i].distanceToPos(pos);
+			if (testDist < dist) {
+				dist_2nd = dist;
+				dind_2nd = dind;
+				dist = testDist;
+				dind = i;
+			} else if (testDist < dist_2nd) {
+				dist_2nd = testDist;
+				dind_2nd = i;
+			}
+		}
+		return [[dist, dind], [dist_2nd, dind_2nd]];
 	}
 	
 	tick() {
@@ -291,6 +315,22 @@ function createWorlds() {
 		],
 		0.4
 	);
+	
+	new World("voxels", [], [
+			[bg, Color(80, 90, 80)],
+		],
+		polToCart(0.6, 1.2, 1),
+		[64, 10, 115],
+		[
+			`VOXEL~[0,0,0]~0~0~90~0|color:60~127~35|200~-1~-1~-1~-1~-1~1~1~1`,
+			`VOXEL~[0,0,-200]~0~0~90~0|color:22~200~0|200~-1~-1~-1~-1~1~1~1~-1`,
+			`VOXEL~[-200,0,0]~0~0~90~0|color:42~110~32|200~-1~-1~-1~-1~1~-1~1~1`,
+			`VOXEL~[-200,0,-200]~0~0~90~0|color:32~169~42|200~-1~-1~-1~-1~1~1~-1~1`,
+			`VOXEL~[-200,200,0]~0~0~90~0|color:58~164~81|200~1~-1~1~1~1~-1~1~-1`,
+			`VOXEL~[-199,0,201]~0~0~90~0|color:42~116~57|200~-1~-1~1~1~1~1~1~1`,
+			`VOXEL~[-200,-200,200]~0~0~90~0|color:51~133~89|200~-1~-1~-1~-1~-1~-1~1~1`,
+			`VOXEL~[0,0,200]~0~0~90~0|color:23~123~8|200~-1~-1~-1~1~1~1~1~1`
+	]);
 	
 	new World("fractal", [], [
 		[bg, Color(80, 90, 80)],
@@ -799,39 +839,49 @@ function createWorlds() {
 	);
 	
 	new World("desert", [
-	
+		
 	], [
-		[bg, Color(28, 3, 54)]
+		[bg, Color(28, 3, 54)],
+		[bg_fadeToOld, Color(28, 3, 54), 2000],
 	],
-	polToCart(0.2, 0.01, 1),
+	polToCart(0.2, 0.1, 1),
 	[0, 0, 0],
 	[	
 		`BOX~[0,-100,0]~0~0~90~0|color:119~0~64|6000~50~6000`,
-		`BOX~[257,-16,-828]~0~103~380~227|color:255~0~255|1~35~80`,
-		`BOX~[336,-16,-749]~0~93~428~164|color:255~0~255|80~35~1`,
-		`BOX~[415,-16,-892]~0~223~433~171|color:255~0~255|1~35~16`,
+		`BOX~[257,-16,-828]~0~103~20~227|color:255~0~255|1~35~80`,
+		`BOX~[336,-16,-749]~0~93~68~164|color:255~0~255|80~35~1`,
+		`BOX~[415,-16,-892]~0~223~73~171|color:255~0~255|1~35~16`,
 		`BOX~[336,-16,-907]~0~0~90~0|color:255~0~255|80~35~1`,
 		`BOX~[331,-11,-871]~0~111~138~230|color:128~128~255|32~31~40`,
 		`BOX~[-12,-37,-124]~2~23~90~0|color:255~0~255|47~137~48`,
-		`BOX~[-85,-44,-154]~2~111~95~0|color:255~0~255|25~10~36`,
-		`CAPSULE~[198,-40,-298]~0~0~360~0|portal:start~[0,100,0]|10~10`,
+		`BOX~[18,-47,-195]~2~203~117~0|color:255~0~255|44~21~92`,
+		`CAPSULE~[198,-40,-298]~0~0~0~0|portal:start~[0,100,0]|10~10`,
 		`PRISM-OCTAGON~[150,-9,-408]~0~0~180~21|color:161~99~104|5~5~41`,
-		`PRISM-OCTAGON~[150,26,-420]~0~0~412~0|color:160~100~102|2~2~13`,
+		`PRISM-OCTAGON~[150,26,-420]~0~0~52~0|color:160~100~102|2~2~13`,
 		`PRISM-OCTAGON~[145,-44,-546]~1~6~116~0|color:162~99~102|7~7~26`,
-		`PRISM-OCTAGON~[140,-10,-538]~1~0~397~0|color:160~99~106|6~6~31`,
-		`PRISM-OCTAGON~[142,-4,-511]~0~167~385~63|color:162~102~113|5~5~27`,
-		`PRISM-OCTAGON~[144,31,-509]~1~4~387~0|color:162~99~109|5~5~18`,
+		`PRISM-OCTAGON~[140,-10,-538]~1~0~37~0|color:160~99~106|6~6~31`,
+		`PRISM-OCTAGON~[142,-4,-511]~0~167~25~63|color:162~102~113|5~5~27`,
+		`PRISM-OCTAGON~[144,31,-509]~1~4~27~0|color:162~99~109|5~5~18`,
 		`PRISM-OCTAGON~[134,35,-490]~1~36~140~0|color:160~101~110|3~3~25`,
 		`PRISM-OCTAGON~[128,28,-563]~1~128~134~0|color:160~101~111|3~3~24`,
-		`PRISM-OCTAGON~[153,23,-572]~1~38~418~0|color:159~101~111|3~3~31`,
-		`PRISM-OCTAGON~[164,33,-569]~1~125~417~0|color:160~99~112|2~2~14`,
-		`PRISM-OCTAGON~[118,41,-555]~1~190~419~0|color:160~101~109|2~2~11`,
-		`BOX~[-9,-122,-121]~0~24~90~0|portal:turtleHell~[0,1389,0]|65~6~65`
+		`PRISM-OCTAGON~[153,23,-572]~1~38~58~0|color:159~101~111|3~3~31`,
+		`PRISM-OCTAGON~[164,33,-569]~1~125~57~0|color:160~99~112|2~2~14`,
+		`PRISM-OCTAGON~[118,41,-555]~1~190~59~0|color:160~101~109|2~2~11`,
+		`BOX~[-9,-122,-121]~0~24~90~0|portal:turtleHell~[0,1389,0]|65~6~65`,
+		`SKYBUNNY~[-100,10,10]~X~0~90~0||`,
+		`SKYBUNNY~[761,59,-422]~X~0~90~0||`,
+		`SKYBUNNY~[829,80,-1408]~X~0~90~0||`,
+		`SKYBUNNY~[-171,199,-1188]~X~0~90~0||`,
+		`SKYBUNNY~[-530,69,-353]~X~0~90~0||`,
+		`SKYBUNNY~[272,601,-163]~X~0~90~0||`,
+		`SKYBUNNY~[1211,1318,-877]~X~0~90~0||`,
+		`SKYBUNNY~[-1259,145,-791]~X~0~90~0||`,
+		`SKYBUNNY~[481,-17,126]~X~0~90~0||`,
+		`SKYBUNNY~[1359,496,-1190]~X~0~90~0||`
 	]
 	);
 	
-	
 	console.log(`finished loading ${worldsByID.length} worlds.`);
 	
-	loading_world = worlds["desert"];
+	loading_world = worlds["fractal"];
 }
