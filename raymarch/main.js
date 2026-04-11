@@ -170,7 +170,7 @@ function drawUI() {
 	
 	//collision
 	//draw everything
-	if (debug_listening) {
+	if (false && debug_listening) {
 		const pixelsInX = render_n;
 		const pixelsInY = render_n;
 	
