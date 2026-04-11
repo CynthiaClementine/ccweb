@@ -76,7 +76,7 @@ function boundsAngle(radians) {
 
 
 function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
-	var r = new Ray(camera.world, camera.pos, [0, 1, 0]);
+	var r = new Ray_Tracking(camera.world, camera.pos, [0, 1, 0]);
 	//array of integers, measuring RGB/RGB/RGB/RGB
 	const targetSize = pixelHeight * 3;
 	var colors;
@@ -109,9 +109,11 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 		trueDir[2] /= magnitude;
 		r.reset(camera.world, camera.pos, trueDir);
 		var c = r.iterate();
-		colors[3*y] = c[0];
-		colors[3*y+1] = c[1];
-		colors[3*y+2] = c[2];
+		if (r.object) {
+			colors[3*y] = 255;
+			// colors[3*y+1] = c[1];
+			// colors[3*y+2] = c[2];
+		}
 	}
 	return colors;
 }
@@ -329,6 +331,14 @@ function modulateSoft(x, num) {
 	return x;
 }
 
+function normalizeTo(vector, length) {
+	var norm = normalize(vector);
+	norm[0] *= length;
+	norm[1] *= length;
+	norm[2] *= length;
+	return norm;
+}
+
 function performanceTest() {
 	var perf = [performance.now(), 0];
 	var storage = 0;
@@ -358,6 +368,55 @@ function transform(point, offset, theta, phi, rot) {
 	return [x + offset[0], y + offset[1], z + offset[2]];
 }
 
+function cartToThetaPhi(x, y, z) {
+	var theta = Math.atan2(x, z);
+	var phi = Math.atan(y / Math.sqrt((z * z) + (x * x)));
+	
+	return [(theta < 0) ? (Math.PI * 2 + theta) : theta, phi];
+}
+
+
+/**
+ * transforms a standard transform. In this case, the first 4 args are the transform to modify, and the last 4 args are the base to apply.
+ * @param {Pos} pos
+ * @param {Number} theta
+ * @param {Number} phi
+ * @param {Number} rot
+ * @param {Pos} basePos
+ * @param {Number} baseTheta
+ * @param {Number} basePhi
+ * @param {Number} baseRot
+ */
+function transformTransform(pos, theta, phi, rot, basePos, baseTheta, basePhi, baseRot) {
+	//set up
+	var e = 0.1;
+	var zeroPos = Pos(0, 0, 0);
+	var p1 = pos;
+	var p2 = transform(Pos(0, 0, e), zeroPos, theta, phi, rot);
+	var p3 = transform(Pos(0, e*e, e), zeroPos, theta, phi, rot);
+	
+	//transform
+	p1 = transform(p1, basePos, baseTheta, basePhi, baseRot);
+	p2 = transform(p2, zeroPos, baseTheta, basePhi, baseRot);
+	p3 = transform(p3, zeroPos, baseTheta, basePhi, baseRot);
+	
+	//convert back
+	var [t2, h2] = cartToThetaPhi(p2[0], p2[1], p2[2]);
+	var [t3, h3] = cartToThetaPhi(p3[0], p3[1], p3[2]);
+	// var finalRot = Math.atan2((h3 - h2), (t3 - t2));
+	// var finalRot = modulate(baseRot + rot, Math.PI * 2);
+	// if (finalRot < 0) {
+	// 	finalRot = Math.PI * 2 + finalRot;
+	// }
+	
+	return {
+		pos: p1,
+		theta: Math.PI * 2 - t2,
+		phi: h2,
+		rot: rot + baseRot
+	};
+}
+
 /**
  * Returns the pre-image of a given point under the given offset / angles
  * @param {Number[]} point the point to transform
@@ -369,13 +428,20 @@ function transform(point, offset, theta, phi, rot) {
 function transformInverse(point, offset, theta, phi, rot) {
 	var [x, y, z] = [point[0] - offset[0], point[1] - offset[1], point[2] - offset[2]];
 
-	if (theta || phi || rot) {
+	if (theta) {
 		[x, z] = rotate(x, z, -theta);
+	}
+	if (phi) {
 		[y, z] = rotate(y, z, phi);
+	}
+	if (rot) {
 		[x, y] = rotate(x, y, -rot);
 	}
 	
 	return [x, y, z];
+}
+
+function transformInverseMat(point, offset, rotMatrix) {
 }
 
 function prand(min, max) {
@@ -393,6 +459,11 @@ function updateFOV(newFOV) {
 	worker_pool.forEach(w => {
 		w.postMessage(["updateFOV", newFOV, render_goalN]);
 	});
+}
+
+function printPos(pos) {
+	const n = 3;
+	return `(${pos[0].toFixed(n)},${pos[1].toFixed(n)},${pos[2].toFixed(n)})`;
 }
 
 function updateFOV_work(data) {
