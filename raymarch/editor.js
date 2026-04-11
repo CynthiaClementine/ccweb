@@ -3,18 +3,20 @@ var editor_selected = undefined;
 //editor functions
 /**
 * creates a default object given a constructor type. For the list of types, see all TYPE_ declarations in config.js
-* @param {Integer} objType an integer representing the type of object to create.
+* @param {Integer|undefined} objType an integer representing the type of object to create. If left undefined, defaults to 0
  */
 function createDefaultObject(objType) {
+	objType = objType ?? TYPE_SPHERE;
 	var type = map_typeObj[objType];
-	return new type({pos: Pos(0, 0, 0), theta: 0, phi: 0, rot: 0}, new M_Color(255, 0, 255), 0, 10, 10, 10, 1, 12, 6, 10, 10, 10, 10, 10);
+	return new type({pos: Pos(0, 0, 0), theta: 0, phi: 0, rot: 0}, createDefaultMaterial(), 0, 10, 10, 10, 1, 12, 6, 10, 10, 10, 10, 10);
 }
 
 /**
 * creates a default material given a constructor string.
-* @param {String} conStr the string representation of the type.
+* @param {String|undefined} conStr the string representation of the type. If left undefined, uses the `color` material.
  */
 function createDefaultMaterial(conStr) {
+	conStr = conStr ?? `color`;
 	var type = map_strMat[conStr];
 	switch (type) {
 		case M_Portal:
@@ -85,19 +87,21 @@ function transferPropertiesMat(oldMat, newMat) {
 }
 
 function deserialize(str) {
-	str = str.split(`||`);
+	//initial processing
+	var spl = str.split(`|`);
+	var [base, material, params] = [spl[0], spl[1], spl[2]];
+	for (var y=3; y<spl.length; y++) {
+		params += `|` + spl[y];
+	}
+	base = base.split(`~`);
+	material = deserializeMat(material);
 	
-	if (str.length > 1) {
-		//it's a scene3dLoop
-		var containedObj = deserialize(str[1]);
-		var base = str[0].split(`~`);
+	if (base[0] == `Scene3dLoop`) {
+		var containedObj = deserialize(params);
 		return new Scene3dLoop(+base[1], +base[2], +base[3], +base[4], containedObj);
 	}
 	
-	//initial processing
-	var [base, material, params] = str[0].split(`|`);
-	base = base.split(`~`);
-	material = deserializeMat(material);
+	//regular objects
 	params = params.split(`~`);
 	
 	//base structure is consistent across objects
@@ -115,10 +119,22 @@ function deserialize(str) {
 		rot: rot * degToRad
 	};
 	
-	return new type(posRotObj, material, nature, ...params.map(a => +a));
+	var finalArgs = [posRotObj];
+	if (material) {
+		finalArgs.push(material, nature);
+	}
+	if (params) {
+		finalArgs.push(...params.map(a => +a));
+	}
+	
+	return new type(...finalArgs);
 }
 
 function deserializeMat(str) {
+	//it's possible to have no material
+	if (!str || str == ``) {
+		return null;
+	}
 	var [name, params] = str.split(`:`);
 	if (params) {
 		params = params.split(`~`);
@@ -203,7 +219,7 @@ class Slider {
 		this.sliderElem.setAttribute(`min`, this.numRange[0]);
 		this.sliderElem.setAttribute(`max`, this.numRange[1]);
 		this.sliderElem.setAttribute(`step`, this.step);
-		this.sliderElem.value = 0;
+		this.sliderElem.value = "0";
 		this.synchronize();
 	}
 	
@@ -215,7 +231,11 @@ class Slider {
 		this.locked = false;
 		this.offsetLock = this.value();
 		if (this.rel) {
-			this.sliderElem.value = 0;
+			this.sliderElem.value = "0";
+			var self = this;
+			window.setTimeout(() => {
+				this.sliderElem.value = 0;
+			}, 0);
 		}
 	}
 	
@@ -398,6 +418,7 @@ var textbox_world;
 var dropdown_obj, dropdown_mat;
 
 var checkbox_gloop, checkbox_anti, checkbox_fog;
+var checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8;
 
 var editor_controls = [];
 
@@ -530,9 +551,26 @@ function editor_initialize() {
 		return editor_selected.nature & nat;
 	}
 	
+	function syncC(val, id) {
+		if (val != null) {
+			editor_selected.c[id] = -((val * 2) - 1);
+			loading_world.shouldRegen = true;
+		}
+		return (-editor_selected.c[id] + 1) / 2;
+	}
+	
 	checkbox_gloop = new Checkbox(`group_nature.gloopCheckbox`, `Gloop`, (val) => {return syncNature(val, N_GLOOP);});
 	checkbox_anti = new Checkbox(`group_nature.antiCheckbox`, `Anti`, (val) => {return syncNature(val, N_ANTI);});
 	checkbox_fog = new Checkbox(`group_nature.fogCheckbox`, `Fog`, (val) => {return syncNature(val, N_FOG);});
+	
+	checkbox_c1 = new Checkbox(`group_special.c1Checkbox`, `.`, (val) => {return syncC(val, 0);});
+	checkbox_c2 = new Checkbox(`group_special.c2Checkbox`, `.`, (val) => {return syncC(val, 1);});
+	checkbox_c3 = new Checkbox(`group_special.c3Checkbox`, `.`, (val) => {return syncC(val, 2);});
+	checkbox_c4 = new Checkbox(`group_special.c4Checkbox`, `.`, (val) => {return syncC(val, 3);});
+	checkbox_c5 = new Checkbox(`group_special.c5Checkbox`, `.`, (val) => {return syncC(val, 4);});
+	checkbox_c6 = new Checkbox(`group_special.c6Checkbox`, `.`, (val) => {return syncC(val, 5);});
+	checkbox_c7 = new Checkbox(`group_special.c7Checkbox`, `.`, (val) => {return syncC(val, 6);});
+	checkbox_c8 = new Checkbox(`group_special.c8Checkbox`, `.`, (val) => {return syncC(val, 7);});
 	
 	editor_controls = [
 		slider_fov, slider_res,
@@ -547,6 +585,7 @@ function editor_initialize() {
 		dropdown_obj, dropdown_mat,
 		textbox_world,
 		checkbox_gloop, checkbox_anti, checkbox_fog,
+		checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8
 	];
 	
 	slider_fov.synchronize();
@@ -575,7 +614,10 @@ function editor_initialize() {
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
 		"SHELL": [slider_rr, slider_h],
-		"VOXEL": [],
+		"VOXEL": [slider_rr, checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8],
+		
+		"DOTDOTDOT": [],
+		"SKYBUNNY": []
 	};
 	
 	var rgb = [slider_r, slider_g, slider_b];
@@ -598,7 +640,7 @@ function editor_initialize() {
 * @param {Integer} objType the type of the object
  */
 function editor_addObj(e, objType) {
-	var obj = createDefaultObject(objType ?? TYPE_SPHERE);
+	var obj = createDefaultObject(objType);
 	obj.pos = calcPlacePos();
 	loading_world.objects.push(obj);
 	loading_world.shouldRegen = true;
@@ -609,20 +651,32 @@ function editor_addObj(e, objType) {
 * removes an object from the loading world. Returns said object
  */
 function editor_removeObj(e, object) {
+	object = object ?? editor_selected;
 	if (object == player) {
 		return null;
 	}
 	
-	var index = loading_world.objects.indexOf(editor_selected);
+	var index = loading_world.objects.indexOf(object);
 	if (index < 0) {
 		console.error(`cannot remove object ${object.serialize()} from loading world!`);
 		return;
 	}
 	loading_world.shouldRegen = true;
-	return loading_world.objects.splice(index, 1)[0];
+	var removed = loading_world.objects.splice(index, 1)[0];
+	
+	//make sure there's never an empty world
+	if (loading_world.objects.length == 0) {
+		loading_world.objects.push(createDefaultObject());
+	}
+	
+	return removed;
 }
 
 function editor_select(object) {
+	//only select top-level collections
+	while (object && object.parent) {
+		object = object.parent;
+	}
 	editor_selected = object ?? player;
 	var consName = editor_selected.constructor.name;
 	var matName;
