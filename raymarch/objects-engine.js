@@ -43,7 +43,7 @@ class Ray {
 				this.world.postEffects.forEach(e => {e[0](self, e[1], e[2], e[3]);});
 				return this.color;
 			}
-	
+			
 			//get distance
 			const distObj = this.world.tree.estimate(this);
 			var dist = distObj.distanceToPos(this.pos) * ray_safetyMult;
@@ -54,7 +54,7 @@ class Ray {
 			this.localDist = dist;
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
 			// distObj = this.world.objects[distObj];
-	
+			
 			//if distance is out of dist bounds
 			if (dist < ray_nearDist) {
 				if (dist < ray_minDist) {
@@ -142,7 +142,6 @@ class Ray_Tracking {
 			var dist = distObj.distanceToPos(this.pos);
 			if (distObj.nature & N_ANTI) {
 				dist = -dist;
-			// 	dist = Math.max(-dist, ray_minDist * 1.1);
 			}
 			if (distObj.nature & N_FOG) {
 				dist = Math.max(dist, ray_nearDist * 0.9);
@@ -150,7 +149,7 @@ class Ray_Tracking {
 			
 			// var [dist, distObj] = this.world.grid.estimatePos(this.pos);
 			// distObj = this.world.objects[distObj];
-	
+			
 			//if distance is out of dist bounds
 			if (dist < ray_minDist) {
 				this.object = distObj;
@@ -319,6 +318,7 @@ class ObjectGrid {
 		this.l = l;
 		this.world = world;
 		this.objs = world.expObjs;
+		this.objIndexMap = new Map();
 		this.chunks = [];
 		this.xd = 0;
 		this.yd = 0;
@@ -328,7 +328,7 @@ class ObjectGrid {
 	}
 	
 	binObject(obj) {
-		var index = this.objs.indexOf(obj);
+		var index = this.objIndexMap.get(obj)
 		var [min, max] = obj.bounds();
 		min = this.calcGridCoords(min);
 		max = this.calcGridCoords(max);
@@ -358,8 +358,37 @@ class ObjectGrid {
 		];
 	}
 	
+	makeSets() {
+		const len = this.l;
+		this.chunks = [];
+		for (var x=0; x<len; x++) {
+			this.chunks[x] = [];
+			for (var y=0; y<len; y++) {
+				this.chunks[x][y] = [];
+				for (var z=0; z<len; z++) {
+					this.chunks[x][y][z] = new Set();
+				}
+			}
+		}
+	}
+	
+	clearSets() {
+		const len = this.l;
+		for (var x=0; x<len; x++) {
+			for (var y=0; y<len; y++) {
+				for (var z=0; z<len; z++) {
+					this.chunks[x][y][z].clear();
+				}
+			}
+		}
+	}
+	
 	generate() {
 		this.objs = this.world.expObjs;
+		if (this.objs.length == 0) {
+			return;
+		}
+		this.objs.forEach((o, i) => this.objIndexMap.set(o, i));
 		//generate bounds
 		var min = [1e1001, 1e1001, 1e1001];
 		var max = [-1e101, -1e101, -1e101];
@@ -392,54 +421,40 @@ class ObjectGrid {
 		}
 		
 		// console.log(min, max, this.l);
-		
-		//generate object estimate grid
-		this.chunks = [];
-		for (var x=0; x<len; x++) {
-			this.chunks[x] = [];
-			for (var y=0; y<len; y++) {
-				this.chunks[x][y] = [];
-				for (var z=0; z<len; z++) {
-					this.chunks[x][y][z] = new Set();
-				}
-			}
+		if (!this.chunks.length) {
+			this.makeSets();
+		} else {
+			this.clearSets();
 		}
-		
-		//add closest object to the estimate grid
-		if (this.objs.length == 0) {
-			return;
-		}
-		const xd = this.xd;
-		const yd = this.yd;
-		const zd = this.zd;
-		const minPos = this.minPos;
-		const chunks = this.chunks;
+		// i think it should be fine to just reuse the bvh????
 		for (var x=0; x<len; x++) {
-			const worldX = minPos[0] + x * xd;
+			var worldX = this.minPos[0] + (x + 0.5) * this.xd;
 			for (var y=0; y<len; y++) {
-				const worldY = minPos[1] + y * yd;
-				var ind = -1;
-				var recheckZ = -1;
+				var worldY = this.minPos[1] + (y + 0.5) * this.yd;
 				for (var z=0; z<len; z++) {
-					//add the object that's closest
-					const worldZ = minPos[2] + z * zd;
-					if (recheckZ <= z) {
-						var result = this.world.estimatePosRanking(Pos(worldX, worldY, worldZ));
-						ind = result[0][1];
-						recheckZ = z + Math.floor((result[1][0] - result[0][0]) / zd);
+					var worldZ = this.minPos[2] + (z + 0.5) * this.zd;
+					var pos = Pos(worldX, worldY, worldZ);
+
+					var bestObj = this.world.bvh.root ? this._bvhNearest(pos) : this._bruteNearest(pos);
+
+					if (bestObj < 0) {
+						continue;
 					}
 					
-					//add to all adjacents as well
-					[[1, 1, 1],[1, 1, -1],[1, -1, 1],[1, -1, -1],
-					[-1, 1, 1],[-1, 1, -1],[-1, -1, 1],[-1, -1, -1]].forEach(g => {
-						var mx = x + g[0];
-						var my = y + g[1];
-						var mz = z + g[2];
-						//stupid check
-						if (chunks[mx] && chunks[mx][my] && chunks[mx][my][mz]) {
-							chunks[mx][my][mz].add(ind);
+					// seed adjacent cells
+					for (var dx=-1; dx<=1; dx++) {
+						var mx = x + dx;
+						if (mx < 0 || mx >= len) continue;
+						for (var dy=-1; dy<=1; dy++) {
+							var my = y + dy;
+							if (my < 0 || my >= len) continue;
+							for (var dz=-1; dz<=1; dz++) {
+								var mz = z + dz;
+								if (mz < 0 || mz >= len) continue;
+								this.chunks[mx][my][mz].add(bestObj);
+							}
 						}
-					});
+					}
 				}
 			}
 		}
@@ -450,6 +465,69 @@ class ObjectGrid {
 		});
 	}
 	
+	_bvhNearest(pos) {
+		var best = [1e100, -1];
+		this._bvhWalk(this.world.bvh.root, pos, best);
+		return best[1];
+	}
+
+	_bvhWalk(node, pos, best) {
+		if (!node) return;
+
+		// check if leaf and thennnn do distance
+		if (node.obj > -1) {
+			var d = node.obj.distanceToPos(pos);
+			if (d < best[0]) {
+				best[0] = d;
+				best[1] = this.objIndexMap.get(node.obj)
+			}
+			return;
+		}
+
+		// and we can save a bunch of time if this node is farther than our best
+		var bvhDist = this._aabbDist(node, pos);
+		if (bvhDist > best[0]) {
+			return;
+		}
+
+		this._bvhWalk(node.left, pos, best);
+		this._bvhWalk(node.right, pos, best);
+	}
+
+	_aabbDist(node, pos) {
+		const dx = Math.max(node.minPos[0] - pos[0], 0, pos[0] - node.maxPos[0]);
+		const dy = Math.max(node.minPos[1] - pos[1], 0, pos[1] - node.maxPos[1]);
+		const dz = Math.max(node.minPos[2] - pos[2], 0, pos[2] - node.maxPos[2]);
+		return Math.sqrt(dx * dx + dy * dy + dz * dz);
+	}
+
+	_bruteNearest(pos) {
+		var best = 1e100;
+		var bestIdx = -1;
+		this.objs.forEach((o, i) => {
+			var d = o.distanceToPos(pos);
+			if (d < best) {
+				best = d;
+				bestIdx = i;
+			}
+		});
+		return bestIdx;
+	}
+	// i actually dont know that having a partial update helps anything
+	partialUpdate(movedObjs) {
+		movedObjs.forEach(obj => {
+			const index = this.objIndexMap.get(obj)
+			// remove this object from all cells
+			for (var x=0; x<this.l; x++) {
+				for (var y=0; y<this.l; y++) {
+					for (var z=0; z<this.l; z++) {
+						this.chunks[x][y][z].delete(index);
+					}
+				}
+			}
+			this.binObject(obj);
+		});
+	}
 	estimatePos(pos) {
 		var dist = 1e100;
 		var distInd = -1;
