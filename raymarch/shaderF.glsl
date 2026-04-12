@@ -6,7 +6,7 @@
 #define ray_maxDist 5000.0
 #define ray_nearDist 3.0
 #define ray_minDist 0.15
-#define ray_maxBounces 15
+#define ray_maxBounces 22
 #define render_shadowSteps 2.
 #define obj_maxNum 500
 
@@ -78,7 +78,7 @@ struct Raydata {
 	int closestInd;
 	float totalDist;
 	float localDist;
-	
+	float distSinceBounce;
 	int world;
 	vec3 pos;
 	vec3 dPos;
@@ -103,8 +103,8 @@ int bounceCount = 0;
 float bvhTolerance = 8.0;
 
 Raydata stage[2] = Raydata[2](
-	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(0., 0., 0., 0.0)),
-	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(1.0, 1.0, 0.0, 0.0))
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, vec3(0.0), vec3(0.0), vec4(0.,0.,0.,0.)),
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, vec3(0.0), vec3(0.0), vec4(1.0,0.1,0.1,0.0))
 );
 
 void calcSceneObjs(int);
@@ -194,11 +194,8 @@ mat4 effectData(int world, int effectIndex, bool isPre) {
 	return mat4(data0, data1, data2, vec4(0.0));
 }
 
-void applyColorLight(int stg, vec4 color);
 //
 void applyColor(int stg, vec4 color) {
-	// applyColorLight(stg, color);
-	// return;
 	// stage[stg].color = color;
 	float availableAlpha = 1.0 - stage[stg].color.a;
 	if (availableAlpha <= 0.0) {
@@ -426,8 +423,9 @@ float prismSDF(vec3 point, int type, float data1, vec4 data2) {
 
 //SDFs
 float boxSDF(vec3 point, vec4 data2) {
-	vec3 q = abs(point) - data2.xyz;
-	return length(max(q, vec3(0.))) + min(max(q.x, max(q.y, q.z)), 0.);
+	float r = 0.4;
+	vec3 q = abs(point) - data2.xyz + vec3(r);
+	return length(max(q, vec3(0.))) + min(max(q.x, max(q.y, q.z)), 0.) - r;
 }
 
 float capsuleSDF(vec3 point, float data1, vec4 data2) {
@@ -683,10 +681,15 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		case M_PORTAL: {
 			stage[stg].world = int(data1[0]);
 			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
+			stage[stg].distSinceBounce = 0.0;
 			stage[stg].localDist = ray_minDist * 2.;
 			res = 0;
 		} break;
 		case M_MIRROR: {
+			if (stage[stg].distSinceBounce < 0.5) {
+				stage[0].color = data0;
+				break;
+			}
 			applyColor(stg, data0);
 			if (stg == 0) {
 				vec3 incident = stage[stg].dPos;
@@ -698,6 +701,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			} else {
 				res = 1;
 			}
+			stage[stg].distSinceBounce = 0.0;
 			stage[stg].localDist = ray_minDist * 2.;
 		} break;
 		default: {
@@ -708,7 +712,6 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 }
 
 void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
-	int res = 0;
 	switch (matType) {
 		//color
 		default:
@@ -717,7 +720,6 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		case M_GHOST: {
 			if (stg == 0) {
 				applyColor(stg, data0);
-				
 			}
 		} return;
 	}
@@ -911,6 +913,7 @@ void raymarch() {
 		applyPreEffects(0);
 		
 		stage[0].totalDist += stage[0].localDist;
+		stage[0].distSinceBounce += stage[0].localDist;
 		stage[0].pos += stage[0].localDist * stage[0].dPos;
 		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 1.) {
 			return;
