@@ -44,7 +44,7 @@ class SkyBunny extends SceneCollection {
 	}
 	
 	animate(objGroup) {
-		if (debug_listening) {
+		if (debug_flags.bunnyTargets) {
 			objGroup.push(createDefaultObject());
 		}
 	}
@@ -57,7 +57,7 @@ class SkyBunny extends SceneCollection {
 			o.pos[2] += offset[2];
 		});
 		
-		if (debug_listening) {
+		if (debug_flags.bunnyTargets) {
 			var debug = objGroup[objGroup.length - 1];
 			debug.pos = Pos(
 				this.pos[0] + this.posGoal[0],
