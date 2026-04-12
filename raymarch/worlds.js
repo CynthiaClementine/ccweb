@@ -35,10 +35,14 @@ var map_idPost = {
 	10: bg_fadeTo,
 	11: bg_fadeToOld,
 	12: bg_fadeToRange,
-	20: bg_sun
+	20: bg_sun,
+	
+	31: bg_iters,
 };
 var map_postId = Object.fromEntries(Object.entries(map_idPost).map(a => [a[1].name, a[0]]));
 
+
+function bg_iters() {}
 
 //applies a background color.
 function bg(ray, color) {
@@ -179,13 +183,29 @@ class World {
 				expObjs.push(q);
 			});
 		});
+		if (debug_flags.showChunk) {
+			const tr = this.tree;
+			if (!player || !player.pos || !tr.minPos) {
+				return;
+			}
+			var pos = tr.calcGridCoords(player.pos);
+			pos[0] = (pos[0] | 0) + 0.5;
+			pos[1] = (pos[1] | 0) + 0.5;
+			pos[2] = (pos[2] | 0) + 0.5;
+			
+			pos[0] = (pos[0] * tr.xd) + tr.minPos[0];
+			pos[1] = (pos[1] * tr.yd) + tr.minPos[1];
+			pos[2] = (pos[2] * tr.zd) + tr.minPos[2];
+			
+			expObjs.push(new BoxFrame({pos: pos, theta: 0, phi: 0, rot: 0}, createDefaultMaterial(), 0, tr.xd/2, tr.yd/2, tr.zd/2, 5));
+		}
 	}
 
 	generate() {
 		this.express();
 		this.bvh.generate();
-		// this.grid.generate();
 		this.tree.generate();
+		this.shouldRegenBlocks;
 	}
 	
 	//estimate distance at a given point. Returns both distance and the object that gave that distance
@@ -248,6 +268,9 @@ class World {
 		// this.tree.update();
 		if (loading_world == this && this.tickFunc) {
 			this.tickFunc();
+			if (debug_flags.showChunk && world_time % 10 == 0) {
+				this.shouldRegen = true;
+			}
 		}
 		if (this.shouldRegen) {
 			this.generate();
@@ -268,9 +291,11 @@ function createWorlds() {
 		],[
 			[bg, Color(100, 90, 70)],
 			[bg_sun, Color(255, 255, 240), 0.002]
+			// [bg_iters]
 		],
 		polToCart(0, 0.7, 1),
-		[268, 53, 64],
+		// [268, 53, 64],
+		[-493,650,168, 2.355, -0.48],
 		[	
 			`CUBE~[-100,330,100]~0~0~90~0|color:90~114~187|45`,
 			`PRISM-RHOMBUS~[-127,195,-191]~0~270~90~87|color:255~64~64|8~255~18~316`,
@@ -280,7 +305,7 @@ function createWorlds() {
 			`ELLIPSE~[-300,100,200]~0~0~90~0|mirror:128~128~255~30|100~80~60`,
 			`GYROID~[100,100,-300]~0~0~90~0|color:255~240~10|50~50~50~0.08~13~10`,
 			`RING~[500,400,0]~0~77~122~0|normal|100~20`,
-			`BOX-MOVING~[-80,100,-387]~1~0~90~0|color:40~0~255|10~10~10`,
+			// `BOX-MOVING~[-80,100,-387]~1~0~90~0|color:40~0~255|10~10~10`,
 			`BOX~[-587,60,-777]~0~0~90~0|mirror:255~0~255~7|10~10~5`,
 			`BOX~[-573,60,-763]~0~0~90~0|mirror:255~0~255~57|5~10~10`,
 			`BOX~[-584,60,-748]~0~0~90~0|mirror:255~0~255~9|10~10~5`,
@@ -436,7 +461,8 @@ function createWorlds() {
 	new World("cubes",
 		[],[
 			[bg, Color(5,0,10)],
-			[bg_fadeTo, Color(0,0,0), 1500]
+			[bg_fadeTo, Color(0,0,0), 1500],
+			[bg_iters]
 		],
 		polToCart(0, Math.PI / 2, 1),
 		[197,349,-403],
@@ -646,7 +672,8 @@ function createWorlds() {
 			`CUBE~[-250.9518585205078,88.10356140136719,459.7813720703125]~0~0~90~0|color:132~160~124|48.10253732604906`,
 			`CUBE~[-325.1053771972656,218.8293914794922,205.91502380371094]~0~0~90~0|color:194~112~141|54.63303860044107`,
 			`CUBE~[-342.996337890625,142.63787841796875,-326.5928955078125]~0~0~90~0|color:168~75~132|31.236439640633762`,
-			`CUBE~[-148.6522216796875,31.409015655517578,765.3175659179688]~0~0~90~0|color:194~112~141|38.514580784831196`
+			`CUBE~[-148.6522216796875,31.409015655517578,765.3175659179688]~0~0~90~0|color:194~112~141|38.514580784831196`,
+			`ELLIPSE~[-170,673,129]~4~0~90~0|ghost:58~96~30~163|189~209~319`,
 		]
 	);
 	
@@ -678,6 +705,7 @@ function createWorlds() {
 		],[
 			[bg, Color(255, 227, 245)],
 			[bg_fadeToOld, Color(255, 227, 245), 800],
+			// [bg_fadeTo, Color(255, 227, 245), 1200],
 		],
 		polToCart(0.6, 0.4, 1),
 		[60.2,100,60.2],
@@ -701,10 +729,13 @@ function createWorlds() {
 		],
 		polToCart(-0.82, 0.73, 1),
 		[17,22,-6],
-		[	`GYROID~[0,0,0]~0~0~90~0|color:50~240~10|200~10~200~0.08~13~10`,
+		[
+			`GYROID~[0,-157,0]~0~0~90~0|color:50~240~10|200~169~200~0.08~13~10`,
 			`BOX~[112,22,105]~0~0~90~0|rubber|30~10~30`,
-			`CYLINDER~[-115,22,-59]~0~0~90~0|portal:cubes~[-70,110,30]|10~15`,
-			`BOX~[112,193,105]~0~0~90~0|portal:start~[0,0,0]|20~6~20`
+			`CYLINDER~[-115,22,-59]~0~0~0~0|portal:cubes~[-70,110,30]|10~15`,
+			`BOX~[112,193,105]~0~0~90~0|portal:start~[0,0,0]|20~6~20`,
+			`SPHERE~[115,18,-6]~1~0~90~0|color:255~0~255|10`,
+			`ELLIPSE~[48.85049819946289,-368,-4]~0~0~90~0|portal:gyroidCaves~[0,157,0]|762~51~794`
 		]
 	);
 	
@@ -842,7 +873,7 @@ function createWorlds() {
 		
 	], [
 		[bg, Color(28, 3, 54)],
-		[bg_fadeToOld, Color(28, 3, 54), 2000],
+		[bg_fadeTo, Color(28, 3, 54), 1000],
 	],
 	polToCart(0.2, 0.1, 1),
 	[0, 0, 0],
@@ -883,5 +914,5 @@ function createWorlds() {
 	
 	console.log(`finished loading ${worldsByID.length} worlds.`);
 	
-	loading_world = worlds["fractal"];
+	loading_world = worlds["start"];
 }
