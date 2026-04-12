@@ -85,6 +85,13 @@ function createGPUWorld(worldObj) {
 	setWorldAttribs(worldObj, worldOffset, rowOffset);
 	setEffects(worldObj, worldOffset, rowOffset, false);
 	setEffects(worldObj, worldOffset, rowOffset, true);
+	
+	//bvh
+	const indsPerBVHRow = 2 * world_maxObjs * 4;
+	const indsPerBVHWorld = 2 * indsPerBVHRow;
+	for (var a=0; a<2*world_maxObjs; a++) {
+		texture_bvhArr[worldObj.id*indsPerBVHWorld + indsPerBVHRow + a*4 + 3] = fencepost32;
+	}
 	setBvhArr(worldObj.bvh.root, worldObj, worldObj.id * texture_rowsPerNode * world_maxObjs * 2 * 4);
 	
 	updateWorldTexture();
@@ -199,8 +206,9 @@ function setEffects(world, worldOff, rowOff, doPreEffects) {
 	}
 }
 
-function setBvhArr(node, world, arrIndex) {
+function setBvhArr(node, world, arrIndex, skipIndex) {
 	const px = 4;
+	skipIndex = skipIndex ?? -px;
 	const indicesPerRow = px * 2 * world_maxObjs;
 	const indicesPerWorld = 2 * indicesPerRow;
 	const worldOff = (Math.floor(arrIndex / indicesPerWorld) * indicesPerWorld);
@@ -208,23 +216,22 @@ function setBvhArr(node, world, arrIndex) {
 	const relIndex = arrIndex - worldOff;
 	
 	//lowPos + index
-	// console.log(node, world, relIndex, arrIndex);
 	data[arrIndex + 0] = node.minPos[0] - bvhTolerance;
 	data[arrIndex + 1] = node.minPos[1] - bvhTolerance;
 	data[arrIndex + 2] = node.minPos[2] - bvhTolerance;
 	data[arrIndex + 3] = world.expObjs.indexOf(node.obj);
-	//highPos
+	//highPos + skip pointer
 	arrIndex += indicesPerRow;
 	data[arrIndex + 0] = node.maxPos[0] + bvhTolerance;
 	data[arrIndex + 1] = node.maxPos[1] + bvhTolerance;
 	data[arrIndex + 2] = node.maxPos[2] + bvhTolerance;
-	data[arrIndex + 3] = fencepost32;
+	data[arrIndex + 3] = skipIndex / px;
 	
 	if (node.left) {
-		setBvhArr(node.left, world, worldOff + 2 * relIndex + 1*px);
+		setBvhArr(node.left, world, worldOff + 2*relIndex + 1*px, 2*relIndex + 2*px);
 	}
 	if (node.right) {
-		setBvhArr(node.right, world, worldOff + 2 * relIndex + 2*px);
+		setBvhArr(node.right, world, worldOff + 2*relIndex + 2*px, skipIndex);
 	}
 }
 
