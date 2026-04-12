@@ -372,7 +372,7 @@ class ObjectGrid {
 				min[a] = Math.min(min[a], bounds[0][a]);
 				max[a] = Math.max(max[a], bounds[1][a]);
 				if (Number.isNaN(bounds[0][a])) {
-					console.error(bounds);
+					console.error(bounds, o);
 					throw new Error(`Block Bounds Error: bounds aren't calculated correctly!`);
 				}
 				if (Number.isNaN(min[a])) {
