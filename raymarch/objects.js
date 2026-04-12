@@ -32,7 +32,8 @@ class Scene3dObject {
 		this.type = this.constructor.type;
 		
 		//doesn't do anything right now
-		this.gloopiness = ray_nearDist;
+		this.gloopiness = 0;
+		this.smoothness = 0;
 
 		this.theta = posRot.theta ?? 0;
 		this.phi = posRot.phi ?? 0;
@@ -42,7 +43,7 @@ class Scene3dObject {
 	//gives the axis-aligned bounding box of the object, in [smallest pos, largest pos] terms
 	bounds() {
 		console.error(`bounds are not defined for ${this.constructor.name}!`);
-		return giveBounds(this.pos, 1, 1, 1);
+		return augmentBounds(giveBounds(this.pos, 1, 1, 1), this.gloopiness * 2 + this.smoothness);
 	}
 
 	//give a single object or a list of objects that represent the expressed portion of this object. 
@@ -102,7 +103,9 @@ class Scene3dObject_Axes extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx, this.ry, this.rz, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.rx, this.ry, this.rz, this.theta, this.phi, this.rot), 
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	serialize() {
@@ -121,7 +124,9 @@ class Prism extends Scene3dObject_Axes {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx, this.ry, this.rz, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.rx, this.ry, this.rz, this.theta, this.phi, this.rot), 
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	sdf2D(relX, relY) {
@@ -365,7 +370,9 @@ class Box extends Scene3dObject_Axes {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx, this.ry, this.rz, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.rx, this.ry, this.rz, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 
 	distanceToPos(pos) {
@@ -386,6 +393,7 @@ class Box extends Scene3dObject_Axes {
 }
 
 class Box_Moving extends Box {
+	static type = -15;
 	constructor(posRot, material, nature, rx, ry, rz, pos2) {
 		super(posRot, material, nature, rx, ry, rz);
 		this.posBase = Pos(...this.pos);
@@ -394,7 +402,9 @@ class Box_Moving extends Box {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx + 12, this.ry + 12, this.rz + 12, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.rx + 12, this.ry + 12, this.rz + 12, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	//warning: does not mesh well with portal surfaces. fix before finishing
@@ -422,7 +432,9 @@ class BoxFrame extends Scene3dObject_Axes {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx + this.e, this.ry + this.e, this.rz + this.e, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.rx + this.e, this.ry + this.e, this.rz + this.e, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	distanceToPos(pos) {
@@ -460,7 +472,9 @@ class Capsule extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r, this.r, this.h + this.r, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.r, this.r, this.h + this.r, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 
 	distanceToPos(pos) {
@@ -490,7 +504,9 @@ class Cylinder extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r, this.r, this.h, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.r, this.r, this.h, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	distanceToPos(pos) {
@@ -510,47 +526,6 @@ class Cylinder extends Scene3dObject {
 	
 	serializeGPU() {
 		return [this.r, this.h];
-	}
-}
-
-//todo: useless in current scheme
-class DebugLines extends Scene3dObject {
-	static type = TYPE_BOXFRAME;
-	constructor(minPos, maxPos) {
-		super(Pos(0, 0, 0), new M_Color(255, 0, 255), N_NORMAL);
-		this.minPos = minPos;
-		this.maxPos = maxPos;
-		this.frame = new BoxFrame(Pos(0, 0, 0), 10, 10, 10, 2);
-	}
-	
-	bounds() {
-		return [this.minPos, this.maxPos];
-	}
-	
-	tick() {
-		var cameraBlock = loading_world.grid.calcGridCoords(camera.pos);
-		cameraBlock[0] = Math.floor(cameraBlock[0]) + 0.5;
-		cameraBlock[1] = Math.floor(cameraBlock[1]) + 0.5;
-		cameraBlock[2] = Math.floor(cameraBlock[2]) + 0.5;
-		
-		
-		this.frame.material = this.material;
-		this.frame.pos = Pos(
-			loading_world.grid.minPos[0] + cameraBlock[0] * loading_world.grid.xd,
-			loading_world.grid.minPos[1] + cameraBlock[1] * loading_world.grid.yd,
-			loading_world.grid.minPos[2] + cameraBlock[2] * loading_world.grid.zd,
-		);
-		this.frame.rx = loading_world.grid.xd / 2;
-		this.frame.ry = loading_world.grid.yd / 2;
-		this.frame.rz = loading_world.grid.zd / 2;
-	}
-	
-	distanceToPos(pos) {
-		return this.frame.distanceToPos(pos);
-	}
-	
-	serializeGPU() {
-		return [null, this.frame.rx, this.frame.ry, this.frame.rz, 2];
 	}
 }
 
@@ -649,7 +624,9 @@ class Fractal extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, 10000, 10000, 10000, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, 10000, 10000, 10000, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	serialize() {
@@ -732,7 +709,7 @@ class Line extends Scene3dObject {
 	
 	bounds() {
 		const r = this.r;
-		return [Pos(
+		return augmentBounds([Pos(
 			Math.min(this.pos[0] - r, this.posEnd[0] - r),
 			Math.min(this.pos[1] - r, this.posEnd[1] - r),
 			Math.min(this.pos[2] - r, this.posEnd[2] - r),
@@ -740,7 +717,7 @@ class Line extends Scene3dObject {
 			Math.max(this.pos[0] + r, this.posEnd[0] + r),
 			Math.max(this.pos[1] + r, this.posEnd[1] + r),
 			Math.max(this.pos[2] + r, this.posEnd[2] + r),
-		)];
+		)], this.gloopiness * 2 + this.smoothness);
 	}
 	
 	distanceToPos(pos) {
@@ -796,7 +773,9 @@ class PrismRhombus extends Prism {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.rx + Math.abs(this.skew / 2), this.ry, this.rz, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.rx + Math.abs(this.skew / 2), this.ry, this.rz, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	sdf2D(relX, relY) {
@@ -928,7 +907,9 @@ class Ring extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r + this.ringR, this.r + this.ringR, this.ringR, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, this.r + this.ringR, this.r + this.ringR, this.ringR, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 
 	distanceToPos(pos) {
@@ -960,7 +941,9 @@ class Shell extends Scene3dObject {
 	
 	bounds() {
 		const re = this.r + this.h;
-		return giveBounds(this.pos, re, re, re, 0, 0, 0);
+		return augmentBounds(
+			giveBounds(this.pos, re, re, re, 0, 0, 0),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	distanceToPos(pos) {
@@ -986,7 +969,9 @@ class Sphere extends Scene3dObject {
 	}
 	
 	bounds() {
-		return giveBounds(this.pos, this.r, this.r, this.r, 0, 0, 0);
+		return augmentBounds(
+			giveBounds(this.pos, this.r, this.r, this.r, 0, 0, 0),
+		this.gloopiness * 2 + this.smoothness);
 	}
 
 	distanceToPos(pos) {
@@ -1013,7 +998,9 @@ class Voxel extends Scene3dObject {
 	
 	bounds() {
 		var halfD = this.r;
-		return giveBounds(this.pos, halfD, halfD, halfD, this.theta, this.phi, this.rot);
+		return augmentBounds(
+			giveBounds(this.pos, halfD, halfD, halfD, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
 	}
 	
 	distanceToPos(pos) {
