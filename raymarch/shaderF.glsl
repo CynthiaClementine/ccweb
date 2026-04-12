@@ -6,11 +6,9 @@
 #define ray_maxDist 5000.0
 #define ray_nearDist 3.0
 #define ray_minDist 0.15
+#define ray_maxBounces 15
 #define render_shadowSteps 2.
 #define obj_maxNum 500
-//should be log2(obj_maxNum) + 1
-//but that's too difficult for the compiler to figure out
-#define bvh_maxNum 13
 
 #define fractal_iters 10
 
@@ -48,6 +46,7 @@
 #define E_FADE_OLD		11
 #define E_FADE_RANGE	12
 #define E_SUN			20
+#define E_ITERS			31
 
 //natures
 #define N_NORMAL	0
@@ -100,9 +99,12 @@ vec2 seed;
 
 int objIndices[obj_maxNum];
 
+int bounceCount = 0;
+float bvhTolerance = 8.0;
+
 Raydata stage[2] = Raydata[2](
-	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(0., 0., 0., 0.)),
-	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(0.1, 0.1, 0.1, 0.1))
+	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(0., 0., 0., 0.0)),
+	Raydata(0, 0, 0.0, 0.0, 0, vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0), vec4(1.0, 1.0, 0.0, 0.0))
 );
 
 void calcSceneObjs(int);
@@ -111,6 +113,7 @@ void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 	stage[stg].pos = newPos;
 	stage[stg].dPos = newDPos;
 	calcSceneObjs(stg);
+	bounceCount += 1;
 }
 
 
@@ -191,10 +194,28 @@ mat4 effectData(int world, int effectIndex, bool isPre) {
 	return mat4(data0, data1, data2, vec4(0.0));
 }
 
-
+void applyColorLight(int stg, vec4 color);
 //
 void applyColor(int stg, vec4 color) {
+	// applyColorLight(stg, color);
+	// return;
 	// stage[stg].color = color;
+	float availableAlpha = 1.0 - stage[stg].color.a;
+	if (availableAlpha <= 0.0) {
+		return;
+	}
+	
+	// super funky effect
+	// outColor = vec4(vec3(availableAlpha), 1.0);
+	if (availableAlpha == 1.0) {
+		stage[stg].color.rgb = mix(stage[stg].color.rgb, color.rgb, availableAlpha);
+	} else {
+		stage[stg].color.rgb = mix(stage[stg].color.rgb, color.rgb, color.a * availableAlpha);
+	}
+	stage[stg].color.a += color.a * availableAlpha * 1.1;
+}
+
+void applyColorLight(int stg, vec4 color) {
 	float availableAlpha = 1.0 - stage[stg].color.a;
 	if (availableAlpha <= 0.0) {
 		return;
@@ -258,14 +279,14 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			if (stg > 0) {
 				return;
 			}
-			applyColor(0, vec4(arg0, 0.0));
+			applyColorLight(0, vec4(arg0, 0.0));
 		} break;
 		//bg_range
 		case E_BG_RANGE: {
 			if (stg > 0) {
 				return;
 			}
-			applyColor(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 0.0));
+			applyColorLight(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 0.0));
 		} break;
 		//bg_gradient
 		case E_GRADIENT:
@@ -275,8 +296,10 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			if (stg == 0) {
 				return;
 			}
-			float distPerc = clamp(stage[0].totalDist / data1[0], 0.0, 0.9);
-			stage[0].color.rgb = mix(stage[0].color.rgb, arg0.rgb, distPerc * distPerc);
+			float distPerc = stage[0].totalDist;
+			vec3 transmittance = vec3(0.5 + 0.5 * arg0.rgb);
+			// stage[0].color.rgb = mix(stage[1].color.rgb, arg0.rgb, clamp(exp(-5. + 5.*distPerc), 0., 1.));
+			stage[0].color.rgb = mix(stage[1].color.rgb, arg0.rgb, clamp(1. - exp(-distPerc * transmittance / data1[0]), 0., 1.));
 		} break;
 		//bg_fadeToOld
 		case E_FADE_OLD: {
@@ -301,8 +324,18 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			float dotted = max(dot(stage[0].dPos, w_sunVec(stage[0].world)) - 1. + sunSize, 0.);
 			dotted = clamp(2. * dotted / sunSize, 0.0, 1.0);
 			if (dotted > 0.0) {
-				applyColor(0, vec4(mix(stage[0].color.rgb, arg0.rgb, dotted), 0.));
+				applyColorLight(0, vec4(mix(stage[0].color.rgb, arg0.rgb, dotted), 1.));
 			}
+		} break;
+		
+		case E_ITERS: {
+			float gweh = 3. * (float(stage[0].iters) + float(stage[1].iters)) / float(ray_maxIters);
+				stage[0].color.rgba = vec4(
+					gweh * gweh, 
+					0.1 + stage[stg].color.g / 4., 
+					float(bounceCount) / float(ray_maxBounces),
+					1.0
+				);
 		} break;
 	}
 }
@@ -635,7 +668,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		
 		case M_GLASS: {
 			if (abs(stage[stg].localDist) < ray_minDist * 2.) {
-				applyColor(stg, data0);
+				applyColorLight(stg, data0);
 				stage[stg].localDist = ray_minDist * 2.;
 			} else {
 				stage[stg].localDist = -stage[stg].localDist;
@@ -661,7 +694,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 				//vec3 normal = normalize(vec3(-1, -1, -1));
 				float product = dot(incident, normal);
 				setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
-				res = int(stage[stg].color.a >= 1.);
+				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
 			}
@@ -675,6 +708,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 }
 
 void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
+	int res = 0;
 	switch (matType) {
 		//color
 		default:
@@ -683,6 +717,7 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		case M_GHOST: {
 			if (stg == 0) {
 				applyColor(stg, data0);
+				
 			}
 		} return;
 	}
@@ -702,8 +737,13 @@ bool intersects(vec3 p, vec3 v, vec3 minPos, vec3 maxPos) {
 	return (tFarReal > 0.) && (tCloseReal <= tFarReal);
 }
 
+/*idea: 
+	if you have a pointer to the next node in an in-order traversal, you can traverse the binary tree without a stack.
+	since we only ever do a specific traversal, this is further optimized to (nextNode->right), rather than just (nextNode)
+	this is known as the Skip Pointer.
+	This is about 1.5 times as fast as the version with the stack.
+*/
 void calcSceneObjs(int stg) {
-	stage[1].totalDist = 128.;
 	//set up array
 	int numObjs = objIndices[obj_maxNum - 1];
 	for (int o=0; o<numObjs; o++) {
@@ -712,61 +752,52 @@ void calcSceneObjs(int stg) {
 	objIndices[obj_maxNum - 1] = 0;
 	numObjs = 0;
 	
-	//add objects to array based on the tree
-	int nodeStack[bvh_maxNum];
-	for (int s=0; s<bvh_maxNum; s++) {
-		nodeStack[s] = -1;
-	}
-	nodeStack[0] = 0;
-	int nodeCount = 1;
-	
-	
+	//traverse tree
+	int currNode = 0;
 	//there are 2*objs nodes in the tree. At maximum, we explore every one of them
 	int len = 2 * w_objCount(stage[stg].world);
 	int explored = 0;
 	for (int f=0; f<len; f++) {
-		explored += 1;
-		nodeCount -= 1;
-		if (nodeCount < 0) {
+		//valid node checks
+		if (currNode < 0) {
 			break;
 		}
-		int nodeID = nodeStack[nodeCount];
-		nodeStack[nodeCount] = -1;
-		
-		
-		vec4 data0 = texelFetch(uUniverseBVHs, ivec2(nodeID, 2 * stage[stg].world), 0);
-		vec4 data1 = texelFetch(uUniverseBVHs, ivec2(nodeID, 2 * stage[stg].world + 1), 0);
-		
-		//make sure it's a valid node anyways
-		if (data1[3] != fencepost) {
-			continue;
+		explored += 1;
+		vec4 data0 = texelFetch(uUniverseBVHs, ivec2(currNode, 2 * stage[stg].world), 0);
+		vec4 data1 = texelFetch(uUniverseBVHs, ivec2(currNode, 2 * stage[stg].world + 1), 0);
+		if (data1[3] == fencepost) {
+			break;
 		}
 		
-		//use slab method to figure out if the ray intersects the bounding box
-		if (!intersects(stage[stg].pos, stage[stg].dPos, data0.xyz, data1.xyz)) {
-			continue;
-		}
+		//evaluate using slab test
+		bool isIn = intersects(stage[stg].pos, stage[stg].dPos, data0.xyz, data1.xyz);
+		bool hasChildren = (data0[3] == -1.);
 		
-		//if the node has children, add them to the stack and recurse
-		if (data0[3] == -1. && nodeCount + 1 < bvh_maxNum) {
-			nodeStack[nodeCount] = 2 * nodeID + 1;
-			nodeStack[nodeCount+1] = 2 * nodeID + 2;
-			nodeCount += 2;
-			continue;
-		}
-		
-		//if the node does not have children, put it in the objs array
-		int held = int(data0[3]);
-		int temp;
-		for (int g=0; g<numObjs; g++) {
-			if (objIndices[g] > held) {
-				temp = objIndices[g];
-				objIndices[g] = held;
-				held = temp;
+		//in current node?
+		if (isIn) {
+			//if the node does not have children, put it in the objs array
+			if (!hasChildren) {
+				int held = int(data0[3]);
+				int temp;
+				for (int g=0; g<numObjs; g++) {
+					if (objIndices[g] > held) {
+						temp = objIndices[g];
+						objIndices[g] = held;
+						held = temp;
+					}
+				}
+				objIndices[numObjs] = held;
+				numObjs += 1;
+				//go to skip pointer
+				currNode = int(data1[3]);
+			} else {
+				//go to left child
+				currNode = 2 * currNode + 1;
 			}
+		} else {
+			//not in current node? go to skip pointer
+			currNode = int(data1[3]);
 		}
-		objIndices[numObjs] = held;
-		numObjs += 1;
 	}
 
 	//return array with length info encoded
@@ -1040,8 +1071,6 @@ void main() {
 		postEffect(currStg, dat[0], dat[1], dat[2]);
 	}
 	
-	mat4 objDat = objData(stage[0].world, stage[0].closestInd);
-	
 	// vec3 lightMix = stage[0].color.rgb + stage[1].color.rgb;
 	// float rescale = max(max(lightMix.r, lightMix.g), lightMix.b);
 	// outColor = vec4(lightMix * rescale, 1.0);
@@ -1051,6 +1080,7 @@ void main() {
 	
 	//send to screem
 	outColor = vec4(stage[0].color.rgb, 1.0);
+	// outColor = vec4(float(bounceCount) / 20., stage[0].color.g, 0.0, 1.0);
 	// outColor = vec4(stage[0].totalDist / 19999999., stage[1].totalDist / 255., 0.5, 1.0);
 	// outColor = vec4(vec3(uTime / 255., 0., 0.), 1.0);
 }
