@@ -204,8 +204,10 @@ class World {
 	generate() {
 		this.express();
 		this.bvh.generate();
-		this.tree.generate();
-		this.shouldRegenBlocks;
+		// this.grid.generate();
+		if (world_time % 10 == 0) {
+			this.tree.generate();
+		}
 	}
 	
 	//estimate distance at a given point. Returns both distance and the object that gave that distance
@@ -268,7 +270,7 @@ class World {
 		// this.tree.update();
 		if (loading_world == this && this.tickFunc) {
 			this.tickFunc();
-			if (debug_flags.showChunk && world_time % 10 == 0) {
+			if (debug_flags.showChunk) {
 				this.shouldRegen = true;
 			}
 		}
