@@ -63,6 +63,16 @@ function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
 	];
 }
 
+function augmentBounds(bounds, extraDist) {
+	bounds[0][0] -= extraDist;
+	bounds[0][1] -= extraDist;
+	bounds[0][2] -= extraDist;
+	bounds[1][0] += extraDist;
+	bounds[1][1] += extraDist;
+	bounds[1][2] += extraDist;
+	return bounds;
+}
+
 //gives the "bounds angle" - the angle between 0 and pi/2 that acts the same as the given angle for bounding boxes.
 function boundsAngle(radians) {
 	if (radians >= Math.PI) {
