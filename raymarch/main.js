@@ -42,6 +42,10 @@ async function setup() {
 	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 
 	player = new Player_Debug(loading_world, Pos(...loading_world.spawn));
+	if (loading_world.spawn[3]) {
+		player.theta = loading_world.spawn[3];
+		player.phi = loading_world.spawn[4];
+	}
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
 	
@@ -170,7 +174,7 @@ function drawUI() {
 	
 	//collision
 	//draw everything
-	if (false && debug_listening) {
+	if (debug_flags.collisionRaycast) {
 		const pixelsInX = render_n;
 		const pixelsInY = render_n;
 	
