@@ -75,7 +75,7 @@ var gl;
 
 const frameTime = 1000 / 60;
 
-const bvhTolerance = 8;
+const bvhTolerance = 0;
 
 var camera_FOV = 90;
 var camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
@@ -94,6 +94,11 @@ var controls_shiftPressed = false;
 var controls_sensitivity = 0.005;
 
 var debug_listening = false;
+var debug_flags = {
+	bunnyTargets: true,
+	collisionRaycast: false,
+	showChunk: false
+};
 
 var editor_active = false;
 
