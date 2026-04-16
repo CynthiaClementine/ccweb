@@ -205,9 +205,7 @@ class World {
 		this.express();
 		this.bvh.generate();
 		// this.grid.generate();
-		if (world_time % 10 == 0) {
-			this.tree.generate();
-		}
+		this.tree.generate();
 	}
 	
 	//estimate distance at a given point. Returns both distance and the object that gave that distance
@@ -268,8 +266,10 @@ class World {
 	
 	tick() {
 		// this.tree.update();
-		if (loading_world == this && this.tickFunc) {
-			this.tickFunc();
+		if (loading_world == this) {
+			if (this.tickFunc) {
+				this.tickFunc();
+			}
 			if (debug_flags.showChunk) {
 				this.shouldRegen = true;
 			}
@@ -307,10 +307,9 @@ function createWorlds() {
 			`ELLIPSE~[-300,100,200]~0~0~90~0|mirror:128~128~255~30|100~80~60`,
 			`GYROID~[100,100,-300]~0~0~90~0|color:255~240~10|50~50~50~0.08~13~10`,
 			`RING~[500,400,0]~0~77~122~0|normal|100~20`,
-			// `BOX-MOVING~[-80,100,-387]~1~0~90~0|color:40~0~255|10~10~10`,
-			`BOX~[-587,60,-777]~0~0~90~0|mirror:255~0~255~7|10~10~5`,
-			`BOX~[-573,60,-763]~0~0~90~0|mirror:255~0~255~57|5~10~10`,
-			`BOX~[-584,60,-748]~0~0~90~0|mirror:255~0~255~9|10~10~5`,
+			`BOX~[-580,60,-770]~0~0~90~0|mirror:255~0~255~10|10~10~1`,
+			`BOX~[-570,60,-760]~0~0~90~0|mirror:255~0~255~9|1~10~10`,
+			`BOX~[-580,60,-750]~0~0~90~0|mirror:255~0~255~9|10~10~1`,
 			`CAPSULE~[900,50,-827]~0~0~0~0|portal:darkBright~[0,0,0]|15~20`,
 			`BOX~[746,60,-399]~0~0~90~0|portal:cubes~[0,50,0]|10~10~10`,
 			`BOX~[-100,385,100]~0~0~90~0|portal:tinyObjs~[0,0,0]|10~10~10`,
@@ -326,19 +325,19 @@ function createWorlds() {
 			`ELLIPSE~[-501,589,-7]~4~0~90~0|ghost:212~223~235~14|88~110~110`,
 			`BOX~[151,60,-315]~0~0~90~0|portal:desert~[76,-100,14]|2~10~10`,
 			`BOX~[220,55,120]~0~0~90~0|color:255~0~255|20~10~20`,
-			new Voxel({pos: Pos(200, 200, 200), theta: 0, phi: 0, rot: 0}, new M_Color(128, 255, 128), 0, 32, -1, 1, 1, 1, -1, 1, -1, -1),
-			new Voxel({pos: Pos(200, 232, 200), theta: 0, phi: 0, rot: 0}, new M_Color(128, 255, 128), 0, 32, -1, 1, -1, 1, 1, 1, -1, 1),
-			//the bunny
+			`VOXEL~[200,200,200]~0~0~90~0|color:128~255~128|16~-1~1~1~1~-1~1~-1~-1`,
+			`VOXEL~[200,232,200]~0~0~90~0|color:128~255~128|16~-1~1~-1~1~1~1~-1~1`,
 			`ELLIPSE~[402,118,227]~0~0~90~0|color:255~145~0|40~25~30`,
 			`ELLIPSE~[420,135,208]~1~0~90~0|color:255~184~25|20~10~10`,
 			`ELLIPSE~[416,136,242]~1~0~102~0|color:255~185~25|25~10~10`,
 			`BOX~[404,114,230]~0~0~90~0|color:255~0~255|10~10~10`,
 			`SPHERE~[428,124,208]~0~0~90~0|color:0~0~0|7`,
 			`SPHERE~[429,123,245]~0~0~90~0|color:0~0~0|7`,
-			//tree
 			`LINE~[233,50,-527]~0~0~90~0|color:102~46~0|0~12~0~1`,
 			`LINE~[233,62,-527]~0~0~90~0|color:102~46~0|10~10~10~1`,
-			`LINE~[233,62,-527]~0~0~90~0|color:102~48~0|-10~30~3~1`
+			`LINE~[233,62,-527]~0~0~90~0|color:102~48~0|-10~30~3~1`,
+			`CYLINDER~[728,53,207]~0~0~0~0|color:89~14~0|6~31.7`,
+			`DISH~[730,67,207]~0~0~90~0|color:14~124~2|0~63~0~23~0`
 		],
 		0.4
 	);
@@ -681,11 +680,12 @@ function createWorlds() {
 	
 	new World("spheresForever", [],[
 			[bg, Color(255,227,245)],
-			[bg_fadeToOld, Color(255,227,245), 1200]
+			// [bg_fadeTo, Color(255,227,245), 1200]
 		],
 		polToCart(0.6, 0.4, 1),
 		[60.2, 100, 60.2],
 		[
+			`ELLIPSE~[-170,673,129]~0~0~90~0|ghost:58~96~30~163|189~209~319`,
 			// `Scene3dLoop~6000~6000~6000~120||LINE~[0~10~60]~0~0~90~0|color:240~180~60|20~10~60~5`,
 			// `Scene3dLoop~6000~6000~6000~120||LINE~[120~10~60]~0~0~90~0|color:240~180~60|100~10~60~5`,
 			// `Scene3dLoop~6000~6000~6000~120||LINE~[60~10~0]~0~0~90~0|color:240~180~60|60~10~20~5`,
@@ -695,11 +695,7 @@ function createWorlds() {
 			// `Scene3dLoop~6000~6000~6000~120||LINE~[20~10~60]~0~0~90~0|color:240~180~60|60~10~20~5`,
 			// `Scene3dLoop~6000~6000~6000~120||LINE~[60~10~20]~0~0~90~0|color:240~180~60|100~10~60~5`,
 			// `Scene3dLoop~6000~6000~6000~120||LINE~[100~10~60]~0~0~90~0|color:240~180~60|60~10~100~5`,
-		],
-		null,
-		() => {
-			constrainPlayer(1200, 1200, 1200);
-		}
+		]
 	);
 	
 	new World("turtleHell", [
