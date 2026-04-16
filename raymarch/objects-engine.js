@@ -139,6 +139,10 @@ class Ray_Tracking {
 		while (iters < ray_maxIters) {
 			//get distance
 			const distObj = this.world.tree.estimate(this);
+			if (!distObj) {
+				this.distance = this.distCap;
+				return this.distCap;
+			}
 			var dist = distObj.distanceToPos(this.pos);
 			if (distObj.nature & N_ANTI) {
 				dist = -dist;
@@ -475,7 +479,7 @@ class ObjectGrid {
 		if (!node) return;
 
 		// check if leaf and thennnn do distance
-		if (node.obj > -1) {
+		if (node.obj && node.obj > -1) {
 			var d = node.obj.distanceToPos(pos);
 			if (d < best[0]) {
 				best[0] = d;
