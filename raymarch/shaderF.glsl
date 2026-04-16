@@ -25,6 +25,7 @@
 #define VOXEL		13
 #define CUBE		14
 #define LINE		20
+#define DISH		22
 #define OCTAHEDRON	30
 #define RING		40
 #define PRISM_RHOMB	51
@@ -440,6 +441,24 @@ float cylinderSDF(vec3 point, float data1, vec4 data2) {
 	return min(max(d.x, d.y), 0.) + length(max(d, vec2(0.)));
 }
 
+float dishSDF(vec3 point, float data1, vec4 data2) {
+	float rba = data2[3] - data1;
+	float baba = dot(data2.xyz, data2.xyz);
+	float papa = dot(point, point);
+	float paba = dot(point, data2.xyz) / baba;
+	float x = sqrt(papa - paba * paba * baba);
+	// float cax = max(0.0, x - select(data2[3], data1, paba < 0.5));
+	float cax = max(0.0, x - ((paba < 0.5) ? data1 : data2[3]));
+	float cay = abs(paba - 0.5) - 0.5;
+	float k = rba * rba + baba;
+	float f = clamp((rba * (x - data1) + paba * baba) / k, 0.0, 1.0);
+	float cbx = x - data1 - f * rba;
+	float cby = paba - f;
+	// float s = select(1., -1., cbx < 0.0 && cay < 0.0);
+	float s = ((cbx < 0.0 && cay < 0.0) ? -1.0 : 1.0);
+	return s * sqrt(min(cax * cax + cay * cay * baba, cbx * cbx + cby * cby * baba));
+}
+
 //shamelessly stolen from marble marcher. Marble marcher is cool
 float fractalSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	point /= data1;
@@ -580,12 +599,6 @@ float objSDF(vec3 p, int world, int index) {
 	p.xy = rotate(p.xy, -rot);
 	
 	switch (type) {
-		case SPHERE: 
-			{d = sphereSDF(p, data[1][3]);} break;
-		case SHELL:
-			{d = shellSDF(p, data[1][3], data[2]);} break;
-		case ELLIPSE: 
-			{d = ellipsoidSDF(p, data[1][3], data[2]);} break;
 		case CAPSULE:
 			{d = capsuleSDF(p, data[1][3], data[2]);} break;
 		case CYLINDER:
@@ -595,6 +608,10 @@ float objSDF(vec3 p, int world, int index) {
 			{d = boxSDF(p, data[2]);} break;
 		case BOXFRAME:
 			{d = boxFrameSDF(p, data[1][3], data[2]);} break;
+		case DISH:
+			{d = dishSDF(p, data[1][3], data[2]);} break;
+		case ELLIPSE:
+			{d = ellipsoidSDF(p, data[1][3], data[2]);} break;
 		case FRACTAL:
 			{d = fractalSDF(p, data[1][3], data[2], data[3]);} break;
 		case GYROID:
@@ -609,6 +626,10 @@ float objSDF(vec3 p, int world, int index) {
 		case PRISM_HEX:
 		case PRISM_OCT: 
 			{d = prismSDF(p, type, data[1][3], data[2]);} break;
+		case SPHERE: 
+			{d = sphereSDF(p, data[1][3]);} break;
+		case SHELL:
+			{d = shellSDF(p, data[1][3], data[2]);} break;
 		case VOXEL:
 			{d = voxelSDF(p, data[1][3], data[2], data[3]);} break;
 		default:
@@ -687,7 +708,6 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		} break;
 		case M_MIRROR: {
 			if (stage[stg].distSinceBounce < 0.5) {
-				stage[0].color = data0;
 				break;
 			}
 			applyColor(stg, data0);
@@ -915,7 +935,7 @@ void raymarch() {
 		stage[0].totalDist += stage[0].localDist;
 		stage[0].distSinceBounce += stage[0].localDist;
 		stage[0].pos += stage[0].localDist * stage[0].dPos;
-		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 1.) {
+		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 0.99) {
 			return;
 		}
 	}
