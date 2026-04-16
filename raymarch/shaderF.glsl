@@ -65,6 +65,11 @@
 #define M_PORTAL	20
 #define M_MIRROR	30
 
+// GR stuff
+#define DERIVATIVE_EPSILON 0.1
+#define MAX_MOMENTUM_CHANGE 0.001
+#define MAX_UPSCALE 100.
+
 precision highp float;
 precision highp sampler2DArray;
 
@@ -979,7 +984,93 @@ void shadow() {
 	stage[1].color *= ambience + ((1. - ambience) * clamp(result, 0.0, 1.0));
 }
 
+/*
 
+GR STUFF
+
+So what the fuck is this...
+
+Source: https://michaelmoroz.github.io/TracingGeodesics/
+(Note, I didn't look at his glsl code because that would be boorringg)
+
+First, it is important to keep track of a particle's time coordinate because inside a black hole, it's impossible to move backwards in space, which is kinda analagous to how outside of a black hole you can't move backwards in time; basically a space coordinate starts acting like time and the time coordinate starts acting like space. In other words we need to track all four coordinates. However, I will assume that objects in the world move wayyy slower than light so the code will consider them to be stationary. In principle we could have 4D SDFs but shhhh
+
+Curvature of spacetime is fundamentally defined by a "metric", aka a way to compute dot products between two vectors. It's represented by a 4x4 matrix `g` where a·b = a^T g b. Note that the metric is a function of location in spacetime. The general relativity equation defines the metric in terms of the distribution of energy but whooo cares we're just going to put one into a function. If you want to render your favorite spacetime, look up the metric and put it into the function, and also be careful about coordinate systems.
+
+The reason why dot products are important is that in euclidean geometry, the distance between two points is exactly sqrt(a · b). In GR, we define the distance to be sqrt(a^T g b). A _geodesic_ is defined to be the locally shortest path between two points, meaning you can't deviate from the path by some small ε and get a shorter path. Note that a geodesic isn't always the _globally_ shortest path (imagine climbing a mountain vs going around it). Anyways, inertial observers follow geodesics in spacetime, and fucking with the distance function is what makes paths bend in interesting ways.
+
+So how do we trace geodesics? Basically, imagine that the light ray has an annoying impatient backseat driver who will always complain when the ray doesn't take the shortest path. We're already going some random direction so we need to get the backseat driver to shut up by figuring out what destination would make our current path the shortest path to it, and telling them that we're going there. And then because we're tracing geodesics, we're actually going to go there.
+
+Someone did some fancy math and derived a thing that I don't really understand. Let `x: vec4` be our current position in spacetime, let `a` arbitrarily parameterize our path through spacetime, and let `p: vec4` be our "generalized momentum" defined to be $p = g(x) dx/da$.
+
+$
+      dx/da = g^(-1) p
+	      H = (dx/da)^T g(x) (dx/da)
+	dp_i/da = -1/2 δH/δx_i
+$
+
+Note that I rearranged the formulas from how they are in the source to make them more efficient to evaluate.
+
+Parts of this that do make sense are the first equation which is true by definition and the second equation which is effectively the distance that we travel by continuing in the direction that we're going (aka what we want to minimize). I don't know how to interpret the third equation mostly because I don't know how to interpret "generalized momentum".
+
+So basically our raytracing loop will evaluate all three of those equations. Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, but we do what we must. In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
+*/
+
+mat4 metric(vec4 spot) {
+	// Flat spacetime
+	return mat4(
+		-1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1
+	);
+}
+
+mat4 metricInv(vec4 spot) {
+	return inverse(metric(spot));
+}
+
+float lengthSquare(mat4 metric, vec4 vel) {
+	float value = 0.;
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			value += metric[i][j] * vel[i] * vel[j];
+		}
+	}
+
+	return value;
+}
+
+vec4 metricPartialDerivatives(vec4 spot, vec4 vel) {
+	float origin = lengthSquare(metric(spot), vel);
+
+	float a = lengthSquare(metric(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0)), vel) - origin;
+	float b = lengthSquare(metric(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0)), vel) - origin;
+	float c = lengthSquare(metric(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0)), vel) - origin;
+	float d = lengthSquare(metric(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON)), vel) - origin;
+
+	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / -2.;
+}
+
+struct Path {
+	vec4 spot;
+	vec4 momentum;
+};
+
+Path geodesicStep(Path current) {
+	vec4 dxda = metricInv(current.spot) * current.momentum;
+	vec4 dpda = metricPartialDerivatives(current.spot, dxda);
+
+	// Make the step size such that p changes by the desired amount
+	float len = length(dpda);
+	float scale = min(MAX_MOMENTUM_CHANGE / len, MAX_UPSCALE);
+
+	current.spot += dxda * scale;
+	current.momentum += dpda * scale;
+
+	return current;
+}
 
 //actual fragment shader: what's done for a pixel
 
