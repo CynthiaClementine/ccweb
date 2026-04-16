@@ -159,7 +159,7 @@ function deserializeMat(str) {
 }
 
 function calcPlacePos() {
-	var offset = polToCart(camera.theta, camera.phi, 100);
+	var offset = polToCart(camera.theta, camera.phi, editor_placeOffset);
 	var r = Math.round;
 	return Pos(r(camera.pos[0] + offset[0]), r(camera.pos[1] + offset[1]), r(camera.pos[2] + offset[2]));
 }
@@ -274,6 +274,9 @@ class Slider {
 			eval(`${this.var} = ${clamp(val, ...this.varRange)};`);
 			if (this.var.includes(`editor_selected`) && editor_selected != player) {
 				loading_world.shouldRegen = true;
+				if (editor_selected.calc) {
+					editor_selected.calc();
+				}
 			}
 		} catch (e) {
 			console.error(`cannot send ${val} --> [${this.varRange}] --> ${this.var}`, e);
@@ -463,7 +466,7 @@ function editor_initialize() {
 	slider_rx = new Slider(`group_radius.rxSlider`, `editor_selected.rx`, `rx: `, -100,100, 1, -1E3,1E4);
 	slider_ry = new Slider(`group_radius.rySlider`, `editor_selected.ry`, `ry: `, -100,100, 1, -1E3,1E4);
 	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, -1E3,1E4);
-	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, 0,20, 1, 0,1E4);
+	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, -100,100, 1, 0,1E4);
 	
 	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0,1, 0.01);
 	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,19.95, 0.05);
@@ -501,7 +504,7 @@ function editor_initialize() {
 				var ind = loading_world.objects.indexOf(editor_selected);
 				if (ind < 0) {
 					ind = loading_world.objects.length;
-					editor_addObj(e, TYPE_SPHERE);
+					editor_addObj(null, TYPE_SPHERE);
 				}
 				
 				const oldObj = loading_world.objects[ind];
@@ -603,6 +606,7 @@ function editor_initialize() {
 		"CAPSULE": [slider_rr, slider_h],
 		"CUBE": [slider_rr],
 		"CYLINDER": [slider_rr, slider_h],
+		"DISH": [...rxyz, slider_rr, slider_ringR],
 		"ELLIPSE": [...rxyz],
 		"FRACTAL": [slider_rr, slider_gyrB, slider_shiftX, slider_shiftY, slider_shiftZ],
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
@@ -670,6 +674,27 @@ function editor_removeObj(e, object) {
 	}
 	
 	return removed;
+}
+
+function editor_raycast() {
+	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), editor_placeOffset);
+	ray.iterate();
+	if (ray.world != loading_world) {
+		//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business
+		var validPortals = [];
+		loading_world.objects.forEach(o => {
+			if (o.material.newWorld == ray.world) {
+				validPortals.push(o);
+			}
+		});
+		
+		validPortals.sort((a, b) => a.distanceToPos(camera.pos) - b.distanceToPos(camera.pos));
+		ray.object = validPortals[0];
+	}
+	if (ray.object) {
+		console.log(`selecting`, ray.object);
+	}
+	editor_select(ray.object);
 }
 
 function editor_select(object) {

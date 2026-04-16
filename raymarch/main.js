@@ -4,6 +4,7 @@ window.addEventListener("keydown", handleKeyPress, false);
 window.addEventListener("keyup", handleKeyNegate, false);
 document.addEventListener('pointerlockchange', handleCursorLockChange, false);
 document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
+window.addEventListener("wheel", handleWheel, {passive: false});
 
 var canvas;
 var gl;
@@ -98,6 +99,15 @@ function main() {
 	
 	//editor syncing
 	if (debug_listening && controls_cursorLock) {
+		if (editor_selected != player && controls_altPressed) {
+			//held object?????
+			var newPos = calcPlacePos();
+			if (getDistancePos(newPos, editor_selected.pos) > 0.1) {
+				editor_selected.pos = newPos;
+				loading_world.shouldRegen = true;
+			}
+		}
+	
 		editor_controls.forEach(c => {
 			try {
 				c.synchronize();
@@ -175,8 +185,8 @@ function drawUI() {
 	//collision
 	//draw everything
 	if (debug_flags.collisionRaycast) {
-		const pixelsInX = render_n;
-		const pixelsInY = render_n;
+		const pixelsInX = render_colN;
+		const pixelsInY = render_colN;
 	
 		const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
 		const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
@@ -201,23 +211,19 @@ function drawUI() {
 
 function drawLine(x, colorArr) {
 	//writing directly to imageData is theoretically faster than changing fillStyle a bunch
-	var blockSizeTrue = (banvas.width / render_n);
-	var blockSize = Math.round(banvas.width / render_n);
+	var blockSizeTrue = (banvas.width / render_colN);
+	var blockSize = Math.round(banvas.width / render_colN);
 	var imageData = btx.createImageData(blockSize, banvas.height);
 	var dataBlock = imageData.data;
-	for (var y=0; y<render_n; y++) {
+	for (var y=0; y<render_colN; y++) {
 		var r = colorArr[3*y];
-		var g = colorArr[3*y+1];
-		var b = colorArr[3*y+2];
 		
 		for (var yOff=0; yOff<blockSize; yOff++) {
 			var lineInd = 4 * blockSize * (y * blockSize + yOff);
 			for (var xOff=0; xOff<blockSize; xOff++) {
 				var pixelInd = lineInd + (4 * xOff);
 				dataBlock[pixelInd] = r;
-				dataBlock[pixelInd+1] = g;
-				dataBlock[pixelInd+2] = b;
-				dataBlock[pixelInd+3] = 128;
+				dataBlock[pixelInd+3] = r / 2;
 			}
 		}
 	}
@@ -271,6 +277,7 @@ function handleKeyPress(a) {
 				}
 				break;
 			case "KeyC":
+				editor_raycast();
 				if (editor_selected != player) {
 					clipboard = editor_selected.serialize();
 				}
@@ -278,27 +285,14 @@ function handleKeyPress(a) {
 			case "KeyV":
 				if (clipboard) {
 					var newObj = deserialize(clipboard);
+					console.log(`hi`, newObj, calcPlacePos());
+					newObj.pos = calcPlacePos();
+					loading_world.objects.push(newObj);
+					loading_world.shouldRegen = true;
 				}
 				break;
 			case "KeyO":
-				var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist / 4);
-				ray.iterate();
-				if (ray.world != loading_world) {
-					//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business
-					var validPortals = [];
-					loading_world.objects.forEach(o => {
-						if (o.material.newWorld == ray.world) {
-							validPortals.push(o);
-						}
-					});
-					
-					validPortals.sort((a, b) => a.distanceToPos(camera.pos) - b.distanceToPos(camera.pos));
-					ray.object = validPortals[0];
-				}
-				if (ray.object) {
-					console.log(`selecting`, ray.object);
-				}
-				editor_select(ray.object);
+				editor_raycast();
 				break;
 			case "KeyP":
 				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
@@ -329,6 +323,11 @@ function handleKeyPress(a) {
 			player.dash();
 			player.aPos[1] = -player.speed;
 			controls_shiftPressed = true;
+			break;
+		case "AltLeft":
+		case "AltRight":
+			controls_altPressed = true;
+			editor_raycast();
 			break;
 		case "Space":
 			player.jump();
@@ -368,6 +367,10 @@ function handleKeyNegate(a) {
 			player.aPos[1] = Math.max(player.aPos[1], 0);
 			controls_shiftPressed = false;
 			break;
+		case "AltLeft":
+		case "AltRight":
+			controls_altPressed = false;
+			break;
 		case "Space":
 			player.aPos[1] = Math.min(player.aPos[1], 0);
 			controls_dashPressed = false;
@@ -397,4 +400,10 @@ function handleMouseMove(a) {
 	if (Math.abs(a.movementX) > 2) {
 		[player.dPos[0], player.dPos[2]] = rotate(player.dPos[0], player.dPos[2], dTheta - (2 * controls_sensitivity));
 	}
+}
+
+function handleWheel(a) {
+	a.preventDefault();
+	editor_placeOffset *= (1 + a.deltaY / 50);
+	editor_placeOffset = clamp(editor_placeOffset, ...editor_placeRange);
 }
