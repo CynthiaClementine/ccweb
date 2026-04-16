@@ -153,6 +153,7 @@ var map_strObj = {
 	"CUBE": Cube,
 	"CAPSULE": Capsule,
 	"CYLINDER": Cylinder,
+	"DISH": Dish,
 	"ELLIPSE": Ellipsoid,
 	"FRACTAL": Fractal,
 	"GYROID": Gyroid,

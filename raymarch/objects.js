@@ -9,6 +9,7 @@ templates/abstract:
 	Scene3dObject
 	Scene3dObject_Axes
 	Prism
+	Spun
 
 Meta-Objects:
 	Scene3dLoop
@@ -149,6 +150,31 @@ class Prism extends Scene3dObject_Axes {
 	
 	serializeGPU() {
 		return [null, this.rx, this.ry, this.rz];
+	}
+}
+
+class Spun extends Scene3dObject {
+	static type = -6;
+	constructor(posRot, material, nature, r, h) {
+		super(posRot, material, nature);
+		this.r = r;
+		this.h = h;
+	}
+	
+	bounds() {
+		return augmentBounds(
+			giveBounds(this.pos, this.r, this.r, this.h, this.theta, this.phi, 0), 
+		this.gloopiness * 2 + this.smoothness);
+	}
+	
+	sdf2D(relX, relY) {
+		console.error(`2d SDF is not defined for object ${this.constructor.name}!`);
+		return -1;
+	}
+	
+	distanceToPos(pos) {
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, 0);
+		const relX = Math.sqrt(relPos[0] * relPos[0] + relPos[2] * relPos[2]);
 	}
 }
 
@@ -329,40 +355,6 @@ class SceneCollection {
 
 
 
-
-//cube, standard object
-class Cube extends Scene3dObject {
-	static type = TYPE_CUBE;
-	constructor(posRot, material, nature, r) {
-		super(posRot, material, nature);
-		this.r = r;
-	}
-	
-	bounds() {
-		return giveBounds(this.pos, this.r, this.r, this.r, this.theta, this.phi, this.rot);
-	}
-	
-	distanceToPos(pos) {
-		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
-		const r = this.r;
-		const x = Math.abs(relPos[0]) - r;
-		const y = Math.abs(relPos[1]) - r;
-		const z = Math.abs(relPos[2]) - r;
-		const dExt = Math.hypot(Math.max(x, 0), Math.max(y, 0), Math.max(z, 0));
-		const dInt = Math.min(Math.max(x, y, z), 0);
-		
-		return dExt + dInt;
-	}
-
-	serialize() {
-		return `CUBE${super.serialize()}${this.r}`;
-	}
-	
-	serializeGPU() {
-		return [null, this.r, this.r, this.r];
-	}
-}
-
 class Box extends Scene3dObject_Axes {
 	static type = TYPE_BOX;
 	constructor(posRot, material, nature, rx, ry, rz) {
@@ -495,6 +487,62 @@ class Capsule extends Scene3dObject {
 	}
 }
 
+class Cone extends Scene3dObject {
+	static type = TYPE_CONE;
+	constructor(posRot, material, nature, r, h) {
+		super(posRot, material, nature);
+		this.r = r;
+		this.h = h;
+	}
+	
+	bounds() {
+		return augmentBounds(
+			giveBounds(this.pos, this.r, this.r, this.h, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
+	}
+	
+	distanceToPos(pos) {
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		
+	}
+}
+
+
+//cube, standard object
+class Cube extends Scene3dObject {
+	static type = TYPE_CUBE;
+	constructor(posRot, material, nature, r) {
+		super(posRot, material, nature);
+		this.r = r;
+	}
+	
+	bounds() {
+		return augmentBounds(
+			giveBounds(this.pos, this.r, this.r, this.r, this.theta, this.phi, this.rot),
+		this.gloopiness * 2 + this.smoothness);
+	}
+	
+	distanceToPos(pos) {
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		const r = this.r;
+		const x = Math.abs(relPos[0]) - r;
+		const y = Math.abs(relPos[1]) - r;
+		const z = Math.abs(relPos[2]) - r;
+		const dExt = Math.hypot(Math.max(x, 0), Math.max(y, 0), Math.max(z, 0));
+		const dInt = Math.min(Math.max(x, y, z), 0);
+		
+		return dExt + dInt;
+	}
+
+	serialize() {
+		return `CUBE${super.serialize()}${this.r}`;
+	}
+	
+	serializeGPU() {
+		return [null, this.r, this.r, this.r];
+	}
+}
+
 class Cylinder extends Scene3dObject {
 	static type = TYPE_CYLINDER;
 	constructor(posRot, material, nature, r, h) {
@@ -526,6 +574,105 @@ class Cylinder extends Scene3dObject {
 	
 	serializeGPU() {
 		return [this.r, this.h];
+	}
+}
+
+//like a line but with 2 separate radii
+class Dish extends Scene3dObject {
+	static type = TYPE_DISH;
+	constructor(posRot, material, nature, rx, ry, rz, ra, rb) {
+		super(posRot, material, nature);
+		this.rx = rx;
+		this.ry = ry;
+		this.rz = rz;
+		this.r = ra;
+		this.ringR = rb;
+		//it doesn't really make sense for dishes to be affected by transformations. So they're not.
+		if (this.theta || this.phi || this.rot) {
+			console.error(`${this.serialize()}: Dishes should not be rotated!`);
+			this.theta = 0;
+			this.phi = 0;
+			this.rot = 0;
+		}
+		this.calc();
+	}
+	
+	calc() {
+		console.log(`calculating!`);
+		this.lineVec = Pos(this.rx, this.ry, this.rz);
+		this.lineDot = dot(this.lineVec, this.lineVec);
+	}
+	
+	bounds() {
+		const r = this.r;
+		const rr = this.ringR;
+		const posEnd = Pos(this.pos[0] + this.rx, this.pos[1] + this.ry, this.pos[2] + this.rz);
+		return augmentBounds([Pos(
+			Math.min(this.pos[0] - r, posEnd[0] - rr),
+			Math.min(this.pos[1] - r, posEnd[1] - rr),
+			Math.min(this.pos[2] - r, posEnd[2] - rr),
+		), Pos (
+			Math.max(this.pos[0] + r, posEnd[0] + rr),
+			Math.max(this.pos[1] + r, posEnd[1] + rr),
+			Math.max(this.pos[2] + r, posEnd[2] + rr),
+		)], this.gloopiness * 2 + this.smoothness);
+	}
+	
+	
+//	fn sdCappedCone(p: vec3f, a: vec3f, b: vec3f, ra: f32, rb: f32) -> f32 {
+//   let rba = rb - ra;
+//   let baba = dot(b - a, b - a);
+//   let papa = dot(p - a, p - a);
+//   let paba = dot(p - a, b - a) / baba;
+//   let x = sqrt(papa - paba * paba * baba);
+//   let cax = max(0.0, x - select(rb, ra, paba < 0.5));
+//   let cay = abs(paba - 0.5) - 0.5;
+//   let k = rba * rba + baba;
+//   let f = clamp((rba * (x - ra) + paba * baba) / k, 0.0, 1.0);
+//   let cbx = x - ra - f * rba;
+//   let cby = paba - f;
+//   let s = select(1., -1., cbx < 0.0 && cay < 0.0);
+//   return s * sqrt(min(cax * cax + cay * cay * baba, cbx * cbx + cby * cby * baba));
+// }
+	
+	distanceToPos(pos) {
+		const rba = this.ringR - this.r;
+		const b_a = this.lineVec;
+		const p_a = transformInverse(pos, this.pos, 0, 0, 0);
+		const baba = dot(b_a, b_a);
+		const papa = dot(p_a, p_a);
+		const paba = dot(p_a, b_a) / baba;
+		const x = Math.sqrt(papa - paba * paba * baba);
+		const cax = Math.max(0, x - (paba < 0.5) ? this.r : this.ringR);
+		const cay = Math.abs(paba - 0.5) - 0.5;
+		const k = rba * rba + baba;
+		const f = clamp((rba * (x - this.r) + paba * baba) / k, 0, 1);
+		const cbx = x - this.r - f * rba;
+		const cby = paba - f;
+		const s = (cbx < 0.0 && cay < 0.0) ? -1 : 1;
+		return s * Math.sqrt(Math.min(cax * cax + cay * cay * baba, cbx * cbx + cby * cby * baba));
+	
+		//   let rba = rb - ra;
+//   let baba = dot(b - a, b - a);
+//   let papa = dot(p - a, p - a);
+//   let paba = dot(p - a, b - a) / baba;
+//   let x = sqrt(papa - paba * paba * baba);
+//   let cax = max(0.0, x - select(rb, ra, paba < 0.5));
+//   let cay = abs(paba - 0.5) - 0.5;
+//   let k = rba * rba + baba;
+//   let f = clamp((rba * (x - ra) + paba * baba) / k, 0.0, 1.0);
+//   let cbx = x - ra - f * rba;
+//   let cby = paba - f;
+//   let s = select(1., -1., cbx < 0.0 && cay < 0.0);
+//   return s * sqrt(min(cax * cax + cay * cay * baba, cbx * cbx + cby * cby * baba));
+	}
+	
+	serialize() {
+		return `DISH${super.serialize()}${this.rx}~${this.ry}~${this.rz}~${this.r}~${this.ringR}`;
+	}
+	
+	serializeGPU() {
+		return [this.r, this.rx, this.ry, this.rz, this.ringR];
 	}
 }
 
@@ -913,7 +1060,7 @@ class Ring extends Scene3dObject {
 	}
 
 	distanceToPos(pos) {
-		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, 0);
 		const distX = Math.abs(relPos[0]);
 		const distY = Math.abs(relPos[1]);
 		const distZ = Math.abs(relPos[2]);
