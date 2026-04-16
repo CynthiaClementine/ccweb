@@ -232,7 +232,7 @@ function projectPanini(x, pixelsInX, y, pixelsInY) {
 
 //pixel ray starts at camera point and intersects regular intervals on a plane 1 unit in front
 function projectPerspective(x, pixelsInX, y, pixelsInY) {
-	var singleOffset = (camera_halfTan / (render_n / 2));
+	var singleOffset = (camera_halfTan / (pixelsInX / 2));
 	return [
 		singleOffset * (x - (pixelsInX / 2)),
 		singleOffset * (y - (pixelsInY / 2)),
