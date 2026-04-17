@@ -1014,6 +1014,8 @@ Note that I rearranged the formulas from how they are in the source to make them
 Parts of this that do make sense are the first equation which is true by definition and the second equation which is effectively the distance that we travel by continuing in the direction that we're going (aka what we want to minimize). I don't know how to interpret the third equation mostly because I don't know how to interpret "generalized momentum".
 
 So basically our raytracing loop will evaluate all three of those equations. Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, but we do what we must. In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
+
+But wait! There's more! Imagine we're INSIDE A BLACK HOLE!!! OH NO!!! We would like to see the beautiful universe that we are forever leaving behind one last time, and that should be possible since light is certainly falling in as well, but if we cast rays out of the camera, all of them just fall back into the hole (insert sexual innuendo)! Basically we need to explicitly trace the rays backwards instead of forwards so we need to negate all of the differential equations.
 */
 
 mat4 metric(vec4 spot) {
@@ -1066,8 +1068,8 @@ Path geodesicStep(Path current) {
 	float len = length(dpda);
 	float scale = min(MAX_MOMENTUM_CHANGE / len, MAX_UPSCALE);
 
-	current.spot += dxda * scale;
-	current.momentum += dpda * scale;
+	current.spot -= dxda * scale;
+	current.momentum -= dpda * scale;
 
 	return current;
 }
