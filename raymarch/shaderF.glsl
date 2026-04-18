@@ -67,8 +67,7 @@
 
 // GR stuff
 #define DERIVATIVE_EPSILON 0.1
-#define MAX_MOMENTUM_CHANGE 0.001
-#define MAX_UPSCALE 100.
+#define MAX_MOMENTUM_CHANGE 0.1
 
 precision highp float;
 precision highp sampler2DArray;
@@ -78,6 +77,12 @@ precision highp sampler2DArray;
 in vec2 vUV;
 out vec4 outColor;
 
+struct Path {
+	vec4 spot;
+	vec3 vel;
+	vec4 momentum;
+};
+
 struct Raydata {
 	int iters;
 	
@@ -86,8 +91,9 @@ struct Raydata {
 	float localDist;
 	float distSinceBounce;
 	int world;
-	vec3 pos;
-	vec3 dPos;
+	// vec3 pos;
+	// vec3 dPos;
+	Path path;
 	
 	vec4 color;
 };
@@ -109,21 +115,43 @@ int bounceCount = 0;
 float bvhTolerance = 8.0;
 
 Raydata stage[2] = Raydata[2](
-	Raydata(0, 0, 0.0, 0.0, 0.0, 0, vec3(0.0), vec3(0.0), vec4(0.,0.,0.,0.)),
-	Raydata(0, 0, 0.0, 0.0, 0.0, 0, vec3(0.0), vec3(0.0), vec4(1.0,0.1,0.1,0.0))
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), vec4(0.,0.,0.,0.)),
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), vec4(1.0,0.1,0.1,0.0))
 );
 
 void calcSceneObjs(int);
+mat4 metric(vec4);
+mat4 metricInv(vec4);
 
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
-	stage[stg].pos = newPos;
-	stage[stg].dPos = newDPos;
+	vec4 spacetimeSpot = vec4(0., newPos.x, newPos.y, newPos.z);
+	vec3 dposn = -normalize(newDPos);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+	mat4 metricAtSpot = metric(spacetimeSpot);
+
+	stage[stg].path.spot = spacetimeSpot;
+	stage[stg].path.vel = newDPos;
+	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
 	calcSceneObjs(stg);
 	bounceCount += 1;
 }
 
+void teleport(int stg, vec3 newPos) {
+	float time = stage[stg].path.spot.x;
+	stage[stg].path.spot = vec4(time, newPos.x, newPos.y, newPos.z);
+	calcSceneObjs(stg);
+	bounceCount += 1;
+}
 
+void bounce(int stg, vec3 newDPos) {
+	vec3 dposn = -normalize(newDPos);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+	mat4 metricAtSpot = metric(stage[stg].path.spot);
 
+	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
+	calcSceneObjs(stg);
+	bounceCount += 1;
+}
 
 //general compute functions
 float rand(float low, float high) {
@@ -237,7 +265,7 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 	switch (effectType) {
 		//loop
 		case E_LOOP: {
-			setStageRay(stg, mod(stage[stg].pos, arg0[0]), stage[stg].dPos);
+			teleport(stg, mod(stage[stg].path.spot.yzw, arg0[0]));
 		} break;
 		//brighten
 		case E_BRIGHTEN: {
@@ -324,7 +352,7 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 				return;
 			}
 			float sunSize = data1[0];
-			float dotted = max(dot(stage[0].dPos, w_sunVec(stage[0].world)) - 1. + sunSize, 0.);
+			float dotted = max(dot(stage[0].path.vel, w_sunVec(stage[0].world)) - 1. + sunSize, 0.);
 			dotted = clamp(2. * dotted / sunSize, 0.0, 1.0);
 			if (dotted > 0.0) {
 				applyColorLight(0, vec4(mix(stage[0].color.rgb, arg0.rgb, dotted), 1.));
@@ -677,13 +705,13 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		
 		case M_NORMAL: {
 			//theoretically this should work. try 0 -> stg if not
-			vec3 norm = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
+			vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 			applyColor(1, vec4((norm + 1.) / 2., 1.));
 			res = 1;
 		} break;
 		
 		case M_RUBBER: {
-			float localVal = mod(stage[stg].pos[0] + stage[stg].pos[2], 10.) - 5.;
+			float localVal = mod(stage[stg].path.spot.y + stage[stg].path.spot.w, 10.) - 5.;
 			vec3 mult = vec3(4.0/255., 4.0/255., 4.8/255.);
 			vec4 paint = vec4(vec3(47./255., 48./255., 66./255.) + localVal * mult, 1.0);
 			applyColor(1, paint);
@@ -706,7 +734,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 
 		case M_PORTAL: {
 			stage[stg].world = int(data1[0]);
-			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
+			teleport(stg, stage[stg].path.spot.yzw + data0.xyz);
 			stage[stg].distSinceBounce = 0.0;
 			stage[stg].localDist = ray_minDist * 2.;
 			res = 0;
@@ -717,11 +745,10 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			}
 			applyColor(stg, data0);
 			if (stg == 0) {
-				vec3 incident = stage[stg].dPos;
-				vec3 normal = getNormal(stage[stg].pos, stage[stg].world, stage[stg].closestInd);
+				vec3 normal = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
 				//vec3 normal = normalize(vec3(-1, -1, -1));
-				float product = dot(incident, normal);
-				setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
+				float product = dot(stage[stg].path.vel, normal);
+				bounce(stg, stage[stg].path.vel - 2. * normal * product);
 				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
@@ -797,7 +824,7 @@ void calcSceneObjs(int stg) {
 		}
 		
 		//evaluate using slab test
-		bool isIn = intersects(stage[stg].pos, stage[stg].dPos, data0.xyz, data1.xyz);
+		bool isIn = intersects(stage[stg].path.spot.yzw, stage[stg].path.vel, data0.xyz, data1.xyz);
 		bool hasChildren = (data0[3] == -1.);
 		
 		//in current node?
@@ -914,11 +941,13 @@ int matType(int world, int id) {
 	return (floatBitsToInt(bits) >> 16);
 }
 
+Path geodesicStep(Path, float);
+
 void raymarch() {
 	for(int i=0; i<ray_maxIters; i++) {
 		// vec3 p = startP + dPos * totalDist;
 		stage[0].iters = i;
-		stage[0].localDist = sceneSDF(stage[0].pos, 0);
+		stage[0].localDist = sceneSDF(stage[0].path.spot.yzw, 0);
 
 		if (stage[0].localDist < ray_nearDist) {
 			mat4 matDat = matData(stage[0].world, stage[0].closestInd);
@@ -937,9 +966,14 @@ void raymarch() {
 		}
 		applyPreEffects(0);
 		
-		stage[0].totalDist += stage[0].localDist;
-		stage[0].distSinceBounce += stage[0].localDist;
-		stage[0].pos += stage[0].localDist * stage[0].dPos;
+		vec3 before = stage[0].path.spot.yzw;
+		stage[0].path = geodesicStep(stage[0].path, stage[0].localDist);
+		vec3 after = stage[0].path.spot.yzw;
+		float travel = length(after - before);
+
+		stage[0].totalDist += travel;
+		stage[0].distSinceBounce += travel;
+		// stage[0].pos += stage[0].localDist * stage[0].dPos;
 		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 0.99) {
 			return;
 		}
@@ -952,7 +986,7 @@ void shadow() {
 	int count = 80;
 	for(int i=0; i<count; i++) {
 		stage[1].iters = i;
-		stage[1].localDist = sceneSDF(stage[1].pos, 1);
+		stage[1].localDist = sceneSDF(stage[1].path.spot.yzw, 1);
 		int res = 0;
 		
 		if (stage[1].localDist < ray_minDist) {
@@ -966,8 +1000,13 @@ void shadow() {
 		result = min(result, 4.0 * (stage[1].localDist / shadowTolerance));
 		
 		stage[1].localDist = max(stage[1].localDist, ray_minDist);
-		stage[1].totalDist += stage[1].localDist;
-		stage[1].pos += stage[1].dPos * stage[1].localDist;
+		vec3 before = stage[1].path.spot.yzw;
+		stage[1].path = geodesicStep(stage[1].path, stage[1].localDist);
+		vec3 after = stage[1].path.spot.yzw;
+		float travel = length(after - before);
+
+		stage[1].totalDist += travel;
+
 		//potentially add t cutoff here (far away objects won't cast shadows)
 		if (res > 0) {
 			result = 0.0;
@@ -1022,7 +1061,7 @@ mat4 metric(vec4 spot) {
 	// Flat spacetime
 	return mat4(
 		-1, 0, 0, 0,
-		0, 1, 0, 0,
+		0, 1. + spot.y * spot.y / 10000., 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1
 	);
@@ -1055,20 +1094,23 @@ vec4 metricPartialDerivatives(vec4 spot, vec4 vel) {
 	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / -2.;
 }
 
-struct Path {
-	vec4 spot;
-	vec4 momentum;
-};
-
-Path geodesicStep(Path current) {
+Path geodesicStep(Path current, float maxStep) {
 	vec4 dxda = metricInv(current.spot) * current.momentum;
 	vec4 dpda = metricPartialDerivatives(current.spot, dxda);
 
 	// Make the step size such that p changes by the desired amount
-	float len = length(dpda);
-	float scale = min(MAX_MOMENTUM_CHANGE / len, MAX_UPSCALE);
+	float momentumChange = length(dpda);
+	float positionChange = length(dxda);
+	float scale;
+
+	if (momentumChange == 0.) {
+		scale = maxStep / positionChange;
+	} else {
+		scale = min(MAX_MOMENTUM_CHANGE / momentumChange, maxStep / positionChange);
+	}
 
 	current.spot -= dxda * scale;
+	current.vel = -dxda.yzw;
 	current.momentum -= dpda * scale;
 
 	return current;
@@ -1170,9 +1212,9 @@ void main() {
 		// mat4 hitData = objData(stage[0].closestInd);
 		
 		vec3 sunVec = w_sunVec(stage[0].world);
-		vec3 normal = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
+		vec3 normal = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 		stage[1].world = stage[0].world;
-		setStageRay(1, stage[0].pos - normal * ray_minDist * 2., sunVec);
+		setStageRay(1, stage[0].path.spot.yzw - normal * ray_minDist * 2., sunVec);
 		shadow();
 	}
 	
