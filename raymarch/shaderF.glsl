@@ -67,7 +67,7 @@
 
 // GR stuff
 #define DERIVATIVE_EPSILON 0.1
-#define MAX_MOMENTUM_CHANGE 0.1
+#define MAX_MOMENTUM_CHANGE 0.01
 
 precision highp float;
 precision highp sampler2DArray;
@@ -124,13 +124,13 @@ mat4 metric(vec4);
 mat4 metricInv(vec4);
 
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
+	vec3 dposn = normalize(newDPos);
 	vec4 spacetimeSpot = vec4(0., newPos.x, newPos.y, newPos.z);
-	vec3 dposn = -normalize(newDPos);
-	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+	vec4 dposSpacetime = vec4(-1., -dposn.x, -dposn.y, -dposn.z);
 	mat4 metricAtSpot = metric(spacetimeSpot);
 
 	stage[stg].path.spot = spacetimeSpot;
-	stage[stg].path.vel = newDPos;
+	stage[stg].path.vel = dposn;
 	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
 	calcSceneObjs(stg);
 	bounceCount += 1;
@@ -144,11 +144,12 @@ void teleport(int stg, vec3 newPos) {
 }
 
 void bounce(int stg, vec3 newDPos) {
-	vec3 dposn = -normalize(newDPos);
-	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+	vec3 dposn = normalize(newDPos);
+	vec4 dposSpacetime = vec4(-1., -dposn.x, -dposn.y, -dposn.z);
 	mat4 metricAtSpot = metric(stage[stg].path.spot);
 
 	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
+	stage[stg].path.vel = dposn;
 	calcSceneObjs(stg);
 	bounceCount += 1;
 }
@@ -747,8 +748,9 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			if (stg == 0) {
 				vec3 normal = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
 				//vec3 normal = normalize(vec3(-1, -1, -1));
-				float product = dot(stage[stg].path.vel, normal);
-				bounce(stg, stage[stg].path.vel - 2. * normal * product);
+				vec3 incident = normalize(stage[stg].path.vel);
+				float product = dot(incident, normal);
+				bounce(stg, incident - 2. * normal * product);
 				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
@@ -1061,7 +1063,8 @@ mat4 metric(vec4 spot) {
 	// Flat spacetime
 	return mat4(
 		-1, 0, 0, 0,
-		0, 1. + spot.y * spot.y / 10000., 0, 0,
+		// 0, 1. + spot.y * spot.y / 100000., 0, 0,
+		0, 1, 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1
 	);
