@@ -1059,15 +1059,49 @@ So basically our raytracing loop will evaluate all three of those equations. Som
 But wait! There's more! Imagine we're INSIDE A BLACK HOLE!!! OH NO!!! We would like to see the beautiful universe that we are forever leaving behind one last time, and that should be possible since light is certainly falling in as well, but if we cast rays out of the camera, all of them just fall back into the hole (insert sexual innuendo)! Basically we need to explicitly trace the rays backwards instead of forwards so we need to negate all of the differential equations.
 */
 
+/*
 mat4 metric(vec4 spot) {
 	// Flat spacetime
 	return mat4(
 		-1, 0, 0, 0,
 		// 0, 1. + spot.y * spot.y / 100000., 0, 0,
+		// 0, 1. + sin(spot.y / 400.) / 8., 0, 0,
 		0, 1, 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1
 	);
+}
+*/
+
+mat4 diag(vec4 a)
+{
+    return mat4(a.x,0,0,0,
+                0,a.y,0,0,
+                0,0,a.z,0,
+                0,0,0,a.w);
+}
+
+mat4 metric(vec4 x)
+{
+	x = x - vec4(0, 0, 500, 0);
+		
+    // Kerr-Newman metric in cartesian coordinates 
+    // (copied from https://michaelmoroz.github.io/TracingGeodesics/)
+
+    // Angular momentum divided by mass
+    const float a = 0.8;
+    // Mass
+    const float m = 1.0;
+    // Electric charge
+    const float Q = 0.0;
+
+    vec3 p = x.yzw;
+    float rho = dot(p,p) - a*a;
+    float r2 = 0.5*(rho + sqrt(rho*rho + 4.0*a*a*p.z*p.z));
+    float r = sqrt(r2);
+    vec4 k = vec4(1, (r*p.x + a*p.y)/(r2 + a*a), (r*p.y - a*p.x)/(r2 + a*a), p.z/r);
+    float f = r2*(2.0*m*r - Q*Q)/(r2*r2 + a*a*p.z*p.z);
+    return f*mat4(k.x*k, k.y*k, k.z*k, k.w*k)+diag(vec4(-1,1,1,1));
 }
 
 mat4 metricInv(vec4 spot) {
