@@ -36,7 +36,7 @@ function applyColor(paintColor, baseColor) {
 * returns an updated signed distance based on an old/new distance and an object's nature.
  */
 function applyDist(oldDist, testDist, nature) {
-	if (nature & N_FOG) {
+	if (nature & N_FOG || nature == N_GRAVITY) {
 		testDist = Math.max(testDist, ray_nearDist * 0.9);
 	}
 	if (nature & N_ANTI) {

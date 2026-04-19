@@ -54,6 +54,8 @@
 #define N_GLOOPY	1
 #define N_ANTI		2
 #define N_FOG		4
+// Gravity objects allow rays to pass through them but constrains the maximum step size that they can take. Surround interesting spacetime in a gravity object to ensure that rays don't just jump over it. The constraint on maximum step size is stored in data[3][0]
+#define N_GRAVITY	16
 
 //materials
 #define M_COLOR		0
@@ -675,6 +677,10 @@ float objSDF(vec3 p, int world, int index) {
 	if ((nature & N_FOG) > 0) {
 		d = max(d, ray_nearDist - ray_minDist);
 	}
+	if (nature == N_GRAVITY) {
+	    // d = max(d, data[3][0]);
+	    d = max(d, 10.);
+	}
 	return d;
 }
 
@@ -874,7 +880,7 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 		nature ^= N_FOG;
 	}
 
-	if (nature == N_NORMAL) {
+	if (nature == N_NORMAL || nature == N_GRAVITY) {
 		if (newDist < oldDist) {
 			stage[stg].closestInd = index;
 			return newDist;

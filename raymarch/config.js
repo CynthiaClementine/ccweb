@@ -10,6 +10,7 @@ const N_GLOOP = 1;
 const N_ANTI =	2;
 const N_FOG =	4;
 const N_SMOOTH =8;
+const N_GRAVITY =16;
 
 const M_COLOR =		0;
 const M_CONCRETE =	1;
@@ -140,7 +141,7 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 512;
+var render_n = 240;
 var render_colN = 70;
 var render_goalN = render_n;
 var render_shadowPercent = 0.7;
