@@ -128,7 +128,7 @@ mat4 metricInv(vec4);
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 	vec3 dposn = normalize(newDPos);
 	vec4 spacetimeSpot = vec4(0., newPos.x, newPos.y, newPos.z);
-	vec4 dposSpacetime = vec4(-1., -dposn.x, -dposn.y, -dposn.z);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
 	mat4 metricAtSpot = metric(spacetimeSpot);
 
 	stage[stg].path.spot = spacetimeSpot;
@@ -147,7 +147,7 @@ void teleport(int stg, vec3 newPos) {
 
 void bounce(int stg, vec3 newDPos) {
 	vec3 dposn = normalize(newDPos);
-	vec4 dposSpacetime = vec4(-1., -dposn.x, -dposn.y, -dposn.z);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
 	mat4 metricAtSpot = metric(stage[stg].path.spot);
 
 	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
@@ -754,9 +754,8 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			if (stg == 0) {
 				vec3 normal = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
 				//vec3 normal = normalize(vec3(-1, -1, -1));
-				vec3 incident = normalize(stage[stg].path.vel);
-				float product = dot(incident, normal);
-				bounce(stg, incident - 2. * normal * product);
+				float product = dot(stage[stg].path.vel, normal);
+				bounce(stg, stage[stg].path.vel - 2. * normal * product);
 				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
@@ -986,6 +985,9 @@ void raymarch() {
 			return;
 		}
 	}
+
+	// Event horizon; use running out of iterations without covering much distance as a heuristic for something falling into a black hole
+	stage[0].color = vec4(0, 0, 0, 1);
 }
 
 void shadow() {
@@ -1051,18 +1053,16 @@ So how do we trace geodesics? Basically, imagine that the light ray has an annoy
 Someone did some fancy math and derived a thing that I don't really understand. Let `x: vec4` be our current position in spacetime, let `a` arbitrarily parameterize our path through spacetime, and let `p: vec4` be our "generalized momentum" defined to be $p = g(x) dx/da$.
 
 $
-      dx/da = g^(-1) p
-	      H = (dx/da)^T g(x) (dx/da)
+      dx/da = g(x)^(-1) p
+	      H = p^T g^(-1)(x) p = (dx/da)^T g(x) (dx/da)
 	dp_i/da = -1/2 δH/δx_i
 $
 
-Note that I rearranged the formulas from how they are in the source to make them more efficient to evaluate.
-
 Parts of this that do make sense are the first equation which is true by definition and the second equation which is effectively the distance that we travel by continuing in the direction that we're going (aka what we want to minimize). I don't know how to interpret the third equation mostly because I don't know how to interpret "generalized momentum".
 
-So basically our raytracing loop will evaluate all three of those equations. Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, but we do what we must. In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
+Note that we can't substitute the definition of `p` into `H` to avoid a matrix inversion because `dx/da` is actually a function of `x`. By using the momentum, the only thing that depends on `x` is `g^(-1)`, even though matrix inversion is generally expensive.
 
-But wait! There's more! Imagine we're INSIDE A BLACK HOLE!!! OH NO!!! We would like to see the beautiful universe that we are forever leaving behind one last time, and that should be possible since light is certainly falling in as well, but if we cast rays out of the camera, all of them just fall back into the hole (insert sexual innuendo)! Basically we need to explicitly trace the rays backwards instead of forwards so we need to negate all of the differential equations.
+So basically our raytracing loop will evaluate all three of those equations. Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, but we do what we must. In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
 */
 
 /*
@@ -1095,7 +1095,7 @@ mat4 metric(vec4 x)
     // (copied from https://michaelmoroz.github.io/TracingGeodesics/)
 
     // Angular momentum divided by mass
-    const float a = 0.8;
+    const float a = 0.0;
     // Mass
     const float m = 1.0;
     // Electric charge
@@ -1126,24 +1126,29 @@ float lengthSquare(mat4 metric, vec4 vel) {
 	return value;
 }
 
-vec4 metricPartialDerivatives(vec4 spot, vec4 vel) {
-	float origin = lengthSquare(metric(spot), vel);
+float hamiltonian(vec4 spot, vec4 momentum) {
+	return lengthSquare(metricInv(spot), momentum);
+}
 
-	float a = lengthSquare(metric(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0)), vel) - origin;
-	float b = lengthSquare(metric(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0)), vel) - origin;
-	float c = lengthSquare(metric(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0)), vel) - origin;
-	float d = lengthSquare(metric(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON)), vel) - origin;
+vec4 metricPartialDerivatives(vec4 spot, vec4 momentum, mat4 metric, vec4 dxda) {
+	float origin = lengthSquare(metric, dxda);
 
-	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / -2.;
+	float a = hamiltonian(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0), momentum) - origin;
+	float b = hamiltonian(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0), momentum) - origin;
+	float c = hamiltonian(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0), momentum) - origin;
+	float d = hamiltonian(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON), momentum) - origin;
+
+	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / 2.;
 }
 
 Path geodesicStep(Path current, float maxStep) {
-	vec4 dxda = metricInv(current.spot) * current.momentum;
-	vec4 dpda = metricPartialDerivatives(current.spot, dxda);
+	mat4 metric = metric(current.spot);
+	vec4 dxda = inverse(metric) * current.momentum;
+	vec4 dpda = metricPartialDerivatives(current.spot, current.momentum, metric, dxda);
 
 	// Make the step size such that p changes by the desired amount
 	float momentumChange = length(dpda);
-	float positionChange = length(dxda);
+	float positionChange = length(dxda.yzw);
 	float scale;
 
 	if (momentumChange == 0.) {
@@ -1152,8 +1157,8 @@ Path geodesicStep(Path current, float maxStep) {
 		scale = min(MAX_MOMENTUM_CHANGE / momentumChange, maxStep / positionChange);
 	}
 
-	current.spot -= dxda * scale;
-	current.vel = -dxda.yzw;
+	current.spot += dxda * scale;
+	current.vel = normalize(dxda.yzw);
 	current.momentum -= dpda * scale;
 
 	return current;
