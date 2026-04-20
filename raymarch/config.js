@@ -5,6 +5,8 @@ const degToRad = (Math.PI / 180);
 
 const fencepost32 = 0xff0110ff;
 
+var scaryVariable = 0;
+
 const N_NORMAL =0;
 const N_GLOOP = 1;
 const N_ANTI =	2;
@@ -39,6 +41,7 @@ const TYPE_PRISM_RHOMBUS =	51;
 const TYPE_PRISM_HEX =		53;
 const TYPE_PRISM_OCT =		55;
 const TYPE_FRACTAL =		70;
+const TYPE_TERRAIN =		71;
 
 //quick type
 const U8Arr = Uint8Array;
@@ -98,9 +101,11 @@ var controls_sensitivity = 0.005;
 
 var debug_listening = false;
 var debug_flags = {
+	autoScale: false,
 	bunnyTargets: false,
 	collisionRaycast: false,
-	showChunk: false
+	showChunk: false,
+	realCrosshair: true,
 };
 
 var editor_active = false;
@@ -141,7 +146,9 @@ var ray_safetyMult = 1;
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
 var render_n = 512;
-var render_colN = 70;
+var render_nAutoRange = [120, 512];
+var render_lastScaleTime = -1;
+var render_colN = 60;
 var render_goalN = render_n;
 var render_shadowPercent = 0.7;
 var render_linesDrawn = 0;
