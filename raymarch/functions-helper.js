@@ -203,6 +203,42 @@ function loadWorld(worldName) {
 	player.world = obj;
 }
 
+// function randStable(i1, i2) {
+// 	var n = i1 * 3 + i2 * 113;
+
+// 	// 1D hash by Hugo Elias
+// 	n = (n << 13) ^ n;
+// 	n = n * (n * n * 15731 + 789221) + 1376312589;
+// 	return -1 + 2 * (n & 0x0fffffff) / (0x0fffffff);
+// }
+
+// float randStable(vec2 pos) {
+// 	pos = 50.0 * fract(p * 0.3183099 + vec2(0.71, 0.113));
+// 	return -1.0 + 2.0 * fract(p.x * p.y * (p.x + p.y));
+// }
+
+function randStable(p0, p1) {
+	const b0 = p0 * 0.3183099 + 0.71;
+	const b1 = p1 * 0.3183099 + 0.113;
+	p0 = 50 * (b0 - Math.floor(b0));
+	p1 = 50 * (b1 - Math.floor(b1));
+	const q = p0 * p1 * (p0 + p1);
+	return 2 * (q - Math.floor(q)) - 1;
+}
+
+function noise(x, y) {
+	var i = [Math.floor(x), Math.floor(y)];
+	var f = [x - Math.floor(x), y - Math.floor(y)];
+	f = [
+		f[0] * f[0] * (3 - 2 * f[0]),
+		f[1] * f[1] * (3 - 2 * f[1]),
+	];
+	
+	//bilinear interpolation on the corners
+	return linterp( linterp(randStable(i[0], i[1]),            randStable(i[0]+1, i[1]), f[0]),
+					linterp(randStable(i[0], i[1]+1), randStable(i[0]+1, i[1]+1), f[0]), f[1]);
+}
+
 //https://www.researchgate.net/publication/354065227_Essential_Ray_Generation_Shaders
 
 //pixel ray essentially starts behind the camera, from the back of the panini circle.
