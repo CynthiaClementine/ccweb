@@ -432,27 +432,28 @@ class ObjectGrid {
 		}
 		// i think it should be fine to just reuse the bvh????
 		for (var x=0; x<len; x++) {
-			var worldX = this.minPos[0] + (x + 0.5) * this.xd;
+			var worldX = this.minPos[0] + x * this.xd;
 			for (var y=0; y<len; y++) {
-				var worldY = this.minPos[1] + (y + 0.5) * this.yd;
+				var worldY = this.minPos[1] + y * this.yd;
 				for (var z=0; z<len; z++) {
-					var worldZ = this.minPos[2] + (z + 0.5) * this.zd;
+					var worldZ = this.minPos[2] + z * this.zd;
 					var pos = Pos(worldX, worldY, worldZ);
 
-					var bestObj = this.world.bvh.root ? this._bvhNearest(pos) : this._bruteNearest(pos);
+					// var bestObj = (this.world.bvh.root) ? this._bvhNearest(pos) : this._bruteNearest(pos);
+					var bestObj = this.world.estimatePos(pos)[1];
 
 					if (bestObj < 0) {
 						continue;
 					}
 					
 					// seed adjacent cells
-					for (var dx=-1; dx<=1; dx++) {
+					for (var dx=-1; dx<1; dx++) {
 						var mx = x + dx;
 						if (mx < 0 || mx >= len) continue;
-						for (var dy=-1; dy<=1; dy++) {
+						for (var dy=-1; dy<1; dy++) {
 							var my = y + dy;
 							if (my < 0 || my >= len) continue;
-							for (var dz=-1; dz<=1; dz++) {
+							for (var dz=-1; dz<1; dz++) {
 								var mz = z + dz;
 								if (mz < 0 || mz >= len) continue;
 								this.chunks[mx][my][mz].add(bestObj);
@@ -504,19 +505,7 @@ class ObjectGrid {
 		const dz = Math.max(node.minPos[2] - pos[2], 0, pos[2] - node.maxPos[2]);
 		return Math.sqrt(dx * dx + dy * dy + dz * dz);
 	}
-
-	_bruteNearest(pos) {
-		var best = 1e100;
-		var bestIdx = -1;
-		this.objs.forEach((o, i) => {
-			var d = o.distanceToPos(pos);
-			if (d < best) {
-				best = d;
-				bestIdx = i;
-			}
-		});
-		return bestIdx;
-	}
+	
 	// i actually dont know that having a partial update helps anything
 	partialUpdate(movedObjs) {
 		movedObjs.forEach(obj => {
