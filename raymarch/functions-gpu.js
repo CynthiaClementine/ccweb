@@ -276,7 +276,9 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 	const material = objRef.material.type;
 	const pos = (objRef.constructor.name == "Scene3dLoop") ? [objRef.xRange, objRef.yRange, objRef.zRange] : objRef.pos;
 	var [theta, phi, rot] = [0, 90, 0];
-	if (objRef.constructor.name != `Fractal`) {
+	if (objRef.constructor.name == `Scene3dLoop`) {
+		[theta, phi, rot] = [deg(objRef.obj.theta), deg(objRef.obj.phi) + 90, deg(objRef.obj.rot)];
+	} else if (objRef.constructor.name != `Fractal`) {
 		[theta, phi, rot] = [deg(objRef.theta), deg(objRef.phi) + 90, deg(objRef.rot)];
 	}
 	const nature = objRef.nature;
