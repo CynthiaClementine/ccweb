@@ -70,19 +70,26 @@ async function setup() {
 	window.setTimeout(main, 10);
 }
 
+function resizeCanvas() {
+	var width = Math.round(window.innerWidth - 10);
+	var height = Math.round(window.innerHeight - 10);
+	var blockSize = Math.min(width, height);
+	canvas.width = render_n;
+	canvas.height = render_n;
+	canvas.style = `width: ${blockSize}px; height: ${blockSize}px;`;
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+}
+
 function resize() {
 	var dpr = window.devicePixelRatio;
 	var width = Math.round(window.innerWidth - 10);
 	var height = Math.round(window.innerHeight - 10);
 	var blockSize = Math.min(width, height);
-	
 	banvas.width = blockSize;
 	banvas.height = blockSize;
-	canvas.width = render_n;
-	canvas.height = render_n;
-	canvas.style = `width: ${blockSize}px; height: ${blockSize}px;`;
+	btx.imageSmoothingEnabled = false;
 	editorPanelGroup.style = `margin-left: ${blockSize + 20}px`;
-	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+	resizeCanvas();
 }
 
 async function loadCode(url) {
@@ -136,14 +143,29 @@ function finishMain() {
 	perf_n = (perf_n + 1) % perf_len;
 	
 	//log performance
-	var avgElapsedMS = (perf_log.reduce((a, b) => a + b) / perf_len);
+	var avgElapsedMS = 0;
+	perf_log.forEach(p => {
+		avgElapsedMS += p * p;
+	});
+	//weighted average towards higher values
+	avgElapsedMS = Math.sqrt(avgElapsedMS) / Math.sqrt(perf_len);
 	debugMSPF.innerHTML = avgElapsedMS.toFixed(2);
 	debugMSPF.style = `color: ${(elapsedMS > frameTime * 0.9) ? "#F97" : "#444"}`;
+	
+	if (debug_flags.autoScale && world_time - render_lastScaleTime > perf_len) {
+		render_lastScaleTime = world_time;
+		if (avgElapsedMS > frameTime * 0.6) {
+			render_goalN = clamp(Math.floor(render_n * 0.95), render_nAutoRange[0], render_nAutoRange[1]);
+		}
+		if (avgElapsedMS < frameTime * 0.1) {
+			render_goalN = clamp(Math.ceil(render_n * 1.02), render_nAutoRange[0], render_nAutoRange[1]);
+		}
+	}
 	
 	//changing display size
 	if (render_n != render_goalN) {
 		render_n = render_goalN;
-		resize();
+		resizeCanvas();
 		updateFOV(camera_FOV);
 		//ough
 		page_animation = window.setTimeout(main, 70);
@@ -174,7 +196,7 @@ function drawUI() {
 	const crossLen = (render_n < 100) ? (1 / render_n) : 0.04;
 	
 	//debug bars
-	btx.clearRect(0, 0, cvs.width, cvs.height);
+	// btx.clearRect(0, 0, cvs.width, cvs.height);
 	btx.globalAlpha = 0.3;
 	if (debug_listening) {
 		btx.fillStyle = color_editor_border;
@@ -264,8 +286,12 @@ function handleKeyPress(a) {
 			V - paste selected object
 			
 			B - toggle Bounding Box highlights
+			N - show the Number of iterations per pixel
+			
 			O - select crosshair's Object
 			P - copy current Pos to clipboard
+			
+			Alt + drag- select object and move it around
 		*/
 		
 		switch (a.code) {
@@ -275,6 +301,15 @@ function handleKeyPress(a) {
 				} else if (loading_world.preEffects[0][0] == world_brighten) {
 					loading_world.preEffects.splice(0, 1);
 				}
+				loading_world.shouldRegen = true;
+				break;
+			case "KeyN":
+				if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != bg_iters) {
+					loading_world.postEffects.splice(0, 0, [bg_iters]);
+				} else if (loading_world.postEffects[0][0] == bg_iters) {
+					loading_world.postEffects.splice(0, 1);
+				}
+				loading_world.shouldRegen = true;
 				break;
 			case "KeyC":
 				editor_raycast();
