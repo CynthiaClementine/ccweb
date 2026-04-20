@@ -545,3 +545,47 @@ function updateFOV_work(data) {
 			break;
 	}
 }
+
+/**
+ * @param {Pos} worldPos - the position in the world to calculate the screen position of
+ * @return {Number[]|null} the screen position as [x, y], or null if the position is behind the camera
+ */
+ function calcScreenPos(worldPos) {
+	if (!worldPos) {
+		return null;
+	}
+	//first, find the offset of the world pos from the camera in the camera's coordinate system. If the offset is negative, it's behind the camera and we can ignore it.
+	if (worldPos[0] == undefined || worldPos[1] == undefined || worldPos[2] == undefined) {
+		return null;
+	}
+	var delta = [worldPos[0] - camera.pos[0], worldPos[1] - camera.pos[1], worldPos[2] - camera.pos[2]];
+	var offset = dot(delta, polToCart(camera.theta, camera.phi, 1)); 
+	if (offset <= 0) {
+		return null;
+	}
+
+	// projecting world pos to screen
+	var right = dot(delta, polToCart(camera.theta + (Math.PI / 2), 0, 1));
+	var up = -dot(delta, polToCart(camera.theta, camera.phi - (Math.PI / 2), 1));
+
+	// oughhhh fov
+	var halfHeight = Math.tan(camera_FOV * degToRad / 2);
+	var halfWidth = halfHeight * (banvas.width / banvas.height);
+	var normalizedX = (right / offset) / halfWidth;
+	var normalizedY = (up / offset) / halfHeight;
+
+	return [(normalizedX * 0.5 + 0.5) * banvas.width, (1 - (normalizedY * 0.5 + 0.5)) * banvas.height];
+}
+
+
+/**
+ * Returns the camera's basis vectors (right/X, up/Y, forward/Z).
+ * @returns {Object} - {right: Pos, up: Pos, forward: Pos} (each is a normalized Pos vector)
+ */
+function getCameraBasis() {
+	return {
+		right: polToCart(camera.theta + (Math.PI / 2), 0, 1),      // X/right: theta + 90°, horizontal
+		up: polToCart(camera.theta, camera.phi - (Math.PI / 2), 1), // Y/up: phi - 90°, vertical
+		forward: polToCart(camera.theta, camera.phi, 1)             // Z/forward: straight ahead
+	};
+}

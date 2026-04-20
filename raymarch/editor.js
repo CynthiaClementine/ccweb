@@ -778,3 +778,19 @@ function editor_select(object) {
 		c.synchronize();
 	});
 }
+
+function editor_acceptAxis(axisID) {
+	if (editor_wait_for_axis) {
+		editor_wait_for_axis = false;
+		editor_axis = axisID;
+		editor_dragBasePos = [...editor_selected.pos];  // Copy current position
+		editor_dragging = true;
+	}
+}
+
+function editor_cancelDrag() {
+	editor_dragging = false;
+	editor_axis = null;
+	editor_wait_for_axis = false;
+	editor_dragBasePos = null;
+}
