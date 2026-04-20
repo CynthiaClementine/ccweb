@@ -32,6 +32,7 @@
 #define PRISM_HEX	53
 #define PRISM_OCT	55
 #define FRACTAL		70
+#define TERRAIN		71
 
 //pre-effects
 #define E_LOOP			10
@@ -125,12 +126,43 @@ float rand(float low, float high) {
 	float a = 12.9898;
 	float b = 78.233;
 	float c = 43758.5453;
-	seed.y += seed.y + uTime;
+	seed.y += seed.y + mod(2.2*uTime, a);
 	float dt = dot(seed.xy, vec2(a, b));
 	float sn = mod(dt , 3.14);
 	seed.y = mod(sn, 37.1482);
 	return low + (high - low) * fract(sin(sn) * c);
 }
+
+float randStable(vec2 pos) {
+	vec2 b = pos * 0.3183099 + vec2(0.71, 0.113);
+	pos = 50. * fract(b);
+	float q = pos.x * pos.y * (pos.x + pos.y);
+	return 2. * fract(q) - 1.;
+}
+
+float noise(vec2 pos) {
+	vec2 i = vec2(floor(pos));
+	vec2 f = fract(pos);
+	f = f * f * (3.0 - 2.0 * f);
+	
+	//bilinear interpolation on the corners
+	return mix( mix(randStable(i + vec2(0,0)), randStable(i + vec2(1,0)), f.x),
+				mix(randStable(i + vec2(0,1)), randStable(i + vec2(1,1)), f.x), f.y);
+}
+
+// float noise(vec3 pos) {
+// 	ivec2 i1 = ivec2(floor(pos.xy));
+// 	ivec2 i2 = ivec2(floor(pos.x), floor(pos.y + pos.z * 1000.));
+// 	vec3 f = fract(pos);
+// 	f = f * f * (3.0 - 2.0 * f);
+	
+// 	//bilinear interpolation on the corners
+// 	float top = mix(mix(randStable(i + ivec2(0,0)), randStable(i + ivec2(1,0)), f.x),
+// 					mix(randStable(i + ivec2(0,1)), randStable(i + ivec2(1,1)), f.x), f.y);
+					
+// 	float btm = mix(mix(randStable(i + ivec2(0,0)), randStable(i + ivec2(1,0)), f.x),
+// 					mix(randStable(i + ivec2(0,1)), randStable(i + ivec2(1,1)), f.x), f.y);
+// }
 
 vec2 rotate(vec2 pos, int deg) {
 	float angle = float(deg) * 0.01745329252;
@@ -193,6 +225,10 @@ mat4 effectData(int world, int effectIndex, bool isPre) {
 	vec4 data1 = texelFetch(uUniverseTex, ivec3(obj_maxNum + 1 + effectIndex, 4*int(isPre) + 1, world), 0);
 	vec4 data2 = texelFetch(uUniverseTex, ivec3(obj_maxNum + 1 + effectIndex, 4*int(isPre) + 2, world), 0);
 	return mat4(data0, data1, data2, vec4(0.0));
+}
+
+int natureData(int world, int objIndex) {
+	return int(texelFetch(uUniverseTex, ivec3(objIndex, 0, world), 0)[1]);
 }
 
 //
@@ -325,7 +361,6 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 				applyColorLight(0, vec4(mix(stage[0].color.rgb, arg0.rgb, dotted), 1.));
 			}
 		} break;
-		
 		case E_ITERS: {
 			float gweh = 3. * (float(stage[0].iters) + float(stage[1].iters)) / float(ray_maxIters);
 				stage[0].color.rgba = vec4(
@@ -334,6 +369,7 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 					float(bounceCount) / float(ray_maxBounces),
 					1.0
 				);
+				stage[1].color = stage[0].color;
 		} break;
 	}
 }
@@ -528,10 +564,12 @@ float lineSDF(vec3 point, float data1, vec4 data2) {
 }
 
 float octahedronSDF(vec3 point, float data1, vec4 data2) {
-	point.xz = rotate(point.xz, 0.7853981634);
-	point = abs(point);
-	
-	return 0.57735 * dot((point - data2.xyz), vec3(1, 1, 1));
+	//dist = |Ax + By + Cz + D| / sqrt(A^2 + B^2 + C^2)
+	point.xyz = abs(point.xyz);
+	// point.y = abs(point.y);
+	// point.z = abs(point.z);
+	vec3 coeffs = -1. / data2.xyz;
+	return abs(1. + dot(coeffs, point)) / length(coeffs);
 }
 
 float ringSDF(vec3 point, float data1, vec4 data2) {
@@ -547,6 +585,31 @@ float shellSDF(vec3 point, float data1, vec4 data2) {
 
 float sphereSDF(vec3 point, float data1) {
 	return length(point) - data1;
+}
+
+float terrainSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
+	vec3 relBoxPos = max(vec3(0.), abs(point) - data2.xyz);
+	float boxsdf = length(relBoxPos);
+	
+	//data1: null
+	//data2: [rx, ry, rz, octaves]
+	int octaves = int(data2[3]);
+	//data3: [baseAmp, baseFreq, lacunarity, gain]
+	
+	//hacky imprecise formula - return distance to height value at current point, minus a tolerance
+	float y = 0.0;
+	float ampl = data3[0];
+	float freq = data3[1];
+	
+	for (int i=0; i<octaves; i++) {
+		y += ampl * noise(freq * point.xz);
+		freq *= data3[2];
+		ampl *= data3[3];
+	}
+	
+	float terrsdf = (point.y - y) * 0.5;
+	
+	return max(boxsdf, terrsdf);
 }
 
 float voxelSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
@@ -630,6 +693,8 @@ float objSDF(vec3 p, int world, int index) {
 			{d = sphereSDF(p, data[1][3]);} break;
 		case SHELL:
 			{d = shellSDF(p, data[1][3], data[2]);} break;
+		case TERRAIN:
+			{d = terrainSDF(p, data[1][3], data[2], data[3]);} break;
 		case VOXEL:
 			{d = voxelSDF(p, data[1][3], data[2], data[3]);} break;
 		default:
@@ -875,7 +940,7 @@ float sceneSDF(vec3 p, int stg) {
 	
 	for(int i=0; i<objCount; i++) {
 		float d = objSDF(p, stage[stg].world, objIndices[i]);
-		int nature = int(texelFetch(uUniverseTex, ivec3(objIndices[i], 0, stage[stg].world), 0)[1]);
+		int nature = natureData(stage[stg].world, objIndices[i]);
 		// float d = objSDF(p, stage[stg].world, i);
 		
 		sceneDist = applyDist(stg, sceneDist, d, nature, objIndices[i]);
@@ -909,10 +974,36 @@ int matType(int world, int id) {
 	return (floatBitsToInt(bits) >> 16);
 }
 
+void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float newLocalDist) {
+	//idea:
+	// p0 ----a --- p1 -----b---- p2
+	//p2 is intersection point
+	//a = oldLocalDist
+	//b = newLocalDist
+	//if b is positive, p2 lies after p1. If b is negative, p2 lies in between p0 and p1. we want to find a conservative estimate for where p2 is.
+	vec3 lineVec = stage[0].dPos;
+	vec3 p0 = startPos - oldLocalDist * lineVec;
+	vec3 p1 = startPos;
+	
+	for (int a=0; a<10; a++) {
+		if (newLocalDist < ray_minDist) {
+			p1 += min(newLocalDist, -ray_minDist) * 5.0 * lineVec;
+		}
+		newLocalDist = objSDF(p1, world, objID);
+		//ughhhhhh
+		if ((natureData(world, objID) & N_ANTI) > 0) {
+			newLocalDist = -newLocalDist;
+		}
+	}
+	
+	stage[0].pos = p1;
+}
+
 void raymarch() {
-	for(int i=0; i<ray_maxIters; i++) {
+	for (int i=0; i<ray_maxIters; i++) {
 		// vec3 p = startP + dPos * totalDist;
 		stage[0].iters = i;
+		float oldLocalDist = stage[0].localDist;
 		stage[0].localDist = sceneSDF(stage[0].pos, 0);
 
 		if (stage[0].localDist < ray_nearDist) {
@@ -922,6 +1013,8 @@ void raymarch() {
 			
 		
 			if (stage[0].localDist < ray_minDist) {
+				//try to make sure ray isn't inside the surface
+				findHitPos(stage[0].pos, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 				int res = applyHitEffect(0, type, matDat[0], matDat[1], matDat[2]);
 				if (res == 1) {
 					return;
