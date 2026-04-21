@@ -14,13 +14,6 @@ var btx;
 
 var useCPU = false;
 
-// editor for moving stuff variables
-var editor_axis = null; 
-var editor_dragging = false;
-var editor_wait_for_axis = false;
-var editor_dragOffset = 0;  
-
-
 async function setup() {
 	createWorlds();
 	canvas = document.getElementById(`glbox`);
@@ -194,7 +187,7 @@ function draw() {
 }
 
 // Mint stuff! Draws the little three arrow gizmo on selected objects
-function editor_drawGizmo() {
+function drawEditorGizmo() {
 	if (!debug_listening || editor_selected == player) {
 		return;
 	}
@@ -203,23 +196,31 @@ function editor_drawGizmo() {
 		return;  // offscreen
 	}
 	
-	var basis = getCameraBasis();
-	var length = (editor_selected.r || 20) * 5;
+	var dist = getDistancePos(camera.pos, editor_selected.pos);
+	if (dist < 0.01) {
+		return;
+	}
+	var len = dist * 0.4;
+	
 	var axes = [
-		{axis: "x", color: "#E55", vec: editor_getLocalAxisVec("x")},
-		{axis: "y", color: "#5E5", vec: editor_getLocalAxisVec("y")},
-		{axis: "z", color: "#55E", vec: editor_getLocalAxisVec("z")}
+		{axis: "x", color: "#E55", vec: editor_getAxisVec("x")},
+		{axis: "y", color: "#5E5", vec: editor_getAxisVec("y")},
+		{axis: "z", color: "#55E", vec: editor_getAxisVec("z")},
 	];
 	
 	axes.forEach(def => {
-		if (!def.vec) return;
+		if (!def.vec) {
+			return;
+		}
 		var endWorld = [
-			editor_selected.pos[0] + def.vec[0] * length,
-			editor_selected.pos[1] + def.vec[1] * length,
-			editor_selected.pos[2] + def.vec[2] * length
+			editor_selected.pos[0] + def.vec[0] * len,
+			editor_selected.pos[1] + def.vec[1] * len,
+			editor_selected.pos[2] + def.vec[2] * len
 		];
 		var end = calcScreenPos(endWorld);
-		if (!end) return;  // Axis end is off-screen
+		if (!end) {
+			return;
+		}
 		
 		// draw line
 	
@@ -227,7 +228,7 @@ function editor_drawGizmo() {
 		btx.strokeStyle = (editor_axis == def.axis) ? "#FFF" : def.color;
 		btx.fillStyle = (editor_axis == def.axis) ? "#FFF" : def.color;
 		btx.globalAlpha = 1.0;
-		btx.lineWidth = 10.0;
+		btx.lineWidth = banvas.height * 0.01;
 		var angle = Math.atan2(end[1] - origin[1], end[0] - origin[0]);
 		var headSize = 20;
 		var lineEnd = [
@@ -241,79 +242,53 @@ function editor_drawGizmo() {
 		btx.stroke();
 	
 		// label - we could swap this to any font you want
-		btx.fillStyle = "#000";
+		btx.fillStyle = colors16[0];
 		btx.font = "bold 20px sans-serif";
 		btx.fillText(def.axis.toUpperCase(), end[0] + 4, end[1] - 4);
 		btx.globalAlpha = 0.3;
-	
 	});
-	
-	
-	// draw ghost preview if dragging
-	if (editor_dragging && editor_dragBasePos) {
-		var axisVec;
-		switch (editor_axis) {
-			case "x": axisVec = [1, 0, 0]; break;
-			case "y": axisVec = [0, 1, 0]; break;
-			case "z": axisVec = [0, 0, 1]; break;
-		}
-		if (axisVec) {
-			var ghostPos = [
-				editor_dragBasePos[0] + axisVec[0] * editor_dragOffset,
-				editor_dragBasePos[1] + axisVec[1] * editor_dragOffset,
-				editor_dragBasePos[2] + axisVec[2] * editor_dragOffset
-			];
-			var ghostOrigin = calcScreenPos(ghostPos);
-			if (ghostOrigin) {
-				// draw ghost gizmo 
-				btx.globalAlpha = 1.0;
-				btx.beginPath();
-				btx.strokeStyle = "#FFF";
-				btx.lineWidth = 1;
-				btx.arc(ghostOrigin[0], ghostOrigin[1], 6, 0, Math.PI * 2);
-				btx.stroke();
-				btx.globalAlpha = 0.3;
-			}
-		}
-	}
 }
 
-
- // local axis vector is the axis vector of the world based on the selected objects given rotation. This could maybe be a helper function, but you'd need to pass the object in
-function editor_getLocalAxisVec(axis) {
-	if (!axis || !editor_selected) {
-		return null;
+/**
+* uses the pxdata to draw 16-color pixel art onto the banvas. 
+* @param {Number[]} pxData an array of integers. Each integer represents one line of the art. Individual pixels are represented by a chunk of 4 bits.
+* @param {Number} startX the X coordinate of the banvas to start on
+* @param {Number} startY the Y coordinate of the banvas to start on
+* @param {Number} pxSize how large each pixel of the pixel art should be displayed at
+ */
+function drawPixelArt(pxData, startX, startY, pxSize) {
+	var pxWidth = pxData.w * pxSize;
+	var pxHeight = pxData.h * pxSize;
+	
+	for (var y=0; y<pxData.h; y++) {
+		const dat = pxData[y];
+		for (var x=0; x<pxData.w; x++) {
+			const ind = dat >> (4 * (pxData.w - x - 1)) & 0xF;
+			btx.fillStyle = colors16[ind];
+			btx.fillRect(startX + x * pxSize, startY + y * pxSize, pxSize + 0.5, pxSize + 0.5);
+		}
 	}
-	const theta = editor_selected.theta ?? 0;
-	const phi = editor_selected.phi ?? 0;
-	const rot = editor_selected.rot ?? 0;
-	const zeroPos = [0, 0, 0];
-	switch (axis) {
-		case "x":
-			return normalize(transform([1, 0, 0], zeroPos, theta, phi, rot));
-		case "y":
-			return normalize(transform([0, 1, 0], zeroPos, theta, phi, rot));
-		case "z":
-			return normalize(transform([0, 0, 1], zeroPos, theta, phi, rot));
-	}
-	return null;
 }
 
 function drawUI() {
-	var cvs = banvas;
-	var cw = cvs.width;
-	var ch = cvs.height;
+	const cvs = banvas;
+	const cw = cvs.width;
+	const ch = cvs.height;
+	const pxW = cw / render_n;
+	const pxH = ch / render_n;
 	var center = [cvs.width / 2, cvs.height / 2];
 	const crossLen = (render_n < 100) ? (1 / render_n) : 0.04;
 	
-	//debug bars
+	//crosshair
 	btx.globalAlpha = 0.3;
-	if (debug_listening) {
-		btx.fillStyle = color_editor_border;
-		btx.fillRect(0, 0, cvs.width, cvs.height * 0.03);
-		btx.fillRect(0, cvs.height * 0.97, cvs.width, cvs.height * 0.03);
-		editor_drawGizmo();
-	}
+	btx.beginPath();
+	btx.strokeStyle = color_editor_border;
+	btx.lineWidth = Math.ceil(ch * (1.5 / render_n));
+	btx.moveTo(center[0] - ch * crossLen, center[1]);
+	btx.lineTo(center[0] + ch * crossLen, center[1]);
+	btx.moveTo(center[0], center[1] - ch * crossLen);
+	btx.lineTo(center[0], center[1] + ch * crossLen);
+	btx.stroke();
 	
 	//collision
 	//draw everything
@@ -330,15 +305,35 @@ function drawUI() {
 		}
 	}
 	
-	//crosshair
-	btx.beginPath();
-	btx.strokeStyle = color_editor_border;
-	btx.lineWidth = Math.ceil(ch * (1.5 / render_n));
-	btx.moveTo(center[0] - ch * crossLen, center[1]);
-	btx.lineTo(center[0] + ch * crossLen, center[1]);
-	btx.moveTo(center[0], center[1] - ch * crossLen);
-	btx.lineTo(center[0], center[1] + ch * crossLen);
-	btx.stroke();
+	if (!debug_listening) {
+		btx.globalAlpha = 1;
+		return;
+	}
+	
+	//debug bars
+	btx.fillStyle = color_editor_border;
+	btx.fillRect(0, 0, cvs.width, pxH * 12);
+	btx.fillRect(0, ch - pxH * 12, cvs.width, pxH * 12);
+	
+	drawEditorGizmo();
+	
+	//selected object ghost
+	if (editor_selected != player) {
+		var ghostPos = calcScreenPos(editor_selected.pos);
+		if (ghostPos) {
+			btx.globalAlpha = 1;
+			btx.lineWidth = 1;
+			btx.strokeStyle = colors16[15];
+			btx.beginPath();
+			btx.arc(...ghostPos, 6, 0, Math.PI * 2);
+			btx.stroke();
+			btx.globalAlpha = 0.3;
+		}
+	}
+	
+	//global/local indicator
+	btx.globalAlpha = 0.6;
+	drawPixelArt(editor_local ? pxdata_box : pxdata_world, 4 * pxW, 16 * pxH, pxW * 4);
 	btx.globalAlpha = 1;
 }
 
@@ -401,24 +396,53 @@ function handleKeyPress(a) {
 			O - select crosshair's Object
 			P - copy current Pos to clipboard
 			
-			Alt + drag- select object and move it around
+			E + drag- select object and move it around
 			
-			G - activate move mode, requires another input to move along axis at the moment
+			there are different editor modes too. Because the world is suffering
+			these different modes require another input to select an axis, after which you can use the mouse to move along that axis.
+			
+			G - activate Grab mode
 				X - move along X axis
 				Y - move along Y axis
 				Z - move along Z axis
-				Enter - confirm move
+				
+			R - activate Rotation mode.
+				X - theta
+				Y - phi
+				Z - rot
+				
+			F - activate Frame (scaling) mode. A bit more tricky since different objects have different parameters.
+				X - x axis (rx)
+				Y - y axis (ry)
+				Z - z axis (rz)
+				
+			
 		*/
+		
+		if (editor_axisMode) {
+			switch (a.code) {
+				case "KeyX":
+					editor_toggleAxis(`x`);
+					return;
+				case "KeyY":
+					editor_toggleAxis(`y`);
+					return;
+				case "KeyZ":
+					editor_toggleAxis(`z`);
+					return;
+			}
+		}
 		
 		switch (a.code) {
 			case "KeyB":
+				//TODO: don't do this.
 				if (loading_world.preEffects.length < 1 || loading_world.preEffects[0][0] != world_brighten) {
 					loading_world.preEffects.splice(0, 0, [world_brighten, [4, 4, 4, 4]]);
 				} else if (loading_world.preEffects[0][0] == world_brighten) {
 					loading_world.preEffects.splice(0, 1);
 				}
 				loading_world.shouldRegen = true;
-				break;
+				return;
 			case "KeyN":
 				if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != bg_iters) {
 					loading_world.postEffects.splice(0, 0, [bg_iters]);
@@ -426,16 +450,13 @@ function handleKeyPress(a) {
 					loading_world.postEffects.splice(0, 1);
 				}
 				loading_world.shouldRegen = true;
-				break;
+				return;
 			case "KeyC":
 				editor_raycast();
 				if (editor_selected != player) {
 					clipboard = editor_selected.serialize();
 				}
-				break;
-			case "KeyG":
-				editor_wait_for_axis = !editor_wait_for_axis;
-				break;
+				return;
 			case "KeyV":
 				if (clipboard) {
 					var newObj = deserialize(clipboard);
@@ -443,29 +464,36 @@ function handleKeyPress(a) {
 					loading_world.objects.push(newObj);
 					loading_world.shouldRegen = true;
 				}
-				break;
+				return;
+			case "KeyG":
+				editor_toggleAxisSet(`grab`);
+				return;
+			case "KeyR":
+				editor_toggleAxisSet(`rotate`);
+				return;
+			case "KeyF":
+				editor_toggleAxisSet(`scale`);
+				return;
+			case "KeyL":
+				editor_local = !editor_local;
+				return;
 			case "KeyO":
 				editor_raycast();
-				break;
+				return;
 			case "KeyP":
 				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
-				break;
-			case "KeyX":
-				if (editor_dragging) {
-					editor_cancelDrag();
-				} else {
-					editor_acceptAxis(`x`);
+				return;
+			case "Escape":
+				//escape from whatever wherever
+				if (editor_axis) {
+					editor_axis = null;
+					return;
 				}
-				break;
-			case "KeyY":
-				editor_acceptAxis(`y`);
-				break;
-			case "KeyZ":
-				editor_acceptAxis(`z`);
-				break;
-			case "Enter":
-				
-				break;
+				if (editor_axisMode) {
+					editor_axisMode = null;
+					return;
+				}
+				return;
 		}
 	}
 
@@ -559,28 +587,17 @@ function handleCursorLockChange() {
 }
 
 function handleMouseMove(a) {
-	if (editor_dragging) {
-		// accumulate drag movement for preview. Pretty sure this is where I was updating the tree when the weird jittery elastic stuff happened
-		var dragSpeed = 1.0;
-		editor_dragOffset -= (a.movementX + a.movementY) * dragSpeed;
+	if (editor_axis) {
+		//figure out how much to move by, which direction to move, and then move there
+		var dragSpeed = -1.0;
+		var dragOffset = (a.movementX + a.movementY) * dragSpeed;
 		
 		// Apply accumulated drag offset to actual position
-		if (editor_dragBasePos) {
-			var axisVec;
-			switch (editor_axis) {
-				case "x": axisVec = [1, 0, 0]; break;
-				case "y": axisVec = [0, 1, 0]; break;
-				case "z": axisVec = [0, 0, 1]; break;
-			}
-			if (axisVec) {
-				editor_dragBasePos[0] += axisVec[0] * editor_dragOffset;
-				editor_dragBasePos[1] += axisVec[1] * editor_dragOffset;
-				editor_dragBasePos[2] += axisVec[2] * editor_dragOffset;
-				editor_selected.pos = [editor_dragBasePos[0], editor_dragBasePos[1], editor_dragBasePos[2]];
-				loading_world.shouldRegen = true;
-				editor_dragOffset = 0;
-			}
-		}
+		var axisVec = editor_getAxisVec(editor_axis);
+		editor_selected.pos[0] += axisVec[0] * dragOffset;
+		editor_selected.pos[1] += axisVec[1] * dragOffset;
+		editor_selected.pos[2] += axisVec[2] * dragOffset;
+		loading_world.shouldRegen = true;
 		return;
 	}
 	var dTheta = a.movementX * controls_sensitivity;

@@ -779,18 +779,43 @@ function editor_select(object) {
 	});
 }
 
-function editor_acceptAxis(axisID) {
-	if (editor_wait_for_axis) {
-		editor_wait_for_axis = false;
-		editor_axis = axisID;
-		editor_dragBasePos = [...editor_selected.pos];  // Copy current position
-		editor_dragging = true;
+function editor_toggleAxis(axisID) {
+	if (editor_axis == axisID) {
+		editor_axis = null;
+		return;
 	}
+	editor_axis = axisID;
 }
 
-function editor_cancelDrag() {
-	editor_dragging = false;
-	editor_axis = null;
-	editor_wait_for_axis = false;
-	editor_dragBasePos = null;
+function editor_toggleAxisSet(setType) {
+	if (editor_axisMode == setType) {
+		editor_axisMode = null;
+		return;
+	}
+	editor_axisMode = setType;
+}
+
+// local axis vector is the axis vector of the world based on the selected objects given rotation. 
+//This could maybe be a helper function, but you'd need to pass the object in
+function editor_getAxisVec(axis) {
+	if (!axis || !editor_axisMode) {
+		return null;
+	}
+	var theta = editor_selected.theta ?? 0;
+	var phi = editor_selected.phi ?? 0;
+	var rot = editor_selected.rot ?? 0;
+	
+	if (!editor_local) {
+		[theta, phi, rot] = [0, 0, 0];
+	}
+	const zeroPos = [0, 0, 0];
+	switch (axis) {
+		case "x":
+			return normalize(transform([1, 0, 0], zeroPos, theta, phi, rot));
+		case "y":
+			return normalize(transform([0, 1, 0], zeroPos, theta, phi, rot));
+		case "z":
+			return normalize(transform([0, 0, 1], zeroPos, theta, phi, rot));
+	}
+	return null;
 }

@@ -92,7 +92,15 @@ var camera;
 
 var clipboard = null;
 
-var color_editor_border = `#FFF`;
+//standard 16 colors
+const colors16 = [
+	`#000`,`#008`,`#080`,`#088`,
+	`#800`,`#808`,`#880`,`#CCC`,
+	`#888`,`#00F`,`#0F0`,`#0FF`,
+	`#F00`,`#F0F`,`#FF0`,`#FFF`,
+];
+const color_editor_border = colors16[15];
+
 
 var controls_cursorLock = false;
 var controls_shiftPressed = false;
@@ -101,7 +109,7 @@ var controls_sensitivity = 0.005;
 
 var debug_listening = false;
 var debug_flags = {
-	autoScale: false,
+	autoScale: true,
 	bunnyTargets: false,
 	collisionRaycast: false,
 	showChunk: false,
@@ -109,8 +117,30 @@ var debug_flags = {
 };
 
 var editor_active = false;
+var editor_local = false;
 var editor_placeOffset = 100;
 var editor_placeRange = [10, 2000];
+var editor_axisMode = null;
+var editor_axis = null;
+
+const pxdata_world = [
+	0xF9999F,
+	0x929999,
+	0x922292,
+	0x992929,
+	0x999299,
+	0xF9999F,
+];
+[pxdata_world.w, pxdata_world.h] = [6, 6];
+const pxdata_box = [
+	0x777778,
+	0x7FFFF8,
+	0x7FFFF8,
+	0x7FFFF8,
+	0x7FFFF8,
+	0x788888,
+];
+[pxdata_box.w, pxdata_box.h] = [6, 6];
 
 const fractal_iters = 10;
 
