@@ -46,6 +46,11 @@
 				image-rendering: pixelated;
 				-ms-interpolation-mode: nearest-neighbor;
 			}
+			
+			#glbox {
+				/*enough to still see the image while also knowing something is very wrong and it's not rendering to the banvas, as it should*/
+				opacity: 0.08;
+			}
 	
 			#centerModule {
 				text-align: center;
@@ -166,23 +171,22 @@
 					<br>
 					
 					<div class="separator">OBJECT</div>
+					<button onclick="editor_addObj()">+</button>
+					<button onclick="editor_removeObj()">-</button>
 					<select id="objectDropdown"></select>
 					
 					<div id="group_nature">
 					</div>
 	
 					<div id="group_pos">
-						<div>Pos controls</div>
 					</div>
 					<br>
 					
 					<div id="group_radius">
-						<div>Radius controls</div>
 					</div>
 					<br>
 					
 					<div id="group_special">
-						<div>Other controls</div>
 					</div>
 					
 					<div class="separator">MATERIAL</div>
@@ -191,14 +195,10 @@
 					<input type="text" id="worldSelector"></input>
 					
 					<div id="group_color">
-						<div>Color controls</div>
 					</div>
 					
 					<div id="group_matSpecial">
-						<div>Other controls</div>
 					</div>
-					<button onclick="editor_addObj()">+</button>
-					<button onclick="editor_removeObj()">-</button>
 				</div>
 			</div>
 		</div>

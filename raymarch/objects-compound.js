@@ -165,6 +165,7 @@ var map_strObj = {
 	"RING": Ring,
 	"SHELL": Shell,
 	"SPHERE": Sphere,
+	"TERRAIN": Terrain,
 	"VOXEL": Voxel,
 	
 	"DOTDOTDOT": DotDotDot,

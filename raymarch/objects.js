@@ -897,14 +897,15 @@ class Octahedron extends Scene3dObject_Axes {
 	//TODO: probably broken in some way
 	distanceToPos(pos) {
 		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
-		var relX = relPos[0];
+		var relX = Math.abs(relPos[0]);
 		var relY = Math.abs(relPos[1]);
-		var relZ = relPos[2];
-		[relX, relZ] = rotate(relX, relZ, Math.PI / 4);
-		relX = Math.abs(relX);
-		relZ = Math.abs(relZ);
+		var relZ = Math.abs(relPos[2]);
 		
-		return ((relX - this.rx) + (relY - this.ry) + (relZ - this.rz)) * 0.57735;
+		var A = -1 / this.rx;
+		var B = -1 / this.ry;
+		var C = -1 / this.rz;
+		var d = A*relX + B*relY + C*relZ + 1;
+		return Math.abs(d) / Math.sqrt(A*A + B*B + C*C);
 	}
 	
 	serialize() {
@@ -1074,6 +1075,49 @@ class Ring extends Scene3dObject {
 	
 	serializeGPU() {
 		return [null, this.r, this.ringR];
+	}
+}
+
+class Terrain extends Scene3dObject_Axes {
+	static type = TYPE_TERRAIN;
+	constructor(posRot, material, nature, rx, ry, rz, baseAmplitude, baseFrequency, octaves, lacunarity, gain) {
+		super(posRot, material, nature, rx, ry, rz);
+		this.ampl = baseAmplitude;
+		this.freq = baseFrequency;
+		this.n = octaves;
+		this.a = lacunarity;
+		this.b = gain;
+	}
+	
+	distanceToPos(pos) {
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		const relBoxX = Math.abs(relPos[0]) - this.rx;
+		const relBoxY = Math.abs(relPos[1]) - this.ry;
+		const relBoxZ = Math.abs(relPos[2]) - this.rz;
+		const boxsdf = Math.hypot(Math.max(relBoxX, 0), Math.max(relBoxY, 0), Math.max(relBoxZ, 0));
+		
+		const octaves = this.n;
+		
+		var y = 0;
+		var ampl = this.ampl;
+		var freq = this.freq;
+		for (var i=0; i<octaves; i++) {
+			var val = noise(relPos[0] * freq, relPos[2] * freq);
+			y += ampl * val;
+			freq *= this.a;
+			ampl *= this.b;
+		}
+		var terrsdf = (relPos[1] - y) / 2;
+		
+		return Math.max(boxsdf, terrsdf);
+	}
+	
+	serialize() {
+		return `TERRAIN${super.serialize()}~${this.ampl}~${this.freq}~${this.n}~${this.a}~${this.b}`;
+	}
+	
+	serializeGPU() {
+		return [null, this.rx, this.ry, this.rz, this.n, this.ampl, this.freq, this.a, this.b];
 	}
 }
 

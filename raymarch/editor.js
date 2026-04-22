@@ -301,13 +301,35 @@ class SliderCustom extends Slider {
 		if (!this.validVals) {
 			return;
 		}
-		this.offsetLock = this.validVals.indexOf(this.updateFunc());
+		//TODO: fix -1 propagating
+		var ind;
+		var res = this.updateFunc();
+		for (var i=0; i<this.validVals.length; i++) {
+			if (this.validVals[i] == res) {
+				ind = i;
+				i = this.validVals.length;
+			}
+			//passed it, linearly interpolate between the last two values
+			else if (this.validVals[i] > res) {
+				ind = getPercentage(this.validVals[i - 1], this.validVals[i], res);
+				if (ind < 0 || ind > 1) {
+					console.log(`oops. ${ind}`);
+				}
+				ind += i - 1;
+				i = this.validVals.length;
+			}
+		}
+		this.offsetLock = ind;
 		this.sliderElem.value = this.offsetLock;
 		this.updateDisplay();
 	}
 	
 	updateDisplay(e) {
-		this.valueElem.innerHTML = this.label + (this.validVals[+this.sliderElem.value]+``).padStart(3, "0");
+		if (this.validVals.indexOf(this.updateFunc()) < 0) {
+			this.valueElem.innerHTML = this.label + (this.updateFunc()+``).padStart(3, "0");
+		} else {
+			this.valueElem.innerHTML = this.label + (this.validVals[+this.sliderElem.value]+``).padStart(3, "0");
+		}
 	}
 	
 	updateValue(e) {
@@ -410,6 +432,7 @@ var slider_tht, slider_phi, slider_rot;
 
 var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR;
 var slider_gyrA, slider_gyrB, slider_h, slider_e;
+var slider_n;
 var slider_skew;
 var slider_shiftX, slider_shiftY, slider_shiftZ;
 
@@ -468,8 +491,9 @@ function editor_initialize() {
 	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, -1E3,1E4);
 	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, -100,100, 1, 0,1E4);
 	
-	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0,1, 0.01);
+	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0.01,1.99, 0.01);
 	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,19.95, 0.05);
+	slider_n = new Slider(`group_special.nSlider`, `editor_selected.n`, `n: `, 1,7, 1);
 	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -99,99, 0.1, -posLim,posLim);
 	slider_e = new Slider(`group_special.eSlider`, `editor_selected.e`, `e: `, -10,10, 1, -999,999);
 	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, -500, 500);
@@ -584,6 +608,7 @@ function editor_initialize() {
 		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR,
 		slider_gyrA, slider_gyrB, slider_h, slider_skew,
 		slider_r, slider_g, slider_b, slider_a, slider_e,
+		slider_n,
 		slider_px, slider_py, slider_pz,
 
 		dropdown_obj, dropdown_mat,
@@ -619,6 +644,7 @@ function editor_initialize() {
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
 		"SHELL": [slider_rr, slider_h],
+		"TERRAIN": [...rxyz, slider_n, slider_gyrA, slider_gyrB],
 		"VOXEL": [slider_rr, checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8],
 		
 		"DOTDOTDOT": [],
@@ -752,4 +778,60 @@ function editor_select(object) {
 		c.setVisibility(true);
 		c.synchronize();
 	});
+}
+
+function editor_toggleAxis(axisID) {
+	if (editor_axis == axisID) {
+		editor_axis = null;
+		return;
+	}
+	editor_axis = axisID;
+}
+
+function editor_toggleAxisSet(setType) {
+	if (editor_axisType == setType) {
+		editor_axisType = null;
+		return;
+	}
+	editor_axisType = setType;
+}
+
+// local axis vector is the axis vector of the world based on the selected objects given rotation. 
+//This could maybe be a helper function, but you'd need to pass the object in
+function editor_getAxisVec(axis) {
+	if (!axis || !editor_axisType) {
+		return null;
+	}
+	var theta = editor_selected.theta ?? 0;
+	var phi = editor_selected.phi ?? 0;
+	var rot = editor_selected.rot ?? 0;
+	const zeroPos = [0, 0, 0];
+	
+	if (editor_axisType == `grab` || editor_axisType == `scale`) {
+		if (!editor_local) {
+			[theta, phi, rot] = [0, 0, 0];
+		}
+		return transform([+(axis == `x`), +(axis == `y`), +(axis == `z`)], zeroPos, theta, phi, rot);
+	}
+	if (editor_axisType == `rotate`) {
+		if (editor_local) {
+			switch (axis) {
+				case `x`:
+					return transform([0, 1, 0], zeroPos, theta, 0, 0);
+				case `y`:
+					return transform([1, 0, 0], zeroPos, theta, phi, 0);
+				case `z`:
+					return transform([0, 0, 1], zeroPos, theta, phi, 0);
+			}
+		} else {
+			switch (axis) {
+				case `x`:
+					return [1, 0, 0];
+				case `y`:
+					return [0, 1, 0];
+				case `z`:
+					return [0, 0, 1];
+			}
+		}
+	}
 }
