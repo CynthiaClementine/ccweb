@@ -415,11 +415,9 @@ function handleKeyPress(a) {
 				X - x axis (rx)
 				Y - y axis (ry)
 				Z - z axis (rz)
-				
-			
 		*/
 		
-		if (editor_axisMode) {
+		if (editor_axisType) {
 			switch (a.code) {
 				case "KeyX":
 					editor_toggleAxis(`x`);
@@ -489,10 +487,11 @@ function handleKeyPress(a) {
 					editor_axis = null;
 					return;
 				}
-				if (editor_axisMode) {
-					editor_axisMode = null;
+				if (editor_axisType) {
+					editor_axisType = null;
 					return;
 				}
+				editor_select(player);
 				return;
 		}
 	}
@@ -589,14 +588,42 @@ function handleCursorLockChange() {
 function handleMouseMove(a) {
 	if (editor_axis) {
 		//figure out how much to move by, which direction to move, and then move there
-		var dragSpeed = -1.0;
-		var dragOffset = (a.movementX + a.movementY) * dragSpeed;
+		var dragSpeed = 1.0;
+		var dragOffset = -(a.movementX + a.movementY) * dragSpeed;
+		if (Math.abs(dragOffset) < 0.01) {
+			return;
+		}
 		
 		// Apply accumulated drag offset to actual position
 		var axisVec = editor_getAxisVec(editor_axis);
-		editor_selected.pos[0] += axisVec[0] * dragOffset;
-		editor_selected.pos[1] += axisVec[1] * dragOffset;
-		editor_selected.pos[2] += axisVec[2] * dragOffset;
+		switch (editor_axisType) {
+			case `scale`:
+				editor_selected.rx += axisVec[0] * dragOffset;
+				editor_selected.ry += axisVec[1] * dragOffset;
+				editor_selected.rz += axisVec[2] * dragOffset;
+				break;
+			case `grab`:
+				editor_selected.pos[0] += axisVec[0] * dragOffset;
+				editor_selected.pos[1] += axisVec[1] * dragOffset;
+				editor_selected.pos[2] += axisVec[2] * dragOffset;
+				break;
+			case `rotate`:
+				dragOffset *= 0.01;
+				
+				if (editor_local) {
+					editor_selected.theta += dragOffset * (editor_axis == `x`);
+					editor_selected.phi += dragOffset * (editor_axis == `y`);
+					editor_selected.rot += dragOffset * (editor_axis == `z`);
+				} else {
+					var res = transformTransform([0, 0, 0], editor_selected.theta, editor_selected.phi, editor_selected.rot, [0, 0, 0], 
+								dragOffset * (editor_axis == `y`), dragOffset * (editor_axis == `x`), dragOffset * (editor_axis == `z`));
+					[editor_selected.theta, editor_selected.phi, editor_selected.rot] = [res.theta, res.phi, res.rot];
+				}
+				editor_selected.theta = modulate(editor_selected.theta, Math.PI * 2);
+				editor_selected.phi = clamp(editor_selected.phi, -Math.PI / 2, Math.PI / 2);
+				editor_selected.rot = modulate(editor_selected.rot, Math.PI * 2);
+				break;
+		}
 		loading_world.shouldRegen = true;
 		return;
 	}

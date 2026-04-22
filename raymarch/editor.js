@@ -788,34 +788,49 @@ function editor_toggleAxis(axisID) {
 }
 
 function editor_toggleAxisSet(setType) {
-	if (editor_axisMode == setType) {
-		editor_axisMode = null;
+	if (editor_axisType == setType) {
+		editor_axisType = null;
 		return;
 	}
-	editor_axisMode = setType;
+	editor_axisType = setType;
 }
 
 // local axis vector is the axis vector of the world based on the selected objects given rotation. 
 //This could maybe be a helper function, but you'd need to pass the object in
 function editor_getAxisVec(axis) {
-	if (!axis || !editor_axisMode) {
+	if (!axis || !editor_axisType) {
 		return null;
 	}
 	var theta = editor_selected.theta ?? 0;
 	var phi = editor_selected.phi ?? 0;
 	var rot = editor_selected.rot ?? 0;
-	
-	if (!editor_local) {
-		[theta, phi, rot] = [0, 0, 0];
-	}
 	const zeroPos = [0, 0, 0];
-	switch (axis) {
-		case "x":
-			return normalize(transform([1, 0, 0], zeroPos, theta, phi, rot));
-		case "y":
-			return normalize(transform([0, 1, 0], zeroPos, theta, phi, rot));
-		case "z":
-			return normalize(transform([0, 0, 1], zeroPos, theta, phi, rot));
+	
+	if (editor_axisType == `grab` || editor_axisType == `scale`) {
+		if (!editor_local) {
+			[theta, phi, rot] = [0, 0, 0];
+		}
+		return transform([+(axis == `x`), +(axis == `y`), +(axis == `z`)], zeroPos, theta, phi, rot);
 	}
-	return null;
+	if (editor_axisType == `rotate`) {
+		if (editor_local) {
+			switch (axis) {
+				case `x`:
+					return transform([0, 1, 0], zeroPos, theta, 0, 0);
+				case `y`:
+					return transform([1, 0, 0], zeroPos, theta, phi, 0);
+				case `z`:
+					return transform([0, 0, 1], zeroPos, theta, phi, 0);
+			}
+		} else {
+			switch (axis) {
+				case `x`:
+					return [1, 0, 0];
+				case `y`:
+					return [0, 1, 0];
+				case `z`:
+					return [0, 0, 1];
+			}
+		}
+	}
 }

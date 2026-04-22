@@ -109,7 +109,7 @@ var controls_sensitivity = 0.005;
 
 var debug_listening = false;
 var debug_flags = {
-	autoScale: true,
+	autoScale: false,
 	bunnyTargets: false,
 	collisionRaycast: false,
 	showChunk: false,
@@ -120,7 +120,7 @@ var editor_active = false;
 var editor_local = false;
 var editor_placeOffset = 100;
 var editor_placeRange = [10, 2000];
-var editor_axisMode = null;
+var editor_axisType = null;
 var editor_axis = null;
 
 const pxdata_world = [
@@ -152,6 +152,7 @@ var mortonBits = 10;
 var page_animation;
 
 var perf_log = [];
+var perf_logAbs = [];
 var perf_len = 20;
 var perf_n = 0;
 var perf_startT = 0;
