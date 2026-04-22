@@ -55,6 +55,8 @@
 #define N_GLOOPY	1
 #define N_ANTI		2
 #define N_FOG		4
+// Gravity objects allow rays to pass through them but constrains the maximum step size that they can take. Surround interesting spacetime in a gravity object to ensure that rays don't just jump over it. The constraint on maximum step size is stored in data[3][0]
+#define N_GRAVITY	16
 
 //materials
 #define M_COLOR		0
@@ -66,6 +68,10 @@
 #define M_PORTAL	20
 #define M_MIRROR	30
 
+// GR stuff
+#define DERIVATIVE_EPSILON 0.1
+#define MAX_MOMENTUM_CHANGE 0.01
+
 precision highp float;
 precision highp sampler2DArray;
 
@@ -73,6 +79,12 @@ precision highp sampler2DArray;
 
 in vec2 vUV;
 out vec4 outColor;
+
+struct Path {
+	vec4 spot;
+	vec3 vel;
+	vec4 momentum;
+};
 
 struct Raydata {
 	int iters;
@@ -82,8 +94,9 @@ struct Raydata {
 	float localDist;
 	float distSinceBounce;
 	int world;
-	vec3 pos;
-	vec3 dPos;
+	// vec3 pos;
+	// vec3 dPos;
+	Path path;
 	
 	vec4 color;
 };
@@ -105,21 +118,45 @@ int bounceCount = 0;
 float bvhTolerance = 8.0;
 
 Raydata stage[2] = Raydata[2](
-	Raydata(0, 0, 0.0, 0.0, 0.0, 0, vec3(0.0), vec3(0.0), vec4(0.,0.,0.,0.)),
-	Raydata(0, 0, 0.0, 0.0, 0.0, 0, vec3(0.0), vec3(0.0), vec4(1.0,0.1,0.1,0.0))
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), vec4(0.,0.,0.,0.)),
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), vec4(1.0,0.1,0.1,0.0))
 );
 
 void calcSceneObjs(int);
+mat4 metric(vec4);
+mat4 metricInv(vec4);
+Path geodesicStep(Path, float);
 
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
-	stage[stg].pos = newPos;
-	stage[stg].dPos = newDPos;
+	vec3 dposn = normalize(newDPos);
+	vec4 spacetimeSpot = vec4(0., newPos.x, newPos.y, newPos.z);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+	mat4 metricAtSpot = metric(spacetimeSpot);
+
+	stage[stg].path.spot = spacetimeSpot;
+	stage[stg].path.vel = dposn;
+	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
 	calcSceneObjs(stg);
 	bounceCount += 1;
 }
 
+void teleport(int stg, vec3 newPos) {
+	float time = stage[stg].path.spot.x;
+	stage[stg].path.spot = vec4(time, newPos.x, newPos.y, newPos.z);
+	calcSceneObjs(stg);
+	bounceCount += 1;
+}
 
+void bounce(int stg, vec3 newDPos) {
+	vec3 dposn = normalize(newDPos);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+	mat4 metricAtSpot = metric(stage[stg].path.spot);
 
+	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
+	stage[stg].path.vel = dposn;
+	calcSceneObjs(stg);
+	bounceCount += 1;
+}
 
 //general compute functions
 float rand(float low, float high) {
@@ -268,7 +305,7 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 	switch (effectType) {
 		//loop
 		case E_LOOP: {
-			setStageRay(stg, mod(stage[stg].pos, arg0[0]), stage[stg].dPos);
+			teleport(stg, mod(stage[stg].path.spot.yzw, arg0[0]));
 		} break;
 		//brighten
 		case E_BRIGHTEN: {
@@ -355,7 +392,7 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 				return;
 			}
 			float sunSize = data1[0];
-			float dotted = max(dot(stage[0].dPos, w_sunVec(stage[0].world)) - 1. + sunSize, 0.);
+			float dotted = max(dot(stage[0].path.vel, w_sunVec(stage[0].world)) - 1. + sunSize, 0.);
 			dotted = clamp(2. * dotted / sunSize, 0.0, 1.0);
 			if (dotted > 0.0) {
 				applyColorLight(0, vec4(mix(stage[0].color.rgb, arg0.rgb, dotted), 1.));
@@ -706,6 +743,10 @@ float objSDF(vec3 p, int world, int index) {
 	if ((nature & N_FOG) > 0) {
 		d = max(d, ray_nearDist - ray_minDist);
 	}
+	if (nature == N_GRAVITY) {
+	    // d = max(d, data[3][0]);
+	    d = max(d, 10.);
+	}
 	return d;
 }
 
@@ -737,13 +778,13 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		
 		case M_NORMAL: {
 			//theoretically this should work. try 0 -> stg if not
-			vec3 norm = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
+			vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 			applyColor(1, vec4((norm + 1.) / 2., 1.));
 			res = 1;
 		} break;
 		
 		case M_RUBBER: {
-			float localVal = mod(stage[stg].pos[0] + stage[stg].pos[2], 10.) - 5.;
+			float localVal = mod(stage[stg].path.spot.y + stage[stg].path.spot.w, 10.) - 5.;
 			vec3 mult = vec3(4.0/255., 4.0/255., 4.8/255.);
 			vec4 paint = vec4(vec3(47./255., 48./255., 66./255.) + localVal * mult, 1.0);
 			applyColor(1, paint);
@@ -766,7 +807,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 
 		case M_PORTAL: {
 			stage[stg].world = int(data1[0]);
-			setStageRay(stg, stage[stg].pos + data0.xyz, stage[stg].dPos);
+			teleport(stg, stage[stg].path.spot.yzw + data0.xyz);
 			stage[stg].distSinceBounce = 0.0;
 			stage[stg].localDist = ray_minDist * 2.;
 			res = 0;
@@ -777,11 +818,10 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			}
 			applyColor(stg, data0);
 			if (stg == 0) {
-				vec3 incident = stage[stg].dPos;
-				vec3 normal = getNormal(stage[stg].pos, stage[stg].world, stage[stg].closestInd);
+				vec3 normal = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
 				//vec3 normal = normalize(vec3(-1, -1, -1));
-				float product = dot(incident, normal);
-				setStageRay(stg, stage[stg].pos, incident - 2. * normal * product);
+				float product = dot(stage[stg].path.vel, normal);
+				bounce(stg, stage[stg].path.vel - 2. * normal * product);
 				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
@@ -857,7 +897,7 @@ void calcSceneObjs(int stg) {
 		}
 		
 		//evaluate using slab test
-		bool isIn = intersects(stage[stg].pos, stage[stg].dPos, data0.xyz, data1.xyz);
+		bool isIn = intersects(stage[stg].path.spot.yzw, stage[stg].path.vel, data0.xyz, data1.xyz);
 		bool hasChildren = (data0[3] == -1.);
 		
 		//in current node?
@@ -905,7 +945,7 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 		nature ^= N_FOG;
 	}
 
-	if (nature == N_NORMAL) {
+	if (nature == N_NORMAL || nature == N_GRAVITY) {
 		if (newDist < oldDist) {
 			stage[stg].closestInd = index;
 			return newDist;
@@ -1003,8 +1043,8 @@ void raymarch() {
 	for (int i=0; i<ray_maxIters; i++) {
 		// vec3 p = startP + dPos * totalDist;
 		stage[0].iters = i;
-		float oldLocalDist = stage[0].localDist;
-		stage[0].localDist = sceneSDF(stage[0].pos, 0);
+    float oldLocalDist = stage[0].localDist;
+		stage[0].localDist = sceneSDF(stage[0].path.spot.yzw, 0);
 
 		if (stage[0].localDist < ray_nearDist) {
 			mat4 matDat = matData(stage[0].world, stage[0].closestInd);
@@ -1025,13 +1065,21 @@ void raymarch() {
 		}
 		applyPreEffects(0);
 		
-		stage[0].totalDist += stage[0].localDist;
-		stage[0].distSinceBounce += stage[0].localDist;
-		stage[0].pos += stage[0].localDist * stage[0].dPos;
+		vec3 before = stage[0].path.spot.yzw;
+		stage[0].path = geodesicStep(stage[0].path, stage[0].localDist);
+		vec3 after = stage[0].path.spot.yzw;
+		float travel = length(after - before);
+
+		stage[0].totalDist += travel;
+		stage[0].distSinceBounce += travel;
+		// stage[0].pos += stage[0].localDist * stage[0].dPos;
 		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 0.99) {
 			return;
 		}
 	}
+
+	// Event horizon; use running out of iterations without covering much distance as a heuristic for something falling into a black hole
+	stage[0].color = vec4(0, 0, 0, 1);
 }
 
 void shadow() {
@@ -1040,7 +1088,7 @@ void shadow() {
 	int count = 80;
 	for(int i=0; i<count; i++) {
 		stage[1].iters = i;
-		stage[1].localDist = sceneSDF(stage[1].pos, 1);
+		stage[1].localDist = sceneSDF(stage[1].path.spot.yzw, 1);
 		int res = 0;
 		
 		if (stage[1].localDist < ray_minDist) {
@@ -1054,8 +1102,13 @@ void shadow() {
 		result = min(result, 4.0 * (stage[1].localDist / shadowTolerance));
 		
 		stage[1].localDist = max(stage[1].localDist, ray_minDist);
-		stage[1].totalDist += stage[1].localDist;
-		stage[1].pos += stage[1].dPos * stage[1].localDist;
+		vec3 before = stage[1].path.spot.yzw;
+		stage[1].path = geodesicStep(stage[1].path, stage[1].localDist);
+		vec3 after = stage[1].path.spot.yzw;
+		float travel = length(after - before);
+
+		stage[1].totalDist += travel;
+
 		//potentially add t cutoff here (far away objects won't cast shadows)
 		if (res > 0) {
 			result = 0.0;
@@ -1072,7 +1125,136 @@ void shadow() {
 	stage[1].color *= ambience + ((1. - ambience) * clamp(result, 0.0, 1.0));
 }
 
+/*
 
+GR STUFF
+
+So what the fuck is this...
+
+Source: https://michaelmoroz.github.io/TracingGeodesics/
+(Note, I didn't look at his glsl code because that would be boorringg)
+
+First, it is important to keep track of a particle's time coordinate because inside a black hole, it's impossible to move backwards in space, which is kinda analagous to how outside of a black hole you can't move backwards in time; basically a space coordinate starts acting like time and the time coordinate starts acting like space. In other words we need to track all four coordinates. However, I will assume that objects in the world move wayyy slower than light so the code will consider them to be stationary. In principle we could have 4D SDFs but shhhh
+
+Curvature of spacetime is fundamentally defined by a "metric", aka a way to compute dot products between two vectors. It's represented by a 4x4 matrix `g` where a·b = a^T g b. Note that the metric is a function of location in spacetime. The general relativity equation defines the metric in terms of the distribution of energy but whooo cares we're just going to put one into a function. If you want to render your favorite spacetime, look up the metric and put it into the function, and also be careful about coordinate systems.
+
+The reason why dot products are important is that in euclidean geometry, the distance between two points is exactly sqrt(a · b). In GR, we define the distance to be sqrt(a^T g b). A _geodesic_ is defined to be the locally shortest path between two points, meaning you can't deviate from the path by some small ε and get a shorter path. Note that a geodesic isn't always the _globally_ shortest path (imagine climbing a mountain vs going around it). Anyways, inertial observers follow geodesics in spacetime, and fucking with the distance function is what makes paths bend in interesting ways.
+
+So how do we trace geodesics? Basically, imagine that the light ray has an annoying impatient backseat driver who will always complain when the ray doesn't take the shortest path. We're already going some random direction so we need to get the backseat driver to shut up by figuring out what destination would make our current path the shortest path to it, and telling them that we're going there. And then because we're tracing geodesics, we're actually going to go there.
+
+Someone did some fancy math and derived a thing that I don't really understand. Let `x: vec4` be our current position in spacetime, let `a` arbitrarily parameterize our path through spacetime, and let `p: vec4` be our "generalized momentum" defined to be $p = g(x) dx/da$.
+
+$
+      dx/da = g(x)^(-1) p
+	      H = p^T g^(-1)(x) p = (dx/da)^T g(x) (dx/da)
+	dp_i/da = -1/2 δH/δx_i
+$
+
+Parts of this that do make sense are the first equation which is true by definition and the second equation which is effectively the distance that we travel by continuing in the direction that we're going (aka what we want to minimize). I don't know how to interpret the third equation mostly because I don't know how to interpret "generalized momentum".
+
+Note that we can't substitute the definition of `p` into `H` to avoid a matrix inversion because `dx/da` is actually a function of `x`. By using the momentum, the only thing that depends on `x` is `g^(-1)`, even though matrix inversion is generally expensive.
+
+So basically our raytracing loop will evaluate all three of those equations. Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, but we do what we must. In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
+*/
+
+/*
+mat4 metric(vec4 spot) {
+	// Flat spacetime
+	return mat4(
+		-1, 0, 0, 0,
+		// 0, 1. + spot.y * spot.y / 100000., 0, 0,
+		// 0, 1. + sin(spot.y / 400.) / 8., 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1
+	);
+}
+*/
+
+mat4 diag(vec4 a)
+{
+    return mat4(a.x,0,0,0,
+                0,a.y,0,0,
+                0,0,a.z,0,
+                0,0,0,a.w);
+}
+
+mat4 metric(vec4 x)
+{
+	x = x - vec4(0, 0, 500, 0);
+		
+    // Kerr-Newman metric in cartesian coordinates 
+    // (copied from https://michaelmoroz.github.io/TracingGeodesics/)
+
+    // Angular momentum divided by mass
+    const float a = 0.0;
+    // Mass
+    const float m = 1.0;
+    // Electric charge
+    const float Q = 0.0;
+
+    vec3 p = x.yzw;
+    float rho = dot(p,p) - a*a;
+    float r2 = 0.5*(rho + sqrt(rho*rho + 4.0*a*a*p.z*p.z));
+    float r = sqrt(r2);
+    vec4 k = vec4(1, (r*p.x + a*p.y)/(r2 + a*a), (r*p.y - a*p.x)/(r2 + a*a), p.z/r);
+    float f = r2*(2.0*m*r - Q*Q)/(r2*r2 + a*a*p.z*p.z);
+    return f*mat4(k.x*k, k.y*k, k.z*k, k.w*k)+diag(vec4(-1,1,1,1));
+}
+
+mat4 metricInv(vec4 spot) {
+	return inverse(metric(spot));
+}
+
+float lengthSquare(mat4 metric, vec4 vel) {
+	float value = 0.;
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			value += metric[i][j] * vel[i] * vel[j];
+		}
+	}
+
+	return value;
+}
+
+float hamiltonian(vec4 spot, vec4 momentum) {
+	return lengthSquare(metricInv(spot), momentum);
+}
+
+vec4 metricPartialDerivatives(vec4 spot, vec4 momentum, mat4 metric, vec4 dxda) {
+	float origin = lengthSquare(metric, dxda);
+
+	float a = hamiltonian(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0), momentum) - origin;
+	float b = hamiltonian(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0), momentum) - origin;
+	float c = hamiltonian(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0), momentum) - origin;
+	float d = hamiltonian(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON), momentum) - origin;
+
+	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / 2.;
+}
+
+Path geodesicStep(Path current, float maxStep) {
+	mat4 metric = metric(current.spot);
+	vec4 dxda = inverse(metric) * current.momentum;
+	vec4 dpda = metricPartialDerivatives(current.spot, current.momentum, metric, dxda);
+
+	// Make the step size such that p changes by the desired amount
+	float momentumChange = length(dpda);
+	float positionChange = length(dxda.yzw);
+	float scale;
+
+	if (momentumChange == 0.) {
+		scale = maxStep / positionChange;
+	} else {
+		scale = min(MAX_MOMENTUM_CHANGE / momentumChange, maxStep / positionChange);
+	}
+
+	current.spot += dxda * scale;
+	current.vel = normalize(dxda.yzw);
+	current.momentum -= dpda * scale;
+
+	return current;
+}
 
 //actual fragment shader: what's done for a pixel
 
@@ -1170,9 +1352,9 @@ void main() {
 		// mat4 hitData = objData(stage[0].closestInd);
 		
 		vec3 sunVec = w_sunVec(stage[0].world);
-		vec3 normal = getNormal(stage[0].pos, stage[0].world, stage[0].closestInd);
+		vec3 normal = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 		stage[1].world = stage[0].world;
-		setStageRay(1, stage[0].pos - normal * ray_minDist * 2., sunVec);
+		setStageRay(1, stage[0].path.spot.yzw - normal * ray_minDist * 2., sunVec);
 		shadow();
 	}
 	

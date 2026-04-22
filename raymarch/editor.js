@@ -443,7 +443,7 @@ var textbox_world;
 
 var dropdown_obj, dropdown_mat;
 
-var checkbox_gloop, checkbox_anti, checkbox_fog;
+var checkbox_gloop, checkbox_anti, checkbox_fog, checkbox_gravity;
 var checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8;
 
 var editor_controls = [];
@@ -589,6 +589,7 @@ function editor_initialize() {
 	checkbox_gloop = new Checkbox(`group_nature.gloopCheckbox`, `Gloop`, (val) => {return syncNature(val, N_GLOOP);});
 	checkbox_anti = new Checkbox(`group_nature.antiCheckbox`, `Anti`, (val) => {return syncNature(val, N_ANTI);});
 	checkbox_fog = new Checkbox(`group_nature.fogCheckbox`, `Fog`, (val) => {return syncNature(val, N_FOG);});
+	checkbox_gravity = new Checkbox(`group_nature.gravityCheckbox`, `Gravity`, (val) => {return syncNature(val, N_GRAVITY);});
 	
 	checkbox_c1 = new Checkbox(`group_special.c1Checkbox`, `.`, (val) => {return syncC(val, 0);});
 	checkbox_c2 = new Checkbox(`group_special.c2Checkbox`, `.`, (val) => {return syncC(val, 1);});
@@ -612,7 +613,7 @@ function editor_initialize() {
 
 		dropdown_obj, dropdown_mat,
 		textbox_world,
-		checkbox_gloop, checkbox_anti, checkbox_fog,
+		checkbox_gloop, checkbox_anti, checkbox_fog,checkbox_gravity,
 		checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8
 	];
 	
@@ -764,7 +765,7 @@ function editor_select(object) {
 	}
 	
 	if (editor_selected != player) {
-		shouldSee = shouldSee.concat(checkbox_gloop, checkbox_anti, checkbox_fog);
+		shouldSee = shouldSee.concat(checkbox_gloop, checkbox_anti, checkbox_fog, checkbox_gravity);
 	}
 	
 	shouldSee = shouldSee.concat(objectEditables[map_objStr[consName]]);

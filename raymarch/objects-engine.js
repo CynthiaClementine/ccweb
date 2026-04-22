@@ -147,7 +147,7 @@ class Ray_Tracking {
 			if (distObj.nature & N_ANTI) {
 				dist = -dist;
 			}
-			if (distObj.nature & N_FOG) {
+			if (distObj.nature & N_FOG || distObj.nature == N_GRAVITY) {
 				dist = Math.max(dist, ray_nearDist * 0.9);
 			}
 			

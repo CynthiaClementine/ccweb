@@ -12,6 +12,7 @@ const N_GLOOP = 1;
 const N_ANTI =	2;
 const N_FOG =	4;
 const N_SMOOTH =8;
+const N_GRAVITY =16;
 
 const M_COLOR =		0;
 const M_CONCRETE =	1;
