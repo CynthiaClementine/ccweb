@@ -4,7 +4,7 @@
 
 #define ray_maxIters 500
 #define ray_maxDist 5000.0
-#define ray_nearDist 3.0
+#define ray_nearDist 10.0
 #define ray_minDist 0.15
 #define ray_maxBounces 22
 #define render_shadowSteps 2.
@@ -66,6 +66,7 @@
 #define M_GLASS		10
 #define M_GHOST		11
 #define M_PORTAL	20
+#define M_GRAVITY	25
 #define M_MIRROR	30
 
 // GR stuff
@@ -102,7 +103,7 @@ struct Raydata {
 };
 
 uniform int uDebug;
-uniform vec2 uResolution;
+uniform vec3 uResFov;
 uniform float uTime;
 uniform vec3 uCamPos;
 uniform mat3 uCamRot;
@@ -141,8 +142,7 @@ void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 }
 
 void teleport(int stg, vec3 newPos) {
-	float time = stage[stg].path.spot.x;
-	stage[stg].path.spot = vec4(time, newPos.x, newPos.y, newPos.z);
+	stage[stg].path.spot.yzw = newPos;
 	calcSceneObjs(stg);
 	bounceCount += 1;
 }
@@ -624,6 +624,16 @@ float sphereSDF(vec3 point, float data1) {
 	return length(point) - data1;
 }
 
+float terrainHeight(vec2 point, int octaves, float ampl, float freq, float lacunarity, float gain) {
+	float y = 0.0;
+	for (int i=0; i<octaves; i++) {
+		y += ampl * noise(freq * point.xy);
+		freq *= lacunarity;
+		ampl *= gain;
+	}
+	return y;
+}
+
 float terrainSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	vec3 relBoxPos = max(vec3(0.), abs(point) - data2.xyz);
 	float boxsdf = length(relBoxPos);
@@ -634,17 +644,10 @@ float terrainSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	//data3: [baseAmp, baseFreq, lacunarity, gain]
 	
 	//hacky imprecise formula - return distance to height value at current point, minus a tolerance
-	float y = 0.0;
-	float ampl = data3[0];
-	float freq = data3[1];
+	float y = terrainHeight(point.xz, octaves, data3[0], data3[1], data3[2], data3[3]);
+	float terrsdf = (point.y - y) * 0.55;
 	
-	for (int i=0; i<octaves; i++) {
-		y += ampl * noise(freq * point.xz);
-		freq *= data3[2];
-		ampl *= data3[3];
-	}
-	
-	float terrsdf = (point.y - y) * 0.5;
+	//getGrad(vec3 p, int worldIndex, int objIndex)
 	
 	return max(boxsdf, terrsdf);
 }
@@ -743,14 +746,26 @@ float objSDF(vec3 p, int world, int index) {
 	if ((nature & N_FOG) > 0) {
 		d = max(d, ray_nearDist - ray_minDist);
 	}
-	if (nature == N_GRAVITY) {
-	    // d = max(d, data[3][0]);
-	    d = max(d, 10.);
+	if ((nature & N_GRAVITY) > 0) {
+		// d = max(d, data[3][0]);
+		d = max(d, 10.);
 	}
 	return d;
 }
 
+//gets the sdf's gradient at a particular point
+vec3 getGrad(vec3 p, int worldIndex, int objIndex) {
+	float d = objSDF(p, worldIndex, objIndex);
+	vec2 e = vec2(0.001, 0.);
+	vec3 n = vec3(d) - vec3(
+		objSDF(p + e.xyy, worldIndex, objIndex),
+		objSDF(p + e.yxy, worldIndex, objIndex),
+		objSDF(p + e.yyx, worldIndex, objIndex)
+	);
+	return (n / e[0]);
+}
 
+//gets the sdf's normal at a particular point (gradient with length 1)
 vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 	float d = objSDF(p, worldIndex, objIndex);
 	vec2 e = vec2(0.001, 0.);
@@ -761,6 +776,8 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 	);
 	return normalize(n);
 }
+
+
 
 
 int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
@@ -794,7 +811,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		case M_GLASS: {
 			if (abs(stage[stg].localDist) < ray_minDist * 2.) {
 				applyColorLight(stg, data0);
-				stage[stg].localDist = ray_minDist * 2.;
+				stage[stg].localDist = ray_minDist * 4.;
 			} else {
 				stage[stg].localDist = -stage[stg].localDist;
 			}
@@ -846,6 +863,9 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			if (stg == 0) {
 				applyColor(stg, data0);
 			}
+		} return;
+		case M_GRAVITY: {
+		
 		} return;
 	}
 }
@@ -945,7 +965,7 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 		nature ^= N_FOG;
 	}
 
-	if (nature == N_NORMAL || nature == N_GRAVITY) {
+	if (nature == N_NORMAL || (nature & N_GRAVITY) > 0) {
 		if (newDist < oldDist) {
 			stage[stg].closestInd = index;
 			return newDist;
@@ -1021,7 +1041,7 @@ void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float n
 	//a = oldLocalDist
 	//b = newLocalDist
 	//if b is positive, p2 lies after p1. If b is negative, p2 lies in between p0 and p1. we want to find a conservative estimate for where p2 is.
-	vec3 lineVec = stage[0].dPos;
+	vec3 lineVec = stage[0].path.vel;
 	vec3 p0 = startPos - oldLocalDist * lineVec;
 	vec3 p1 = startPos;
 	
@@ -1036,14 +1056,14 @@ void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float n
 		}
 	}
 	
-	stage[0].pos = p1;
+	stage[0].path.spot.yzw = p1;
 }
 
 void raymarch() {
 	for (int i=0; i<ray_maxIters; i++) {
 		// vec3 p = startP + dPos * totalDist;
 		stage[0].iters = i;
-    float oldLocalDist = stage[0].localDist;
+		float oldLocalDist = stage[0].localDist;
 		stage[0].localDist = sceneSDF(stage[0].path.spot.yzw, 0);
 
 		if (stage[0].localDist < ray_nearDist) {
@@ -1054,7 +1074,7 @@ void raymarch() {
 		
 			if (stage[0].localDist < ray_minDist) {
 				//try to make sure ray isn't inside the surface
-				findHitPos(stage[0].pos, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
+				findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 				int res = applyHitEffect(0, type, matDat[0], matDat[1], matDat[2]);
 				if (res == 1) {
 					return;
@@ -1134,27 +1154,52 @@ So what the fuck is this...
 Source: https://michaelmoroz.github.io/TracingGeodesics/
 (Note, I didn't look at his glsl code because that would be boorringg)
 
-First, it is important to keep track of a particle's time coordinate because inside a black hole, it's impossible to move backwards in space, which is kinda analagous to how outside of a black hole you can't move backwards in time; basically a space coordinate starts acting like time and the time coordinate starts acting like space. In other words we need to track all four coordinates. However, I will assume that objects in the world move wayyy slower than light so the code will consider them to be stationary. In principle we could have 4D SDFs but shhhh
+First, it is important to keep track of a particle's time coordinate because inside a black hole, 
+it's impossible to move backwards in space, which is kinda analagous to how outside of a black hole you can't move backwards in time; 
+basically a space coordinate starts acting like time and the time coordinate starts acting like space. 
+In other words we need to track all four coordinates. However, I will assume that objects in the world move wayyy slower than light so the code 
+will consider them to be stationary. In principle we could have 4D SDFs but shhhh
 
-Curvature of spacetime is fundamentally defined by a "metric", aka a way to compute dot products between two vectors. It's represented by a 4x4 matrix `g` where a·b = a^T g b. Note that the metric is a function of location in spacetime. The general relativity equation defines the metric in terms of the distribution of energy but whooo cares we're just going to put one into a function. If you want to render your favorite spacetime, look up the metric and put it into the function, and also be careful about coordinate systems.
+Curvature of spacetime is fundamentally defined by a "metric", aka a way to compute dot products between two vectors. 
+It's represented by a 4x4 matrix `g` where a·b = a^T g b. 
+Note that the metric is a function of location in spacetime. 
+The general relativity equation defines the metric in terms of the distribution of energy but whooo cares we're just going to put one into a function. 
+If you want to render your favorite spacetime, look up the metric and put it into the function, and also be careful about coordinate systems.
 
-The reason why dot products are important is that in euclidean geometry, the distance between two points is exactly sqrt(a · b). In GR, we define the distance to be sqrt(a^T g b). A _geodesic_ is defined to be the locally shortest path between two points, meaning you can't deviate from the path by some small ε and get a shorter path. Note that a geodesic isn't always the _globally_ shortest path (imagine climbing a mountain vs going around it). Anyways, inertial observers follow geodesics in spacetime, and fucking with the distance function is what makes paths bend in interesting ways.
+The reason why dot products are important is that in euclidean geometry, the distance between two points is exactly sqrt(a · b). 
+In GR, we define the distance to be sqrt(a^T g b). A _geodesic_ is defined to be the locally shortest path between two points, 
+meaning you can't deviate from the path by some small ε and get a shorter path. 
+Note that a geodesic isn't always the _globally_ shortest path (imagine climbing a mountain vs going around it). 
+Anyways, inertial observers follow geodesics in spacetime, and fucking with the distance function is what makes paths bend in interesting ways.
 
-So how do we trace geodesics? Basically, imagine that the light ray has an annoying impatient backseat driver who will always complain when the ray doesn't take the shortest path. We're already going some random direction so we need to get the backseat driver to shut up by figuring out what destination would make our current path the shortest path to it, and telling them that we're going there. And then because we're tracing geodesics, we're actually going to go there.
+So how do we trace geodesics? Basically, 
+imagine that the light ray has an annoying impatient backseat driver who will always complain when the ray doesn't take the shortest path. 
+We're already going some random direction so we need to get the backseat driver to shut up by figuring out what destination would make our 
+current path the shortest path to it, and telling them that we're going there. 
+And then because we're tracing geodesics, we're actually going to go there.
 
-Someone did some fancy math and derived a thing that I don't really understand. Let `x: vec4` be our current position in spacetime, let `a` arbitrarily parameterize our path through spacetime, and let `p: vec4` be our "generalized momentum" defined to be $p = g(x) dx/da$.
+Someone did some fancy math and derived a thing that I don't really understand. 
+Let `x: vec4` be our current position in spacetime, 
+let `a` arbitrarily parameterize our path through spacetime, and 
+let `p: vec4` be our "generalized momentum" defined to be $p = g(x) dx/da$.
 
 $
-      dx/da = g(x)^(-1) p
-	      H = p^T g^(-1)(x) p = (dx/da)^T g(x) (dx/da)
+	dx/da = g(x)^(-1) p
+	H = p^T g^(-1)(x) p = (dx/da)^T g(x) (dx/da)
 	dp_i/da = -1/2 δH/δx_i
 $
 
-Parts of this that do make sense are the first equation which is true by definition and the second equation which is effectively the distance that we travel by continuing in the direction that we're going (aka what we want to minimize). I don't know how to interpret the third equation mostly because I don't know how to interpret "generalized momentum".
+Parts of this that do make sense are the first equation which is true by definition and the second equation 
+which is effectively the distance that we travel by continuing in the direction that we're going (aka what we want to minimize). 
+I don't know how to interpret the third equation mostly because I don't know how to interpret "generalized momentum".
 
-Note that we can't substitute the definition of `p` into `H` to avoid a matrix inversion because `dx/da` is actually a function of `x`. By using the momentum, the only thing that depends on `x` is `g^(-1)`, even though matrix inversion is generally expensive.
+Note that we can't substitute the definition of `p` into `H` to avoid a matrix inversion because `dx/da` is actually a function of `x`. 
+By using the momentum, the only thing that depends on `x` is `g^(-1)`, even though matrix inversion is generally expensive.
 
-So basically our raytracing loop will evaluate all three of those equations. Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, but we do what we must. In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
+So basically our raytracing loop will evaluate all three of those equations. 
+Some annoying things are that we require a matrix inverse as well as derivatives of H in four dimensions, 
+but we do what we must. 
+In principle, we could speed this up by finding all of those analytically given a particular metric, but whatever.
 */
 
 /*
@@ -1171,35 +1216,33 @@ mat4 metric(vec4 spot) {
 }
 */
 
-mat4 diag(vec4 a)
-{
-    return mat4(a.x,0,0,0,
-                0,a.y,0,0,
-                0,0,a.z,0,
-                0,0,0,a.w);
+mat4 diag(vec4 a) {
+	return mat4(a.x,0,0,0,
+				0,a.y,0,0,
+				0,0,a.z,0,
+				0,0,0,a.w);
 }
 
-mat4 metric(vec4 x)
-{
+mat4 metric(vec4 x) {
 	x = x - vec4(0, 0, 500, 0);
 		
-    // Kerr-Newman metric in cartesian coordinates 
-    // (copied from https://michaelmoroz.github.io/TracingGeodesics/)
-
-    // Angular momentum divided by mass
-    const float a = 0.0;
-    // Mass
-    const float m = 1.0;
-    // Electric charge
-    const float Q = 0.0;
-
-    vec3 p = x.yzw;
-    float rho = dot(p,p) - a*a;
-    float r2 = 0.5*(rho + sqrt(rho*rho + 4.0*a*a*p.z*p.z));
-    float r = sqrt(r2);
-    vec4 k = vec4(1, (r*p.x + a*p.y)/(r2 + a*a), (r*p.y - a*p.x)/(r2 + a*a), p.z/r);
-    float f = r2*(2.0*m*r - Q*Q)/(r2*r2 + a*a*p.z*p.z);
-    return f*mat4(k.x*k, k.y*k, k.z*k, k.w*k)+diag(vec4(-1,1,1,1));
+	// Kerr-Newman metric in cartesian coordinates 
+	// (copied from https://michaelmoroz.github.io/TracingGeodesics/)
+	
+	// Angular momentum divided by mass
+	const float a = 0.0;
+	// Mass
+	const float m = 1.0;
+	// Electric charge
+	const float q = 0.0;
+	
+	vec3 p = x.yzw;
+	float rho = dot(p,p) - a*a;
+	float r2 = 0.5*(rho + sqrt(rho*rho + 4.0*a*a*p.z*p.z));
+	float r = sqrt(r2);
+	vec4 k = vec4(1, (r*p.x + a*p.y)/(r2 + a*a), (r*p.y - a*p.x)/(r2 + a*a), p.z/r);
+	float f = r2*(2.0*m*r - q*q)/(r2*r2 + a*a*p.z*p.z);
+	return f*mat4(k.x*k, k.y*k, k.z*k, k.w*k)+diag(vec4(-1,1,1,1));
 }
 
 mat4 metricInv(vec4 spot) {
@@ -1329,8 +1372,7 @@ void main() {
 	//TODO: why does this go from -1 to 1?
 	vec2 uv = vUV * 2.0 - 1.0;
 	seed = vec2(vUV);
-	uv.x *= uResolution.x / uResolution.y;
-	
+	uv.x *= uResFov.x / uResFov.y;
 	
 	stage[0].world = uCamWorld;
 	setStageRay(0, uCamPos, normalize(uCamRot * vec3(uv, 1)));
