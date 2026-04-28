@@ -12,8 +12,6 @@ var gl;
 var banvas;
 var btx;
 
-var useCPU = false;
-
 async function setup() {
 	createWorlds();
 	canvas = document.getElementById(`glbox`);
@@ -65,7 +63,8 @@ async function setup() {
 	createObjectsTexture();
 	
 	resize();
-	window.setTimeout(main, 10);
+	page_animation = window.requestAnimationFrame(main);
+	tickHandler = window.setInterval(tick, frameTime);
 }
 
 function resizeCanvas() {
@@ -95,7 +94,23 @@ async function loadCode(url) {
 }
 
 function main() {
-	perf_startT = performance.now();
+	perf_logStart(`intra`);
+	feedGPU();
+	finishDraw();
+	perf_logEnd(`intra`);
+	perf_logEnd(`inter`);
+	calcFrameTime();
+	perf_logStart(`inter`);
+	//change display size, start new frame
+	if (render_n != render_goalN) {
+		render_n = render_goalN;
+		resizeCanvas();
+	}
+	page_animation = window.requestAnimationFrame(main);
+}
+
+function tick() {
+	perf_logStart(`tick`);
 	world_time += 1;
 	//tick all world objects
 	loading_world = camera.world;
@@ -124,66 +139,54 @@ function main() {
 		o.tick();
 	});
 	loading_world.tick();
-	
-	draw();
-
-	//end
-	finishMain();
+	perf_logEnd(`tick`);
 }
 
-function finishMain() {
+function finishDraw() {
+	//draw GPU's result to the drawing canvas
+	btx.drawImage(gl.canvas,
+		0, 0, canvas.width, canvas.height,
+		0, 0, banvas.width, banvas.height);
+	render_linesDrawn = render_n;
 	drawUI();
+}
+
+function calcFrameTime() {
+	const elapsedMS = perf_log[`intra`][perf_log[`intra`].length-1];
 	
-	//calculate frame time
-	perf_endT = performance.now();
-	var elapsedMS = (perf_endT - perf_startT);
-	perf_log[perf_n] = elapsedMS;
-	perf_n = (perf_n + 1) % perf_len;
+	//figure out all averages / maxes
+	var inter = perf_log[`inter`];
+	var intra = perf_log[`intra`];
+	var tick = perf_log[`tick`];
 	
-	//log performance
-	var avgElapsedMS = 0;
-	perf_log.forEach(p => {
-		avgElapsedMS += p * p;
-	});
+	var interMax = inter.reduce((a, b) => Math.max(a, b));
+	var intraMax = intra.reduce((a, b) => Math.max(a, b));
+	var tickMax = tick.reduce((a, b) => Math.max(a, b));
+	debugCM.innerHTML = tickMax.toFixed(2);
+	debugGM.innerHTML = intraMax.toFixed(2);
+	debugTM.innerHTML = interMax.toFixed(2);
+	
+	var interSum = inter.reduce((a, b) => a + b);
+	var intraAvg = intra.reduce((a, b) => a + b) / perf_len;
+	var tickSum = tick.reduce((a, b) => a + b);
+	debugCA.innerHTML = (tickSum / perf_len).toFixed(2);
+	debugGA.innerHTML = (intraAvg).toFixed(2);
+	debugTA.innerHTML = (interSum / perf_len).toFixed(2);
+
+
 	//weighted average towards higher values
-	avgElapsedMS = Math.sqrt(avgElapsedMS) / Math.sqrt(perf_len);
-	debugMSPF.innerHTML = avgElapsedMS.toFixed(2);
-	debugMSPF.style = `color: ${(elapsedMS > frameTime * 0.9) ? "#F97" : "#444"}`;
+	// debugMSPF.style = `color: ${(elapsedMS > frameTime * 0.9) ? "#F97" : "#444"}`;
 	
 	if (debug_flags.autoScale && world_time - render_lastScaleTime > perf_len) {
 		render_lastScaleTime = world_time;
-		if (avgElapsedMS > frameTime * 0.6) {
+		if (intraAvg > frameTime * 0.6) {
 			render_goalN = clamp(Math.floor(render_n * 0.95), render_nAutoRange[0], render_nAutoRange[1]);
 		}
-		if (avgElapsedMS < frameTime * 0.1) {
+		if (intraAvg < frameTime * 0.1) {
 			render_goalN = clamp(Math.ceil(render_n * 1.02), render_nAutoRange[0], render_nAutoRange[1]);
 		}
 	}
-	
-	//changing display size
-	if (render_n != render_goalN) {
-		render_n = render_goalN;
-		resizeCanvas();
-		updateFOV(camera_FOV);
-		//ough
-		page_animation = window.setTimeout(main, 70);
-	} else {
-		//regular frame advance
-		// console.log(`calculating timeout for ${frameTime} - ${elapsedMS.toFixed(2)} = ${Math.max(1, frameTime - elapsedMS).toFixed(3)}`);
-		page_animation = window.setTimeout(main, Math.max(1, frameTime - elapsedMS));
-	}
-}
-
-function draw() {
-	if (!useCPU) {
-		feedGPU();
-		//draw GPU's result to the drawing canvas
-		btx.drawImage(gl.canvas,
-			0, 0, canvas.width, canvas.height,
-			0, 0, banvas.width, banvas.height);
-		render_linesDrawn = render_n;
-		return;
-	}
+	return elapsedMS;
 }
 
 // Mint stuff! Draws the little three arrow gizmo on selected objects
@@ -247,116 +250,6 @@ function drawEditorGizmo() {
 		btx.fillText(def.axis.toUpperCase(), end[0] + 4, end[1] - 4);
 		btx.globalAlpha = 0.3;
 	});
-}
-
-/**
-* uses the pxdata to draw 16-color pixel art onto the banvas. 
-* @param {Number[]} pxData an array of integers. Each integer represents one line of the art. Individual pixels are represented by a chunk of 4 bits.
-* @param {Number} startX the X coordinate of the banvas to start on
-* @param {Number} startY the Y coordinate of the banvas to start on
-* @param {Number} pxSize how large each pixel of the pixel art should be displayed at
- */
-function drawPixelArt(pxData, startX, startY, pxSize) {
-	var pxWidth = pxData.w * pxSize;
-	var pxHeight = pxData.h * pxSize;
-	
-	for (var y=0; y<pxData.h; y++) {
-		const dat = pxData[y];
-		for (var x=0; x<pxData.w; x++) {
-			const ind = dat >> (4 * (pxData.w - x - 1)) & 0xF;
-			btx.fillStyle = colors16[ind];
-			btx.fillRect(startX + x * pxSize, startY + y * pxSize, pxSize + 0.5, pxSize + 0.5);
-		}
-	}
-}
-
-function drawUI() {
-	const cvs = banvas;
-	const cw = cvs.width;
-	const ch = cvs.height;
-	const pxW = cw / render_n;
-	const pxH = ch / render_n;
-	var center = [cvs.width / 2, cvs.height / 2];
-	const crossLen = (render_n < 100) ? (1 / render_n) : 0.04;
-	
-	//crosshair
-	btx.globalAlpha = 0.3;
-	btx.beginPath();
-	btx.strokeStyle = color_editor_border;
-	btx.lineWidth = Math.ceil(ch * (1.5 / render_n));
-	btx.moveTo(center[0] - ch * crossLen, center[1]);
-	btx.lineTo(center[0] + ch * crossLen, center[1]);
-	btx.moveTo(center[0], center[1] - ch * crossLen);
-	btx.lineTo(center[0], center[1] + ch * crossLen);
-	btx.stroke();
-	
-	//collision
-	//draw everything
-	if (debug_flags.collisionRaycast) {
-		const pixelsInX = render_colN;
-		const pixelsInY = render_colN;
-	
-		const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
-		const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
-		const zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
-	
-		for (var x=0; x<pixelsInX; x++) {
-			drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
-		}
-	}
-	
-	if (!debug_listening) {
-		btx.globalAlpha = 1;
-		return;
-	}
-	
-	//debug bars
-	btx.fillStyle = color_editor_border;
-	btx.fillRect(0, 0, cvs.width, pxH * 12);
-	btx.fillRect(0, ch - pxH * 12, cvs.width, pxH * 12);
-	
-	drawEditorGizmo();
-	
-	//selected object ghost
-	if (editor_selected != player) {
-		var ghostPos = calcScreenPos(editor_selected.pos);
-		if (ghostPos) {
-			btx.globalAlpha = 1;
-			btx.lineWidth = 1;
-			btx.strokeStyle = colors16[15];
-			btx.beginPath();
-			btx.arc(...ghostPos, 6, 0, Math.PI * 2);
-			btx.stroke();
-			btx.globalAlpha = 0.3;
-		}
-	}
-	
-	//global/local indicator
-	btx.globalAlpha = 0.6;
-	drawPixelArt(editor_local ? pxdata_box : pxdata_world, 4 * pxW, 16 * pxH, pxW * 4);
-	btx.globalAlpha = 1;
-}
-
-function drawLine(x, colorArr) {
-	//writing directly to imageData is theoretically faster than changing fillStyle a bunch
-	var blockSizeTrue = (banvas.width / render_colN);
-	var blockSize = Math.round(banvas.width / render_colN);
-	var imageData = btx.createImageData(blockSize, banvas.height);
-	var dataBlock = imageData.data;
-	for (var y=0; y<render_colN; y++) {
-		var r = colorArr[3*y];
-		for (var yOff=0; yOff<blockSize; yOff++) {
-			var lineInd = 4 * blockSize * (y * blockSize + yOff);
-			for (var xOff=0; xOff<blockSize; xOff++) {
-				var pixelInd = lineInd + (4 * xOff);
-				dataBlock[pixelInd] = r;
-				dataBlock[pixelInd+3] = r / 2;
-			}
-		}
-	}
-	
-	btx.putImageData(imageData, x * blockSizeTrue, 0);
-	render_linesDrawn += 1;
 }
 
 function handleWorkerMsg(e) {
@@ -476,6 +369,11 @@ function handleKeyPress(a) {
 				editor_local = !editor_local;
 				return;
 			case "KeyO":
+				//select player
+				if (controls_altPressed) {
+					editor_select(player);
+					return;
+				}
 				editor_raycast();
 				return;
 			case "KeyP":
@@ -491,7 +389,6 @@ function handleKeyPress(a) {
 					editor_axisType = null;
 					return;
 				}
-				editor_select(player);
 				return;
 		}
 	}
@@ -500,24 +397,24 @@ function handleKeyPress(a) {
 	switch (a.code) {
 		case "KeyA":
 		case "ArrowLeft":
-			player.aPos[0] = -player.speed;
+			player.aPos[0] = -player.accel;
 			break;
 		case "KeyW":
 		case "ArrowUp":
-			player.aPos[2] = player.speed;
+			player.aPos[2] = player.accel;
 			break;
 		case "KeyD":
 		case "ArrowRight":
-			player.aPos[0] = player.speed;
+			player.aPos[0] = player.accel;
 			break;
 		case "KeyS":
 		case "ArrowDown":
-			player.aPos[2] = -player.speed;
+			player.aPos[2] = -player.accel;
 			break;
 		case "ShiftLeft":
 		case "ShiftRight":
 			player.dash();
-			player.aPos[1] = -player.speed;
+			player.aPos[1] = -player.accel;
 			controls_shiftPressed = true;
 			break;
 		case "AltLeft":
@@ -527,7 +424,7 @@ function handleKeyPress(a) {
 			break;
 		case "Space":
 			player.jump();
-			player.aPos[1] = player.speed;
+			player.aPos[1] = player.accel;
 			a.preventDefault();
 			break;
 		
