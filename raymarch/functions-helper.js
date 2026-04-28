@@ -15,6 +15,13 @@ projectOct(x, pixelsInX, y, pixelsInY)
 
 */
 
+//determines if aabb2 is completely inside aabb1
+function aabbInside(minPos1, maxPos1, minPos2, maxPos2) {
+	return  (minPos1[0] <= minPos2[0]) && (maxPos1[0] >= maxPos2[0]) && 
+			(minPos1[1] <= minPos2[1]) && (maxPos1[1] >= maxPos2[1]) && 
+			(minPos1[2] <= minPos2[2]) && (maxPos1[2] >= maxPos2[2]);
+}
+
 /**
 * applies a paint Color to a base Color4.
 * @param {Color4} paintColor the color to paint
@@ -36,31 +43,13 @@ function applyColor(paintColor, baseColor) {
 * returns an updated signed distance based on an old/new distance and an object's nature.
  */
 function applyDist(oldDist, testDist, nature) {
-	if (nature & N_FOG || nature == N_GRAVITY) {
+	if (nature & N_FOG || nature & N_GRAVITY) {
 		testDist = Math.max(testDist, ray_nearDist * 0.9);
 	}
 	if (nature & N_ANTI) {
 		return Math.max(-testDist, oldDist);
 	}
-
 	return Math.min(testDist, oldDist);
-}
-
-function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
-	var xVec = transform([rx, 0, 0], [0, 0, 0], theta, phi, rot);
-	var yVec = transform([0, ry, 0], [0, 0, 0], theta, phi, rot);
-	var zVec = transform([0, 0, rz], [0, 0, 0], theta, phi, rot);
-	
-	//since a cube gives every combination of ±vec, it's possible to just decompose the vectors and take the min / max variance
-	
-	const bestX = (Math.abs(xVec[0]) + Math.abs(yVec[0]) + Math.abs(zVec[0]));
-	const bestY = (Math.abs(xVec[1]) + Math.abs(yVec[1]) + Math.abs(zVec[1]));
-	const bestZ = (Math.abs(xVec[2]) + Math.abs(yVec[2]) + Math.abs(zVec[2]));
-
-	return [
-		Pos(pos[0] - bestX, pos[1] - bestY, pos[2] - bestZ),
-		Pos(pos[0] + bestX, pos[1] + bestY, pos[2] + bestZ),
-	];
 }
 
 function augmentBounds(bounds, extraDist) {
@@ -84,6 +73,21 @@ function boundsAngle(radians) {
 	return Math.PI - radians;
 }
 
+function BVHUnion(node1, node2) {
+	const minPos = Pos(
+		Math.min(node1.minPos[0], node2.minPos[0]),
+		Math.min(node1.minPos[1], node2.minPos[1]),
+		Math.min(node1.minPos[2], node2.minPos[2]),
+	);
+	
+	const maxPos = Pos(
+		Math.max(node1.maxPos[0], node2.maxPos[0]),
+		Math.max(node1.maxPos[1], node2.maxPos[1]),
+		Math.max(node1.maxPos[2], node2.maxPos[2]),
+	);
+	
+	return new BVH_Node(minPos, maxPos, null, node1, node2);
+}
 
 function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 	var r = new Ray_Tracking(camera.world, camera.pos, [0, 1, 0]);
@@ -128,10 +132,202 @@ function calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight) {
 	return colors;
 }
 
+/**
+ * @param {Pos} worldPos - the position in the world to calculate the screen position of
+ * @return {Number[]|null} the screen position as [x, y], or null if the position is behind the camera
+ */
+function calcScreenPos(worldPos) {
+	if (!worldPos) {
+		return null;
+	}
+	//first, find the offset of the world pos from the camera in the camera's coordinate system. If the offset is negative, it's behind the camera and we can ignore it.
+	if (Number.isNaN(worldPos[0] + worldPos[1] + worldPos[2])) {
+		return null;
+	}
+	var delta = [worldPos[0] - camera.pos[0], worldPos[1] - camera.pos[1], worldPos[2] - camera.pos[2]];
+	var offset = dot(delta, polToCart(camera.theta, camera.phi, 1)); 
+	if (offset <= 0) {
+		return null;
+	}
+
+	// projecting world pos to screen
+	var right = dot(delta, polToCart(camera.theta + (Math.PI / 2), 0, 1));
+	var up = dot(delta, polToCart(camera.theta, camera.phi + (Math.PI / 2), 1));
+
+	// oughhhh fov
+	var halfHeight = Math.tan(camera_FOV * degToRad / 2);
+	var halfWidth = halfHeight * (banvas.width / banvas.height);
+	var normalizedX = (right / offset) / halfWidth;
+	var normalizedY = (up / offset) / halfHeight;
+
+	return [(normalizedX * 0.5 + 0.5) * banvas.width, (1 - (normalizedY * 0.5 + 0.5)) * banvas.height];
+}
+
 function constrainPlayer(xRange, yRange, zRange) {
 	player.pos[0] = modulate(player.pos[0] + xRange, 2 * xRange) - xRange;
 	player.pos[1] = modulate(player.pos[1] + yRange, 2 * yRange) - yRange;
 	player.pos[2] = modulate(player.pos[2] + zRange, 2 * zRange) - zRange;
+}
+
+/**
+ * dot product of two positions/vectors
+ * @param {Number[]} a first 3d vector
+ * @param {Number[]} b second 3d vector
+ * @returns {Number}
+ */
+function dot(a, b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+/**
+* uses the pxdata to draw 16-color pixel art onto the banvas. 
+* @param {Number[]} pxData an array of integers. Each integer represents one line of the art. Individual pixels are represented by a chunk of 4 bits.
+* @param {Number} startX the X coordinate of the banvas to start on
+* @param {Number} startY the Y coordinate of the banvas to start on
+* @param {Number} pxSize how large each pixel of the pixel art should be displayed at
+ */
+function drawPixelArt(pxData, startX, startY, pxSize) {
+	var pxWidth = pxData.w * pxSize;
+	var pxHeight = pxData.h * pxSize;
+	
+	for (var y=0; y<pxData.h; y++) {
+		const dat = pxData[y];
+		for (var x=0; x<pxData.w; x++) {
+			const ind = dat >> (4 * (pxData.w - x - 1)) & 0xF;
+			btx.fillStyle = colors16[ind];
+			btx.fillRect(startX + x * pxSize, startY + y * pxSize, pxSize + 0.5, pxSize + 0.5);
+		}
+	}
+}
+
+function drawUI() {
+	const cvs = banvas;
+	const cw = cvs.width;
+	const ch = cvs.height;
+	const pxW = cw / render_n;
+	const pxH = ch / render_n;
+	var center = [cvs.width / 2, cvs.height / 2];
+	const crossLen = (render_n < 100) ? (1 / render_n) : 0.04;
+	
+	//crosshair
+	btx.globalAlpha = 0.3;
+	btx.beginPath();
+	btx.strokeStyle = color_editor_border;
+	btx.lineWidth = Math.ceil(ch * (1.5 / render_n));
+	btx.moveTo(center[0] - ch * crossLen, center[1]);
+	btx.lineTo(center[0] + ch * crossLen, center[1]);
+	btx.moveTo(center[0], center[1] - ch * crossLen);
+	btx.lineTo(center[0], center[1] + ch * crossLen);
+	btx.stroke();
+	
+	//collision
+	if (debug_flags.collisionRaycast) {
+		const pixelsInX = render_colN;
+		const pixelsInY = render_colN;
+	
+		const xDir = polToCart(camera.theta + (Math.PI / 2), 0, 1);
+		const yDir = polToCart(camera.theta, camera.phi - (Math.PI / 2), 1);
+		const zDir = polToCart(camera.theta, camera.phi, camera_planeOffset);
+	
+		for (var x=0; x<pixelsInX; x++) {
+			drawLine(x, calcLine(xDir, yDir, zDir, x, pixelsInX, pixelsInY));
+		}
+	}
+	
+	if (!debug_listening) {
+		btx.globalAlpha = 1;
+		return;
+	}
+	
+	//debug bars
+	btx.fillStyle = color_editor_border;
+	btx.fillRect(0, 0, cvs.width, pxH * 12);
+	btx.fillRect(0, ch - pxH * 12, cvs.width, pxH * 12);
+	
+	drawEditorGizmo();
+	
+	//selected object ghost
+	if (editor_selected != player) {
+		var ghostPos = calcScreenPos(editor_selected.pos);
+		if (ghostPos) {
+			btx.globalAlpha = 1;
+			btx.lineWidth = 1;
+			btx.strokeStyle = colors16[15];
+			btx.beginPath();
+			btx.arc(...ghostPos, 6, 0, Math.PI * 2);
+			btx.stroke();
+			btx.globalAlpha = 0.3;
+		}
+	}
+	
+	//global/local indicator
+	btx.globalAlpha = 0.6;
+	drawPixelArt(editor_local ? pxdata_box : pxdata_world, 4 * pxW, 16 * pxH, pxW * 4);
+	btx.globalAlpha = 1;
+}
+
+function drawLine(x, colorArr) {
+	//writing directly to imageData is theoretically faster than changing fillStyle a bunch
+	var blockSizeTrue = (banvas.width / render_colN);
+	var blockSize = Math.round(banvas.width / render_colN);
+	var imageData = btx.createImageData(blockSize, banvas.height);
+	var dataBlock = imageData.data;
+	for (var y=0; y<render_colN; y++) {
+		var r = colorArr[3*y];
+		for (var yOff=0; yOff<blockSize; yOff++) {
+			var lineInd = 4 * blockSize * (y * blockSize + yOff);
+			for (var xOff=0; xOff<blockSize; xOff++) {
+				var pixelInd = lineInd + (4 * xOff);
+				dataBlock[pixelInd] = r;
+				dataBlock[pixelInd+3] = r / 2;
+			}
+		}
+	}
+	
+	btx.putImageData(imageData, x * blockSizeTrue, 0);
+	render_linesDrawn += 1;
+}
+
+/**
+ * Returns the camera's basis vectors (right/X, up/Y, forward/Z).
+ * @returns {Object} `{right: Pos, up: Pos, forward: Pos}` (each is a normalized Pos vector)
+ */
+function getCameraBasis() {
+	return {
+		right:	polToCart(camera.theta + (Math.PI / 2), 0, 1),
+		up:		polToCart(camera.theta, camera.phi + (Math.PI / 2), 1),
+		forward:polToCart(camera.theta, camera.phi, 1)
+	};
+}
+
+function getDistance(x1, y1, z1, x2, y2, z2) {
+	const dx = x1 - x2;
+	const dy = y1 - y2;
+	const dz = z1 - z2;
+	return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function getDistancePos(pos1, pos2) {
+	const dx = pos1[0] - pos2[0];
+	const dy = pos1[1] - pos2[1];
+	const dz = pos1[2] - pos2[2];
+	return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
+	var xVec = transform([rx, 0, 0], [0, 0, 0], theta, phi, rot);
+	var yVec = transform([0, ry, 0], [0, 0, 0], theta, phi, rot);
+	var zVec = transform([0, 0, rz], [0, 0, 0], theta, phi, rot);
+	
+	//since a cube gives every combination of ±vec, it's possible to just decompose the vectors and take the min / max variance
+	const bestX = (Math.abs(xVec[0]) + Math.abs(yVec[0]) + Math.abs(zVec[0]));
+	const bestY = (Math.abs(xVec[1]) + Math.abs(yVec[1]) + Math.abs(zVec[1]));
+	const bestZ = (Math.abs(xVec[2]) + Math.abs(yVec[2]) + Math.abs(zVec[2]));
+
+	return [
+		Pos(pos[0] - bestX, pos[1] - bestY, pos[2] - bestZ),
+		Pos(pos[0] + bestX, pos[1] + bestY, pos[2] + bestZ),
+	];
 }
 
 //tests whether the keys in dictionary A and B are the same
@@ -157,6 +353,16 @@ function keysMatch(dictA, dictB) {
 	return (s.size == 0);
 }
 
+
+function loadWorld(worldName) {
+	var obj = worlds[worldName];
+	if (!obj) {
+		console.error(`invalid world name!`);
+		return;
+	}
+	player.world = obj;
+}
+
 /**
 * takes in two 3d vectors and returns the projection of a onto b
 * @param {Number[]} a the first 3d vector
@@ -168,75 +374,6 @@ function proj(a, b) {
 	const mult = ab / bb;
 	//proj = v(u•v / v•v)
 	return [b[0] * mult, b[1] * mult, b[2] * mult];
-}
-
-/**
- * dot product of two positions/vectors
- * @param {Number[]} a first 3d vector
- * @param {Number[]} b second 3d vector
- * @returns {Number}
- */
-function dot(a, b) {
-	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-function getDistance(x1, y1, z1, x2, y2, z2) {
-	var dx = x1 - x2;
-	var dy = y1 - y2;
-	var dz = z1 - z2;
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
-
-function getDistancePos(pos1, pos2) {
-	var dx = pos1[0] - pos2[0];
-	var dy = pos1[1] - pos2[1];
-	var dz = pos1[2] - pos2[2];
-	return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
-
-function loadWorld(worldName) {
-	var obj = worlds[worldName];
-	if (!obj) {
-		console.error(`invalid world name!`);
-		return;
-	}
-	player.world = obj;
-}
-
-// function randStable(i1, i2) {
-// 	var n = i1 * 3 + i2 * 113;
-
-// 	// 1D hash by Hugo Elias
-// 	n = (n << 13) ^ n;
-// 	n = n * (n * n * 15731 + 789221) + 1376312589;
-// 	return -1 + 2 * (n & 0x0fffffff) / (0x0fffffff);
-// }
-
-// float randStable(vec2 pos) {
-// 	pos = 50.0 * fract(p * 0.3183099 + vec2(0.71, 0.113));
-// 	return -1.0 + 2.0 * fract(p.x * p.y * (p.x + p.y));
-// }
-
-function randStable(p0, p1) {
-	const b0 = p0 * 0.3183099 + 0.71;
-	const b1 = p1 * 0.3183099 + 0.113;
-	p0 = 50 * (b0 - Math.floor(b0));
-	p1 = 50 * (b1 - Math.floor(b1));
-	const q = p0 * p1 * (p0 + p1);
-	return 2 * (q - Math.floor(q)) - 1;
-}
-
-function noise(x, y) {
-	var i = [Math.floor(x), Math.floor(y)];
-	var f = [x - Math.floor(x), y - Math.floor(y)];
-	f = [
-		f[0] * f[0] * (3 - 2 * f[0]),
-		f[1] * f[1] * (3 - 2 * f[1]),
-	];
-	
-	//bilinear interpolation on the corners
-	return linterp( linterp(randStable(i[0], i[1]),            randStable(i[0]+1, i[1]), f[0]),
-					linterp(randStable(i[0], i[1]+1), randStable(i[0]+1, i[1]+1), f[0]), f[1]);
 }
 
 //https://www.researchgate.net/publication/354065227_Essential_Ray_Generation_Shaders
@@ -292,36 +429,29 @@ function projectOct(x, pixelsInX, y, pixelsInY) {
 	return n;
 }
 
-
-function sortByMorton(objsList) {
-	//takes in a list of objects [obj1, obj2, obj3..] 
-	//and returns a list of objects [obj3, obj1, obj2...] sorted by their morton code. Since we're just constructing a BVH
-	//it doesn't really matter whether it sorts high - low or low - high.
-	var sortList = objsList.map((a) => {
-		const bounds = a.bounds();
-		return [a, calcMorton(a, bounds[0], bounds[1])];
-	});
+function noise(x, y) {
+	var i = [Math.floor(x), Math.floor(y)];
+	var f = [x - Math.floor(x), y - Math.floor(y)];
+	f = [
+		f[0] * f[0] * (3 - 2 * f[0]),
+		f[1] * f[1] * (3 - 2 * f[1]),
+	];
 	
-	sortList.sort((a, b) => {
-		return a[1] - b[1];
-	});
-	
-	return sortList.map(a => a[0]);
+	//bilinear interpolation on the corners
+	return linterp( linterp(randStable(i[0], i[1]),            randStable(i[0]+1, i[1]), f[0]),
+					linterp(randStable(i[0], i[1]+1), randStable(i[0]+1, i[1]+1), f[0]), f[1]);
 }
 
-function interleaveMorton(x, y, z) {
-	return swizzleMorton(x) | (swizzleMorton(y) << 1) | (swizzleMorton(z) << 2);
+function randStable(p0, p1) {
+	const b0 = p0 * 0.3183099 + 0.71;
+	const b1 = p1 * 0.3183099 + 0.113;
+	p0 = 50 * (b0 - Math.floor(b0));
+	p1 = 50 * (b1 - Math.floor(b1));
+	const q = p0 * p1 * (p0 + p1);
+	return 2 * (q - Math.floor(q)) - 1;
 }
 
-function swizzleMorton(x) {
-	x = (x * 0x00010001) & 0xFF0000FF;
-	x = (x * 0x00000101) & 0x0F00F00F;
-	x = (x * 0x00000011) & 0xC30C30C3;
-	x = (x * 0x00000005) & 0x49249249;
-	return x;
-}
-
-function calcMorton(pos, lowestPos, highestPos) {
+function mortonCalc(pos, lowestPos, highestPos) {
 	const mortonRange = (2 ** 10) - 1;
 	
 	const xRange = highestPos[0] - lowestPos[0];
@@ -337,30 +467,35 @@ function calcMorton(pos, lowestPos, highestPos) {
 	y = (y * mortonRange) | 0;
 	z = (z * mortonRange) | 0;
 	
-	return interleaveMorton(x, y, z);
+	return mortonInterleave(x, y, z);
 }
 
-//determines if aabb2 is completely inside aabb1
-function aabbInside(minPos1, maxPos1, minPos2, maxPos2) {
-	return  (minPos1[0] <= minPos2[0]) && (maxPos1[0] >= maxPos2[0]) && 
-			(minPos1[1] <= minPos2[1]) && (maxPos1[1] >= maxPos2[1]) && 
-			(minPos1[2] <= minPos2[2]) && (maxPos1[2] >= maxPos2[2]);
+function mortonInterleave(x, y, z) {
+	return mortonSwizzle(x) | (mortonSwizzle(y) << 1) | (mortonSwizzle(z) << 2);
 }
 
-function BVHUnion(node1, node2) {
-	const minPos = Pos(
-		Math.min(node1.minPos[0], node2.minPos[0]),
-		Math.min(node1.minPos[1], node2.minPos[1]),
-		Math.min(node1.minPos[2], node2.minPos[2]),
-	);
+function mortonSort(objsList) {
+	//takes in a list of objects [obj1, obj2, obj3..] 
+	//and returns a list of objects [obj3, obj1, obj2...] sorted by their morton code. Since we're just constructing a BVH
+	//it doesn't really matter whether it sorts high - low or low - high.
+	var sortList = objsList.map((a) => {
+		const bounds = a.bounds();
+		return [a, mortonCalc(a, bounds[0], bounds[1])];
+	});
 	
-	const maxPos = Pos(
-		Math.max(node1.maxPos[0], node2.maxPos[0]),
-		Math.max(node1.maxPos[1], node2.maxPos[1]),
-		Math.max(node1.maxPos[2], node2.maxPos[2]),
-	);
+	sortList.sort((a, b) => {
+		return a[1] - b[1];
+	});
 	
-	return new BVH_Node(minPos, maxPos, null, node1, node2);
+	return sortList.map(a => a[0]);
+}
+
+function mortonSwizzle(x) {
+	x = (x * 0x00010001) & 0xFF0000FF;
+	x = (x * 0x00000101) & 0x0F00F00F;
+	x = (x * 0x00000011) & 0xC30C30C3;
+	x = (x * 0x00000005) & 0x49249249;
+	return x;
 }
 
 function modulate(x, num) {
@@ -385,17 +520,37 @@ function normalizeTo(vector, length) {
 	return norm;
 }
 
-function performanceTest() {
-	var perf = [performance.now(), 0];
-	var storage = 0;
+function perf_logStart(logName) {
+	perf_log[logName].push(performance.now());
+}
 
-	for (var x=0; x<100000000; x++) {
-		storage += Math.sqrt(x % 10000) * (2 * (x % 1) - 1);
+function perf_logEnd(logName) {
+	const n = perf_log[logName].length - 1;
+	var past = perf_log[logName][n];
+	if (!past) {
+		return;
 	}
+	var present = performance.now();
+	perf_log[logName][n] = present - past;
+	if (n > perf_len) {
+		perf_log[logName].splice(0, 1);
+	}
+	return (present - past);
+}
 
-	perf[1] = performance.now();
-	console.log(storage, perf[1] - perf[0]);
-	return;
+function prand(min, max) {
+	rand_seed |= 0;
+	rand_seed = rand_seed + 0x9e3779b9 | 0;
+	let t = rand_seed ^ rand_seed >>> 16;
+	t = Math.imul(t, 0x21f0aaad);
+	t = t ^ t >>> 15;
+	t = Math.imul(t, 0x735a2d97);
+	return min + (((t = t ^ t >>> 15) >>> 0) / 4294967296) * (max - min);
+}
+
+function printPos(pos) {
+	const n = 3;
+	return `(${pos[0].toFixed(n)},${pos[1].toFixed(n)},${pos[2].toFixed(n)})`;
 }
 
 /**
@@ -490,33 +645,32 @@ function transformInverse(point, offset, theta, phi, rot) {
 function transformInverseMat(point, offset, rotMatrix) {
 }
 
-function prand(min, max) {
-	rand_seed |= 0;
-	rand_seed = rand_seed + 0x9e3779b9 | 0;
-	let t = rand_seed ^ rand_seed >>> 16;
-	t = Math.imul(t, 0x21f0aaad);
-	t = t ^ t >>> 15;
-	t = Math.imul(t, 0x735a2d97);
-	return min + (((t = t ^ t >>> 15) >>> 0) / 4294967296) * (max - min);
+/**
+ * gives the SDF of a specified set of objects (considered the Scene.)
+ * @param {Scene3dObject[]} sceneCollection array of objects to check against
+ * @param {Pos} pos position to check
+ * @returns `[closestDist, closestObj]`
+ */
+function sceneSDF(sceneCollection, pos) {
+	var dist = 1e1001;
+	var distObj = undefined;
+	var testDist;
+	sceneCollection.forEach(o => {
+		testDist = o.distanceToPos(pos);
+		testDist = applyDist(dist, testDist, o.nature);
+		if (testDist != dist) {
+			dist = testDist;
+			distObj = o;
+		}
+	});
+	return [dist, distObj];
 }
 
 function updateFOV(newFOV) {
-	updateFOV_work([newFOV]);
-	worker_pool.forEach(w => {
-		w.postMessage(["updateFOV", newFOV, render_goalN]);
-	});
+	updateFOV_work(newFOV);
 }
 
-function printPos(pos) {
-	const n = 3;
-	return `(${pos[0].toFixed(n)},${pos[1].toFixed(n)},${pos[2].toFixed(n)})`;
-}
-
-function updateFOV_work(data) {
-	var [newFOV, newRenderN] = data;
-	if (newRenderN) {
-		render_n = newRenderN;
-	}
+function updateFOV_work(newFOV) {
 	camera_FOV = newFOV;
 	//first figure out best function given the FOV
 	switch (true) {
@@ -544,48 +698,4 @@ function updateFOV_work(data) {
 			console.error(`something went wrong with FOV=${newFOV} ):`);
 			break;
 	}
-}
-
-/**
- * @param {Pos} worldPos - the position in the world to calculate the screen position of
- * @return {Number[]|null} the screen position as [x, y], or null if the position is behind the camera
- */
- function calcScreenPos(worldPos) {
-	if (!worldPos) {
-		return null;
-	}
-	//first, find the offset of the world pos from the camera in the camera's coordinate system. If the offset is negative, it's behind the camera and we can ignore it.
-	if (worldPos[0] == undefined || worldPos[1] == undefined || worldPos[2] == undefined) {
-		return null;
-	}
-	var delta = [worldPos[0] - camera.pos[0], worldPos[1] - camera.pos[1], worldPos[2] - camera.pos[2]];
-	var offset = dot(delta, polToCart(camera.theta, camera.phi, 1)); 
-	if (offset <= 0) {
-		return null;
-	}
-
-	// projecting world pos to screen
-	var right = dot(delta, polToCart(camera.theta + (Math.PI / 2), 0, 1));
-	var up = -dot(delta, polToCart(camera.theta, camera.phi - (Math.PI / 2), 1));
-
-	// oughhhh fov
-	var halfHeight = Math.tan(camera_FOV * degToRad / 2);
-	var halfWidth = halfHeight * (banvas.width / banvas.height);
-	var normalizedX = (right / offset) / halfWidth;
-	var normalizedY = (up / offset) / halfHeight;
-
-	return [(normalizedX * 0.5 + 0.5) * banvas.width, (1 - (normalizedY * 0.5 + 0.5)) * banvas.height];
-}
-
-
-/**
- * Returns the camera's basis vectors (right/X, up/Y, forward/Z).
- * @returns {Object} - {right: Pos, up: Pos, forward: Pos} (each is a normalized Pos vector)
- */
-function getCameraBasis() {
-	return {
-		right: polToCart(camera.theta + (Math.PI / 2), 0, 1),      // X/right: theta + 90°, horizontal
-		up: polToCart(camera.theta, camera.phi - (Math.PI / 2), 1), // Y/up: phi - 90°, vertical
-		forward: polToCart(camera.theta, camera.phi, 1)             // Z/forward: straight ahead
-	};
 }
