@@ -40,7 +40,8 @@ class Player {
 		this.dMax = 1.5;
 		this.dMin = 0.05;
 
-		this.speed = 0.07;
+		//how fast the player accelerates
+		this.accel = 0.07;
 		this.jumpSpeed = 6;
 		this.dashBase = 3;
 		this.dashMult = 1.5;
@@ -50,6 +51,7 @@ class Player {
 
 		this.gravity = 0.1;
 		this.fallMax = 10;
+		this.trueMax = 30;
 		this.grounded = 0;
 		this.maxGroundDot = 0.1;
 
@@ -57,16 +59,25 @@ class Player {
 		this.width = player_width;
 
 		this.colPoints = 16;
-		this.colObjs = new Set();
+		this.possibleObjs = [];
+		this.contactObjs = new Set();
 		this.colPanicThreshold = 0.75;
 		this.mmtmFactor = 1 - (1 / Math.E);
 		
 		this.theta = 0;
 		this.phi = 0;
 	}
+	
+	calcPossibleObjs() {
+		this.possibleObjs = this.world.bvh.objectsInBox(
+			Pos(this.pos[0] - this.trueMax, this.pos[1] - this.trueMax, this.pos[2] - this.trueMax),
+			Pos(this.pos[0] + this.trueMax, this.pos[1] + this.trueMax, this.pos[2] + this.trueMax)
+		);
+	}
 
 	tick() {
 		this.updateMomentum();
+		this.calcPossibleObjs();
 		
 		//take 2 half-steps
 		this.dPos[0] /= 2;
@@ -171,7 +182,7 @@ class Player {
 							bounceResult = bounceResult.parent;
 						}
 						if (bounceResult.dPos) {
-							this.colObjs.add(bounceResult);
+							this.contactObjs.add(bounceResult);
 						}
 					}
 				}
@@ -206,8 +217,7 @@ class Player {
 	rayBounce(spherePos, dPos, vec) {
 		const w = this.width;
 		var pos = Pos(spherePos[0] + vec[0]*w, spherePos[1] + vec[1]*w, spherePos[2] + vec[2]*w);
-		var [dist, distObj] = this.world.tree.estimatePos(pos);
-		distObj = this.world.expObjs[distObj];
+		var [dist, distObj] = sceneSDF(this.possibleObjs, pos);
 		
 		//hit
 		if (dist < ray_minDist) {
@@ -217,6 +227,7 @@ class Player {
 				spherePos[0] += saved.offset[0];
 				spherePos[1] += saved.offset[1];
 				spherePos[2] += saved.offset[2];
+				this.calcPossibleObjs();
 				return null;
 			}
 			return distObj;
@@ -267,9 +278,9 @@ class Player {
 		
 		//"sideways" (in reality can have a vertical component. This just means apply dPos)
 		var speed = getDistancePos(this.dPos, zeroPos);
-		if (speed > 30) {
+		if (speed > this.trueMax) {
 			console.log(`too fast!`);
-			speed = 30;
+			speed = this.trueMax;
 		}
 		
 		this.updateSubPosition(dHat, speed, coords, dChange, panicPoints);
@@ -278,14 +289,14 @@ class Player {
 		this.updateSubPosition(Pos(0, -1, 0), player_stepHeight + 1, coords, Pos(0, 0, 0), panicPoints);
 		
 		//have objects bring the player up to speed
-		this.colObjs.forEach((obj => {
+		this.contactObjs.forEach((obj => {
 			var vec = [
 				obj.dPos[0] * this.mmtmFactor,
 				obj.dPos[1] * this.mmtmFactor,
 				obj.dPos[2] * this.mmtmFactor,
 			]
 			dChange = linterpMulti(dChange, vec, 0.5);
-			this.colObjs.delete(obj);
+			this.contactObjs.delete(obj);
 		}).bind(this));
 		
 		//never bounce back faster than we started
@@ -473,7 +484,7 @@ class Player {
 	
 	dash() {
 		var speed = getDistancePos(this.dPos, Pos(0, 0, 0));
-		if (speed > this.speed && speed < this.dashBase) {
+		if (speed > this.accel && speed < this.dashBase) {
 			this.dPos = normalize(this.dPos);
 			this.dPos[0] *= this.dashBase;
 			this.dPos[1] *= this.dashBase;
@@ -497,7 +508,7 @@ class Player_Debug extends Player {
 	constructor(world, pos) {
 		super(world, pos);
 		this.dMax = 6;
-		this.speed = 0.4;
+		this.accel = 0.4;
 	}
 	
 	updateSubMomentum() {
@@ -514,7 +525,7 @@ class Player_Noclip extends Player {
 	constructor(world, pos) {
 		super(world, pos);
 		this.dMax = 6;
-		this.speed = 0.4;
+		this.accel = 0.4;
 	}
 	
 	updateSubMomentum() {
