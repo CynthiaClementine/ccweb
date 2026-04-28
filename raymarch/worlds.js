@@ -109,14 +109,12 @@ class World {
 	 * @param {Number|none} shadowPercent a number from 0 to 1 representing the brightness of shadowed areas. At 0, shadows do nothing. At 1, shadows are pure black.
 	 */
 	constructor(name, preEffects, effects, sunVector, spawn, objects, shadowPercent, tickFunc) {
-		console.log(`started ${name}..`);
 		this.name = name;
 		this.id = null;
 		
 		this.preEffects = preEffects;
 		this.postEffects = effects;
 		this.tickFunc = tickFunc;
-		
 		
 		this.sunVector = sunVector;
 		this.spawn = spawn;
@@ -128,8 +126,6 @@ class World {
 		
 		this.ambientLight = 1 - (shadowPercent ?? render_shadowPercent);
 		
-		this.grid = null;
-		this.tree = null;
 		this.bvh = null;
 		this.errorCheck();
 		this.finalize();
@@ -166,7 +162,6 @@ class World {
 		worldsByID[this.id] = this;
 		
 		this.bvh = new BVH(this);
-		this.tree = new ObjectGrid(this, world_objectChunks);
 		this.generate();
 		console.log(`finished ${this.name}!`);
 	}
@@ -204,23 +199,11 @@ class World {
 	generate() {
 		this.express();
 		this.bvh.generate();
-		// this.grid.generate();
-		this.tree.generate();
 	}
 	
 	//estimate distance at a given point. Returns both distance and the object that gave that distance
 	estimateObj(obj) {
-		var dist = 1e1001;
-		var distObj = undefined;
-		var testDist;
-		this.objects.forEach(o => {
-			testDist = o.distanceToObj(obj);
-			if (testDist < dist) {
-				dist = testDist;
-				distObj = o;
-			}
-		});
-		return [dist, distObj];
+		return sceneSDF(this.objects);
 	}
 	
 	estimatePos(pos) {
@@ -297,7 +280,8 @@ function createWorlds() {
 		],
 		polToCart(0, 0.7, 1),
 		// [268, 53, 64],
-		[-493,650,168, 2.355, -0.48],
+		// [-493,650,168, 2.355, -0.48],
+		[85,607,-16, 4.903, -0.85],
 		[	
 			`CUBE~[-100,330,100]~0~0~90~0|color:90~114~187|45`,
 			`PRISM-RHOMBUS~[-127,195,-191]~0~270~90~87|color:255~64~64|8~255~18~316`,

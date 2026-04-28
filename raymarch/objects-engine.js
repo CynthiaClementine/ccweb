@@ -16,7 +16,9 @@ class Ray_Tracking {
 		this.dPos = dPos;
 		this.distance = 0;
 		this.distCap = maxDist ?? ray_maxDist;
+		this.objsList = [];
 		this.object = null;
+		this.calcObjs();
 	}
 	
 	reset(world, pos, dPos) {
@@ -24,14 +26,19 @@ class Ray_Tracking {
 		this.pos = new Float32Array(pos);
 		this.dPos = dPos;
 		this.distance = 0;
+		this.calcObjs();
 		this.object = null;
+	}
+	
+	calcObjs() {
+		this.objsList = this.world.bvh.objects(this);
 	}
 
 	iterate() {
 		var iters = 0;
 		while (iters < ray_maxIters) {
 			//get distance
-			const distObj = this.world.tree.estimate(this);
+			const distObj = sceneSDF(this.objsList, this.pos)[1];
 			if (!distObj) {
 				this.distance = this.distCap;
 				return this.distCap;
@@ -91,7 +98,7 @@ class BVH {
 			this.root = new BVH_Node(Pos(0, 0, 0), Pos(0, 0, 0), -1, null, null);
 			return;
 		}
-		var sorted = sortByMorton(this.world.expObjs);
+		var sorted = mortonSort(this.world.expObjs);
 		this.root = this.generateSubtree(sorted, 0, sorted.length - 1);
 	}
 	
@@ -108,6 +115,10 @@ class BVH {
 		const left = this.generateSubtree(list, startInd, m);
 		const right = this.generateSubtree(list, m + 1, endInd);
 		return BVHUnion(left, right);
+	}
+	
+	objectsInBox(minPos, maxPos) {
+		return this.root.objectsInBox(minPos, maxPos);
 	}
 	
 	distance(obj) {
@@ -191,7 +202,22 @@ class BVH_Node {
 			tClose = Math.max(tClose, tLow);
 			tFar = Math.min(tFar, tHigh);
 		}
-		
 		return (tClose <= tFar);
+	}
+	
+	objectsInBox(minPos, maxPos) {
+		//figure out if the box overlaps self's box
+		var intersects = (minPos[0] < this.maxPos[0] && maxPos[0] > this.minPos[0])
+						&& (minPos[1] < this.maxPos[1] && maxPos[1] > this.minPos[1])
+						&& (minPos[2] < this.maxPos[2] && maxPos[2] > this.minPos[2]);
+		
+		if (!intersects) {
+			return [];
+		}
+		if (this.obj) {
+			return this.obj;
+		}
+		
+		return [].concat(this.left.objectsInBox(minPos, maxPos)).concat(this.right.objectsInBox(minPos, maxPos));
 	}
 }
