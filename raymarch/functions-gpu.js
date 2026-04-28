@@ -134,7 +134,7 @@ function setupGLState(vertexShaderCode, fragmentShaderCode) {
 	gl.enableVertexAttribArray(0);
 	
 	uDebug = gl.getUniformLocation(program, `uDebug`);
-	uResolution = gl.getUniformLocation(program,`uResolution`);
+	uResFov = gl.getUniformLocation(program,`uResFov`);
 	uTime = gl.getUniformLocation(program,`uTime`);
 	uCamPos = gl.getUniformLocation(program,`uCamPos`);
 	uCamRot = gl.getUniformLocation(program,`uCamRot`);
@@ -337,7 +337,7 @@ function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, 
 }
 
 function feedGPU() {
-	gl.uniform2f(uResolution, canvas.width, canvas.height);
+	gl.uniform3f(uResFov, canvas.width, canvas.height, camera_FOV);
 	gl.uniform1f(uTime, world_time);
 	
 	gl.activeTexture(gl.TEXTURE0);
