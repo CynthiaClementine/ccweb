@@ -74,6 +74,17 @@ class M_Color extends Material {
 	}
 }
 
+class M_Gravity extends M_Color {
+	static type = M_GRAVITY;
+	constructor() {
+		super(Color4(60, 0, 0, 200), 0);
+	}
+	
+	serialize() {
+		return `gravity`;
+	}
+}
+
 class M_Concrete extends M_Color {
 	static type = M_CONCRETE;
 	constructor() {
@@ -314,6 +325,7 @@ var map_strMat = {
 	"mirror": M_Mirror,
 	"normal": M_Normal,
 	"portal": M_Portal,
+	"gravity": M_Gravity,
 	"rubber": M_Rubber,
 };
 var map_matStr = Object.fromEntries(Object.entries(map_strMat).map(a => [a[1].name, a[0]]));

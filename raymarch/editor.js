@@ -661,6 +661,7 @@ function editor_initialize() {
 		"mirror": [...rgba],
 		"normal": [],
 		"portal": [textbox_world, slider_px, slider_py, slider_pz],
+		"gravity": [],
 		"rubber": [],
 	}
 }
@@ -704,7 +705,7 @@ function editor_removeObj(e, object) {
 }
 
 function editor_raycast() {
-	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), editor_placeOffset);
+	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist);
 	ray.iterate();
 	if (ray.world != loading_world) {
 		//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business
@@ -718,10 +719,9 @@ function editor_raycast() {
 		validPortals.sort((a, b) => a.distanceToPos(camera.pos) - b.distanceToPos(camera.pos));
 		ray.object = validPortals[0];
 	}
-	if (ray.object) {
-		console.log(`selecting`, ray.object);
-	}
 	editor_select(ray.object);
+	//set the placeOffset to match
+	editor_placeOffset = getDistancePos(editor_selected.pos, camera.pos);
 }
 
 function editor_select(object) {

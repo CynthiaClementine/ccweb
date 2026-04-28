@@ -5,6 +5,7 @@ const degToRad = (Math.PI / 180);
 
 const fencepost32 = 0xff0110ff;
 
+//it's called scaryVariable because you don't know if you can remove it or not
 var scaryVariable = 0;
 
 const N_NORMAL =0;
@@ -12,7 +13,7 @@ const N_GLOOP = 1;
 const N_ANTI =	2;
 const N_FOG =	4;
 const N_SMOOTH =8;
-const N_GRAVITY =16;
+const N_GRAVITY=16;
 
 const M_COLOR =		0;
 const M_CONCRETE =	1;
@@ -21,6 +22,7 @@ const M_NORMAL =	3;
 const M_GLASS =		10;
 const M_GHOST =		11;
 const M_PORTAL =	20;
+const M_GRAVITY =	25;
 const M_MIRROR =	30;
 
 const TYPE_SPHERE =			0;
@@ -152,10 +154,12 @@ var mortonBits = 10;
 
 var page_animation;
 
-var perf_log = [];
-var perf_logAbs = [];
+var perf_log = {
+	"tick": [0], 
+	"intra": [0], 
+	"inter": [0]
+};
 var perf_len = 20;
-var perf_n = 0;
 var perf_startT = 0;
 var perf_endT = 0;
 
@@ -177,13 +181,14 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 512;
+var render_n = 150;
 var render_nAutoRange = [120, 512];
 var render_lastScaleTime = -1;
 var render_colN = 60;
 var render_goalN = render_n;
 var render_shadowPercent = 0.7;
 var render_linesDrawn = 0;
+
 
 const months = [`March`, `Jan`, `January`, `Fay`, `May`, `.`, `Sept`, `July`, `Aug`, `Auct`, `Dec`, `Enerch`];
 
@@ -266,6 +271,8 @@ const splashes = [
 	`Help, help, I'm being compressed!`
 ];
 
+var tickHandler;
+
 const tree_maxD = 5000;
 const tree_minD = 2;
 const tree_l = 41;
@@ -284,7 +291,7 @@ const universe_maxID = 20;
 
 //uniforms
 var uDebug;
-var uResolution;
+var uResFov;
 var uTime;
 var uCamPos;
 var uCamRot;
