@@ -31,6 +31,7 @@ const TYPE_CAPSULE =		2;
 const TYPE_CYLINDER =		3;
 const TYPE_SHELL =			4;
 const TYPE_CONE =			5;
+const TYPE_SINGULARITY =	9;
 const TYPE_BOX =			10;
 const TYPE_BOXFRAME =		11;
 const TYPE_GYROID =			12;
@@ -181,7 +182,7 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 150;
+var render_n = 240;
 var render_nAutoRange = [120, 512];
 var render_lastScaleTime = -1;
 var render_colN = 60;

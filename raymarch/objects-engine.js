@@ -9,13 +9,15 @@ class Ray_Tracking {
 	* @param {Float32Array[]} pos starting position of the ray
 	* @param {Float32Array[]} dPos direction vector to travel in
 	* @param {Number} maxDist the maximum distance to travel before stopping
+	* @param {Number} minDist the minimum distance at which a collision counts
 	*/
-	constructor(world, pos, dPos, maxDist) {
+	constructor(world, pos, dPos, maxDist, minDist) {
 		this.world = world;
 		this.pos = new Float32Array(pos);
 		this.dPos = dPos;
 		this.distance = 0;
 		this.distCap = maxDist ?? ray_maxDist;
+		this.minDist = minDist ?? ray_minDist;
 		this.objsList = [];
 		this.object = null;
 		this.calcObjs();
@@ -35,6 +37,7 @@ class Ray_Tracking {
 	}
 
 	iterate() {
+		const minDist = this.minDist;
 		var iters = 0;
 		while (iters < ray_maxIters) {
 			//get distance
@@ -55,7 +58,7 @@ class Ray_Tracking {
 			// distObj = this.world.objects[distObj];
 			
 			//if distance is out of dist bounds
-			if (dist < ray_minDist) {
+			if (dist < minDist) {
 				this.object = distObj;
 				return this.distance;
 			}

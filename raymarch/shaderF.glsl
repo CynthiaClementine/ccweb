@@ -19,6 +19,7 @@
 #define CAPSULE		2
 #define CYLINDER	3
 #define SHELL		4
+#define SINGULARITY	9
 #define BOX			10
 #define BOXFRAME	11
 #define GYROID		12
@@ -124,36 +125,24 @@ Raydata stage[2] = Raydata[2](
 );
 
 void calcSceneObjs(int);
-mat4 metric(vec4);
-mat4 metricInv(vec4);
-Path geodesicStep(Path, float);
+mat4 metric(vec4, vec3, float);
+mat4 metricInv(vec4, vec3, float);
+Path geodesicStep(Path, float, vec3, float);
 
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 	vec3 dposn = normalize(newDPos);
 	vec4 spacetimeSpot = vec4(0., newPos.x, newPos.y, newPos.z);
 	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
-	mat4 metricAtSpot = metric(spacetimeSpot);
 
 	stage[stg].path.spot = spacetimeSpot;
 	stage[stg].path.vel = dposn;
-	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
+	stage[stg].path.momentum = vec4(1, dposn);
 	calcSceneObjs(stg);
 	bounceCount += 1;
 }
 
 void teleport(int stg, vec3 newPos) {
 	stage[stg].path.spot.yzw = newPos;
-	calcSceneObjs(stg);
-	bounceCount += 1;
-}
-
-void bounce(int stg, vec3 newDPos) {
-	vec3 dposn = normalize(newDPos);
-	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
-	mat4 metricAtSpot = metric(stage[stg].path.spot);
-
-	stage[stg].path.momentum = metricAtSpot * dposSpacetime;
-	stage[stg].path.vel = dposn;
 	calcSceneObjs(stg);
 	bounceCount += 1;
 }
@@ -729,7 +718,8 @@ float objSDF(vec3 p, int world, int index) {
 		case PRISM_HEX:
 		case PRISM_OCT: 
 			{d = prismSDF(p, type, data[1][3], data[2]);} break;
-		case SPHERE: 
+		case SPHERE:
+		case SINGULARITY:
 			{d = sphereSDF(p, data[1][3]);} break;
 		case SHELL:
 			{d = shellSDF(p, data[1][3], data[2]);} break;
@@ -838,7 +828,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 				vec3 normal = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
 				//vec3 normal = normalize(vec3(-1, -1, -1));
 				float product = dot(stage[stg].path.vel, normal);
-				bounce(stg, stage[stg].path.vel - 2. * normal * product);
+				setStageRay(stg, stage[stg].path.spot.yzw, stage[stg].path.vel - 2. * normal * product);
 				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
@@ -865,7 +855,21 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			}
 		} return;
 		case M_GRAVITY: {
-		
+			//TODO: refactor
+			//DO THIS:
+			Path oldPath = stage[stg].path;
+			Path newPath = geodesicStep(stage[stg].path, stage[stg].localDist, data0.xyz, data0[3]);
+			vec3 dPos = newPath.spot.yzw - oldPath.spot.yzw;
+			stage[0].localDist = length(dPos);
+			stage[0].path = newPath;
+			if (length(oldPath.vel - newPath.vel) > 0.003) {
+				calcSceneObjs(0);
+			}
+			//white hole: add some light
+			if (data0[3] < 0.0) {
+				applyColor(stg, vec4(1.0, 1.0, 1.0, -data0[3] * length(oldPath.vel - newPath.vel) / 3.));
+			}
+			stage[0].path.spot.yzw -= stage[0].path.vel * stage[0].localDist;
 		} return;
 	}
 }
@@ -1001,8 +1005,6 @@ float sceneSDF(vec3 p, int stg) {
 	for(int i=0; i<objCount; i++) {
 		float d = objSDF(p, stage[stg].world, objIndices[i]);
 		int nature = natureData(stage[stg].world, objIndices[i]);
-		// float d = objSDF(p, stage[stg].world, i);
-		
 		sceneDist = applyDist(stg, sceneDist, d, nature, objIndices[i]);
 	}
 	
@@ -1085,14 +1087,9 @@ void raymarch() {
 		}
 		applyPreEffects(0);
 		
-		vec3 before = stage[0].path.spot.yzw;
-		stage[0].path = geodesicStep(stage[0].path, stage[0].localDist);
-		vec3 after = stage[0].path.spot.yzw;
-		float travel = length(after - before);
-
-		stage[0].totalDist += travel;
-		stage[0].distSinceBounce += travel;
-		// stage[0].pos += stage[0].localDist * stage[0].dPos;
+		stage[0].path.spot.yzw += stage[0].path.vel * stage[0].localDist;
+		stage[0].totalDist += stage[0].localDist;
+		stage[0].distSinceBounce += stage[0].localDist;
 		if(stage[0].totalDist > ray_maxDist || stage[0].color.a > 0.99) {
 			return;
 		}
@@ -1115,19 +1112,20 @@ void shadow() {
 			mat4 matDat = matData(stage[1].world, stage[1].closestInd);
 			int type = matType(stage[1].world, stage[1].closestInd);
 			res = applyHitEffect(1, type, matDat[0], matDat[1], matDat[2]);
-			
 		}
 		
 		float shadowTolerance = min(stage[1].totalDist, 80.);
 		result = min(result, 4.0 * (stage[1].localDist / shadowTolerance));
 		
+		//TODO: make shadows work with gravity
 		stage[1].localDist = max(stage[1].localDist, ray_minDist);
-		vec3 before = stage[1].path.spot.yzw;
-		stage[1].path = geodesicStep(stage[1].path, stage[1].localDist);
-		vec3 after = stage[1].path.spot.yzw;
-		float travel = length(after - before);
+		// vec3 before = stage[1].path.spot.yzw;
+		// stage[1].path = geodesicStep(stage[1].path, stage[1].localDist);
+		// vec3 after = stage[1].path.spot.yzw;
+		// float travel = length(after - before);
 
-		stage[1].totalDist += travel;
+		stage[1].path.spot.yzw += stage[1].localDist * stage[1].path.vel;
+		stage[1].totalDist += stage[1].localDist;
 
 		//potentially add t cutoff here (far away objects won't cast shadows)
 		if (res > 0) {
@@ -1203,12 +1201,10 @@ In principle, we could speed this up by finding all of those analytically given 
 */
 
 /*
-mat4 metric(vec4 spot) {
+mat4 metricFlat(vec4 spot) {
 	// Flat spacetime
 	return mat4(
 		-1, 0, 0, 0,
-		// 0, 1. + spot.y * spot.y / 100000., 0, 0,
-		// 0, 1. + sin(spot.y / 400.) / 8., 0, 0,
 		0, 1, 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1
@@ -1223,8 +1219,8 @@ mat4 diag(vec4 a) {
 				0,0,0,a.w);
 }
 
-mat4 metric(vec4 x) {
-	x = x - vec4(0, 0, 500, 0);
+mat4 metric(vec4 spot, vec3 offset, float mass) {
+	spot -= vec4(0, offset);
 		
 	// Kerr-Newman metric in cartesian coordinates 
 	// (copied from https://michaelmoroz.github.io/TracingGeodesics/)
@@ -1232,11 +1228,11 @@ mat4 metric(vec4 x) {
 	// Angular momentum divided by mass
 	const float a = 0.0;
 	// Mass
-	const float m = 1.0;
+	float m = mass;
 	// Electric charge
 	const float q = 0.0;
 	
-	vec3 p = x.yzw;
+	vec3 p = spot.yzw;
 	float rho = dot(p,p) - a*a;
 	float r2 = 0.5*(rho + sqrt(rho*rho + 4.0*a*a*p.z*p.z));
 	float r = sqrt(r2);
@@ -1245,8 +1241,8 @@ mat4 metric(vec4 x) {
 	return f*mat4(k.x*k, k.y*k, k.z*k, k.w*k)+diag(vec4(-1,1,1,1));
 }
 
-mat4 metricInv(vec4 spot) {
-	return inverse(metric(spot));
+mat4 metricInv(vec4 spot, vec3 offset, float mass) {
+	return inverse(metric(spot, offset, mass));
 }
 
 float lengthSquare(mat4 metric, vec4 vel) {
@@ -1261,25 +1257,25 @@ float lengthSquare(mat4 metric, vec4 vel) {
 	return value;
 }
 
-float hamiltonian(vec4 spot, vec4 momentum) {
-	return lengthSquare(metricInv(spot), momentum);
+float hamiltonian(vec4 spot, vec4 momentum, vec3 singularityPos, float mass) {
+	return lengthSquare(metricInv(spot, singularityPos, mass), momentum);
 }
 
-vec4 metricPartialDerivatives(vec4 spot, vec4 momentum, mat4 metric, vec4 dxda) {
+vec4 metricPartialDerivatives(vec4 spot, vec4 momentum, mat4 metric, vec4 dxda, vec3 singularityPos, float mass) {
 	float origin = lengthSquare(metric, dxda);
 
-	float a = hamiltonian(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0), momentum) - origin;
-	float b = hamiltonian(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0), momentum) - origin;
-	float c = hamiltonian(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0), momentum) - origin;
-	float d = hamiltonian(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON), momentum) - origin;
+	float a = hamiltonian(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0), momentum, singularityPos, mass) - origin;
+	float b = hamiltonian(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0), momentum, singularityPos, mass) - origin;
+	float c = hamiltonian(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0), momentum, singularityPos, mass) - origin;
+	float d = hamiltonian(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON), momentum, singularityPos, mass) - origin;
 
 	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / 2.;
 }
 
-Path geodesicStep(Path current, float maxStep) {
-	mat4 metric = metric(current.spot);
+Path geodesicStep(Path current, float maxStep, vec3 singularityPos, float mass) {
+	mat4 metric = metric(current.spot, singularityPos, mass);
 	vec4 dxda = inverse(metric) * current.momentum;
-	vec4 dpda = metricPartialDerivatives(current.spot, current.momentum, metric, dxda);
+	vec4 dpda = metricPartialDerivatives(current.spot, current.momentum, metric, dxda, singularityPos, mass);
 
 	// Make the step size such that p changes by the desired amount
 	float momentumChange = length(dpda);

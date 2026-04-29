@@ -164,6 +164,7 @@ var map_strObj = {
 	"PRISM-RHOMBUS": PrismRhombus,
 	"RING": Ring,
 	"SHELL": Shell,
+	"SINGULARITY": Singularity,
 	"SPHERE": Sphere,
 	"TERRAIN": Terrain,
 	"VOXEL": Voxel,

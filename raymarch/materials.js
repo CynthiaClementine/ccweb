@@ -4,10 +4,11 @@ MATERIAL TYPES
 1     concrete
 2     rubber
 3     normal
-10   glass
+10    glass
 11    ghost
-20   portal
-30   mirror
+20    portal
+25    gravity
+30    mirror
 */
 
 class Material {
@@ -29,6 +30,9 @@ class Material {
 	applyHitEffect(ray) {
 		console.error(`Hit effect not initialized for material ${this.constructor.name}!`);
 	}
+	
+	//steal properties from parent object if necessary
+	syncWith(object) {}
 	
 	pushOut(ray, object, recursed) {
 		const pos = ray.pos;
@@ -74,14 +78,30 @@ class M_Color extends Material {
 	}
 }
 
-class M_Gravity extends M_Color {
+class M_Gravity extends Material {
 	static type = M_GRAVITY;
-	constructor() {
-		super(Color4(60, 0, 0, 200), 0);
+	constructor(x, y, z, mass) {
+		super(Color4(10,0,0,200));
+		this.bounciness = 0;
+		this.pos = Pos(x, y, z);
+		this.mass = mass;
+	}
+	
+	applyNearEffect(ray) {}
+	applyHitEffect(ray, obj) {}
+	
+	syncWith(obj) {
+		this.pos = obj.pos;
+		this.mass = obj.mass;
 	}
 	
 	serialize() {
-		return `gravity`;
+		return `gravity:${this.pos[0]}~${this.pos[1]}~${this.pos[2]}~${this.mass}`;
+	}
+	
+	
+	serializeGPU() {
+		return [this.type, [...this.pos, this.mass]];
 	}
 }
 

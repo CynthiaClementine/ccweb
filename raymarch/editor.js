@@ -57,8 +57,10 @@ function createHTMLCheckboxAt(parentName, checkboxName, label) {
 function transferProperties(oldObj, newObj) {
 	var refuseTransfer = [`pos`, `material`, `type`];
 	
-	var materialCopy = deserializeMat(oldObj.material.serialize());
-	newObj.material = materialCopy;
+	if (newObj.material.type != M_GRAVITY) {
+		var materialCopy = deserializeMat(oldObj.material.serialize());
+		newObj.material = materialCopy;
+	}
 	
 	//standard translation
 	newObj.pos = Pos(...oldObj.pos);
@@ -82,6 +84,7 @@ function transferPropertiesMat(oldMat, newMat) {
 	Object.keys(oldMat).forEach(p => {
 		if (oldMat[p] && newMat[p] && !refuseTransfer.includes(p)) {
 			newMat[p] = oldMat[p];
+			
 		}
 	});
 }
@@ -146,9 +149,10 @@ function deserializeMat(str) {
 	
 	switch (name) {
 		case `portal`:
-			obj = new M_Portal(params[0], Pos(...JSON.parse(params[1])));
+			obj = new type(params[0], Pos(...JSON.parse(params[1])));
 			break;
 		default:
+			console.log(`deserializing ${str}`);
 			try {
 				obj = new type(...params.map(a => +a));
 			} catch (e) {
@@ -438,6 +442,7 @@ var slider_shiftX, slider_shiftY, slider_shiftZ;
 
 var slider_r, slider_g, slider_b, slider_a;
 var slider_px, slider_py, slider_pz;
+var slider_m;
 
 var textbox_world;
 
@@ -511,6 +516,8 @@ function editor_initialize() {
 	slider_px = new Slider(`group_matSpecial.pxSlider`, `editor_selected.material.offset[0]`, `offX: `, -100,100, 1, -posLim,posLim);
 	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -posLim,posLim);
 	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -posLim,posLim);
+	
+	slider_m = new Slider(`group_matSpecial.mSlider`, `editor_selected.mass`, `m: `, -10,10, 0.01, -9.99,9.99);
 	
 	var playerConstructors = [Player, Player_Debug, Player_Noclip];
 	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
@@ -610,6 +617,7 @@ function editor_initialize() {
 		slider_r, slider_g, slider_b, slider_a, slider_e,
 		slider_n,
 		slider_px, slider_py, slider_pz,
+		slider_m,
 
 		dropdown_obj, dropdown_mat,
 		textbox_world,
@@ -643,6 +651,7 @@ function editor_initialize() {
 		"PRISM-HEXAGON": [...rxyz],
 		"RING": [slider_rr, slider_ringR],
 		"SPHERE": [slider_rr],
+		"SINGULARITY": [slider_rr, slider_m],
 		"SHELL": [slider_rr, slider_h],
 		"TERRAIN": [...rxyz, slider_n, slider_gyrA, slider_gyrB],
 		"VOXEL": [slider_rr, checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8],
@@ -705,7 +714,7 @@ function editor_removeObj(e, object) {
 }
 
 function editor_raycast() {
-	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist);
+	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist, ray_nearDist);
 	ray.iterate();
 	if (ray.world != loading_world) {
 		//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business

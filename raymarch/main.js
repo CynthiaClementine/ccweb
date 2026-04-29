@@ -127,7 +127,10 @@ function tick() {
 				loading_world.shouldRegen = true;
 			}
 		}
-	
+		//idk where to put this
+		if (editor_selected.material) {
+			editor_selected.material.syncWith(editor_selected);
+		}
 		editor_controls.forEach(c => {
 			try {
 				c.synchronize();

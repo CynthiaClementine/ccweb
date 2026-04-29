@@ -1162,7 +1162,7 @@ class Sphere extends Scene3dObject {
 	bounds() {
 		return augmentBounds(
 			giveBounds(this.pos, this.r, this.r, this.r, 0, 0, 0),
-		this.gloopiness * 2 + this.smoothness);
+		this.gloopiness * 2 + this.smoothness + 10 * (this.material.type == M_GRAVITY));
 	}
 
 	distanceToPos(pos) {
@@ -1176,6 +1176,21 @@ class Sphere extends Scene3dObject {
 	
 	serializeGPU() {
 		return [this.r];
+	}
+}
+
+class Singularity extends Sphere {
+	static type = TYPE_SINGULARITY;
+	constructor(posRot, r, mass) {
+		super(posRot, null, N_FOG, r);
+		this.mass = mass;
+		this.material = new M_Gravity(0, 0, 0, 1);
+		this.material.syncWith(this);
+	}
+	
+	serialize() {
+		var sup = super.serialize();
+		return `SINGULARITY${sup.slice(6)}~${this.mass}`;
 	}
 }
 

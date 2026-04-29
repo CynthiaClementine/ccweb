@@ -3,7 +3,6 @@
 INDEX
 
 calcLine(xDir, yDir, zDir, x, pixelWidth, pixelHeight)
-deserialize(str)
 dot(a, b)
 getDistance(x1, y1, z1, x2, y2, z2)
 getDistancePos(pos1, pos2)
