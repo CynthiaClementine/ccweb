@@ -330,17 +330,17 @@ function handleKeyPress(a) {
 		switch (a.code) {
 			case "KeyB":
 				//TODO: don't do this.
-				if (loading_world.preEffects.length < 1 || loading_world.preEffects[0][0] != world_brighten) {
-					loading_world.preEffects.splice(0, 0, [world_brighten, [4, 4, 4, 4]]);
-				} else if (loading_world.preEffects[0][0] == world_brighten) {
+				if (loading_world.preEffects.length < 1 || loading_world.preEffects[0][0] != E_BRIGHTEN) {
+					loading_world.preEffects.splice(0, 0, [E_BRIGHTEN, [4, 4, 4, 4]]);
+				} else if (loading_world.preEffects[0][0] == E_BRIGHTEN) {
 					loading_world.preEffects.splice(0, 1);
 				}
 				loading_world.shouldRegen = true;
 				return;
 			case "KeyN":
-				if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != bg_iters) {
-					loading_world.postEffects.splice(0, 0, [bg_iters]);
-				} else if (loading_world.postEffects[0][0] == bg_iters) {
+				if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != E_ITERS) {
+					loading_world.postEffects.splice(0, 0, [E_ITERS]);
+				} else if (loading_world.postEffects[0][0] == E_ITERS) {
 					loading_world.postEffects.splice(0, 1);
 				}
 				loading_world.shouldRegen = true;

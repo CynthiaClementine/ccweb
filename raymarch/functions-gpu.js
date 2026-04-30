@@ -167,13 +167,11 @@ function setWorldAttribs(world, worldOff, rowOff) {
 
 function setEffects(world, worldOff, rowOff, doPreEffects) {
 	var effArr = doPreEffects ? world.preEffects : world.postEffects;
-	var map = doPreEffects ? map_preId : map_postId;
-	
 
 	//loop trhough all post-effects
 	for (var w=0; w<effArr.length; w++) {
 		const eff = effArr[w];
-		const id = map[eff[0].name];
+		const id = eff[0];
 		var base = worldOff + (world_maxObjs + 1 + w) * 4;
 		base += doPreEffects * rowOff * 4;
 		

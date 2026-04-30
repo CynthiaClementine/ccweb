@@ -8,6 +8,23 @@ const fencepost32 = 0xff0110ff;
 //it's called scaryVariable because you don't know if you can remove it or not
 var scaryVariable = 0;
 
+//pre-effects
+const E_LOOP =			10;
+const E_BRIGHTEN =		20;
+const E_WHITEN =		21;
+const E_SPHERIZE =		30;
+
+//post-effects
+const E_BG =			0;
+const E_BG_RANGE =		1;
+const E_GRADIENT =		2;
+const E_FADE =			10;
+const E_FADE_OLD =		11;
+const E_FADE_RANGE =	12;
+const E_SUN =			20;
+const E_STARS =			21;
+const E_ITERS =			31;
+
 const N_NORMAL =0;
 const N_GLOOP = 1;
 const N_ANTI =	2;
