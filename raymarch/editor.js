@@ -442,7 +442,7 @@ var slider_shiftX, slider_shiftY, slider_shiftZ;
 
 var slider_r, slider_g, slider_b, slider_a;
 var slider_px, slider_py, slider_pz;
-var slider_m;
+var slider_m, slider_dens;
 
 var textbox_world;
 
@@ -518,6 +518,7 @@ function editor_initialize() {
 	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -posLim,posLim);
 	
 	slider_m = new Slider(`group_matSpecial.mSlider`, `editor_selected.mass`, `m: `, -10,10, 0.01, -9.99,9.99);
+	slider_dens = new Slider(`group_matSpecial.densSlider`, `editor_selected.material.density`, `d: `, 0.05,9.95, 0.05);
 	
 	var playerConstructors = [Player, Player_Debug, Player_Noclip];
 	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
@@ -617,7 +618,7 @@ function editor_initialize() {
 		slider_r, slider_g, slider_b, slider_a, slider_e,
 		slider_n,
 		slider_px, slider_py, slider_pz,
-		slider_m,
+		slider_m, slider_dens,
 
 		dropdown_obj, dropdown_mat,
 		textbox_world,
@@ -666,7 +667,7 @@ function editor_initialize() {
 		"color": [...rgb],
 		"concrete": [],
 		"ghost": [...rgba],
-		"glass": [...rgba],
+		"glass": [...rgba, slider_dens],
 		"mirror": [...rgba],
 		"normal": [],
 		"portal": [textbox_world, slider_px, slider_py, slider_pz],

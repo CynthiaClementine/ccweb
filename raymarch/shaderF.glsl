@@ -49,6 +49,7 @@
 #define E_FADE_OLD		11
 #define E_FADE_RANGE	12
 #define E_SUN			20
+#define E_STARS			21
 #define E_ITERS			31
 
 //natures
@@ -100,6 +101,7 @@ struct Raydata {
 	// vec3 dPos;
 	Path path;
 	
+	float density;
 	vec4 color;
 };
 
@@ -120,14 +122,18 @@ int bounceCount = 0;
 float bvhTolerance = 8.0;
 
 Raydata stage[2] = Raydata[2](
-	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), vec4(0.,0.,0.,0.)),
-	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), vec4(1.0,0.1,0.1,0.0))
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), 1.0, vec4(0.,0.,0.,0.)),
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), 1.0, vec4(1.0,0.1,0.1,0.0))
 );
 
 void calcSceneObjs(int);
+void findHitPos(vec3, int, int, float, float);
+float fractalNoise(vec2, int, float, float, float, float);
+
 mat4 metric(vec4, vec3, float);
 mat4 metricInv(vec4, vec3, float);
 Path geodesicStep(Path, float, vec3, float);
+
 
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 	vec3 dposn = normalize(newDPos);
@@ -288,6 +294,23 @@ void applyColorLight(int stg, vec4 color) {
 	stage[stg].color.a += color.a * availableAlpha;
 }
 
+float backgroundStarAmpl(vec3 dir) {
+	vec2 uv = vec2(atan(dir.z / dir.x), dir.y);
+	
+	float f = 0.0;
+	
+	for( int i=0; i<10; i++) {
+		uv = rotate(uv + vec2(0.7), 0.5);
+		
+		float t = 10.*uv.x*uv.y;
+			
+		vec2 u = cos(100.*uv) * fractalNoise(11. * uv, 4, 0.5, 1.4, 2.1, 0.5);
+		f += smoothstep(0.35, 0.55, u.x * u.y);
+	}
+	
+	return f;
+}
+
 void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 	int effectType = int(data0[0]);
 	vec3 arg0 = data0.gba;
@@ -349,8 +372,12 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 			applyColorLight(0, vec4(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b), 0.0));
 		} break;
 		//bg_gradient
-		case E_GRADIENT:
-			break;
+		case E_GRADIENT: {
+			if (stg > 0) {
+				return;
+			}
+			applyColorLight(0, vec4(0.1, 0.2, 0.3 + stage[0].path.vel[1] * 0.7, 0.0));
+		} break;
 		//bg_fadeTo
 		case E_FADE: {
 			if (stg == 0) {
@@ -396,6 +423,10 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 					1.0
 				);
 				stage[1].color = stage[0].color;
+		} break;
+		case E_STARS: {
+			float f = backgroundStarAmpl(stage[0].path.vel);
+			applyColorLight(0, vec4(mix(stage[0].color.rgb, arg0, f), 0.0));
 		} break;
 	}
 }
@@ -613,7 +644,7 @@ float sphereSDF(vec3 point, float data1) {
 	return length(point) - data1;
 }
 
-float terrainHeight(vec2 point, int octaves, float ampl, float freq, float lacunarity, float gain) {
+float fractalNoise(vec2 point, int octaves, float ampl, float freq, float lacunarity, float gain) {
 	float y = 0.0;
 	for (int i=0; i<octaves; i++) {
 		y += ampl * noise(freq * point.xy);
@@ -633,7 +664,7 @@ float terrainSDF(vec3 point, float data1, vec4 data2, vec4 data3) {
 	//data3: [baseAmp, baseFreq, lacunarity, gain]
 	
 	//hacky imprecise formula - return distance to height value at current point, minus a tolerance
-	float y = terrainHeight(point.xz, octaves, data3[0], data3[1], data3[2], data3[3]);
+	float y = fractalNoise(point.xz, octaves, data3[0], data3[1], data3[2], data3[3]);
 	float terrsdf = (point.y - y) * 0.55;
 	
 	//getGrad(vec3 p, int worldIndex, int objIndex)
@@ -770,20 +801,23 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 
 
 
-int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
+int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 data1, vec4 data2) {
 	// mat4 data = matData(stage[stg].world, stage[stg].closestInd);
 	int res = 1;
 	switch (matType) {
 		case M_COLOR: {
+			findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 			applyColor(1, data0);
 			res = 1;
 		} break;
 		
 		case M_CONCRETE: {
+			findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 			res = 1;
 		} break;
 		
 		case M_NORMAL: {
+			findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 			//theoretically this should work. try 0 -> stg if not
 			vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 			applyColor(1, vec4((norm + 1.) / 2., 1.));
@@ -791,6 +825,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		} break;
 		
 		case M_RUBBER: {
+			findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 			float localVal = mod(stage[stg].path.spot.y + stage[stg].path.spot.w, 10.) - 5.;
 			vec3 mult = vec3(4.0/255., 4.0/255., 4.8/255.);
 			vec4 paint = vec4(vec3(47./255., 48./255., 66./255.) + localVal * mult, 1.0);
@@ -799,12 +834,48 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		} break;
 		
 		case M_GLASS: {
-			if (abs(stage[stg].localDist) < ray_minDist * 2.) {
-				applyColorLight(stg, data0);
-				stage[stg].localDist = ray_minDist * 4.;
-			} else {
-				stage[stg].localDist = -stage[stg].localDist;
+			//if the ray is outside entering, or inside exiting, apply glass effect
+			//for outside -> inside, we can check density
+			//for inside -> outside, we can check distance
+			float newLocalDist = max(abs(stage[stg].localDist), ray_minDist * 10.);
+			
+			vec3 currPos = stage[stg].path.spot.yzw;
+			vec3 oldPos = currPos - stage[stg].path.vel * oldLocalDist;
+			float density = data1[0];
+			
+			// oldOldPos ---oo--- oldPos ---oldLD--- currPos ---newLD--- nextPos
+			
+			float oldDist = objSDF(oldPos, stage[stg].world, stage[stg].closestInd);
+			float newDist = stage[stg].localDist;
+			
+			//entering
+			if (oldDist > ray_minDist && newDist <= ray_minDist) {
+				stage[stg].density = density;
+				vec3 norm = -getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
+				vec3 incident = stage[0].path.vel;
+				float mu = stage[stg].density / density;
+				vec3 reflected = (stage[stg].density * incident - norm) / density;
+				//TODO: seems like there should be an optimization where we don't recalculate possible objects until actually leaving
+				setStageRay(stg, stage[stg].path.spot.yzw, normalize(reflected));
+				applyColor(stg, data0);
 			}
+			
+			vec3 nextPos = currPos + stage[stg].path.vel * newLocalDist;
+			float futureDist = objSDF(nextPos, stage[stg].world, stage[stg].closestInd);
+			
+			//exiting
+			if (newDist < ray_minDist && futureDist >= ray_minDist) {
+				density = 1.0;
+				stage[stg].density = density;
+				vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
+				vec3 incident = stage[0].path.vel;
+				float mu = stage[stg].density / density;
+				vec3 reflected = (stage[stg].density * incident - norm) / density;
+				setStageRay(stg, nextPos, normalize(reflected));
+				applyColor(stg, data0);
+			}
+			
+			stage[stg].localDist = newLocalDist;
 			res = 0;
 		} break;
 
@@ -820,6 +891,7 @@ int applyHitEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			res = 0;
 		} break;
 		case M_MIRROR: {
+			findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 			if (stage[stg].distSinceBounce < 0.5) {
 				break;
 			}
@@ -866,8 +938,15 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 				calcSceneObjs(0);
 			}
 			//white hole: add some light
+			float r = length(newPath.spot.yzw - data0.xyz);
 			if (data0[3] < 0.0) {
 				applyColor(stg, vec4(1.0, 1.0, 1.0, -data0[3] * length(oldPath.vel - newPath.vel) / 3.));
+			} else {
+				//if we've gone through too many iterations just call it
+				if (stage[stg].iters > 200) {
+					applyColor(stg, vec4(0.0, 0.0, 0.0, 1.0));
+					return;
+				}
 			}
 			stage[0].path.spot.yzw -= stage[0].path.vel * stage[0].localDist;
 		} return;
@@ -1075,9 +1154,7 @@ void raymarch() {
 			
 		
 			if (stage[0].localDist < ray_minDist) {
-				//try to make sure ray isn't inside the surface
-				findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
-				int res = applyHitEffect(0, type, matDat[0], matDat[1], matDat[2]);
+				int res = applyHitEffect(0, oldLocalDist, type, matDat[0], matDat[1], matDat[2]);
 				if (res == 1) {
 					return;
 				}
@@ -1094,9 +1171,6 @@ void raymarch() {
 			return;
 		}
 	}
-
-	// Event horizon; use running out of iterations without covering much distance as a heuristic for something falling into a black hole
-	stage[0].color = vec4(0, 0, 0, 1);
 }
 
 void shadow() {
@@ -1111,7 +1185,7 @@ void shadow() {
 		if (stage[1].localDist < ray_minDist) {
 			mat4 matDat = matData(stage[1].world, stage[1].closestInd);
 			int type = matType(stage[1].world, stage[1].closestInd);
-			res = applyHitEffect(1, type, matDat[0], matDat[1], matDat[2]);
+			res = applyHitEffect(1, stage[1].localDist, type, matDat[0], matDat[1], matDat[2]);
 		}
 		
 		float shadowTolerance = min(stage[1].totalDist, 80.);
@@ -1137,6 +1211,7 @@ void shadow() {
 	//quantize shadows for cell shading effect
 	if (result > 0.) {
 		result = max(result, (1.1 / render_shadowSteps));
+		result += (1. / float(count)) * float(stage[1].iters);
 	}
 	result = floor(result * render_shadowSteps) / render_shadowSteps;
 	float ambience = w_ambientLight(stage[1].world);
@@ -1380,24 +1455,20 @@ void main() {
 	
 	//stage 0
 	raymarch();
-	// outColor = vec4(stage[0].color.rgb, 1.0);
-	// return;
 	
 	// stage 1
 	if (stage[0].totalDist < ray_maxDist && stage[0].iters + 1 < ray_maxIters) {
 		currStg = 1;
 		//it's hit an object
-		// mat4 hitData = objData(stage[0].closestInd);
-		
 		vec3 sunVec = w_sunVec(stage[0].world);
 		vec3 normal = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 		stage[1].world = stage[0].world;
+		stage[1].density = stage[0].density;
 		setStageRay(1, stage[0].path.spot.yzw - normal * ray_minDist * 2., sunVec);
 		shadow();
 	}
 	
 	applyColor(0, stage[1].color);
-	
 	
 	// post effects go here??????? this is mint
 	// MAID!!!! FEtch me my textures~~!!
@@ -1411,12 +1482,7 @@ void main() {
 	// float rescale = max(max(lightMix.r, lightMix.g), lightMix.b);
 	// outColor = vec4(lightMix * rescale, 1.0);
 	
-	// gradient postEffect:
-	// applyColor(0, vec4(0.1, 0.2, 0.3 + stage[1].dPos[1] * 0.7, 1.0));
-	
 	//send to screem
 	outColor = vec4(stage[0].color.rgb, 1.0);
-	// outColor = vec4(float(bounceCount) / 20., stage[0].color.g, 0.0, 1.0);
 	// outColor = vec4(stage[0].totalDist / 19999999., stage[1].totalDist / 255., 0.5, 1.0);
-	// outColor = vec4(vec3(uTime / 255., 0., 0.), 1.0);
 }

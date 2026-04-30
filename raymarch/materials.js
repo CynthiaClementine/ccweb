@@ -168,24 +168,23 @@ class M_Ghost extends Material {
 
 class M_Glass extends Material {
 	static type = M_GLASS;
-	constructor(r, g, b, opacity) {
+	constructor(r, g, b, opacity, density) {
 		super(Color4(r, g, b, opacity), 0.1);
+		this.density = density ?? 1;
 	}
 	
 	applyNearEffect(ray) {}
 	
 	applyHitEffect(ray) {
-		if (Math.abs(ray.localDist) < ray_minDist * 2) {
-			applyColor(this.color, ray.color);
-			ray.localDist = ray_minDist * 2;
-		} else {
-			ray.localDist = -ray.localDist;
-		}
 		return false;
 	}
 	
 	serialize() {
-		return `glass:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
+		return `glass:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}~${this.density}`;
+	}
+	
+	serializeGPU() {
+		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255], this.density];
 	}
 }
 
