@@ -39,6 +39,10 @@ class Ray_Tracking {
 	iterate() {
 		const minDist = this.minDist;
 		var iters = 0;
+		if (!this.objsList.length || this.objsList.length == 0) {
+			return;
+		}
+		
 		while (iters < ray_maxIters) {
 			//get distance
 			const distObj = sceneSDF(this.objsList, this.pos)[1];
@@ -121,7 +125,15 @@ class BVH {
 	}
 	
 	objectsInBox(minPos, maxPos) {
-		return this.root.objectsInBox(minPos, maxPos);
+		var res = this.root.objectsInBox(minPos, maxPos);
+		if (res.constructor.name == `Array`) {
+			return res;
+		}
+		if (res.constructor.name == `Number`) {
+			return [];
+		}
+		//it's an object of some sort
+		return [res];
 	}
 	
 	distance(obj) {

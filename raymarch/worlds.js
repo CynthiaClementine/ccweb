@@ -20,24 +20,6 @@ function world_spherize(ray, sphereR) {
 	ray.dPos = normalize(ray.dPos);
 }
 
-//pre-effects
-const E_LOOP =			10;
-const E_BRIGHTEN =		20;
-const E_WHITEN =		21;
-const E_SPHERIZE =		30;
-
-//post-effects
-const E_BG =			0;
-const E_BG_RANGE =		1;
-const E_GRADIENT =		2;
-const E_FADE =			10;
-const E_FADE_OLD =		11;
-const E_FADE_RANGE =	12;
-const E_SUN =			20;
-const E_STARS =			21;
-const E_ITERS =			31;
-
-
 class World {
 	/**
 	 * Creates a World object
