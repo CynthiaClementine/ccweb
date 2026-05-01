@@ -42,6 +42,13 @@ const M_PORTAL =	20;
 const M_GRAVITY =	25;
 const M_MIRROR =	30;
 
+const TYPE_CLASS_OBJ =		-1;
+const TYPE_CLASS_OBJAX =	-2;
+const TYPE_CLASS_PRISM =	-3;
+const TYPE_CLASS_LOOP =		-4;
+const TYPE_CLASS_GROUP =	-5;
+const TYPE_CLASS_SPUN =		-6;
+
 const TYPE_SPHERE =			0;
 const TYPE_ELLIPSE =		1;
 const TYPE_CAPSULE =		2;

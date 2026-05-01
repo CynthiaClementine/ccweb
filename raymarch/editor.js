@@ -90,22 +90,32 @@ function transferPropertiesMat(oldMat, newMat) {
 }
 
 function deserialize(str) {
-	//initial processing
-	var spl = str.split(`|`);
-	var [base, material, params] = [spl[0], spl[1], spl[2]];
-	for (var y=3; y<spl.length; y++) {
-		params += `|` + spl[y];
-	}
-	base = base.split(`~`);
-	material = deserializeMat(material);
+	var isLoop = (str.slice(0, 4) == `LOOP`);
+	var base, material, params;
+	var objs;
 	
-	if (base[0] == `Scene3dLoop`) {
-		var containedObj = deserialize(params);
-		return new Scene3dLoop(+base[1], +base[2], +base[3], +base[4], containedObj);
+	if (isLoop) {
+		str = str.replaceAll(`\t`, ``);
+		const lines = str.split(`\n||`);
+		objs = lines.slice(1).map(o => deserialize(o));
+		[base, params] = lines[0].split(`|`);
+		base = base.split(`~`);
+		params = params.split(`~`);
+		// return new Scene3dLoop({}+base[1], +base[2], +base[3], +base[4], objs);
+	} else {
+		//initial processing
+		var spl = str.split(`|`);
+		[base, material, params] = [spl[0], spl[1], spl[2]];
+		for (var y=3; y<spl.length; y++) {
+			params += `|` + spl[y];
+		}
+		base = base.split(`~`);
+		material = deserializeMat(material);
+		
+		//regular objects
+		params = params.split(`~`);
 	}
-	
-	//regular objects
-	params = params.split(`~`);
+
 	
 	//base structure is consistent across objects
 	var [type, pos, nature, theta, phi, rot] = base;
@@ -130,6 +140,11 @@ function deserialize(str) {
 		finalArgs.push(...params.map(a => +a));
 	}
 	
+	if (isLoop) {
+		console.log(finalArgs);
+		return new Scene3dLoop(...finalArgs, objs);
+	}
+	
 	return new type(...finalArgs);
 }
 
@@ -152,7 +167,6 @@ function deserializeMat(str) {
 			obj = new type(params[0], Pos(...JSON.parse(params[1])));
 			break;
 		default:
-			console.log(`deserializing ${str}`);
 			try {
 				obj = new type(...params.map(a => +a));
 			} catch (e) {
@@ -646,6 +660,7 @@ function editor_initialize() {
 		"FRACTAL": [slider_rr, slider_gyrB, slider_shiftX, slider_shiftY, slider_shiftZ],
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
+		"LOOP": [...rxyz],
 		"OCTAHEDRON": [...rxyz],
 		"PRISM-RHOMBUS": [...rxyz, slider_skew],
 		"PRISM-OCTAGON": [...rxyz],
@@ -658,7 +673,8 @@ function editor_initialize() {
 		"VOXEL": [slider_rr, checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8],
 		
 		"DOTDOTDOT": [],
-		"SKYBUNNY": []
+		"SKYBUNNY": [],
+		
 	};
 	
 	var rgb = [slider_r, slider_g, slider_b];
@@ -783,11 +799,11 @@ function editor_select(object) {
 		shouldSee.push(dropdown_mat);
 		shouldSee = shouldSee.concat(materialEditables[map_matStr[matName]]);
 	}
-	
-	shouldSee.forEach(c => {
-		c.setVisibility(true);
-		c.synchronize();
-	});
+
+	for (var c=0; c<shouldSee.length; c++) {
+		shouldSee[c].setVisibility(true);
+		shouldSee[c].synchronize();
+	}
 }
 
 function editor_toggleAxis(axisID) {

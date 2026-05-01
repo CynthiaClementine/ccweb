@@ -265,36 +265,47 @@ function updateWorldTexture() {
 }
 
 function setObject(worldOff, rowOff, objInd, objRef) {
-	var base = worldOff + objInd * 4;
-	var deg = (a) => {return Math.round(a / degToRad);};
-	
 	const data = texture_universeArr;
-	
 	const type = objRef.type;
 	const material = objRef.material.type;
-	const pos = (objRef.constructor.name == "Scene3dLoop") ? [objRef.xRange, objRef.yRange, objRef.zRange] : objRef.pos;
 	var [theta, phi, rot] = [0, 90, 0];
-	if (objRef.constructor.name == `Scene3dLoop`) {
-		[theta, phi, rot] = [deg(objRef.obj.theta), deg(objRef.obj.phi) + 90, deg(objRef.obj.rot)];
-	} else if (objRef.constructor.name != `Fractal`) {
-		[theta, phi, rot] = [deg(objRef.theta), deg(objRef.phi) + 90, deg(objRef.rot)];
-	}
-	const nature = objRef.nature;
+	var pos;
+	var nature;
+	
+	
+	
+	if (objRef.constructor.type == TYPE_CLASS_LOOP) {
+		var shadow = objRef.objects[0];
+		pos = objRef.pos;
+		[theta, phi, rot] = [shadow.theta, shadow.phi, shadow.rot];
+		nature = shadow.nature;
+	} else {
+		if (objRef.constructor.type != TYPE_FRACTAL) {
+			[theta, phi, rot] = [objRef.theta, objRef.phi, objRef.rot];
+		}
+		pos = objRef.pos;
+		nature = objRef.nature;
+	} 
+	
 	const args = objRef.serializeGPU();
 	
 	//bit packing to fit the common params into row 0
-	
 	buf32_int[0] = ((type & 0xFFFF) << 0) | ((material & 0xFFFF) << 16);
 	const typeMat = buf32_float[0];
-	buf32_int[0] = ((theta & 0x1FF) << 0) | ((phi & 0x1FF) << 9) | ((rot & 0x1FF) << 18);
-	const rotation = buf32_float[0];
-	// console.log(typeMat, rotation);
+	const rotation = packageRot(theta, phi, rot);
+	
 	
 	// Row 0: object type + material type, nature, unused
+	var base = worldOff + objInd * 4;
 	data[base + 0] = typeMat;
 	data[base + 1] = nature;
 	data[base + 2] = rotation;
 	data[base + 3] = fencepost32;
+	if (objRef.constructor.type == TYPE_CLASS_LOOP) {
+		//replace fencepost with loop counts
+		buf32_int[0] = ((objRef.rx & 0x3FF) << 20) | ((objRef.ry & 0x3FF) << 10) | ((objRef.rz & 0x3FF) << 0)
+		data[base + 3] = buf32_float[0];
+	}
 	base += rowOff;
 	data[base + 0] = pos[0];
 	data[base + 1] = pos[1];
@@ -310,6 +321,10 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 	data[base + 1] = args[6];
 	data[base + 2] = args[7];
 	data[base + 3] = args[8];
+	buf32_float[0] = data[worldOff + objInd * 4 + 3];
+	// console.log(`packaging up:`, typeMat, `(${type} ${material})`, nature, rotation, 
+		// buf32_float[0], `(${(buf32_int[0] >> 20) & 0x3FF} ${(buf32_int[0] >> 10) & 0x3FF} ${(buf32_int[0] >> 0) & 0x3FF})`, pos[0], pos[1], pos[2], 
+		// args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
 }
 
 function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
@@ -344,12 +359,6 @@ function feedGPU() {
 	gl.bindTexture(gl.TEXTURE_2D, texture_bvh);
 	gl.clear(gl.COLOR_BUFFER_BIT);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
-	
-	
-	const err = gl.getError();
-	if (err !== gl.NO_ERROR) {
-		console.log(`GL ERROR`, err);
-	}
 }
 
 function GPU_transferObj(world, object) {

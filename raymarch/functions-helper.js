@@ -11,6 +11,8 @@ projectPanini(x, pixelsInX, y, pixelsInY)
 projectPerspective(x, pixelsInX, y, pixelsInY)
 projectOct(x, pixelsInX, y, pixelsInY)
 
+sceneSDF(sceneCollection, pos)
+
 
 */
 
@@ -277,8 +279,10 @@ function drawLine(x, colorArr) {
 			var lineInd = 4 * blockSize * (y * blockSize + yOff);
 			for (var xOff=0; xOff<blockSize; xOff++) {
 				var pixelInd = lineInd + (4 * xOff);
+				if (r) {
 				dataBlock[pixelInd] = r;
 				dataBlock[pixelInd+3] = r / 2;
+				}
 			}
 		}
 	}
@@ -347,6 +351,9 @@ function keysMatch(dictA, dictB) {
 		if (!s.delete(bKeys[z])) {
 			return false;
 		}
+		if (dictB[bKeys[z]] == -1) {
+			delete dictB[bKeys[z]];
+		}
 	}
 	
 	return (s.size == 0);
@@ -360,6 +367,20 @@ function loadWorld(worldName) {
 		return;
 	}
 	player.world = obj;
+}
+
+/**
+ * takes in rotations in radians and packages them all into a single 32-bit integer. Quantizes them by degrees as well.
+ * @param {Number} theta 
+ * @param {Number} phi 
+ * @param {Number} rot 
+ * @returns {Integer} 
+ */
+function packageRot(theta, phi, rot) {
+	var deg = (a) => {return Math.round(a / degToRad);};
+	phi = deg(phi) + 90;
+	buf32_int[0] = ((deg(theta) & 0x1FF) << 0) | ((phi & 0x1FF) << 9) | ((deg(rot) & 0x1FF) << 18);
+	return buf32_float[0];
 }
 
 /**
