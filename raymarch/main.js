@@ -38,7 +38,7 @@ async function setup() {
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 
-	player = new Player_Debug(loading_world, Pos(...loading_world.spawn));
+	player = new Player(loading_world, Pos(...loading_world.spawn));
 	if (loading_world.spawn[3]) {
 		player.theta = loading_world.spawn[3];
 		player.phi = loading_world.spawn[4];
@@ -59,7 +59,7 @@ async function setup() {
 	}
 
 	setupGLState(vertexShaderCode, fragmentShaderCode);
-	createBVHTexture();
+	createBVHTexture(); 
 	createObjectsTexture();
 	
 	resize();
@@ -146,6 +146,10 @@ function tick() {
 }
 
 function finishDraw() {
+	const err = gl.getError();
+	if (err !== gl.NO_ERROR) {
+		console.log(`GL ERROR`, err);
+	}
 	//draw GPU's result to the drawing canvas
 	btx.drawImage(gl.canvas,
 		0, 0, canvas.width, canvas.height,
@@ -498,9 +502,19 @@ function handleMouseMove(a) {
 		var axisVec = editor_getAxisVec(editor_axis);
 		switch (editor_axisType) {
 			case `scale`:
-				editor_selected.rx += axisVec[0] * dragOffset;
-				editor_selected.ry += axisVec[1] * dragOffset;
-				editor_selected.rz += axisVec[2] * dragOffset;
+				if (editor_selected.rx) {
+					editor_selected.rx += axisVec[0] * dragOffset;
+					editor_selected.ry += axisVec[1] * dragOffset;
+					editor_selected.rz += axisVec[2] * dragOffset;
+				}
+				if (editor_selected.h) {
+					editor_selected.r += axisVec[0] * dragOffset;
+					editor_selected.h += axisVec[2] * dragOffset;
+				}
+				if (editor_selected.rr) {
+					editor_selected.r +=  axisVec[0] * dragOffset;
+					editor_selected.rr += axisVec[2] * dragOffset;
+				}
 				break;
 			case `grab`:
 				editor_selected.pos[0] += axisVec[0] * dragOffset;
