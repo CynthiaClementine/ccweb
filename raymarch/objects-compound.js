@@ -176,6 +176,8 @@ var map_strObj = {
 	"PLAYER": Player,
 	"PLAYER-DEBUG": Player_Debug,
 	"PLAYER-NOCLIP": Player_Noclip,
+	
+	"LOOP": Scene3dLoop,
 };
 var map_objStr = Object.fromEntries(Object.entries(map_strObj).map(a => [a[1].name, a[0]]));
 

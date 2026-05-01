@@ -19,7 +19,7 @@ Meta-Objects:
 
 //main object contract
 class Scene3dObject {
-	static type = -1;
+	static type = TYPE_CLASS_OBJ;
 	/**
 	 * creates a basic scene3dObject. This is an abstract class, you can't put it into the world.
 	 * @param {Object} posRot an object containing pos, theta, phi, and rot, in radians. This comprises the standard transform.
@@ -63,12 +63,6 @@ class Scene3dObject {
 		return -1;
 	}
 	
-	//how this object should interact with other objects
-	sceneSDF(pos, currentSDF) {
-		const d = this.distanceToPos(pos);
-		return [Math.min(currentSDF, d), d < currentSDF];
-	}
-	
 	normalAt(pos) {
 		const ε = 0.01 - 0.02 * (this.nature & N_ANTI != 0);
 		const base = this.distanceToPos(pos);
@@ -95,7 +89,7 @@ class Scene3dObject {
 }
 
 class Scene3dObject_Axes extends Scene3dObject {
-	static type = -2;
+	static type = TYPE_CLASS_OBJAX;
 	constructor(posRot, material, nature, rx, ry, rz) {
 		super(posRot, material, nature);
 		this.rx = Math.max(rx, 0);
@@ -119,7 +113,7 @@ class Scene3dObject_Axes extends Scene3dObject {
 }
 
 class Prism extends Scene3dObject_Axes {
-	static type = -3;
+	static type = TYPE_CLASS_PRISM;
 	constructor(posRot, material, nature, rx, h, rz) {
 		super(posRot, material, nature, rx, h, rz);
 	}
@@ -154,7 +148,7 @@ class Prism extends Scene3dObject_Axes {
 }
 
 class Spun extends Scene3dObject {
-	static type = -6;
+	static type = TYPE_CLASS_SPUN;
 	constructor(posRot, material, nature, r, h) {
 		super(posRot, material, nature);
 		this.r = r;
@@ -179,79 +173,105 @@ class Spun extends Scene3dObject {
 }
 
 class Scene3dLoop {
-	static type = -4;
+	static type = TYPE_CLASS_LOOP;
 	/**
 	* An object that contains other objects inside a looping space. 
 	* Allows for large repeating spaces without needing the entire world to repeat.
-	* @param {Number} xRange min/max X to be in the loop
-	* @param {Number} yRange min/max Y to be in the loop
-	* @param {Number} zRange min/max Z to be in the loop
-	* @param {Number} loopSize the 
-	* @param {Scene3dObject} object the object to construct the loop out of
+	* @param {Number} xRepeats number of times in the X direction to loop the object
+	* @param {Number} yRepeats number of times in the Y direction to loop the object
+	* @param {Number} zRepeats number of times in the Z direction to loop the object
+	* @param {Number} loopSize how large each loop is
+	* @param {Scene3dObject[]} object the set of objects inside the loop
 	 */
-	constructor(xRange, yRange, zRange, loopSize, object) {
-		this.xRange = xRange;
-		this.yRange = yRange;
-		this.zRange = zRange;
-		this.d = loopSize;
-		object.pos[0] = loopSize / 2;
-		object.pos[1] = loopSize / 2;
-		object.pos[2] = loopSize / 2;
-		this.obj = object;
+	constructor(posRot, xRepeats, yRepeats, zRepeats, loopSize, objects) {
+		this.type = this.constructor.type;
+		this.pos = posRot.pos;
+		this.theta = posRot.theta;
+		this.phi = posRot.phi;
+		this.rot = posRot.rot;
 		
-		this.type = object.type + 100;
-		this.pos = object.pos;
-		this.material = object.material;
-		this.nature = object.nature;
+		this.rx = xRepeats;
+		this.ry = yRepeats;
+		this.rz = zRepeats;
+		this.d = loopSize;
+		this.objects = objects;
+		if (!objects) {
+			throw new Error(`No objects in Scene3dLoop!`);
+		}
+		//single object, absorb properties
+		if (objects.length == 1) {
+			var absorb = objects[0];
+			this.type = absorb.type + 100;
+			this.material = absorb.material;
+		}
 	}
 
 	express() {
-		return [this];
-	}
-	
-	sceneSDF(pos, currentSDF) {
-		const d = this.distanceToPos(pos);
-		return [Math.min(currentSDF, d), d < currentSDF];
+		//if there are multiple objects.. break into them
+		const self = this;
+		const o0 = this.objects[0];
+		var arr = this.objects.map((o) => {
+			var a = new Scene3dLoop({pos: [self.pos[0] + o.pos[0], self.pos[1] + o.pos[1], self.pos[2] + o.pos[2]],
+									theta: self.theta, phi: self.phi, rot: self.rot},
+									self.rx, self.ry, self.rz, self.d, [o]);
+			a.parent = self;
+			return a;
+		});
+
+		arr.push(new BoxFrame({pos: [self.pos[0] + o0.pos[0], self.pos[1] + o0.pos[1], self.pos[2] + o0.pos[2]],
+									theta: self.theta, phi: self.phi, rot: self.rot}, createDefaultMaterial(), N_NORMAL, 
+									this.rx * this.d, this.ry * this.d, this.rz * this.d, 1));
+		return arr;
 	}
 	
 	normalAt(pos) {
-		return this.obj.normalAt(pos);
+		//TODO: not this
+		return this.objects[0].normalAt(pos);
 	}
 	
 	bounds() {
-		return giveBounds([0, 0, 0],
-			this.xRange + this.d / 2, this.yRange + this.d / 2, this.zRange + this.d / 2, 
-			0, 0, 0);
+		return giveBounds([this.d / 2, this.d / 2, this.d / 2],
+			(this.rx + 0.5) * this.d, (this.ry + 0.5) * this.d, (this.rz + 0.5) * this.d, 
+			this.theta, this.phi, this.rot);
 	}
 	
 	distanceToPos(pos) {
-		var insideX = clamp(pos[0], -this.xRange, this.xRange);
-		var insideY = clamp(pos[1], -this.yRange, this.yRange);
-		var insideZ = clamp(pos[2], -this.zRange, this.zRange);
-		return this.obj.distanceToPos(Pos(
-			modulate(insideX, this.d) + (pos[0] - insideX),
-			modulate(insideY, this.d) + (pos[1] - insideY),
-			modulate(insideZ, this.d) + (pos[2] - insideZ),
-		));
+		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		const d = this.d;
+		var insideX = clamp(relPos[0], -this.rx * d, this.rx * d);
+		var insideY = clamp(relPos[1], -this.ry * d, this.ry * d);
+		var insideZ = clamp(relPos[2], -this.rz * d, this.rz * d);
+		return sceneSDF(this.objects, Pos(
+			modulate(insideX, d) + (relPos[0] - insideX),
+			modulate(insideY, d) + (relPos[1] - insideY),
+			modulate(insideZ, d) + (relPos[2] - insideZ),
+		))[0];
 	}
 	
 	tick() {
-		this.obj.tick();
+		this.objects.forEach(o => {
+			o.tick();
+		});
 	}
 	
 	serialize() {
-		return `Scene3dLoop~${this.xRange}~${this.yRange}~${this.zRange}~${this.d}||${this.obj.serialize()}`;
+		const grStr = this.objects.map(a => a.serialize()).join(`\n\t||`);
+		const pos = this.pos;
+		return `Loop~[${pos[0]},${pos[1]},${pos[2]}]~${this.xRepeats}~${this.yRepeats}~${this.zRepeats}~${this.d}\n\t||${grStr}`;
 	}
 	
 	serializeGPU() {
-		var serial = this.obj.serializeGPU();
+		//assume self has exactly ONE object.
+		var obj = this.objects[0];
+		var serial = obj.serializeGPU();
+		serial[7] = packageRot(obj.theta, obj.phi, obj.rot);
 		serial[8] = this.d;
 		return serial;
 	}
 }
 
 class SceneCollection {
-	static type = -5;
+	static type = TYPE_CLASS_GROUP;
 	/**
 	* An object that contains other serialized objects. 
 	* When editing, basic translations / rotations can be applied to all the objects in the collection.
@@ -326,12 +346,6 @@ class SceneCollection {
 	distanceToPos(pos) {
 		console.error(`Do not call the SDF for SceneCollections!`);
 		return -1;
-	}
-	
-	//how this object should interact with other objects
-	sceneSDF(pos, currentSDF) {
-		const d = this.distanceToPos(pos);
-		return [Math.min(currentSDF, d), d < currentSDF];
 	}
 	
 	serializeKernel() {
@@ -849,12 +863,10 @@ class Line extends Scene3dObject {
 	}
 	
 	calc() {
-		this.posEnd = Pos(this.pos[0] + this.rx, this.pos[1] + this.ry, this.pos[2] + this.rz);
-		this.lineVec = Pos(this.rx, this.ry, this.rz);
-		this.lineDot = dot(this.lineVec, this.lineVec);
 	}
 	
 	bounds() {
+		this.posEnd = Pos(this.pos[0] + this.rx, this.pos[1] + this.ry, this.pos[2] + this.rz);
 		const r = this.r;
 		return augmentBounds([Pos(
 			Math.min(this.pos[0] - r, this.posEnd[0] - r),
@@ -872,11 +884,13 @@ class Line extends Scene3dObject {
 		//then closest = linterp(A, B, lambda)
 		//dist = dist to closest
 		const base = this.pos;
+		const lineVec = [this.rx, this.ry, this.rz];
+		const lineDot = dot(lineVec, lineVec);
 		const apVec = [pos[0] - base[0], pos[1] - base[1], pos[2] - base[2]];
-		const l = clamp(dot(apVec, this.lineVec) / this.lineDot, 0, 1);
+		const l = clamp(dot(apVec, lineVec) / lineDot, 0, 1);
 			
 		return (getDistance(pos[0], pos[1], pos[2], 
-				linterp(base[0], this.posEnd[0], l), linterp(base[1], this.posEnd[1], l), linterp(base[2], this.posEnd[2], l)) - this.r);
+				linterp(base[0], base[0] + this.rx, l), linterp(base[1], base[1] + this.ry, l), linterp(base[2], base[2] + this.rz, l)) - this.r);
 	}
 	
 	serialize() {
@@ -1189,8 +1203,8 @@ class Singularity extends Sphere {
 	}
 	
 	serialize() {
-		var sup = super.serialize();
-		return `SINGULARITY${sup.slice(6)}~${this.mass}`;
+		var sup = super.serialize().split(`|`);
+		return `SINGULARITY${sup[0].slice(6)}||${sup[2]}~${this.mass}`;
 	}
 }
 

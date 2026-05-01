@@ -321,10 +321,13 @@ void preEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 		} break;
 		//brighten
 		case E_BRIGHTEN: {
-			if (stage[stg].color.a >= 1.0) {
+			if (stg != 0) {
 				return;
 			}
-			stage[stg].color.rgb += arg0;
+			if (stage[stg].color.a >= 1.0 || stage[stg].localDist > ray_nearDist) {
+				return;
+			}
+			stage[stg].color.rgb += arg0 * clamp(ray_nearDist / stage[stg].localDist, 0.01, stage[stg].localDist * 4.);
 			//rescale to fit within normal bounds
 			float rescale = max(max(stage[stg].color.r, stage[stg].color.g), stage[stg].color.b);
 			if (rescale > 1.0) {
@@ -702,17 +705,47 @@ float objSDF(vec3 p, int world, int index) {
 	int nature = int(data[0][1]);
 	int rotations = floatBitsToInt(data[0][2]);
 	int theta = rotations       & 0x1FF;
-	int phi = ((rotations >> 9 ) & 0x1FF) - 90;
+	int phi = ((rotations >> 9) & 0x1FF) - 90;
 	int rot = (rotations >> 18) & 0x1FF;
 	float d = 9999.;
 	
 	//it's a loop object. Do the modulation beforehand
 	if (type > 100) {
 		type -= 100;
+		p[0] -= data[1].x / 2.;
+		p[1] -= 120.;
+		p[2] -= 120.;
+		// p -= data[1].xyz;
+		// int loopAngles = floatBitsToInt(data[3][2]);
+		// int lTheta = loopAngles       & 0x1FF;
+		// int lPhi = ((loopAngles >> 9) & 0x1FF) - 90;
+		// int lRot = (loopAngles >> 18) & 0x1FF;
+		// p.xz = rotate(p.xz, -lTheta);
+		// p.yz = rotate(p.yz, lPhi);
+		// p.xy = rotate(p.xy, -lRot);
+
+		int loopBits = floatBitsToInt(data[0][3]);
+		vec3 loopNums = vec3(
+			float((loopBits >> 20) & 0x3FF),
+			float((loopBits >> 10) & 0x3FF),
+			float(loopBits         & 0x3FF)
+		);
+
+		// const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		// const d = this.d;
+		// var insideX = clamp(relPos[0], -this.rx * d, this.rx * d);
+		// var insideY = clamp(relPos[1], -this.ry * d, this.ry * d);
+		// var insideZ = clamp(relPos[2], -this.rz * d, this.rz * d);
+		// return sceneSDF(this.objects, Pos(
+		// 	modulate(insideX, d) + (relPos[0] - insideX),
+		// 	modulate(insideY, d) + (relPos[1] - insideY),
+		// 	modulate(insideZ, d) + (relPos[2] - insideZ),
+		// ))[0];
+
 		float loopSize = data[3][3];
-		vec3 insideP = clamp(p, -data[1].xyz, data[1].xyz);
-		data[1].xyz = vec3(0.);
-		p = mod(insideP, loopSize) + p - insideP - vec3(loopSize / 2.);
+		vec3 insideP = clamp(p, -loopNums * loopSize, loopNums * loopSize);
+		data[1].xyz = vec3(loopSize / 2.);
+		// p = mod(insideP, loopSize) + (p - insideP);
 	}
 	
 	//transform to object coordinates
@@ -1211,9 +1244,9 @@ void shadow() {
 	//quantize shadows for cell shading effect
 	if (result > 0.) {
 		result = max(result, (1.1 / render_shadowSteps));
-		result += (1. / float(count)) * float(stage[1].iters);
+		// result = floor(result * render_shadowSteps) / render_shadowSteps;
 	}
-	result = floor(result * render_shadowSteps) / render_shadowSteps;
+	result += (0.1 / float(count)) * float(stage[1].iters);
 	float ambience = w_ambientLight(stage[1].world);
 	stage[1].color *= ambience + ((1. - ambience) * clamp(result, 0.0, 1.0));
 }
