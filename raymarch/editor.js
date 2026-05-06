@@ -141,7 +141,6 @@ function deserialize(str) {
 	}
 	
 	if (isLoop) {
-		console.log(finalArgs);
 		return new Scene3dLoop(...finalArgs, objs);
 	}
 	
@@ -448,7 +447,7 @@ var slider_fov, slider_res;
 var slider_x, slider_y, slider_z;
 var slider_tht, slider_phi, slider_rot;
 
-var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR;
+var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR, slider_d;
 var slider_gyrA, slider_gyrB, slider_h, slider_e;
 var slider_n;
 var slider_skew;
@@ -509,6 +508,7 @@ function editor_initialize() {
 	slider_ry = new Slider(`group_radius.rySlider`, `editor_selected.ry`, `ry: `, -100,100, 1, -1E3,1E4);
 	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, -1E3,1E4);
 	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, -100,100, 1, 0,1E4);
+	slider_d = new Slider(`group_radius.dSlider`, `editor_selected.d`, `d: ${s}`, -100,100, 1, 0,1E4);
 	
 	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0.01,1.99, 0.01);
 	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,19.95, 0.05);
@@ -627,7 +627,7 @@ function editor_initialize() {
 		slider_x, slider_y, slider_z,
 		slider_shiftX, slider_shiftY, slider_shiftZ,
 		slider_tht, slider_phi, slider_rot,
-		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR,
+		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR, slider_d,
 		slider_gyrA, slider_gyrB, slider_h, slider_skew,
 		slider_r, slider_g, slider_b, slider_a, slider_e,
 		slider_n,
@@ -660,7 +660,7 @@ function editor_initialize() {
 		"FRACTAL": [slider_rr, slider_gyrB, slider_shiftX, slider_shiftY, slider_shiftZ],
 		"GYROID": [...rxyz, slider_gyrA, slider_gyrB, slider_h],
 		"LINE": [...rxyz, slider_rr],
-		"LOOP": [...rxyz],
+		"LOOP": [...rxyz, slider_d],
 		"OCTAHEDRON": [...rxyz],
 		"PRISM-RHOMBUS": [...rxyz, slider_skew],
 		"PRISM-OCTAGON": [...rxyz],

@@ -71,6 +71,10 @@ const TYPE_PRISM_OCT =		55;
 const TYPE_FRACTAL =		70;
 const TYPE_TERRAIN =		71;
 
+//other enums
+const ABSOLUTE = 0;
+const RELATIVE = 1;
+
 //quick type
 const U8Arr = Uint8Array;
 const F32Arr = Float32Array; //f16 is smaller but not supported on safari
@@ -141,6 +145,7 @@ var debug_flags = {
 	bunnyTargets: false,
 	collisionRaycast: false,
 	showChunk: false,
+	showLoopBounds: false,
 	realCrosshair: true,
 };
 
@@ -233,6 +238,7 @@ const splashes = [
 	`It sure is    here! `,
 	`Rearticulating spines!`,
 	`What do I do with this drunken sailor?`,
+	`I still have absolutely no idea what to do with this drunken sailor.`,
 	`Locally sourced.`,
 	`I put my friends on the GPU. I put my WIFE on the GPU!`,
 	`Jensen Huang is sobbing.`,
