@@ -522,6 +522,10 @@ function modulate(x, num) {
 	return (x < 0) ? num + (x % num) : x % num;
 }
 
+function modulateSigned(x, num) {
+	return modulate(x - (num / 2), num) - (num / 2);
+}
+
 function modulateSoft(x, num) {
 	if (x >= num) {
 		x -= num;
