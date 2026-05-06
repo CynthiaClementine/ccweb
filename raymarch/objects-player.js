@@ -32,7 +32,7 @@ class Camera {
 }
 
 class Player {
-	constructor(world, pos) {
+	constructor(world, pos, theta, phi) {
 		this.world = world;
 		this.pos = pos;
 		this.dPos = Pos(0, 0, 0);
@@ -64,8 +64,8 @@ class Player {
 		this.colPanicThreshold = 0.75;
 		this.mmtmFactor = 1 - (1 / Math.E);
 		
-		this.theta = 0;
-		this.phi = 0;
+		this.theta = theta ?? 0;
+		this.phi = phi ?? 0;
 	}
 	
 	calcPossibleObjs() {
@@ -123,7 +123,6 @@ class Player {
 		if (this.grounded > 0) {
 			if (this.dPos[1] < 0) {
 				this.dPos[1] *= this.frictionBrake;
-				console.log(`braking`);
 			}
 		} else {
 			this.dPos[1] -= this.gravity;
@@ -505,8 +504,8 @@ class Player {
 }
 
 class Player_Debug extends Player {
-	constructor(world, pos) {
-		super(world, pos);
+	constructor(world, pos, theta, phi) {
+		super(world, pos, theta, phi);
 		this.dMax = 6;
 		this.accel = 0.4;
 	}
@@ -522,8 +521,8 @@ class Player_Debug extends Player {
 }
 
 class Player_Noclip extends Player {
-	constructor(world, pos) {
-		super(world, pos);
+	constructor(world, pos, theta, phi) {
+		super(world, pos, theta, phi);
 		this.dMax = 6;
 		this.accel = 0.4;
 	}
