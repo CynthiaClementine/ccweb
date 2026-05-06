@@ -3,15 +3,16 @@
 #define fencepost 4278259968.
 
 #define ray_maxIters 500
-#define ray_maxDist 5000.0
+#define ray_maxDist 50000.0
 #define ray_nearDist 10.0
 #define ray_minDist 0.15
 #define ray_maxBounces 22
-#define render_shadowSteps 2.
+#define shadow_steps 3.
 #define obj_maxNum 500
 
 #define fractal_iters 10
 
+#define grav_constant 6.674
 
 //shapes
 #define SPHERE		0
@@ -126,7 +127,7 @@ Raydata stage[2] = Raydata[2](
 	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), 1.0, vec4(1.0,0.1,0.1,0.0))
 );
 
-void calcSceneObjs(int);
+void calcSceneObjs(int, float);
 void findHitPos(vec3, int, int, float, float);
 float fractalNoise(vec2, int, float, float, float, float);
 
@@ -143,13 +144,24 @@ void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 	stage[stg].path.spot = spacetimeSpot;
 	stage[stg].path.vel = dposn;
 	stage[stg].path.momentum = vec4(1, dposn);
-	calcSceneObjs(stg);
+	calcSceneObjs(stg, (stg == 1) ? ray_nearDist : 0.0);
+	bounceCount += 1;
+}
+
+void setStageRay_hack(int stg, vec3 newPos, vec3 newDPos) {
+	vec3 dposn = normalize(newDPos);
+	vec4 spacetimeSpot = vec4(0., newPos.x, newPos.y, newPos.z);
+	vec4 dposSpacetime = vec4(-1., dposn.x, dposn.y, dposn.z);
+
+	stage[stg].path.spot = spacetimeSpot;
+	stage[stg].path.vel = dposn;
+	stage[stg].path.momentum = vec4(1, dposn);
 	bounceCount += 1;
 }
 
 void teleport(int stg, vec3 newPos) {
 	stage[stg].path.spot.yzw = newPos;
-	calcSceneObjs(stg);
+	calcSceneObjs(stg, (stg == 1) ? ray_nearDist : 0.0);
 	bounceCount += 1;
 }
 
@@ -207,6 +219,14 @@ vec2 rotate(vec2 pos, float rad) {
 	float sn = sin(rad);
 	float cs = cos(rad);
 	return vec2(pos.x * cs - pos.y * sn, pos.y * cs + pos.x * sn);
+}
+
+float smootherstep(float t) {
+	return 6.0*t*t*t*t*t - 15.0 * t*t*t*t + 10.0*t*t*t;
+}
+
+float linearstep(float t) {
+	return clamp(2.0*t, 0.0, 1.0);
 }
 
 
@@ -294,18 +314,21 @@ void applyColorLight(int stg, vec4 color) {
 	stage[stg].color.a += color.a * availableAlpha;
 }
 
-float backgroundStarAmpl(vec3 dir) {
-	vec2 uv = vec2(atan(dir.z / dir.x), dir.y);
+float backgroundStarAmpl(vec3 dir, float lowLight, float highLight) {
+	vec2 uv;
+	if (abs(dir.y) > 0.81) {
+		uv = 2.0 * vec2(dir.x, dir.z);
+	} else {
+		uv = vec2(atan(dir.z, dir.x), asin(dir.y) * 2.0);
+	}
+	// vec2 uv = vec2(atan(dir.z / dir.x), dir.y);
 	
 	float f = 0.0;
 	
-	for( int i=0; i<10; i++) {
-		uv = rotate(uv + vec2(0.7), 0.5);
-		
-		float t = 10.*uv.x*uv.y;
-			
-		vec2 u = cos(100.*uv) * fractalNoise(11. * uv, 4, 0.5, 1.4, 2.1, 0.5);
-		f += smoothstep(0.35, 0.55, u.x * u.y);
+	for(int i=0; i<10; i++) {
+		uv = rotate(uv + vec2(0.7, 0.4), 0.7853981634);
+		vec2 u = cos(80.*uv) * fractalNoise(11. * uv, 4, 0.5, 1.2, 2.1, 0.5);
+		f += smoothstep(lowLight, highLight, u.x * u.y);
 	}
 	
 	return f;
@@ -428,7 +451,7 @@ void postEffect(int stg, vec4 data0, vec4 data1, vec4 data2) {
 				stage[1].color = stage[0].color;
 		} break;
 		case E_STARS: {
-			float f = backgroundStarAmpl(stage[0].path.vel);
+			float f = backgroundStarAmpl(stage[0].path.vel, data1[0], data1[1]);
 			applyColorLight(0, vec4(mix(stage[0].color.rgb, arg0, f), 0.0));
 		} break;
 	}
@@ -712,17 +735,14 @@ float objSDF(vec3 p, int world, int index) {
 	//it's a loop object. Do the modulation beforehand
 	if (type > 100) {
 		type -= 100;
-		p[0] -= data[1].x / 2.;
-		p[1] -= 120.;
-		p[2] -= 120.;
-		// p -= data[1].xyz;
-		// int loopAngles = floatBitsToInt(data[3][2]);
-		// int lTheta = loopAngles       & 0x1FF;
-		// int lPhi = ((loopAngles >> 9) & 0x1FF) - 90;
-		// int lRot = (loopAngles >> 18) & 0x1FF;
-		// p.xz = rotate(p.xz, -lTheta);
-		// p.yz = rotate(p.yz, lPhi);
-		// p.xy = rotate(p.xy, -lRot);
+		p -= data[1].xyz;
+		int loopAngles = floatBitsToInt(data[3][2]);
+		int lTheta = loopAngles       & 0x1FF;
+		int lPhi = ((loopAngles >> 9) & 0x1FF) - 90;
+		int lRot = (loopAngles >> 18) & 0x1FF;
+		p.xz = rotate(p.xz, -lTheta);
+		p.yz = rotate(p.yz, lPhi);
+		p.xy = rotate(p.xy, -lRot);
 
 		int loopBits = floatBitsToInt(data[0][3]);
 		vec3 loopNums = vec3(
@@ -731,21 +751,12 @@ float objSDF(vec3 p, int world, int index) {
 			float(loopBits         & 0x3FF)
 		);
 
-		// const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
-		// const d = this.d;
-		// var insideX = clamp(relPos[0], -this.rx * d, this.rx * d);
-		// var insideY = clamp(relPos[1], -this.ry * d, this.ry * d);
-		// var insideZ = clamp(relPos[2], -this.rz * d, this.rz * d);
-		// return sceneSDF(this.objects, Pos(
-		// 	modulate(insideX, d) + (relPos[0] - insideX),
-		// 	modulate(insideY, d) + (relPos[1] - insideY),
-		// 	modulate(insideZ, d) + (relPos[2] - insideZ),
-		// ))[0];
-
 		float loopSize = data[3][3];
-		vec3 insideP = clamp(p, -loopNums * loopSize, loopNums * loopSize);
-		data[1].xyz = vec3(loopSize / 2.);
-		// p = mod(insideP, loopSize) + (p - insideP);
+		float loopHalf = loopSize / 2.;
+		vec3 insideP = clamp(p, -(loopNums) * loopSize, (loopNums) * loopSize);
+		data[1].xyz = vec3(0.);
+		//stupid centered modulate
+		p = mod(insideP - loopHalf, loopSize) - loopHalf + (p - insideP);
 	}
 	
 	//transform to object coordinates
@@ -828,6 +839,7 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 		objSDF(p + e.yxy, worldIndex, objIndex),
 		objSDF(p + e.yyx, worldIndex, objIndex)
 	);
+	n = -n;
 	return normalize(n);
 }
 
@@ -884,12 +896,11 @@ int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 da
 			//entering
 			if (oldDist > ray_minDist && newDist <= ray_minDist) {
 				stage[stg].density = density;
-				vec3 norm = -getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
+				vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 				vec3 incident = stage[0].path.vel;
 				float mu = stage[stg].density / density;
 				vec3 reflected = (stage[stg].density * incident - norm) / density;
-				//TODO: seems like there should be an optimization where we don't recalculate possible objects until actually leaving
-				setStageRay(stg, stage[stg].path.spot.yzw, normalize(reflected));
+				setStageRay_hack(stg, stage[stg].path.spot.yzw, normalize(reflected));
 				applyColor(stg, data0);
 			}
 			
@@ -900,7 +911,7 @@ int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 da
 			if (newDist < ray_minDist && futureDist >= ray_minDist) {
 				density = 1.0;
 				stage[stg].density = density;
-				vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
+				vec3 norm = -getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 				vec3 incident = stage[0].path.vel;
 				float mu = stage[stg].density / density;
 				vec3 reflected = (stage[stg].density * incident - norm) / density;
@@ -931,9 +942,7 @@ int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 da
 			applyColor(stg, data0);
 			if (stg == 0) {
 				vec3 normal = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
-				//vec3 normal = normalize(vec3(-1, -1, -1));
-				float product = dot(stage[stg].path.vel, normal);
-				setStageRay(stg, stage[stg].path.spot.yzw, stage[stg].path.vel - 2. * normal * product);
+				setStageRay(stg, stage[stg].path.spot.yzw, reflect(stage[stg].path.vel, normal));
 				res = int(stage[stg].color.a >= 1. || bounceCount > ray_maxBounces);
 			} else {
 				res = 1;
@@ -968,18 +977,19 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			stage[0].localDist = length(dPos);
 			stage[0].path = newPath;
 			if (length(oldPath.vel - newPath.vel) > 0.003) {
-				calcSceneObjs(0);
+				calcSceneObjs(0, 0.0);
 			}
 			//white hole: add some light
 			float r = length(newPath.spot.yzw - data0.xyz);
 			if (data0[3] < 0.0) {
 				applyColor(stg, vec4(1.0, 1.0, 1.0, -data0[3] * length(oldPath.vel - newPath.vel) / 3.));
 			} else {
-				//if we've gone through too many iterations just call it
-				if (stage[stg].iters > 200) {
-					applyColor(stg, vec4(0.0, 0.0, 0.0, 1.0));
-					return;
-				}
+			}
+			//swarzchild radius
+			if (r < grav_constant * abs(data0[3])) {
+			// if (stage[stg].iters > 200) {
+				applyColor(stg, vec4(vec3(sign(-data0[3])), 1.0));
+				return;
 			}
 			stage[0].path.spot.yzw -= stage[0].path.vel * stage[0].localDist;
 		} return;
@@ -1006,7 +1016,7 @@ bool intersects(vec3 p, vec3 v, vec3 minPos, vec3 maxPos) {
 	this is known as the Skip Pointer.
 	This is about 1.5 times as fast as the version with the stack.
 */
-void calcSceneObjs(int stg) {
+void calcSceneObjs(int stg, float tolerance) {
 	//set up array
 	int numObjs = objIndices[obj_maxNum - 1];
 	for (int o=0; o<numObjs; o++) {
@@ -1033,7 +1043,7 @@ void calcSceneObjs(int stg) {
 		}
 		
 		//evaluate using slab test
-		bool isIn = intersects(stage[stg].path.spot.yzw, stage[stg].path.vel, data0.xyz, data1.xyz);
+		bool isIn = intersects(stage[stg].path.spot.yzw, stage[stg].path.vel, data0.xyz - tolerance, data1.xyz + tolerance);
 		bool hasChildren = (data0[3] == -1.);
 		
 		//in current node?
@@ -1149,6 +1159,7 @@ int matType(int world, int id) {
 }
 
 void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float newLocalDist) {
+	//don't even bother with anti
 	//idea:
 	// p0 ----a --- p1 -----b---- p2
 	//p2 is intersection point
@@ -1164,10 +1175,6 @@ void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float n
 			p1 += min(newLocalDist, -ray_minDist) * 5.0 * lineVec;
 		}
 		newLocalDist = objSDF(p1, world, objID);
-		//ughhhhhh
-		if ((natureData(world, objID) & N_ANTI) > 0) {
-			newLocalDist = -newLocalDist;
-		}
 	}
 	
 	stage[0].path.spot.yzw = p1;
@@ -1207,9 +1214,16 @@ void raymarch() {
 }
 
 void shadow() {
-	float result = 1.0;
+	//prep
+	float gamma = 0.7;
 	stage[1].totalDist = 0.02;
 	int count = 80;
+	vec3 sunVec = w_sunVec(stage[0].world);
+	vec3 normal = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
+	vec3 reflected = reflect(stage[0].path.vel, normal);
+	float shadowDot = dot(sunVec, reflected);
+	setStageRay(1, stage[0].path.spot.yzw + normal * ray_minDist * 5., sunVec);
+	
 	for(int i=0; i<count; i++) {
 		stage[1].iters = i;
 		stage[1].localDist = sceneSDF(stage[1].path.spot.yzw, 1);
@@ -1219,10 +1233,14 @@ void shadow() {
 			mat4 matDat = matData(stage[1].world, stage[1].closestInd);
 			int type = matType(stage[1].world, stage[1].closestInd);
 			res = applyHitEffect(1, stage[1].localDist, type, matDat[0], matDat[1], matDat[2]);
+			if (res > 0) {
+				gamma = 0.0;
+				break;
+			}
 		}
-		
-		float shadowTolerance = min(stage[1].totalDist, 80.);
-		result = min(result, 4.0 * (stage[1].localDist / shadowTolerance));
+
+		float shadowTolerance = min(stage[1].totalDist, 40.);
+		gamma = min(gamma, 4.0 * (stage[1].localDist / shadowTolerance));
 		
 		//TODO: make shadows work with gravity
 		stage[1].localDist = max(stage[1].localDist, ray_minDist);
@@ -1235,20 +1253,16 @@ void shadow() {
 		stage[1].totalDist += stage[1].localDist;
 
 		//potentially add t cutoff here (far away objects won't cast shadows)
-		if (res > 0) {
-			result = 0.0;
-			break;
-		}
 		applyPreEffects(1);
 	}
+	
 	//quantize shadows for cell shading effect
-	if (result > 0.) {
-		result = max(result, (1.1 / render_shadowSteps));
-		// result = floor(result * render_shadowSteps) / render_shadowSteps;
-	}
-	result += (0.1 / float(count)) * float(stage[1].iters);
+	gamma += 0.3 * shadowDot;
+	float base = floor(shadow_steps * gamma) / shadow_steps;
+	gamma = base + linearstep(shadow_steps * (gamma - base)) / shadow_steps;
+	
 	float ambience = w_ambientLight(stage[1].world);
-	stage[1].color *= ambience + ((1. - ambience) * clamp(result, 0.0, 1.0));
+	stage[1].color *= ambience + ((1. - ambience) * clamp(gamma, 0.0, 1.0));
 }
 
 /*
@@ -1476,10 +1490,15 @@ void main() {
 	//TODO: why does this go from -1 to 1?
 	vec2 uv = vUV * 2.0 - 1.0;
 	seed = vec2(vUV);
-	uv.x *= uResFov.x / uResFov.y;
+	vec3 camVecs = vec3(
+		uv.x * uResFov.x / uResFov.y * uResFov[2],
+		uv.y * uResFov[2],
+		1
+	);
+	
 	
 	stage[0].world = uCamWorld;
-	setStageRay(0, uCamPos, normalize(uCamRot * vec3(uv, 1)));
+	setStageRay(0, uCamPos, normalize(uCamRot * camVecs));
 	
 	//fetch world data
 	//??
@@ -1492,12 +1511,9 @@ void main() {
 	// stage 1
 	if (stage[0].totalDist < ray_maxDist && stage[0].iters + 1 < ray_maxIters) {
 		currStg = 1;
-		//it's hit an object
-		vec3 sunVec = w_sunVec(stage[0].world);
-		vec3 normal = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
+		//it's hit an object, run shadow stage
 		stage[1].world = stage[0].world;
 		stage[1].density = stage[0].density;
-		setStageRay(1, stage[0].path.spot.yzw - normal * ray_minDist * 2., sunVec);
 		shadow();
 	}
 	
@@ -1517,5 +1533,5 @@ void main() {
 	
 	//send to screem
 	outColor = vec4(stage[0].color.rgb, 1.0);
-	// outColor = vec4(stage[0].totalDist / 19999999., stage[1].totalDist / 255., 0.5, 1.0);
+	// outColor = vec4(float(objIndices[obj_maxNum - 1]) / 10., stage[0].color.gb, 1.0);
 }
