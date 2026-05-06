@@ -321,10 +321,18 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 	data[base + 1] = args[6];
 	data[base + 2] = args[7];
 	data[base + 3] = args[8];
-	buf32_float[0] = data[worldOff + objInd * 4 + 3];
-	// console.log(`packaging up:`, typeMat, `(${type} ${material})`, nature, rotation, 
-		// buf32_float[0], `(${(buf32_int[0] >> 20) & 0x3FF} ${(buf32_int[0] >> 10) & 0x3FF} ${(buf32_int[0] >> 0) & 0x3FF})`, pos[0], pos[1], pos[2], 
-		// args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+
+	// buf32_float[0] = data[worldOff + objInd * 4 + 2];
+	// var rots1 = `(${(buf32_int[0] >> 18) & 0x1FF} ${(buf32_int[0] >> 9) & 0x1FF} ${(buf32_int[0] >> 0) & 0x1FF})`;
+	// buf32_float[0] = data[worldOff + objInd * 4 + 3];
+	// var dims = `(${(buf32_int[0] >> 20) & 0x3FF} ${(buf32_int[0] >> 10) & 0x3FF} ${(buf32_int[0] >> 0) & 0x3FF})`;
+	// buf32_float[0] = data[worldOff + objInd * 4 + rowOff*3 + 2];
+	// var rots2 = `(${(buf32_int[0] >> 18) & 0x1FF} ${(buf32_int[0] >> 9) & 0x1FF} ${(buf32_int[0] >> 0) & 0x1FF})`;
+
+	// console.log(`packaging up:`, typeMat, `(${type} ${material})`, nature, rotation, rots1, data[worldOff + objInd * 4 + 3], dims);
+	// console.log(pos[0], pos[1], pos[2], args[0]);
+	// console.log(args[1], args[2], args[3], args[4]);
+	// console.log(args[5], args[6], args[7], rots2, args[8]);
 }
 
 function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
@@ -350,7 +358,7 @@ function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, 
 }
 
 function feedGPU() {
-	gl.uniform3f(uResFov, canvas.width, canvas.height, camera_FOV);
+	gl.uniform3f(uResFov, canvas.width, canvas.height, Math.tan(camera_FOV * 0.5 * degToRad));
 	gl.uniform1f(uTime, world_time);
 	
 	gl.activeTexture(gl.TEXTURE0);
