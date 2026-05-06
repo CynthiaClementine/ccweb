@@ -38,11 +38,7 @@ async function setup() {
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
 
-	player = new Player(loading_world, Pos(...loading_world.spawn));
-	if (loading_world.spawn[3]) {
-		player.theta = loading_world.spawn[3];
-		player.phi = loading_world.spawn[4];
-	}
+	player = new Player_Debug(loading_world, Pos(...loading_world.spawn), ...loading_world.spawn.slice(3));
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
 	
@@ -289,6 +285,8 @@ function handleKeyPress(a) {
 		DEBUG EFFECTS:
 			C - copy selected object
 			V - paste selected object
+
+			1-2-3 - switch player type (regular, debug, noclip)
 			
 			B - toggle Bounding Box highlights
 			N - show the Number of iterations per pixel
@@ -332,6 +330,28 @@ function handleKeyPress(a) {
 		}
 		
 		switch (a.code) {
+			case "Digit1":
+				var oldPlayer = player;
+				player = new Player(player.world, player.pos, player.theta, player.phi);
+				if (editor_selected == oldPlayer) {
+					editor_selected = player;
+				}
+				break;
+			case "Digit2":
+				var oldPlayer = player;
+				player = new Player_Debug(player.world, player.pos, player.theta, player.phi);
+				if (editor_selected == oldPlayer) {
+					editor_selected = player;
+				}
+				break;
+			case "Digit3":
+				var oldPlayer = player;
+				player = new Player_Noclip(player.world, player.pos, player.theta, player.phi);
+				if (editor_selected == oldPlayer) {
+					editor_selected = player;
+				}
+				break;
+		
 			case "KeyB":
 				//TODO: don't do this.
 				if (loading_world.preEffects.length < 1 || loading_world.preEffects[0][0] != E_BRIGHTEN) {
@@ -384,7 +404,9 @@ function handleKeyPress(a) {
 				editor_raycast();
 				return;
 			case "KeyP":
-				navigator.clipboard.writeText(`${Math.round(camera.pos[0])},${Math.round(camera.pos[1])},${Math.round(camera.pos[2])}`);
+				var r = Math.round;
+				var c = camera;
+				navigator.clipboard.writeText(`${r(c.pos[0])},${r(c.pos[1])},${r(c.pos[2])}, ${c.theta.toFixed(3)},${c.phi.toFixed(3)}`);
 				return;
 			case "Escape":
 				//escape from whatever wherever
@@ -500,26 +522,41 @@ function handleMouseMove(a) {
 		
 		// Apply accumulated drag offset to actual position
 		var axisVec = editor_getAxisVec(editor_axis);
+		var xDelta = axisVec[0] * dragOffset;
+		var yDelta = axisVec[1] * dragOffset;
+		var zDelta = axisVec[2] * dragOffset;
 		switch (editor_axisType) {
 			case `scale`:
-				if (editor_selected.rx) {
-					editor_selected.rx += axisVec[0] * dragOffset;
-					editor_selected.ry += axisVec[1] * dragOffset;
-					editor_selected.rz += axisVec[2] * dragOffset;
+				const [max, round] = [Math.max, Math.round];
+				const es = editor_selected;
+				console.log(xDelta, yDelta, zDelta);
+				if (es.rx != undefined) {
+					//loop objects should expand slower
+					if (es.constructor.type == TYPE_CLASS_LOOP) {
+						xDelta = (xDelta / 4);
+						yDelta = (yDelta / 4);
+						zDelta = (zDelta / 4);
+					}
+					es.rx = max(es.rx + xDelta, 0);
+					es.ry = max(es.ry + yDelta, 0);
+					es.rz = max(es.rz + zDelta, 0);
+					break;
 				}
-				if (editor_selected.h) {
-					editor_selected.r += axisVec[0] * dragOffset;
-					editor_selected.h += axisVec[2] * dragOffset;
+				if (es.rr != undefined) {
+					es.r = max(es.r + xDelta, 1);
+					es.rr = max(es.rr + zDelta, 1);
+					break;
 				}
-				if (editor_selected.rr) {
-					editor_selected.r +=  axisVec[0] * dragOffset;
-					editor_selected.rr += axisVec[2] * dragOffset;
+				if (es.h != undefined) {
+					es.r = max(es.r + xDelta, 1);
+					es.h = max(es.h + zDelta, 1);
+					break;
 				}
 				break;
 			case `grab`:
-				editor_selected.pos[0] += axisVec[0] * dragOffset;
-				editor_selected.pos[1] += axisVec[1] * dragOffset;
-				editor_selected.pos[2] += axisVec[2] * dragOffset;
+				editor_selected.pos[0] += xDelta;
+				editor_selected.pos[1] += yDelta;
+				editor_selected.pos[2] += zDelta;
 				break;
 			case `rotate`:
 				dragOffset *= 0.01;
