@@ -218,9 +218,11 @@ class Scene3dLoop {
 			return a;
 		});
 
-		arr.push(new BoxFrame({pos: [self.pos[0] + o0.pos[0], self.pos[1] + o0.pos[1], self.pos[2] + o0.pos[2]],
-									theta: self.theta, phi: self.phi, rot: self.rot}, createDefaultMaterial(), N_NORMAL, 
-									this.rx * this.d, this.ry * this.d, this.rz * this.d, 1));
+		if (debug_flags.showLoopBounds) {
+			arr.push(new BoxFrame({pos: [self.pos[0] + o0.pos[0], self.pos[1] + o0.pos[1], self.pos[2] + o0.pos[2]],
+										theta: self.theta, phi: self.phi, rot: self.rot}, createDefaultMaterial(), N_NORMAL, 
+										(this.rx + 0.5) * this.d, (this.ry + 0.5) * this.d, (this.rz + 0.5) * this.d, 1));
+		}
 		return arr;
 	}
 	
@@ -230,7 +232,7 @@ class Scene3dLoop {
 	}
 	
 	bounds() {
-		return giveBounds([this.d / 2, this.d / 2, this.d / 2],
+		return giveBounds(this.pos,
 			(this.rx + 0.5) * this.d, (this.ry + 0.5) * this.d, (this.rz + 0.5) * this.d, 
 			this.theta, this.phi, this.rot);
 	}
@@ -238,13 +240,16 @@ class Scene3dLoop {
 	distanceToPos(pos) {
 		const relPos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
 		const d = this.d;
-		var insideX = clamp(relPos[0], -this.rx * d, this.rx * d);
-		var insideY = clamp(relPos[1], -this.ry * d, this.ry * d);
-		var insideZ = clamp(relPos[2], -this.rz * d, this.rz * d);
+		const rx = this.rx | 0;
+		const ry = this.ry | 0;
+		const rz = this.rz | 0;
+		var insideX = clamp(relPos[0], -rx * d, rx * d);
+		var insideY = clamp(relPos[1], -ry * d, ry * d);
+		var insideZ = clamp(relPos[2], -rz * d, rz * d);
 		return sceneSDF(this.objects, Pos(
-			modulate(insideX, d) + (relPos[0] - insideX),
-			modulate(insideY, d) + (relPos[1] - insideY),
-			modulate(insideZ, d) + (relPos[2] - insideZ),
+			modulateSigned(insideX, d) + (relPos[0] - insideX),
+			modulateSigned(insideY, d) + (relPos[1] - insideY),
+			modulateSigned(insideZ, d) + (relPos[2] - insideZ),
 		))[0];
 	}
 	
@@ -264,7 +269,7 @@ class Scene3dLoop {
 		//assume self has exactly ONE object.
 		var obj = this.objects[0];
 		var serial = obj.serializeGPU();
-		serial[7] = packageRot(obj.theta, obj.phi, obj.rot);
+		serial[7] = packageRot(this.theta, this.phi, this.rot);
 		serial[8] = this.d;
 		return serial;
 	}
@@ -851,6 +856,11 @@ class Line extends Scene3dObject {
 		this.rx = rx;
 		this.ry = ry;
 		this.rz = rz;
+		this.posEnd = Pos(
+			this.pos[0] + rx,
+			this.pos[1] + ry,
+			this.pos[2] + rz
+		);
 		//it doesn't really make sense for lines to be affected by transformations. So they're not.
 		if (this.theta || this.phi || this.rot) {
 			console.error(`${this.serialize()}: Lines should not be rotated!`);
@@ -859,10 +869,14 @@ class Line extends Scene3dObject {
 			this.rot = 0;
 		}
 		this.r = thickness;
-		this.calc();
+		this.posData = [
+			[this.pos, ABSOLUTE],
+			[this.posEnd, RELATIVE]
+		];
 	}
-	
-	calc() {
+
+	posIndex(pos) {
+		
 	}
 	
 	bounds() {
@@ -890,7 +904,7 @@ class Line extends Scene3dObject {
 		const l = clamp(dot(apVec, lineVec) / lineDot, 0, 1);
 			
 		return (getDistance(pos[0], pos[1], pos[2], 
-				linterp(base[0], base[0] + this.rx, l), linterp(base[1], base[1] + this.ry, l), linterp(base[2], base[2] + this.rz, l)) - this.r);
+				linterp(base[0], base[0] + lineVec[0], l), linterp(base[1], base[1] + lineVec[1], l), linterp(base[2], base[2] + lineVec[2], l)) - this.r);
 	}
 	
 	serialize() {
