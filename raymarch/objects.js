@@ -32,8 +32,8 @@ class Scene3dObject {
 		this.nature = nature ?? N_NORMAL;
 		this.type = this.constructor.type;
 		
-		//doesn't do anything right now
-		this.gloopiness = 0;
+		this.gloopiness = 5;
+		this.gloopBoost = 0;
 		this.smoothness = 0;
 
 		this.theta = posRot.theta ?? 0;
@@ -181,7 +181,7 @@ class Scene3dLoop {
 	* @param {Number} yRepeats number of times in the Y direction to loop the object
 	* @param {Number} zRepeats number of times in the Z direction to loop the object
 	* @param {Number} loopSize how large each loop is
-	* @param {Scene3dObject[]} object the set of objects inside the loop
+	* @param {Scene3dObject[]} objects the set of objects inside the loop
 	 */
 	constructor(posRot, xRepeats, yRepeats, zRepeats, loopSize, objects) {
 		this.type = this.constructor.type;
@@ -211,9 +211,11 @@ class Scene3dLoop {
 		const self = this;
 		const o0 = this.objects[0];
 		var arr = this.objects.map((o) => {
+			var newO = deserialize(o.serialize());
+			newO.pos = Pos(0, 0, 0);
 			var a = new Scene3dLoop({pos: [self.pos[0] + o.pos[0], self.pos[1] + o.pos[1], self.pos[2] + o.pos[2]],
 									theta: self.theta, phi: self.phi, rot: self.rot},
-									self.rx, self.ry, self.rz, self.d, [o]);
+									self.rx, self.ry, self.rz, self.d, [newO]);
 			a.parent = self;
 			return a;
 		});
@@ -262,7 +264,13 @@ class Scene3dLoop {
 	serialize() {
 		const grStr = this.objects.map(a => a.serialize()).join(`\n\t||`);
 		const pos = this.pos;
-		return `Loop~[${pos[0]},${pos[1]},${pos[2]}]~${this.xRepeats}~${this.yRepeats}~${this.zRepeats}~${this.d}\n\t||${grStr}`;
+		const [t, p, r] = [this.theta, this.phi, this.rot];
+		//TODO: I've now defined this enough times that it's probably worth it to just make it a real function
+		var deg = (radians) => {
+			radians /= degToRad;
+			return modulate(Math.round(radians), 360);
+		}
+		return `LOOP~[${pos[0]},${pos[1]},${pos[2]}]~X~${deg(t)}~${deg(p+Math.PI/2)}~${deg(r)}|${this.rx}~${this.ry}~${this.rz}~${this.d}\n\t||${grStr}`;
 	}
 	
 	serializeGPU() {
