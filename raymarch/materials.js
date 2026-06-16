@@ -9,6 +9,7 @@ MATERIAL TYPES
 20    portal
 25    gravity
 30    mirror
+40    light
 */
 
 class Material {
@@ -188,6 +189,29 @@ class M_Glass extends Material {
 	}
 }
 
+class M_Light extends Material {
+	static type = M_LIGHT;
+	/*
+		all lights have a 1/r^2 brightness curve. Luminosity sets the maximum distance at which brightness = ε
+	 */
+	constructor(r, g, b, luminosity) {
+		super(Color4(r, g, b, 255), 0);
+		this.epsilon = 1 / 256;
+		this.lumi = luminosity;
+	}
+
+	syncWith(obj) {
+	}
+
+	serialize() {
+		return `light:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.lumi}`;
+	}
+
+	serializeGPU() {
+		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, Math.sqrt(this.lumi / this.epsilon)]];
+	}
+}
+
 class M_Normal extends Material {
 	static type = M_NORMAL;
 	constructor() {
@@ -341,6 +365,7 @@ var map_strMat = {
 	"concrete": M_Concrete,
 	"ghost": M_Ghost,
 	"glass": M_Glass,
+	"light": M_Light,
 	"mirror": M_Mirror,
 	"normal": M_Normal,
 	"portal": M_Portal,

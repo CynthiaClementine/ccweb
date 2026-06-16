@@ -1,18 +1,21 @@
 #version 300 es
 
+//constants
 #define fencepost 4278259968.
+#define grav_constant 6.674
 
+//precision / quality
 #define ray_maxIters 500
 #define ray_maxDist 50000.0
 #define ray_nearDist 10.0
 #define ray_minDist 0.15
+#define ray_numLights 3
 #define ray_maxBounces 22
-#define shadow_steps 3.
 #define obj_maxNum 500
 
 #define fractal_iters 10
+#define shadow_steps 3.
 
-#define grav_constant 6.674
 
 //shapes
 #define SPHERE		0
@@ -58,7 +61,9 @@
 #define N_GLOOPY	1
 #define N_ANTI		2
 #define N_FOG		4
-// Gravity objects allow rays to pass through them but constrains the maximum step size that they can take. Surround interesting spacetime in a gravity object to ensure that rays don't just jump over it. The constraint on maximum step size is stored in data[3][0]
+// Gravity objects allow rays to pass through them but constrains the maximum step size that they can take. 
+//Surround interesting spacetime in a gravity object to ensure that rays don't just jump over it. 
+//The constraint on maximum step size is stored in data[3][0]
 #define N_GRAVITY	16
 
 //materials
@@ -71,6 +76,7 @@
 #define M_PORTAL	20
 #define M_GRAVITY	25
 #define M_MIRROR	30
+#define M_LIGHT		40
 
 // GR stuff
 #define DERIVATIVE_EPSILON 0.1
@@ -118,12 +124,15 @@ uniform sampler2D uUniverseBVHs;
 vec2 seed;
 
 int objIndices[obj_maxNum];
+float lightIndices[ray_numLights];
 
 int bounceCount = 0;
 float bvhTolerance = 8.0;
+float pixelGamma = 0.7;
 
-Raydata stage[2] = Raydata[2](
+Raydata stage[3] = Raydata[3](
 	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), 1.0, vec4(0.,0.,0.,0.)),
+	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), 1.0, vec4(1.0,0.1,0.1,0.0)),
 	Raydata(0, 0, 0.0, 0.0, 0.0, 0, Path(vec4(0.0), vec3(0.0), vec4(0.0)), 1.0, vec4(1.0,0.1,0.1,0.0))
 );
 
@@ -270,6 +279,11 @@ mat4 matData(int world, int index) {
 	vec4 data1 = texelFetch(uUniverseTex, ivec3(index, 5, world), 0);
 	vec4 data2 = texelFetch(uUniverseTex, ivec3(index, 6, world), 0);
 	return mat4(data0, data1, data2, vec4(0.0));
+}
+
+int matType(int world, int id) {
+	float bits = texelFetch(uUniverseTex, ivec3(id, 0, world), 0)[0];
+	return (floatBitsToInt(bits) >> 16);
 }
 
 mat4 effectData(int world, int effectIndex, bool isPre) {
@@ -733,7 +747,7 @@ float objSDF(vec3 p, int world, int index) {
 	float d = 9999.;
 	
 	//it's a loop object. Do the modulation beforehand
-	if (type > 100) {
+	if (type >= 100) {
 		type -= 100;
 		p -= data[1].xyz;
 		int loopAngles = floatBitsToInt(data[3][2]);
@@ -1077,6 +1091,38 @@ void calcSceneObjs(int stg, float tolerance) {
 	objIndices[obj_maxNum - 1] = numObjs;
 }
 
+void calcLightPositions() {
+	int world = stage[0].world;
+	vec3 currPos = stage[0].path.spot.yzw;
+	int len = w_objCount(world);
+	//index 0 is always taken by the sun
+	int currLen = 1;
+	//
+	for (int l=0; l<len; l++) {
+		//only apply to lights:
+		if (matType(world, l) != M_LIGHT) {
+			continue;
+		}
+		//figure out distance to said light
+		float dist = length(objData(world, l)[1].xyz - currPos);
+		float temp;
+
+		//update closest dist list
+		for (int subInd=1; subInd<currLen; subInd+=1) {
+			//out-of-order swap
+			if (dist < lightIndices[subInd]) {
+				temp = lightIndices[subInd];
+				lightIndices[subInd] = dist;
+				dist = temp;
+			}
+		}
+		if (currLen < ray_numLights) {
+			lightIndices[currLen] = dist;
+			currLen += 1;
+		}
+	}
+}
+
 //from inigo quilez - smoothly blends between the minimum of two function outputs. 
 //k is the range within which values will blend.
 //note: d1 and d2 are interchangable
@@ -1100,7 +1146,7 @@ float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
 	}
 	
 	if ((nature & N_GLOOPY) > 0) {
-		float trueNewDist = smoothMin(oldDist, newDist, ray_nearDist / 2.);
+		float trueNewDist = smoothMin(oldDist, newDist, 2.5);
 		if (trueNewDist < oldDist - ray_minDist / 2.) {
 			stage[stg].closestInd = index;
 			return trueNewDist;
@@ -1152,11 +1198,6 @@ float sceneSDF_naive(vec3 p, int stg) {
 
 
 // Raymarching steps
-
-int matType(int world, int id) {
-	float bits = texelFetch(uUniverseTex, ivec3(id, 0, world), 0)[0];
-	return (floatBitsToInt(bits) >> 16);
-}
 
 void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float newLocalDist) {
 	//don't even bother with anti
@@ -1213,56 +1254,63 @@ void raymarch() {
 	}
 }
 
-void shadow() {
+void shadow(int stg, int lightIndex) {
 	//prep
-	float gamma = 0.7;
-	stage[1].totalDist = 0.02;
+	stage[stg].world = stage[0].world;
+	stage[stg].density = stage[0].density;
+	
+	stage[stg].totalDist = 0.02;
 	int count = 80;
-	vec3 sunVec = w_sunVec(stage[0].world);
+	vec3 sunVec;
+	if (lightIndex == -1) {
+		sunVec = w_sunVec(stage[0].world);
+	} else {
+		// sunVec; = ///oughhhhhhhh
+	}
 	vec3 normal = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
 	vec3 reflected = reflect(stage[0].path.vel, normal);
-	float shadowDot = dot(sunVec, reflected);
-	setStageRay(1, stage[0].path.spot.yzw + normal * ray_minDist * 5., sunVec);
+	float shadowDot = dot(sunVec, normal);
+	setStageRay(stg, stage[0].path.spot.yzw + normal * ray_minDist * 5., sunVec);
 	
 	for(int i=0; i<count; i++) {
-		stage[1].iters = i;
-		stage[1].localDist = sceneSDF(stage[1].path.spot.yzw, 1);
+		stage[stg].iters = i;
+		stage[stg].localDist = sceneSDF(stage[stg].path.spot.yzw, stg);
 		int res = 0;
 		
 		if (stage[1].localDist < ray_minDist) {
-			mat4 matDat = matData(stage[1].world, stage[1].closestInd);
-			int type = matType(stage[1].world, stage[1].closestInd);
-			res = applyHitEffect(1, stage[1].localDist, type, matDat[0], matDat[1], matDat[2]);
+			mat4 matDat = matData(stage[stg].world, stage[stg].closestInd);
+			int type = matType(stage[stg].world, stage[stg].closestInd);
+			res = applyHitEffect(stg, stage[stg].localDist, type, matDat[0], matDat[1], matDat[2]);
 			if (res > 0) {
-				gamma = 0.0;
+				pixelGamma = 0.0;
 				break;
 			}
 		}
 
-		float shadowTolerance = min(stage[1].totalDist, 40.);
-		gamma = min(gamma, 4.0 * (stage[1].localDist / shadowTolerance));
+		float shadowTolerance = min(stage[stg].totalDist, 40.);
+		pixelGamma = min(pixelGamma, 4.0 * (stage[stg].localDist / shadowTolerance));
 		
 		//TODO: make shadows work with gravity
-		stage[1].localDist = max(stage[1].localDist, ray_minDist);
+		stage[stg].localDist = max(stage[stg].localDist, ray_minDist);
 		// vec3 before = stage[1].path.spot.yzw;
 		// stage[1].path = geodesicStep(stage[1].path, stage[1].localDist);
 		// vec3 after = stage[1].path.spot.yzw;
 		// float travel = length(after - before);
 
-		stage[1].path.spot.yzw += stage[1].localDist * stage[1].path.vel;
-		stage[1].totalDist += stage[1].localDist;
+		stage[stg].path.spot.yzw += stage[stg].localDist * stage[1].path.vel;
+		stage[stg].totalDist += stage[stg].localDist;
 
 		//potentially add t cutoff here (far away objects won't cast shadows)
-		applyPreEffects(1);
+		applyPreEffects(stg);
 	}
 	
 	//quantize shadows for cell shading effect
-	gamma += 0.3 * shadowDot;
-	float base = floor(shadow_steps * gamma) / shadow_steps;
-	gamma = base + linearstep(shadow_steps * (gamma - base)) / shadow_steps;
+	pixelGamma += 0.3 * shadowDot;
+	float base = floor(shadow_steps * pixelGamma) / shadow_steps;
+	pixelGamma = base + linearstep(shadow_steps * (pixelGamma - base)) / shadow_steps;
 	
-	float ambience = w_ambientLight(stage[1].world);
-	stage[1].color *= ambience + ((1. - ambience) * clamp(gamma, 0.0, 1.0));
+	float ambience = w_ambientLight(stage[stg].world);
+	stage[stg].color *= ambience + ((1. - ambience) * clamp(pixelGamma, 0.0, 1.0));
 }
 
 /*
@@ -1385,11 +1433,12 @@ float hamiltonian(vec4 spot, vec4 momentum, vec3 singularityPos, float mass) {
 
 vec4 metricPartialDerivatives(vec4 spot, vec4 momentum, mat4 metric, vec4 dxda, vec3 singularityPos, float mass) {
 	float origin = lengthSquare(metric, dxda);
+	vec2 e = vec2(DERIVATIVE_EPSILON, 0.0);
 
-	float a = hamiltonian(spot + vec4(DERIVATIVE_EPSILON, 0, 0, 0), momentum, singularityPos, mass) - origin;
-	float b = hamiltonian(spot + vec4(0, DERIVATIVE_EPSILON, 0, 0), momentum, singularityPos, mass) - origin;
-	float c = hamiltonian(spot + vec4(0, 0, DERIVATIVE_EPSILON, 0), momentum, singularityPos, mass) - origin;
-	float d = hamiltonian(spot + vec4(0, 0, 0, DERIVATIVE_EPSILON), momentum, singularityPos, mass) - origin;
+	float a = hamiltonian(spot + e.xyyy, momentum, singularityPos, mass) - origin;
+	float b = hamiltonian(spot + e.yxyy, momentum, singularityPos, mass) - origin;
+	float c = hamiltonian(spot + e.yyxy, momentum, singularityPos, mass) - origin;
+	float d = hamiltonian(spot + e.yyyx, momentum, singularityPos, mass) - origin;
 
 	return vec4(a, b, c, d) / DERIVATIVE_EPSILON / 2.;
 }
@@ -1418,22 +1467,23 @@ Path geodesicStep(Path current, float maxStep, vec3 singularityPos, float mass) 
 }
 
 //actual fragment shader: what's done for a pixel
-
 void drawVal(float val, vec2 pos) {
-	if (val < 0.) {
+	if (val < 0.0) {
 		outColor = vec4(-val, 0., 0., 1.0);
-	} else if (val > 0.0) {
+		return;
+	}
+	if (val > 0.0) {
 		if (val == fencepost) {
 			outColor = vec4(1., 0., 1., 1.0);
 		} else {
 			outColor = vec4(0., val, 0., 1.0);
 		}
-	} else {
-		if (mod(pos[0] / 10., 1.) < 0.03 || fract(pos[1]) < 0.02) {
-			return;
-		}
-		outColor = vec4(0.25, 0.1, 0.25, 1.0);
+		return;
 	}
+	if (mod(pos[0] / 10., 1.) < 0.03 || fract(pos[1]) < 0.02) {
+		return;
+	}
+	outColor = vec4(0.25, 0.1, 0.25, 1.0);
 }
 
 void drawWorld() {
@@ -1488,11 +1538,10 @@ void main() {
 	objIndices[obj_maxNum - 1] = 0;
 	
 	//TODO: why does this go from -1 to 1?
-	vec2 uv = vUV * 2.0 - 1.0;
-	seed = vec2(vUV);
+	seed = vec2(vUV * 0.5 + 0.5);
 	vec3 camVecs = vec3(
-		uv.x * uResFov.x / uResFov.y * uResFov[2],
-		uv.y * uResFov[2],
+		vUV.x * uResFov.x / uResFov.y * uResFov[2],
+		vUV.y * uResFov[2],
 		1
 	);
 	
@@ -1502,7 +1551,6 @@ void main() {
 	
 	//fetch world data
 	//??
-	
 	int currStg = 0;
 	
 	//stage 0
@@ -1510,11 +1558,13 @@ void main() {
 	
 	// stage 1
 	if (stage[0].totalDist < ray_maxDist && stage[0].iters + 1 < ray_maxIters) {
+		//figure out light positions
+		calcLightPositions();
+
 		currStg = 1;
 		//it's hit an object, run shadow stage
-		stage[1].world = stage[0].world;
-		stage[1].density = stage[0].density;
-		shadow();
+		shadow(1, -1);
+		// shadow(2);
 	}
 	
 	applyColor(0, stage[1].color);
