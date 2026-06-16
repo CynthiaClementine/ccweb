@@ -42,14 +42,14 @@ class Player {
 
 		//how fast the player accelerates
 		this.accel = 0.07;
-		this.jumpSpeed = 6;
+		this.jumpSpeed = 4.75;
 		this.dashBase = 3;
 		this.dashMult = 1.5;
 		this.frictionBrake = 0.8;
 		this.frictionGround = 0.98;
 		this.frictionAir = 0.995;
 
-		this.gravity = 0.1;
+		this.gravity = 0.08;
 		this.fallMax = 10;
 		this.trueMax = 30;
 		this.grounded = 0;
