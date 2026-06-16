@@ -41,6 +41,7 @@ const M_GHOST =		11;
 const M_PORTAL =	20;
 const M_GRAVITY =	25;
 const M_MIRROR =	30;
+const M_LIGHT =		40;
 
 const TYPE_CLASS_OBJ =		-1;
 const TYPE_CLASS_OBJAX =	-2;
@@ -109,6 +110,7 @@ var program;
 var vertexBuffer;
 var posLoc;
 var gl;
+var gl_timer;
 
 const frameTime = 1000 / 60;
 
@@ -187,7 +189,8 @@ var page_animation;
 var perf_log = {
 	"tick": [0], 
 	"intra": [0], 
-	"inter": [0]
+	"inter": [0],
+	"gpu": [0]
 };
 var perf_len = 20;
 var perf_startT = 0;
@@ -211,7 +214,7 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 240;
+var render_n = 300;
 var render_nAutoRange = [120, 512];
 var render_lastScaleTime = -1;
 var render_colN = 60;
