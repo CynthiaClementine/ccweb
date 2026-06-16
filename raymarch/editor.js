@@ -1,4 +1,12 @@
 var editor_selected = undefined;
+var editor_initBuffer = null;
+
+function createReference(variableStr, object) {
+	editor_initBuffer = object;
+	editor_controls.push(object);
+	eval(`${variableStr} = editor_initBuffer;`);
+	editor_initBuffer = null;
+}
 
 //editor functions
 /**
@@ -196,6 +204,7 @@ class Slider {
 	 */
 	constructor(elemGroup, variable, label, min, max, stepSize, numMin, numMax) {
 		var spl = elemGroup.split(`.`);
+		createReference(spl[1], this);
 		createHTMLSliderAt(spl[0], spl[1]);
 		this.label = label;
 		this.rel = !(Number.isNaN(+numMin));
@@ -358,6 +367,7 @@ class SliderCustom extends Slider {
 
 class Dropdown {
 	constructor(dropdownElem, valueFunc, valueOptionsArr) {
+		createReference(dropdownElem, this);
 		this.elem = document.getElementById(dropdownElem);
 		this.valFunc = valueFunc;
 		this.options = valueOptionsArr;
@@ -390,6 +400,7 @@ class Dropdown {
 
 class Textbox {
 	constructor(element, valueFunc) {
+		createReference(element, this);
 		this.elem = document.getElementById(element);
 		this.valFunc = valueFunc;
 		this.init();
@@ -416,6 +427,7 @@ class Textbox {
 class Checkbox {
 	constructor(element, label, valueFunc) {
 		var spl = element.split(`.`);
+		createReference(spl[1], this);
 		createHTMLCheckboxAt(spl[0], spl[1], label);
 		this.elem = document.getElementById(spl[1]);
 		this.checkElem = this.elem.children[0];
@@ -442,152 +454,16 @@ class Checkbox {
 	}
 }
 
-var slider_fov, slider_res;
-
-var slider_x, slider_y, slider_z;
-var slider_tht, slider_phi, slider_rot;
-
-var slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR, slider_d;
-var slider_gyrA, slider_gyrB, slider_h, slider_e;
-var slider_n;
-var slider_skew;
-var slider_shiftX, slider_shiftY, slider_shiftZ;
-
-var slider_r, slider_g, slider_b, slider_a;
-var slider_px, slider_py, slider_pz;
-var slider_m, slider_dens;
-
-var textbox_world;
-
-var dropdown_obj, dropdown_mat;
-
-var checkbox_gloop, checkbox_anti, checkbox_fog, checkbox_gravity;
-var checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8;
-
 var editor_controls = [];
-
 var objectEditables = {};
 var materialEditables = {};
 
 function editor_initialize() {
 	editor_selected = player;
 	var s = `&nbsp;`;
-	
-	//settings
-	slider_fov = new SliderCustom(`group_settings.fovSlider`, `fov: `, (val) => {
-		if (val) {
-			updateFOV(val);
-		}
-		return camera_FOV;
-	}, [
-		20, 40, 40, 40, 60, 60, 60, 80, 80,
-		80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,
-		120,125,125,130,130,135,135,140,140,145,145,150,150,155,155,160,160,175,175,
-		180,180,180,360
-	]);
-	slider_res = new SliderCustom(`group_settings.resSlider`, `px: ${s}`, (val) => {
-		if (val) {
-			render_goalN = val;
-		}
-		return render_goalN;
-	}, [40, 60, 80, 100, 120, 150, 180, 240, 300, 360, 512, 720, 1080, 1440]);
-	
-	//object sliders
 	var posLim = 99999;
-	
-	slider_x = new Slider(`group_pos.xSlider`, `editor_selected.pos[0]`, ``, -100,100, 1, -posLim,posLim);
-	slider_y = new Slider(`group_pos.ySlider`, `editor_selected.pos[1]`, ``, -100,100, 1, -posLim,posLim);
-	slider_z = new Slider(`group_pos.zSlider`, `editor_selected.pos[2]`, ``, -100,100, 1, -posLim,posLim);
-	
-	slider_tht = new Slider(`group_pos.thtSlider`, `editor_selected.theta`, ``, 0, 6.283, 0.01745);
-	slider_phi = new Slider(`group_pos.phiSlider`, `editor_selected.phi`, ``, -1.57, 1.571, 0.01745);
-	slider_rot = new Slider(`group_pos.rotSlider`, `editor_selected.rot`, ``, 0, 6.283, 0.01745);
-	
-	slider_rr = new Slider(`group_radius.rrSlider`, `editor_selected.r`, `r: ${s}`, -100,100, 1, 0,1E4);
-	slider_rx = new Slider(`group_radius.rxSlider`, `editor_selected.rx`, `rx: `, -100,100, 1, -1E3,1E4);
-	slider_ry = new Slider(`group_radius.rySlider`, `editor_selected.ry`, `ry: `, -100,100, 1, -1E3,1E4);
-	slider_rz = new Slider(`group_radius.rzSlider`, `editor_selected.rz`, `rz: `, -100,100, 1, -1E3,1E4);
-	slider_ringR = new Slider(`group_radius.ringrSlider`, `editor_selected.ringR`, `rr: `, -100,100, 1, 0,1E4);
-	slider_d = new Slider(`group_radius.dSlider`, `editor_selected.d`, `d: ${s}`, -100,100, 1, 0,1E4);
-	
-	slider_gyrA = new Slider(`group_special.gaSlider`, `editor_selected.a`, `a: `, 0.01,1.99, 0.01);
-	slider_gyrB = new Slider(`group_special.gbSlider`, `editor_selected.b`, `b: `, 0,19.95, 0.05);
-	slider_n = new Slider(`group_special.nSlider`, `editor_selected.n`, `n: `, 1,7, 1);
-	slider_h = new Slider(`group_special.hSlider`, `editor_selected.h`, `h: `, -99,99, 0.1, -posLim,posLim);
-	slider_e = new Slider(`group_special.eSlider`, `editor_selected.e`, `e: `, -10,10, 1, -999,999);
-	slider_skew = new Slider(`group_special.skewSlider`, `editor_selected.skew`, `skew: `, -50, 50, 1, -500, 500);
-	
-	slider_shiftX = new Slider(`group_special.sxSlider`, `editor_selected.shift[0]`, `sx: `, -5.999, 5.999, 0.005);
-	slider_shiftY = new Slider(`group_special.sySlider`, `editor_selected.shift[1]`, `sy: `, -5.999, 5.999, 0.005);
-	slider_shiftZ = new Slider(`group_special.szSlider`, `editor_selected.shift[2]`, `sz: `, -5.999, 5.999, 0.005);
-	
-	//material sliders
-	slider_r = new Slider(`group_color.rSlider`, `editor_selected.material.color[0]`, `r: `, 0,255, 1);
-	slider_g = new Slider(`group_color.gSlider`, `editor_selected.material.color[1]`, `g: `, 0,255, 1);
-	slider_b = new Slider(`group_color.bSlider`, `editor_selected.material.color[2]`, `b: `, 0,255, 1);
-	slider_a = new Slider(`group_color.aSlider`, `editor_selected.material.color[3]`, `a: `, 0,255, 1);
-	
-	slider_px = new Slider(`group_matSpecial.pxSlider`, `editor_selected.material.offset[0]`, `offX: `, -100,100, 1, -posLim,posLim);
-	slider_py = new Slider(`group_matSpecial.pySlider`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -posLim,posLim);
-	slider_pz = new Slider(`group_matSpecial.pzSlider`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -posLim,posLim);
-	
-	slider_m = new Slider(`group_matSpecial.mSlider`, `editor_selected.mass`, `m: `, -10,10, 0.01, -9.99,9.99);
-	slider_dens = new Slider(`group_matSpecial.densSlider`, `editor_selected.material.density`, `d: `, 0.05,9.95, 0.05);
-	
 	var playerConstructors = [Player, Player_Debug, Player_Noclip];
-	dropdown_obj = new Dropdown(`objectDropdown`, (val) => {
-		if (val) {
-			if (playerConstructors.includes(map_strObj[val])) {
-				//if it's a type of player, convert the player to that type
-				const oldPlayer = player;
-				player = new map_strObj[val](player.world, player.pos);
-				player.dPos = oldPlayer.dPos;
-				player.theta = oldPlayer.theta;
-				player.phi = oldPlayer.phi;
-				editor_select(player);
-			} else {
-				//change the constructor. If nothing's selected, act as a plus button
-				var ind = loading_world.objects.indexOf(editor_selected);
-				if (ind < 0) {
-					ind = loading_world.objects.length;
-					editor_addObj(null, TYPE_SPHERE);
-				}
-				
-				const oldObj = loading_world.objects[ind];
-				const newType = map_strObj[val].type;
-				const newObj = createDefaultObject(newType);
-				loading_world.objects[ind] = newObj;
-				transferProperties(oldObj, newObj);
-				loading_world.shouldRegen = true;
-				editor_select(newObj);
-			}
-		}
-		
-		//idk whatever
-		var type = editor_selected.constructor.name;
-		return map_objStr[type];
-	}, Object.keys(map_strObj));
-	
-	dropdown_mat = new Dropdown(`materialDropdown`, (val) => {
-		if (val) {
-			var mat = createDefaultMaterial(val, editor_selected.material.color);
-			editor_selected.material = mat;
-			loading_world.shouldRegen = true;
-			editor_select(editor_selected);
-		}
-	
-		var type = editor_selected.material.constructor.name;
-		return map_matStr[type];
-	}, Object.keys(map_strMat));
-	
-	textbox_world = new Textbox(`worldSelector`, (val) => {
-		if (val) {
-			editor_selected.material.str = val;
-			editor_selected.material.sync();
-		}
-		return editor_selected.material.str;
-	});
-	
+
 	function syncNature(val, nat) {
 		if (val != null) {
 			if (val) {
@@ -608,36 +484,135 @@ function editor_initialize() {
 		return (-editor_selected.c[id] + 1) / 2;
 	}
 	
-	checkbox_gloop = new Checkbox(`group_nature.gloopCheckbox`, `Gloop`, (val) => {return syncNature(val, N_GLOOP);});
-	checkbox_anti = new Checkbox(`group_nature.antiCheckbox`, `Anti`, (val) => {return syncNature(val, N_ANTI);});
-	checkbox_fog = new Checkbox(`group_nature.fogCheckbox`, `Fog`, (val) => {return syncNature(val, N_FOG);});
-	checkbox_gravity = new Checkbox(`group_nature.gravityCheckbox`, `Gravity`, (val) => {return syncNature(val, N_GRAVITY);});
-	
-	checkbox_c1 = new Checkbox(`group_special.c1Checkbox`, `.`, (val) => {return syncC(val, 0);});
-	checkbox_c2 = new Checkbox(`group_special.c2Checkbox`, `.`, (val) => {return syncC(val, 1);});
-	checkbox_c3 = new Checkbox(`group_special.c3Checkbox`, `.`, (val) => {return syncC(val, 2);});
-	checkbox_c4 = new Checkbox(`group_special.c4Checkbox`, `.`, (val) => {return syncC(val, 3);});
-	checkbox_c5 = new Checkbox(`group_special.c5Checkbox`, `.`, (val) => {return syncC(val, 4);});
-	checkbox_c6 = new Checkbox(`group_special.c6Checkbox`, `.`, (val) => {return syncC(val, 5);});
-	checkbox_c7 = new Checkbox(`group_special.c7Checkbox`, `.`, (val) => {return syncC(val, 6);});
-	checkbox_c8 = new Checkbox(`group_special.c8Checkbox`, `.`, (val) => {return syncC(val, 7);});
-	
+	//settings
 	editor_controls = [
-		slider_fov, slider_res,
-		slider_x, slider_y, slider_z,
-		slider_shiftX, slider_shiftY, slider_shiftZ,
-		slider_tht, slider_phi, slider_rot,
-		slider_rr, slider_rx, slider_ry, slider_rz, slider_ringR, slider_d,
-		slider_gyrA, slider_gyrB, slider_h, slider_skew,
-		slider_r, slider_g, slider_b, slider_a, slider_e,
-		slider_n,
-		slider_px, slider_py, slider_pz,
-		slider_m, slider_dens,
-
-		dropdown_obj, dropdown_mat,
-		textbox_world,
-		checkbox_gloop, checkbox_anti, checkbox_fog,checkbox_gravity,
-		checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8
+		new SliderCustom(`group_settings.slider_fov`, `fov: `, (val) => {
+			if (val) {
+				updateFOV(val);
+			}
+			return camera_FOV;
+		}, [
+			20, 40, 40, 40, 60, 60, 60, 80, 80,
+			80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120,
+			120,125,125,130,130,135,135,140,140,145,145,150,150,155,155,160,160,175,175,
+			180,180,180,360
+		]),
+		new SliderCustom(`group_settings.slider_res`, `px: ${s}`, (val) => {
+			if (val) {
+				render_goalN = val;
+			}
+			return render_goalN;
+		}, [40, 60, 80, 100, 120, 150, 180, 240, 300, 360, 512, 720, 1080, 1440]),
+		
+		//object sliders
+		new Slider(`group_pos.slider_x`, `editor_selected.pos[0]`, ``, -100,100, 1, -posLim,posLim),
+		new Slider(`group_pos.slider_y`, `editor_selected.pos[1]`, ``, -100,100, 1, -posLim,posLim),
+		new Slider(`group_pos.slider_z`, `editor_selected.pos[2]`, ``, -100,100, 1, -posLim,posLim),
+		
+		new Slider(`group_pos.slider_tht`, `editor_selected.theta`, ``, 0, 6.283, 0.01745),
+		new Slider(`group_pos.slider_phi`, `editor_selected.phi`, ``, -1.57, 1.571, 0.01745),
+		new Slider(`group_pos.slider_rot`, `editor_selected.rot`, ``, 0, 6.283, 0.01745),
+		
+		new Slider(`group_radius.slider_rr`, `editor_selected.r`, `r: ${s}`, -100,100, 1, 0,1E4),
+		new Slider(`group_radius.slider_rx`, `editor_selected.rx`, `rx: `, -100,100, 1, -1E3,1E4),
+		new Slider(`group_radius.slider_ry`, `editor_selected.ry`, `ry: `, -100,100, 1, -1E3,1E4),
+		new Slider(`group_radius.slider_rz`, `editor_selected.rz`, `rz: `, -100,100, 1, -1E3,1E4),
+		new Slider(`group_radius.slider_ringR`, `editor_selected.ringR`, `rr: `, -100,100, 1, 0,1E4),
+		new Slider(`group_radius.slider_d`, `editor_selected.d`, `d: ${s}`, -100,100, 1, 0,1E4),
+		
+		new Slider(`group_special.slider_ampl`, `editor_selected.ampl`, `ampl: `, 0.01,39.99, 0.01),
+		new Slider(`group_special.slider_gyrA`, `editor_selected.a`, `a: `, 0.01,1.99, 0.01),
+		new Slider(`group_special.slider_freq`, `editor_selected.freq`, `freq: `, 0.01,39.99, 0.01),
+		new Slider(`group_special.slider_gyrB`, `editor_selected.b`, `b: `, 0,19.95, 0.05),
+		new Slider(`group_special.slider_n`, `editor_selected.n`, `n: `, 1,7, 1),
+		new Slider(`group_special.slider_h`, `editor_selected.h`, `h: `, -99,99, 0.1, -posLim,posLim),
+		new Slider(`group_special.slider_e`, `editor_selected.e`, `e: `, -10,10, 1, -999,999),
+		new Slider(`group_special.slider_skew`, `editor_selected.skew`, `skew: `, -50, 50, 1, -500, 500),
+		
+		new Slider(`group_special.slider_shiftX`, `editor_selected.shift[0]`, `sx: `, -5.999, 5.999, 0.005),
+		new Slider(`group_special.slider_shiftY`, `editor_selected.shift[1]`, `sy: `, -5.999, 5.999, 0.005),
+		new Slider(`group_special.slider_shiftZ`, `editor_selected.shift[2]`, `sz: `, -5.999, 5.999, 0.005),
+		
+		//material sliders
+		new Slider(`group_color.slider_r`, `editor_selected.material.color[0]`, `r: `, 0,255, 1),
+		new Slider(`group_color.slider_g`, `editor_selected.material.color[1]`, `g: `, 0,255, 1),
+		new Slider(`group_color.slider_b`, `editor_selected.material.color[2]`, `b: `, 0,255, 1),
+		new Slider(`group_color.slider_a`, `editor_selected.material.color[3]`, `a: `, 0,255, 1),
+		
+		new Slider(`group_matSpecial.slider_px`, `editor_selected.material.offset[0]`, `offX: `, -100,100, 1, -posLim,posLim),
+		new Slider(`group_matSpecial.slider_py`, `editor_selected.material.offset[1]`, `offY: `, -100,100, 1, -posLim,posLim),
+		new Slider(`group_matSpecial.slider_pz`, `editor_selected.material.offset[2]`, `offZ: `, -100,100, 1, -posLim,posLim),
+		
+		new Slider(`group_matSpecial.slider_m`, `editor_selected.mass`, `m: `, -10,10, 0.01, -9.99,9.99),
+		new Slider(`group_matSpecial.slider_lumi`, `editor_selected.lumi`, `m: `, -10,10, 0.01, -9.99,9.99),
+		new Slider(`group_matSpecial.slider_dens`, `editor_selected.material.density`, `d: `, 0.05,9.95, 0.05),
+		
+		new Dropdown(`dropdown_obj`, (val) => {
+			if (val) {
+				if (playerConstructors.includes(map_strObj[val])) {
+					//if it's a type of player, convert the player to that type
+					const oldPlayer = player;
+					player = new map_strObj[val](player.world, player.pos);
+					player.dPos = oldPlayer.dPos;
+					player.theta = oldPlayer.theta;
+					player.phi = oldPlayer.phi;
+					editor_select(player);
+				} else {
+					//change the constructor. If nothing's selected, act as a plus button
+					var ind = loading_world.objects.indexOf(editor_selected);
+					if (ind < 0) {
+						ind = loading_world.objects.length;
+						editor_addObj(null, TYPE_SPHERE);
+					}
+					
+					const oldObj = loading_world.objects[ind];
+					const newType = map_strObj[val].type;
+					const newObj = createDefaultObject(newType);
+					loading_world.objects[ind] = newObj;
+					transferProperties(oldObj, newObj);
+					loading_world.shouldRegen = true;
+					editor_select(newObj);
+				}
+			}
+			
+			//idk whatever
+			var type = editor_selected.constructor.name;
+			return map_objStr[type];
+		}, Object.keys(map_strObj)),
+		
+		new Dropdown(`dropdown_mat`, (val) => {
+			if (val) {
+				var mat = createDefaultMaterial(val, editor_selected.material.color);
+				editor_selected.material = mat;
+				loading_world.shouldRegen = true;
+				editor_select(editor_selected);
+			}
+		
+			var type = editor_selected.material.constructor.name;
+			return map_matStr[type];
+		}, Object.keys(map_strMat)),
+		
+		new Textbox(`textbox_world`, (val) => {
+			if (val) {
+				editor_selected.material.str = val;
+				editor_selected.material.sync();
+			}
+			return editor_selected.material.str;
+		}),
+		
+		new Checkbox(`group_nature.checkbox_gloop`, `Gloop`, (val) => {return syncNature(val, N_GLOOP);}),
+		new Checkbox(`group_nature.checkbox_anti`, `Anti`, (val) => {return syncNature(val, N_ANTI);}),
+		new Checkbox(`group_nature.checkbox_fog`, `Fog`, (val) => {return syncNature(val, N_FOG);}),
+		new Checkbox(`group_nature.checkbox_gravity`, `Gravity`, (val) => {return syncNature(val, N_GRAVITY);}),
+		
+		new Checkbox(`group_special.checkbox_c1`, `.`, (val) => {return syncC(val, 0);}),
+		new Checkbox(`group_special.checkbox_c2`, `.`, (val) => {return syncC(val, 1);}),
+		new Checkbox(`group_special.checkbox_c3`, `.`, (val) => {return syncC(val, 2);}),
+		new Checkbox(`group_special.checkbox_c4`, `.`, (val) => {return syncC(val, 3);}),
+		new Checkbox(`group_special.checkbox_c5`, `.`, (val) => {return syncC(val, 4);}),
+		new Checkbox(`group_special.checkbox_c6`, `.`, (val) => {return syncC(val, 5);}),
+		new Checkbox(`group_special.checkbox_c7`, `.`, (val) => {return syncC(val, 6);}),
+		new Checkbox(`group_special.checkbox_c8`, `.`, (val) => {return syncC(val, 7);}),
 	];
 	
 	slider_fov.synchronize();
@@ -669,7 +644,7 @@ function editor_initialize() {
 		"SPHERE": [slider_rr],
 		"SINGULARITY": [slider_rr, slider_m],
 		"SHELL": [slider_rr, slider_h],
-		"TERRAIN": [...rxyz, slider_n, slider_gyrA, slider_gyrB],
+		"TERRAIN": [...rxyz, slider_n, slider_ampl, slider_gyrA, slider_freq, slider_gyrB],
 		"VOXEL": [slider_rr, checkbox_c1, checkbox_c2, checkbox_c3, checkbox_c4, checkbox_c5, checkbox_c6, checkbox_c7, checkbox_c8],
 		
 		"DOTDOTDOT": [],
@@ -684,6 +659,7 @@ function editor_initialize() {
 		"concrete": [],
 		"ghost": [...rgba],
 		"glass": [...rgba, slider_dens],
+		"light": [...rgb, slider_lumi],
 		"mirror": [...rgba],
 		"normal": [],
 		"portal": [textbox_world, slider_px, slider_py, slider_pz],
@@ -691,6 +667,8 @@ function editor_initialize() {
 		"rubber": [],
 	}
 }
+
+
 
 /**
 * creates an object and adds it to the loading world. Returns said object.
@@ -705,6 +683,66 @@ function editor_addObj(e, objType) {
 	return obj;
 }
 
+function editor_applyDrag(dragOffset) {
+	const [max, round] = [Math.max, Math.round];
+	const es = editor_selected;
+
+	// Apply accumulated drag offset to actual position
+	var axisVec = editor_getAxisVec(editor_axis);
+	var xDelta = axisVec[0] * dragOffset;
+	var yDelta = axisVec[1] * dragOffset;
+	var zDelta = axisVec[2] * dragOffset;
+
+	switch (editor_axisType) {
+		case `scale`:
+			console.log(xDelta, yDelta, zDelta);
+			if (es.rx != undefined) {
+				//loop objects should expand slower
+				if (es.constructor.type == TYPE_CLASS_LOOP) {
+					xDelta = (xDelta / 4);
+					yDelta = (yDelta / 4);
+					zDelta = (zDelta / 4);
+				}
+				es.rx = max(es.rx + xDelta, 0);
+				es.ry = max(es.ry + yDelta, 0);
+				es.rz = max(es.rz + zDelta, 0);
+				break;
+			}
+			if (es.rr != undefined) {
+				es.r = max(es.r + xDelta, 1);
+				es.rr = max(es.rr + zDelta, 1);
+				break;
+			}
+			if (es.h != undefined) {
+				es.r = max(es.r + xDelta, 1);
+				es.h = max(es.h + zDelta, 1);
+				break;
+			}
+			break;
+		case `grab`:
+			es.pos[0] += xDelta;
+			es.pos[1] += yDelta;
+			es.pos[2] += zDelta;
+			break;
+		case `rotate`:
+			dragOffset *= 0.01;
+			
+			if (editor_local) {
+				es.theta += dragOffset * (editor_axis == `x`);
+				es.phi += dragOffset * (editor_axis == `y`);
+				es.rot += dragOffset * (editor_axis == `z`);
+			} else {
+				var res = transformTransform([0, 0, 0], es.theta, es.phi, es.rot, [0, 0, 0], 
+							dragOffset * (editor_axis == `y`), dragOffset * (editor_axis == `x`), dragOffset * (editor_axis == `z`));
+				[es.theta, es.phi, es.rot] = [res.theta, res.phi, res.rot];
+			}
+			es.theta = modulate(es.theta, Math.PI * 2);
+			es.phi = clamp(es.phi, -Math.PI / 2, Math.PI / 2);
+			es.rot = modulate(es.rot, Math.PI * 2);
+			break;
+	}
+}
+
 /**
 * removes an object from the loading world. Returns said object
  */
@@ -717,7 +755,7 @@ function editor_removeObj(e, object) {
 	var index = loading_world.objects.indexOf(object);
 	if (index < 0) {
 		console.error(`cannot remove object ${object.serialize()} from loading world!`);
-		return;
+		return null;
 	}
 	loading_world.shouldRegen = true;
 	var removed = loading_world.objects.splice(index, 1)[0];
@@ -728,6 +766,60 @@ function editor_removeObj(e, object) {
 	}
 	
 	return removed;
+}
+
+function editor_loopify(e, object) {
+	object = object ?? editor_selected;
+	if (object == player) {
+		return null;
+	}
+	if (object.constructor.type == TYPE_CLASS_LOOP) {
+		//unloop instead
+		return editor_unloopify(e, object);
+	}
+
+	editor_removeObj(null, object);
+
+	var b = object.bounds();
+	var targetSize = Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1], b[1][2] - b[0][2]);
+	var loopObj = new Scene3dLoop({
+		pos: Pos(object.pos[0], object.pos[1], object.pos[2]),
+		theta: 0, phi: 0, rot: 0
+	}, 1, 1, 1, targetSize, [object]);
+
+	object.pos = Pos(0, 0, 0);
+	
+	loading_world.objects.push(loopObj);
+	loading_world.shouldRegen = true;
+	return loopObj;
+}
+
+function editor_unloopify(e, object) {
+	if (object.constructor.type != TYPE_CLASS_LOOP) {
+		return null;
+	}
+
+	editor_removeObj(null, object);
+	var base = {
+		pos: object.pos,
+		theta: object.theta,
+		phi: object.phi,
+		rot: object.rot,
+	};
+
+	var list = object.objects;
+
+	list.forEach(o => {
+		var final = transformTransform(o.pos, o.theta, o.phi, o.rot, base.pos, base.theta, base.phi, base.rot);
+		o.pos = final.pos;
+		o.theta = final.theta;
+		o.phi = final.phi;
+		o.rot = final.rot;
+		loading_world.objects.push(o);
+	});
+
+	loading_world.shouldRegen = true;
+	return [list];
 }
 
 function editor_raycast() {
@@ -771,7 +863,7 @@ function editor_select(object) {
 	
 	//default sliders everything should see
 	var shouldSee = [
-		slider_fov, slider_res, 
+		slider_fov, slider_res,
 		dropdown_obj,
 		slider_x, slider_y, slider_z,
 	];
