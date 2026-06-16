@@ -115,17 +115,18 @@ function tick() {
 	
 	//editor syncing
 	if (debug_listening && controls_cursorLock) {
-		if (editor_selected != player && controls_altPressed) {
+		var es = editor_selected;
+		if (es != player && controls_altPressed) {
 			//held object?????
 			var newPos = calcPlacePos();
-			if (getDistancePos(newPos, editor_selected.pos) > 0.1) {
-				editor_selected.pos = newPos;
+			if (getDistancePos(newPos, es.pos) > 0.1) {
+				es.pos = newPos;
 				loading_world.shouldRegen = true;
 			}
 		}
 		//idk where to put this
-		if (editor_selected.material) {
-			editor_selected.material.syncWith(editor_selected);
+		if (es.material) {
+			es.material.syncWith(es);
 		}
 		editor_controls.forEach(c => {
 			try {
@@ -155,13 +156,12 @@ function finishDraw() {
 }
 
 function calcFrameTime() {
-	const elapsedMS = perf_log[`intra`][perf_log[`intra`].length-1];
+	const inter = perf_log[`inter`];
+	const intra = perf_log[`intra`];
+	const tick = perf_log[`tick`];
+	const elapsedMS = intra[intra.length - 1];
 	
 	//figure out all averages / maxes
-	var inter = perf_log[`inter`];
-	var intra = perf_log[`intra`];
-	var tick = perf_log[`tick`];
-	
 	var interMax = inter.reduce((a, b) => Math.max(a, b));
 	var intraMax = intra.reduce((a, b) => Math.max(a, b));
 	var tickMax = tick.reduce((a, b) => Math.max(a, b));
@@ -272,6 +272,16 @@ function handleWorkerMsg(e) {
 			break;
 	}
 	// console.log(e.data);
+}
+
+function screenshot() {
+	var url = canvas.toDataURL(`image/png`);
+	var link = document.createElement("a");
+	link.href = url;
+	link.download = `render ${months[date.getMonth()]}-${date.getDate()}-${date.getFullYear()}.png`;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
 }
 
 
@@ -453,7 +463,11 @@ function handleKeyPress(a) {
 			break;
 		case "Space":
 			player.jump();
-			player.aPos[1] = player.accel;
+			if (controls_shiftPressed) {
+				player.aPos[1] = 0;
+			} else {
+				player.aPos[1] = player.accel;
+			}
 			a.preventDefault();
 			break;
 		
@@ -519,62 +533,7 @@ function handleMouseMove(a) {
 		if (Math.abs(dragOffset) < 0.01) {
 			return;
 		}
-		
-		// Apply accumulated drag offset to actual position
-		var axisVec = editor_getAxisVec(editor_axis);
-		var xDelta = axisVec[0] * dragOffset;
-		var yDelta = axisVec[1] * dragOffset;
-		var zDelta = axisVec[2] * dragOffset;
-		switch (editor_axisType) {
-			case `scale`:
-				const [max, round] = [Math.max, Math.round];
-				const es = editor_selected;
-				console.log(xDelta, yDelta, zDelta);
-				if (es.rx != undefined) {
-					//loop objects should expand slower
-					if (es.constructor.type == TYPE_CLASS_LOOP) {
-						xDelta = (xDelta / 4);
-						yDelta = (yDelta / 4);
-						zDelta = (zDelta / 4);
-					}
-					es.rx = max(es.rx + xDelta, 0);
-					es.ry = max(es.ry + yDelta, 0);
-					es.rz = max(es.rz + zDelta, 0);
-					break;
-				}
-				if (es.rr != undefined) {
-					es.r = max(es.r + xDelta, 1);
-					es.rr = max(es.rr + zDelta, 1);
-					break;
-				}
-				if (es.h != undefined) {
-					es.r = max(es.r + xDelta, 1);
-					es.h = max(es.h + zDelta, 1);
-					break;
-				}
-				break;
-			case `grab`:
-				editor_selected.pos[0] += xDelta;
-				editor_selected.pos[1] += yDelta;
-				editor_selected.pos[2] += zDelta;
-				break;
-			case `rotate`:
-				dragOffset *= 0.01;
-				
-				if (editor_local) {
-					editor_selected.theta += dragOffset * (editor_axis == `x`);
-					editor_selected.phi += dragOffset * (editor_axis == `y`);
-					editor_selected.rot += dragOffset * (editor_axis == `z`);
-				} else {
-					var res = transformTransform([0, 0, 0], editor_selected.theta, editor_selected.phi, editor_selected.rot, [0, 0, 0], 
-								dragOffset * (editor_axis == `y`), dragOffset * (editor_axis == `x`), dragOffset * (editor_axis == `z`));
-					[editor_selected.theta, editor_selected.phi, editor_selected.rot] = [res.theta, res.phi, res.rot];
-				}
-				editor_selected.theta = modulate(editor_selected.theta, Math.PI * 2);
-				editor_selected.phi = clamp(editor_selected.phi, -Math.PI / 2, Math.PI / 2);
-				editor_selected.rot = modulate(editor_selected.rot, Math.PI * 2);
-				break;
-		}
+		editor_applyDrag(dragOffset);
 		loading_world.shouldRegen = true;
 		return;
 	}
