@@ -196,7 +196,7 @@ class M_Light extends Material {
 	 */
 	constructor(r, g, b, luminosity) {
 		super(Color4(r, g, b, 255), 0);
-		this.epsilon = 1 / 256;
+		this.epsilon = 1 / 512;
 		this.lumi = luminosity;
 	}
 
@@ -208,6 +208,7 @@ class M_Light extends Material {
 	}
 
 	serializeGPU() {
+		//max. distance is sent to the GPU
 		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, Math.sqrt(this.lumi / this.epsilon)]];
 	}
 }
@@ -356,7 +357,30 @@ class M_Rubber extends Material {
 	}
 }
 
-var materialCloud = new M_Ghost(255, 255, 255, 26);
+class M_Texture extends Material {
+	static type = M_TEXTURE;
+	constructor(materialID, scale, isRelative, blendFactor) {
+		super(Color4(255, 0, 255, 255), 0.2);
+		this.mat = materialID;
+		this.scale = scale ?? 1.0;
+		this.rel = isRelative ?? true;
+		this.blend = blendFactor ?? 0.5;
+	}
+
+	applyNearEffect(ray) {}
+	
+	applyHitEffect(ray) {
+		return true;
+	}
+
+	serialize() {
+		return `texture:${this.mat}~${this.scale}~${this.rel}~${this.blend}`;
+	}
+
+	serializeGPU() {
+		return [this.type, [this.mat, this.scale, this.rel, this.blend]];
+	}
+}
 
 
 
@@ -371,6 +395,7 @@ var map_strMat = {
 	"portal": M_Portal,
 	"gravity": M_Gravity,
 	"rubber": M_Rubber,
+	"texture": M_Texture,
 };
 var map_matStr = Object.fromEntries(Object.entries(map_strMat).map(a => [a[1].name, a[0]]));
 

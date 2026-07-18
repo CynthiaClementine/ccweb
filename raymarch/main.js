@@ -1,16 +1,18 @@
 window.onload = setup;
 window.onresize = resize;
-window.addEventListener("keydown", handleKeyPress, false);
-window.addEventListener("keyup", handleKeyNegate, false);
-document.addEventListener('pointerlockchange', handleCursorLockChange, false);
-document.addEventListener('mozpointerlockchange', handleCursorLockChange, false);
-window.addEventListener("wheel", handleWheel, {passive: false});
+window.onkeydown = handleKeyPress;
+window.onkeyup = handleKeyNegate;
+document.onpointerlockchange = handleCursorLockChange;
+window.addEventListener(`wheel`, handleWheel, {passive: false});
 
 var canvas;
 var gl;
 
 var banvas;
 var btx;
+
+var danvas;
+var dtx;
 
 async function setup() {
 	createWorlds();
@@ -31,6 +33,7 @@ async function setup() {
 		alert(`Float colors not supported. This program will not run correctly.`);
 		throw new Error("float colors not supported");
 	}
+	gl_numTextures = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
 	
 	updateFOV(camera_FOV, false);
 
@@ -41,22 +44,37 @@ async function setup() {
 	player = new Player_Debug(loading_world, Pos(...loading_world.spawn), ...loading_world.spawn.slice(3));
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
-	
 	editor_initialize();
-	editor_select();
 	document.title = `Raymarching: ${splashes[(Math.random() * splashes.length) | 0]}`;
 	
 	//serializing / editor error checking
-	if (!keysMatch(map_strObj, objectEditables)) {
-		throw new Error(`Mismatch between editor objects and defined objects!`);
+	var s1 = keyDiff(map_strObj, objectEditables);
+	if (s1.size != 0) {
+		console.log(s1);
+		// throw new Error(`Mismatch between editor objects and defined objects!`);
 	}
-	if (!keysMatch(map_strMat, materialEditables)) {
+	var s2 = keyDiff(map_strMat, materialEditables);
+	if (s2.size != 0) {
+		console.log(s2);
 		throw new Error(`Mismatch between editor materials and defined materials!`);
+	}
+
+	//windows safeguard
+	if (navigator.userAgent.includes(`Windows`)) {
+		var isAlright = confirm("Hi! It appears you are running Windows, which means that this program will likely take at least 30 seconds to load, "
+		+"and may end up just breaking entirely. The tab will be frozen during this time. Why? Because: Windows.\n"
+		+"For a longer explanation, see https://stackoverflow.com/questions/53541626/webgl-how-to-avoid-long-shader-compile-stalling-a-tab#53549882\n"
+		+"Would you like to continue?");
+
+		if (!isAlright) {
+			return;
+		}
 	}
 
 	setupGLState(vertexShaderCode, fragmentShaderCode);
 	createBVHTexture(); 
 	createObjectsTexture();
+	createExtraTextures();
 	
 	resize();
 	page_animation = window.requestAnimationFrame(main);
@@ -114,21 +132,24 @@ function tick() {
 	camera.tick();
 	
 	//editor syncing
-	if (debug_listening && controls_cursorLock) {
-		var es = editor_selected;
-		if (es != player && controls_altPressed) {
-			//held object?????
-			var newPos = calcPlacePos();
-			if (getDistancePos(newPos, es.pos) > 0.1) {
-				es.pos = newPos;
-				loading_world.shouldRegen = true;
-			}
+	if (debug_listening && controls.cursorLock) {
+		const es = editor_selected;
+		const isPlayer = (es == player);
+
+		if (getDistancePos(player.dPos, Pos(0, 2, 0)) > 0.1) {
+			editor_updateHolp();
 		}
+		
 		//idk where to put this
+		if (!isPlayer && es.tick) {
+			console.log(`ticking selected ${es.constructor.name}`);
+			es.tick();
+		}
 		if (es.material) {
 			es.material.syncWith(es);
 		}
-		editor_controls.forEach(c => {
+		var ec = editor_controls;
+		[...(ec.set), ...(ec.world), ...(ec.obj), ...(ec.mat)].forEach(c => {
 			try {
 				c.synchronize();
 			} catch (e) {}
@@ -290,9 +311,25 @@ function handleKeyPress(a) {
 		return;
 	}
 	if (debug_listening) {
+		if (Array.from(document.querySelectorAll(`:hover`)).includes(editorPanelGroup)) {
+			return;
+		}
 		/*
 		all debug effects are activated by pressing ] and then another key.
 		DEBUG EFFECTS:
+			SELECTION:
+				Left-click or O - select object
+				shift-click - select multiple objects
+				alt-click - deselect object
+				click + drag or E - move object around
+
+			MODIFICATION:
+
+
+
+
+
+			
 			C - copy selected object
 			V - paste selected object
 
@@ -301,7 +338,6 @@ function handleKeyPress(a) {
 			B - toggle Bounding Box highlights
 			N - show the Number of iterations per pixel
 			
-			O - select crosshair's Object
 			P - copy current Pos to clipboard
 			
 			E + drag- select object and move it around
@@ -344,21 +380,21 @@ function handleKeyPress(a) {
 				var oldPlayer = player;
 				player = new Player(player.world, player.pos, player.theta, player.phi);
 				if (editor_selected == oldPlayer) {
-					editor_selected = player;
+					editor_deselect(editor_selected);
 				}
 				break;
 			case "Digit2":
 				var oldPlayer = player;
 				player = new Player_Debug(player.world, player.pos, player.theta, player.phi);
 				if (editor_selected == oldPlayer) {
-					editor_selected = player;
+					editor_deselect(editor_selected);
 				}
 				break;
 			case "Digit3":
 				var oldPlayer = player;
 				player = new Player_Noclip(player.world, player.pos, player.theta, player.phi);
 				if (editor_selected == oldPlayer) {
-					editor_selected = player;
+					editor_deselect(editor_selected);
 				}
 				break;
 		
@@ -371,6 +407,9 @@ function handleKeyPress(a) {
 				}
 				loading_world.shouldRegen = true;
 				return;
+			case "KeyE":
+				controls.shouldDrag = true;
+				return;
 			case "KeyN":
 				if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != E_ITERS) {
 					loading_world.postEffects.splice(0, 0, [E_ITERS]);
@@ -380,7 +419,6 @@ function handleKeyPress(a) {
 				loading_world.shouldRegen = true;
 				return;
 			case "KeyC":
-				editor_raycast();
 				if (editor_selected != player) {
 					clipboard = editor_selected.serialize();
 				}
@@ -390,6 +428,10 @@ function handleKeyPress(a) {
 					var newObj = deserialize(clipboard);
 					newObj.pos = calcPlacePos();
 					loading_world.objects.push(newObj);
+					if (newObj.type == TYPE_CLASS_LGROUP) {
+						newObj.tick();
+						newObj.break();
+					}
 					loading_world.shouldRegen = true;
 				}
 				return;
@@ -406,9 +448,8 @@ function handleKeyPress(a) {
 				editor_local = !editor_local;
 				return;
 			case "KeyO":
-				//select player
-				if (controls_altPressed) {
-					editor_select(player);
+				if (controls.alt) {
+					editor_deselect(editor_selected);
 					return;
 				}
 				editor_raycast();
@@ -454,16 +495,16 @@ function handleKeyPress(a) {
 		case "ShiftRight":
 			player.dash();
 			player.aPos[1] = -player.accel;
-			controls_shiftPressed = true;
+			controls.shift = true;
 			break;
 		case "AltLeft":
 		case "AltRight":
-			controls_altPressed = true;
-			editor_raycast();
+			controls.alt = true;
+			a.preventDefault();
 			break;
 		case "Space":
 			player.jump();
-			if (controls_shiftPressed) {
+			if (controls.shift) {
 				player.aPos[1] = 0;
 			} else {
 				player.aPos[1] = player.accel;
@@ -473,6 +514,7 @@ function handleKeyPress(a) {
 		
 		case "BracketRight":
 			debug_listening = !debug_listening;
+			loading_world.shouldRegen = true;
 			break;
 	}
 }
@@ -501,30 +543,52 @@ function handleKeyNegate(a) {
 		case "ShiftLeft":
 		case "ShiftRight":
 			player.aPos[1] = Math.max(player.aPos[1], 0);
-			controls_shiftPressed = false;
+			controls.shift = false;
 			break;
 		case "AltLeft":
 		case "AltRight":
-			controls_altPressed = false;
+			controls.alt = false;
 			break;
 		case "Space":
 			player.aPos[1] = Math.min(player.aPos[1], 0);
-			controls_dashPressed = false;
+			break;
+
+
+		case "KeyE":
+			controls.shouldDrag = false;
 			break;
 	}
 }
 
 function handleCursorLockChange() {
 	console.log(`cursor lock is changing`);
-	if (document.pointerLockElement === banvas || document.mozPointerLockElement === banvas) {
-		controls_cursorLock = true;
-		document.addEventListener("mousemove", handleMouseMove, false);
-	} else {
-		controls_cursorLock = false;
-		document.removeEventListener("mousemove", handleMouseMove, false);
+	const isOn = (document.pointerLockElement === banvas || document.mozPointerLockElement === banvas);
+	controls.cursorLock = isOn;
+	document.onmousedown = isOn ? handleMouseDown : null;
+	document.onmousemove = isOn ? handleMouseMove : null;
+	document.onmouseup = isOn ? handleMouseUp : null;
+}
+
+
+function handleMouseDown(a) {
+	controls.mButton = 1 + (a.button / 2);
+
+	//left-click
+	if (controls.mButton == 1) {
+		if (debug_listening) {
+			editor_raycast();
+		}
+		controls.shouldDrag = true;
+		return;
+	}
+
+	//right-click
+	if (controls.mButton == 2) {
+		return;
 	}
 }
 
+var testOut = [];
 function handleMouseMove(a) {
 	if (editor_axis) {
 		//figure out how much to move by, which direction to move, and then move there
@@ -537,20 +601,27 @@ function handleMouseMove(a) {
 		loading_world.shouldRegen = true;
 		return;
 	}
-	var dTheta = a.movementX * controls_sensitivity;
-	player.theta += dTheta;
-	player.phi -= (a.movementY) * controls_sensitivity;
-	var phiLimit = (camera_projFunc == projectPanini) ? Math.PI * 0.2 : Math.PI * 0.49;
-	player.phi = clamp(player.phi, -phiLimit, phiLimit);
+	var dTheta = a.movementX * controls.sensitivity;
+	var phiLimit = (camera_projFunc == projectPanini) ? pi * 0.2 : pi * 0.49;
+	player.theta = modulate(player.theta + dTheta, tau);
+	player.phi = clamp(player.phi - a.movementY * controls.sensitivity, -phiLimit, phiLimit);
+
+	editor_updateHolp();
 	
 	//change velocity in the case of rotating, since dPos is based on view angle
 	if (Math.abs(a.movementX) > 2) {
-		[player.dPos[0], player.dPos[2]] = rotate(player.dPos[0], player.dPos[2], dTheta - (2 * controls_sensitivity));
+		[player.dPos[0], player.dPos[2]] = rotate(player.dPos[0], player.dPos[2], dTheta - (2 * controls.sensitivity));
 	}
+}
+
+function handleMouseUp(a) {
+	controls.mButton = 0;
+	controls.shouldDrag = false;
 }
 
 function handleWheel(a) {
 	a.preventDefault();
 	editor_placeOffset *= (1 + a.deltaY / 50);
 	editor_placeOffset = clamp(editor_placeOffset, ...editor_placeRange);
+	editor_updateHolp();
 }

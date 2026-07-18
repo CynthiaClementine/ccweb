@@ -4,6 +4,8 @@
 const degToRad = (Math.PI / 180);
 
 const fencepost32 = 0xff0110ff;
+const pi = Math.PI;
+const tau = Math.PI * 2;
 
 //it's called scaryVariable because you don't know if you can remove it or not
 var scaryVariable = 0;
@@ -31,6 +33,7 @@ const N_ANTI =	2;
 const N_FOG =	4;
 const N_SMOOTH =8;
 const N_GRAVITY=16;
+const N_FIELD = 32;
 
 const M_COLOR =		0;
 const M_CONCRETE =	1;
@@ -42,13 +45,16 @@ const M_PORTAL =	20;
 const M_GRAVITY =	25;
 const M_MIRROR =	30;
 const M_LIGHT =		40;
+const M_TEXTURE =	50;
 
 const TYPE_CLASS_OBJ =		-1;
 const TYPE_CLASS_OBJAX =	-2;
 const TYPE_CLASS_PRISM =	-3;
 const TYPE_CLASS_LOOP =		-4;
 const TYPE_CLASS_GROUP =	-5;
-const TYPE_CLASS_SPUN =		-6;
+const TYPE_CLASS_LGROUP =	-6;
+const TYPE_CLASS_SPUN =		-7;
+
 
 const TYPE_SPHERE =			0;
 const TYPE_ELLIPSE =		1;
@@ -63,6 +69,7 @@ const TYPE_GYROID =			12;
 const TYPE_VOXEL =			13;
 const TYPE_CUBE =			14;
 const TYPE_LINE =			20;
+const TYPE_TRIANGLE =		21;
 const TYPE_DISH =			22;
 const TYPE_OCTAHEDRON =		30;
 const TYPE_RING =			40;
@@ -71,6 +78,12 @@ const TYPE_PRISM_HEX =		53;
 const TYPE_PRISM_OCT =		55;
 const TYPE_FRACTAL =		70;
 const TYPE_TERRAIN =		71;
+
+//not groups, but not primitives
+const TYPE_MESH_DOT =		201;
+const TYPE_MESH_SKYBUNNY =	202;
+const TYPE_MESH_LAMPPOST =	203;
+const TYPE_TREE =			210;
 
 //other enums
 const ABSOLUTE = 0;
@@ -111,6 +124,7 @@ var vertexBuffer;
 var posLoc;
 var gl;
 var gl_timer;
+var gl_numTextures;
 
 const frameTime = 1000 / 60;
 
@@ -135,18 +149,29 @@ const colors16 = [
 ];
 const color_editor_border = colors16[15];
 
-
-var controls_cursorLock = false;
-var controls_shiftPressed = false;
-var controls_altPressed = false;
-var controls_sensitivity = 0.005;
+let controls = {
+	shouldDrag: false,
+	cursorLock: false,
+	alt: false,
+	shift: false,
+	mButton: 0,
+	sensitivity: 0.005
+}
 
 var debug_listening = false;
+
+
+/*
+	autoScale: the program will increase/decrease the resolution based on lag
+	bunnyTargets: you can see where SkyBunnies are targeting
+	collisionRaycast: uses CPU collision raycasts to create a second image layer in red
+	showLoopBounds: shows a wireframe around all Scene3dLoop objects
+	realCrosshair: ???????
+ */
 var debug_flags = {
 	autoScale: false,
 	bunnyTargets: false,
 	collisionRaycast: false,
-	showChunk: false,
 	showLoopBounds: false,
 	realCrosshair: true,
 };
@@ -214,7 +239,7 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 300;
+var render_n = 180;
 var render_nAutoRange = [120, 512];
 var render_lastScaleTime = -1;
 var render_colN = 60;
@@ -316,12 +341,20 @@ const texture_rowsPerObj = 4;
 const texture_rowsPerMat = 3;
 const texture_rowsPerNode = 2;
 const texture_worldCols = 6;
+const texture_n = 64;
+const texture_maxID = 10;
+const texture_sources = [
+	`cobble_stone.png`,
+	`obama.png`,
+	`wall_paper.png`
+];
 var texture_universe;
 var texture_universeArr;
 var texture_bvh;
 var texture_bvhArr;
+var texture_exes;
+var texture_exesArr;
 
-const universe_maxID = 20;
 
 //uniforms
 var uDebug;
@@ -333,14 +366,11 @@ var uCamWorld;
 var uObjectCount;
 var uUniverseTex;
 var uUniverseBVH;
-
-var worker_num = 8;
-var worker_pool = [];
-var worker_ready = [];
+var uTexes;
 
 var loading_world;
 
 const world_maxObjs = 500;
-const world_objectChunks = Math.floor(Math.cbrt(10000));
+const world_maxID = 20;
 var worlds = {};
 var world_time = 0;

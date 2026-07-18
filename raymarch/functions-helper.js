@@ -74,6 +74,34 @@ function boundsAngle(radians) {
 	return Math.PI - radians;
 }
 
+/**
+* takes in an array of Scene3dObjects and calculates a bounding box that encompasses all the objects (by taking the min of all mins and max of all maxs)
+* @param {Scene3dObject[]} objectList the list to calculate for
+* @returns {Number[]} an array in the format [minPos, maxPos]
+ */
+function boundsForList(objectList) {
+	var min = [1e1001, 1e1001, 1e1001];
+	var max = [-1e101, -1e101, -1e101];
+	objectList.forEach(o => {
+		if (!o) {
+			throw new Error(`Bounds Error: undefined object!`);
+		}
+		var bounds = o.bounds();
+		for (var a=0; a<=2; a++) {
+			min[a] = Math.min(min[a], bounds[0][a]);
+			max[a] = Math.max(max[a], bounds[1][a]);
+			if (Number.isNaN(bounds[0][a])) {
+				console.error(bounds, o);
+				throw new Error(`Bounds Error: bounds aren't calculated correctly!`);
+			}
+			if (Number.isNaN(min[a])) {
+				throw new Error(`Bounds Error: what`);
+			}
+		}
+	});
+	return [min, max];
+}
+
 function BVHUnion(node1, node2) {
 	const minPos = Pos(
 		Math.min(node1.minPos[0], node2.minPos[0]),
@@ -334,8 +362,9 @@ function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
 }
 
 //tests whether the keys in dictionary A and B are the same
-function keysMatch(dictA, dictB) {
+function keyDiff(dictA, dictB) {
 	var s = new Set();
+	var opp = new Set();
 	const aKeys = Object.keys(dictA);
 	const bKeys = Object.keys(dictB);
 	
@@ -349,14 +378,21 @@ function keysMatch(dictA, dictB) {
 	
 	for (var z=0; z<bKeys.length; z++) {
 		if (!s.delete(bKeys[z])) {
-			return false;
+			opp.add(bKeys[z]);
 		}
 		if (dictB[bKeys[z]] == -1) {
 			delete dictB[bKeys[z]];
 		}
 	}
+
+	opp.forEach(e => {
+		s.add(e);
+	});
+
+	console.log(`hi`);
+	console.log(dictA, dictB, s, opp);
 	
-	return (s.size == 0);
+	return s;
 }
 
 
@@ -395,6 +431,9 @@ function proj(a, b) {
 	//proj = v(u•v / v•v)
 	return [b[0] * mult, b[1] * mult, b[2] * mult];
 }
+
+
+//TODO: remove this and put in the fragment shader, where it's actually useful
 
 //https://www.researchgate.net/publication/354065227_Essential_Ray_Generation_Shaders
 
@@ -578,6 +617,15 @@ function printPos(pos) {
 }
 
 /**
+ * gives the squared distance to a segment, from point p.
+ */
+function segmentDist2(seg, p) {
+	const t = clamp(dot(seg, p) / dot(seg, seg), 0, 1);
+	const proj = [p[0] - seg[0]*t, p[1] - seg[1]*t, p[2] - seg[2]*t];
+	return dot(proj, proj);
+}
+
+/**
  * Returns the image of a given point when transformed by the given offset / angles
  * @param {Number[]} point the point to transform
  * @param {Number[]} offset the Pos to transform by
@@ -691,10 +739,6 @@ function sceneSDF(sceneCollection, pos) {
 }
 
 function updateFOV(newFOV) {
-	updateFOV_work(newFOV);
-}
-
-function updateFOV_work(newFOV) {
 	camera_FOV = newFOV;
 	//first figure out best function given the FOV
 	switch (true) {
@@ -703,7 +747,6 @@ function updateFOV_work(newFOV) {
 			camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
 			break;
 		case (newFOV <= 180):
-			camera_projFunc = projectPanini;
 			//handle panini FOV:
 			//panini FOVs are different. Because it's stereographic projection, basically, degrees are doubled. 
 			//90 paniniº are worth 180 traditionalº. 
@@ -713,13 +756,6 @@ function updateFOV_work(newFOV) {
 			camera_halfTan = Math.tan((camera_FOV / 4) * degToRad);
 			//in this case, vertical FOV will be less than horizontal FOV
 			camera_halfTanVert = Math.tan((vertFOV / 2) * degToRad);
-			break;
-		case (newFOV == 360):
-			camera_projFunc = projectOct;
-			//not much to do here. the octahedron mapping takes care of pretty much everything
-			break;
-		default:
-			console.error(`something went wrong with FOV=${newFOV} ):`);
 			break;
 	}
 }

@@ -78,6 +78,10 @@ class Player {
 	tick() {
 		this.updateMomentum();
 		this.calcPossibleObjs();
+
+		//log contactObjs here
+
+		//add false velocity
 		
 		//take 2 half-steps
 		this.dPos[0] /= 2;
@@ -88,6 +92,11 @@ class Player {
 		this.dPos[0] *= 2;
 		this.dPos[1] *= 2;
 		this.dPos[2] *= 2;
+
+		//subtract false velocity
+
+		//log contactObjs here
+		//add velocity from diff
 		
 		
 		camera.world = this.world;
@@ -102,6 +111,13 @@ class Player {
 	}
 
 	updateMomentum() {
+		//subtract velocity of touching objects
+		this.contactObjs.forEach((obj => {
+			this.dPos[0] -= obj.dPos[0];
+			this.dPos[1] -= obj.dPos[1];
+			this.dPos[2] -= obj.dPos[2];
+		}).bind(this));
+		
 		//transform dPos to relative coordinates
 		[this.dPos[0], this.dPos[2]] = rotate(this.dPos[0], this.dPos[2], this.theta);
 		
@@ -109,6 +125,13 @@ class Player {
 		
 		//transform back to real coordinates
 		[this.dPos[0], this.dPos[2]] = rotate(this.dPos[0], this.dPos[2], -this.theta);
+
+		this.contactObjs.forEach((obj => {
+			this.dPos[0] += obj.dPos[0];
+			this.dPos[1] += obj.dPos[1];
+			this.dPos[2] += obj.dPos[2];
+			this.contactObjs.delete(obj);
+		}).bind(this));
 
 		//update grounding
 		this.grounded = clamp(this.grounded - 1, 0, player_coyote);
@@ -182,6 +205,7 @@ class Player {
 						}
 						if (bounceResult.dPos) {
 							this.contactObjs.add(bounceResult);
+							this.stealVelFrom(bounceResult);
 						}
 					}
 				}
@@ -189,6 +213,12 @@ class Player {
 		}
 		normals.length = numCollisions;
 		return normals;
+	}
+
+	stealVelFrom(obj) {
+		this.dPos[0] += obj.dPos[0];
+		this.dPos[1] += obj.dPos[1];
+		this.dPos[2] += obj.dPos[2];
 	}
 	
 	//slightly simpler sphere calculation that just says if the sphere collides. Returns after the first collision.
@@ -286,17 +316,6 @@ class Player {
 		
 		//go back down
 		this.updateSubPosition(Pos(0, -1, 0), player_stepHeight + 1, coords, Pos(0, 0, 0), panicPoints);
-		
-		//have objects bring the player up to speed
-		this.contactObjs.forEach((obj => {
-			var vec = [
-				obj.dPos[0] * this.mmtmFactor,
-				obj.dPos[1] * this.mmtmFactor,
-				obj.dPos[2] * this.mmtmFactor,
-			]
-			dChange = linterpMulti(dChange, vec, 0.5);
-			this.contactObjs.delete(obj);
-		}).bind(this));
 		
 		//never bounce back faster than we started
 		

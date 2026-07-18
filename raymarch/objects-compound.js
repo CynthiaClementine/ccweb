@@ -15,10 +15,16 @@ var mesh_skyBunny = [
 	// `BOX-FRAME~[0,0,0]~0~0~90~0|color:255~0~255|39~26~26~1`
 ];
 
+var mesh_lamppost = [
+	`CYLINDER~[0,1,0]~0~0~0~0|color:38~43~95|5~68.1`,
+	`CAPSULE~[0,68,24]~0~0~90~0|color:38~43~95|5~24`,
+	`SPHERE~[1,62,44]~0~0~90~0|light:255~235~162~255|4`,
+];
+
 
 
 class DotDotDot extends SceneCollection {
-	static type = 201;
+	static type = TYPE_MESH_DOT;
 	constructor(posRot) {
 		super(posRot, mesh_dotdotdot);
 	}
@@ -29,7 +35,7 @@ class DotDotDot extends SceneCollection {
 }
 
 class SkyBunny extends SceneCollection {
-	static type = 202;
+	static type = TYPE_MESH_SKYBUNNY;
 	constructor(posRot) {
 		super(posRot, mesh_skyBunny);
 		
@@ -140,6 +146,64 @@ class SkyBunny extends SceneCollection {
 	}
 }
 
+class Lamppost extends SceneCollection {
+	static type = TYPE_MESH_LAMPPOST;
+	constructor(posRot) {
+		super(posRot, mesh_lamppost);
+	}
+	
+	serialize() {
+		return `LAMPPOST${super.serializeKernel()}`;
+	}
+}
+
+
+
+//procedurally generated tree of branches
+class Tree extends SceneCollection {
+	static type = TYPE_TREE;
+	constructor(posRot, seed, trunkAmpl, branchFactor, wobbleAmount, gain) {
+		super(posRot, []);
+		this.seed = seed;
+		this.crand = seed;
+		this.ampl = trunkAmpl;
+		this.rr = branchFactor;
+		this.a = wobbleAmount;
+		this.b = gain;
+		this.iters = 4;
+	}
+
+	rand(a, b) {
+		this.crand = Math.pow((this.crand + 10), 2.81593) % 10;
+		return a + (b - a)*(this.crand % 1);
+	}
+
+	//starting with a blank group, generate self
+	animate(objGroup) {
+		var currVecs = [[Pos(...this.pos), polToCart(this.rand(0, tau), this.rand(pi/2, pi/4), 1)]];
+
+		var newCurrs = [];
+		var ampl = this.ampl;
+		for (var a=0; a<this.iters; a++) {
+			currVecs.forEach(c => {
+				var futurePos = [c[1][0] * ampl, c[1][1] * ampl, c[1][2] * ampl];
+				//generate the branch based on the vector
+				objGroup.push(new Line({pos: c[0], theta:0,phi:0,rot:0}, material, nature, ...futurePos, Math.cbrt(ampl)));
+
+				//decide what new vectors should look like
+				var numBranches = (this.rand(0,1) > this.rr % 1) ? Math.floor(this.rr) : 1;
+				for (var n=0; n<numBranches; n++) {
+					var adjust = polToCart(this.rand(0, tau), this.rand(this.a, -this.a), 1);
+					newCurrs.push([Pos(...futurePos), ]);
+				}
+			});
+			currVecs = newCurrs;
+		}
+
+		
+	}
+}
+
 
 
 
@@ -167,10 +231,12 @@ var map_strObj = {
 	"SINGULARITY": Singularity,
 	"SPHERE": Sphere,
 	"TERRAIN": Terrain,
+	"TRI": Triangle,
 	"VOXEL": Voxel,
 	
 	"DOTDOTDOT": DotDotDot,
 	"SKYBUNNY": SkyBunny,
+	"LAMPPOST": Lamppost,
 	
 	//in here for editor purposes
 	"PLAYER": Player,
@@ -178,6 +244,7 @@ var map_strObj = {
 	"PLAYER-NOCLIP": Player_Noclip,
 	
 	"LOOP": Scene3dLoop,
+	"GROUP-L": SceneCollectionLoose,
 };
 var map_objStr = Object.fromEntries(Object.entries(map_strObj).map(a => [a[1].name, a[0]]));
 
