@@ -75,14 +75,6 @@
                 color: #022B3A;
             }
 
-            /* why isn't this working? */
-            .fresh a:link {
-                color: #ff9a35 !important;
-            }
-            .fresh a:visited {
-                color: #ff9a35 !important;
-            }
-
             .top-link, .up-link {
                 font-size: 20px;
                 color: #F5EDF0;
@@ -120,10 +112,30 @@
             <a class="top-link" href="#other-list">Other</a>
         </div>
 
+        <div id="featured-list" class="main surrounded">
+            <span id="flabel"><b>✼ Featured ✼</b></span>
+            <p>
+                <a href="raymarch/index.html">Raymarching</a> ✼ Published July 2026. It's a real-time raymarching engine I built using webgl and javascript. 
+                    Features clouds, procedural terrain, cheese blocks, black holes, and, of course, turtle hell.
+                    You can explore the little worlds I've made, or mess around with creating things. The editor has a bunch of unintuitive controls that are vaguely explained in main.js.<h3></h3>
+            
+                <a href="https://youtu.be/BbowtC719IY">Oje Singett</a> ✼ Published Oct 2024. It's Oje Singett. See my explanation in the extras section.<h3></h3>
+                
+                <a href="monarchy/index.html">Monarch</a> ✼ Published January 2022. It's a very short game where you overthrow the monarchy. I'm still proud of the art and gameplay. 
+                	I managed to surprise myself by putting the whole thing together in a single month. <h3></h3>
+
+                <a href="run-3-clone/index.html">Run 3 Remake</a> ✼ Published June 2021. It's Run 3, remade using just vanilla JS. 
+                	I point this out because I have been asked multiple times what library I used, and it's not using any libraries. The 3d renderer and physics system were done from scratch. 
+               		My one regret is that there are occasional clipping issues in complicated tunnels (this is what I get for writing my own, imperfect, renderer). 
+                It's been several years since I wrote this, and if I were to try it again now I would probably use webgl. I would also playtest more.<h3></h3>
+
+            </p>
+        </div>
+
         <div id="games-list" class="main surrounded">
             <p>
                 <b>Original Games</b><br>
-                <a class="fresh" href="monarchy/index.html">Monarch</a> - a very short RPG where you overthrow the monarchy with the help of some cool kids.<h3></h3>
+                <a href="monarchy/index.html">Monarch</a> - a very short RPG where you overthrow the monarchy with the help of some cool kids.<h3></h3>
                 <a href="circles/index.html">Circle System</a> - advanced bubble popping. I highly recommend playing with sound, as audio cues help you figure out what's going on.<h3></h3>
                 <a href="rotate/index.html">Rotate</a> - explore a slightly mind-bending 3d world full of basic shapes<h3></h3>
                 <a href="seasonalGrid/index.html">Tile World</a> - puzzle solving in a hexagonal tile space. Maybe there's lore? Maybe you're reading too far into it.<h3></h3>
@@ -156,13 +168,13 @@
         <div id="interact-list" class="main surrounded">
             <p>
                 <b>Interactables</b><br>
+                <a href="raymarch/index.html">Raymarching</a> - A demo of my real-time raymarching engine. <h3></h3>
                 <a href="fractals-3d/index.html">3d Fractals!</a> - raymarched 3d fractals, rendered in real time. You can play around with the parameters to create your own, and fly / walk around the surfaces!<h3></h3>
                 <a href="plains/index.html">The Desert</a> - 3d world + editor that I abandoned. As of Febuary 2025, it runs much better on chrome than firefox for some strange reason that probably has to do with JIT compiling.<h3></h3>
                 <a href="mandel/index.html">Interactive Mandelbrot set</a> - Click to zoom in, use sliders, play around! This version uses Web Workers for maximum efficiency. You can compare it to my<a class="main" href="mandelbrot-set.html">singlethreaded version </a>if you want to!<h3></h3>
                 <a href="solar-eclipse.html">Solar eclipse visualizer</a> - kind of neat I guess<h3></h3>
                 <a href="pain-peko/index.html">Neural Network field coloring</a> - draw points on a field and watch a neural network learn the pattern!<h3></h3>
                 <a href="satellite.html">Simple Satellite Simulation</a> - satellites orbiting a wireframe earth, with some nice graphs to go with<h3></h3>
-                <!--<a href="raymarch/index.html">Ray marching demo</a> - A demo of my real-time raymarching engine. <h3></h3>-->
                 <a href="pascal-triangle.html">Pascal's triangle</a> - (now with neat little coloring schema)<h3></h3>
                 <a href="prime-spiral.html">A Plot of Primes in Polar Coordinates</a> - superb subtractively spaced spirals<h3></h3>
                 <a href="circle-hover.html">Circle Cursor Hover</a> - hover over the circles as fast as possible to make the numbers go up. My best SR is 14.95<h3></h3>
@@ -268,6 +280,7 @@
         updateCompactness();
 
         function enableCompact() {
+            document.getElementById("featured-list").style["display"] = "none";
             for (var r=0; r<document.styleSheets[0].cssRules.length; r++) {
                 if (document.styleSheets[0].cssRules[r].selectorText == ".main") {
                     document.styleSheets[0].cssRules[r].style["font-size"] = "0px";
@@ -278,6 +291,7 @@
         }
 
         function disableCompact() {
+            document.getElementById("featured-list").style["display"] = `inline-block`;
             for (var r=0; r<document.styleSheets[0].cssRules.length; r++) {
                 if (document.styleSheets[0].cssRules[r].selectorText == ".main") {
                     document.styleSheets[0].cssRules[r].style["font-size"] = "20px";
