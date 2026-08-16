@@ -1,11 +1,11 @@
 /* 
 MATERIAL TYPES
 0     color
-1     concrete
 2     rubber
 3     normal
 10    glass
 11    ghost
+12    plexiglass
 20    portal
 25    gravity
 30    mirror
@@ -24,12 +24,10 @@ class Material {
 		return val;
 	}
 	
-	applyNearEffect(ray) {
-		console.error(`Near effect not initialized for material ${this.constructor.name}!`);
-	}
+	applyNearEffect(ray) {}
 	
-	applyHitEffect(ray) {
-		console.error(`Hit effect not initialized for material ${this.constructor.name}!`);
+	applyHitEffect(ray, obj) {
+		return true;
 	}
 	
 	//steal properties from parent object if necessary
@@ -66,8 +64,6 @@ class M_Color extends Material {
 		super(Color4(r, g, b, 255), 0.3);
 	}
 	
-	applyNearEffect(ray) {}
-	
 	applyHitEffect(ray, obj) {
 		applyColor(this.color, ray.color);
 		this.pushOut(ray, obj);
@@ -88,7 +84,6 @@ class M_Gravity extends Material {
 		this.mass = mass;
 	}
 	
-	applyNearEffect(ray) {}
 	applyHitEffect(ray, obj) {}
 	
 	syncWith(obj) {
@@ -106,60 +101,10 @@ class M_Gravity extends Material {
 	}
 }
 
-class M_Concrete extends M_Color {
-	static type = M_CONCRETE;
-	constructor() {
-		super(249, 248, 243);
-		this.closeColors = [
-			Color4(255, 255, 255, 255),
-			Color4(255, 249, 224, 255),
-			Color4(242, 236, 230, 255),
-			Color4(242, 252, 255, 255),
-		];
-		this.farColors = [
-			Color4(252, 252, 249, 255),
-			Color4(252, 248, 234, 255),
-			Color4(245, 242, 236, 255),
-			Color4(245, 250, 249, 255),
-		];
-		this.shimmer = 3;
-	}
-	
-	applyHitEffect(ray, obj) {
-		if (ray.totalDist > 40) {
-			return super.applyHitEffect(ray, obj);
-		}
-		const colors = (ray.totalDist > 20) ? this.farColors : this.closeColors;
-		const shimmer = this.shimmer;
-		const x = modulate((ray.pos[0] * shimmer) | 0, 10);
-		const y = modulate((ray.pos[1] * shimmer) | 0, 10);
-		const z = modulate((ray.pos[2] * shimmer) | 0, 10);
-		
-		// applyColor(colors[modulate(3 * x + 7 * y + z, colors.length)], ray.color);
-		applyColor(colors[modulate(x ** y + (4.6 * z | 0), colors.length)], ray.color);
-		this.pushOut(ray, obj);
-		return true;
-	}
-	
-	serialize() {
-		return `concrete`;
-	}
-}
-
 class M_Ghost extends Material {
 	static type = M_GHOST;
 	constructor(r, g, b, opacity) {
 		super(Color4(r, g, b, opacity), 0.1);
-	}
-	
-	applyNearEffect(ray) {
-		if (ray.color != undefined && !ray.hit) {
-			applyColor(this.color, ray.color);
-		}
-	}
-	
-	applyHitEffect(ray) {
-		return true;
 	}
 	
 	serialize() {
@@ -174,8 +119,6 @@ class M_Glass extends Material {
 		this.density = density ?? 1;
 	}
 	
-	applyNearEffect(ray) {}
-	
 	applyHitEffect(ray) {
 		return false;
 	}
@@ -186,6 +129,25 @@ class M_Glass extends Material {
 	
 	serializeGPU() {
 		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255], this.density];
+	}
+}
+
+class M_Plexiglass extends Material {
+	static type = M_PLEXI;
+	constructor(r, g, b, opacity) {
+		super(Color4(r, g, b, opacity), 0.1);
+	}
+	
+	applyHitEffect(ray) {
+		return false;
+	}
+	
+	serialize() {
+		return `plexi:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
+	}
+	
+	serializeGPU() {
+		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255]];
 	}
 }
 
@@ -239,21 +201,12 @@ class M_Portal extends Material {
 		super(Color4(255, 255, 255, 255), 0);
 		this.str = newWorldName;
 		this.offset = Pos(...posOffset);
-		this.newWorld = null;
-		var self = this;
-		setTimeout(() => {
-			self.sync();
-		}, 5);
-	}
-	
-	sync() {
-		this.newWorld = worlds[this.str];
 	}
 	
 	applyNearEffect(ray) {
 		//move tracking rays earlier
-		if (this.newWorld && !ray.color) {
-			ray.world = this.newWorld;
+		if (worlds[this.str] && !ray.color) {
+			ray.world = worlds[this.str];
 			ray.pos[0] += this.offset[0];
 			ray.pos[1] += this.offset[1];
 			ray.pos[2] += this.offset[2];
@@ -262,8 +215,8 @@ class M_Portal extends Material {
 	
 	applyHitEffect(ray) {
 		// this.applyNearEffect(ray);
-		if (this.newWorld) {
-			ray.world = this.newWorld;
+		if (worlds[this.str]) {
+			ray.world = worlds[this.str];
 			ray.pos[0] += this.offset[0];
 			ray.pos[1] += this.offset[1];
 			ray.pos[2] += this.offset[2];
@@ -273,11 +226,8 @@ class M_Portal extends Material {
 	}
 	
 	tick() {
-		if (!this.newWorld) {
-			this.sync();
-		}
-		if (this.newWorld && this.newWorld != loading_world) {
-			this.newWorld.tick();
+		if (worlds[this.str] && worlds[this.str] != loading_world) {
+			worlds[this.str].tick();
 		}
 	}
 	
@@ -363,7 +313,7 @@ class M_Texture extends Material {
 		super(Color4(255, 0, 255, 255), 0.2);
 		this.mat = materialID;
 		this.scale = scale ?? 1.0;
-		this.rel = isRelative ?? true;
+		this.rel = +isRelative ?? true;
 		this.blend = blendFactor ?? 0.5;
 	}
 
@@ -374,7 +324,7 @@ class M_Texture extends Material {
 	}
 
 	serialize() {
-		return `texture:${this.mat}~${this.scale}~${this.rel}~${this.blend}`;
+		return `texture:${this.mat}~${this.scale}~${+this.rel}~${this.blend}`;
 	}
 
 	serializeGPU() {
@@ -386,12 +336,12 @@ class M_Texture extends Material {
 
 var map_strMat = {
 	"color": M_Color,
-	"concrete": M_Concrete,
 	"ghost": M_Ghost,
 	"glass": M_Glass,
 	"light": M_Light,
 	"mirror": M_Mirror,
 	"normal": M_Normal,
+	"plexi": M_Plexiglass,
 	"portal": M_Portal,
 	"gravity": M_Gravity,
 	"rubber": M_Rubber,

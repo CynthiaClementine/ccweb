@@ -114,6 +114,9 @@ class BVH {
 		if (startInd >= endInd) {
 			const o = list[startInd];
 			const bounds = o.bounds();
+			if (Number.isNaN(bounds[0][0]) || Number.isNaN(bounds[0][1])) {
+				throw new Error(`NaN bounds detected at object ${o.serialize()}!`);
+			}
 			return new BVH_Node(bounds[0], bounds[1], o, null, null);
 		}
 		

@@ -10,12 +10,6 @@ const tau = Math.PI * 2;
 //it's called scaryVariable because you don't know if you can remove it or not
 var scaryVariable = 0;
 
-//pre-effects
-const E_LOOP =			10;
-const E_BRIGHTEN =		20;
-const E_WHITEN =		21;
-const E_SPHERIZE =		30;
-
 //post-effects
 const E_BG =			0;
 const E_BG_RANGE =		1;
@@ -26,14 +20,27 @@ const E_FADE_RANGE =	12;
 const E_SUN =			20;
 const E_STARS =			21;
 const E_ITERS =			31;
+const E_GREYSCALE =		32;
+const map_effStr = {
+	0: "E_BG",
+	1: "E_BG_RANGE",
+	2: "E_GRADIENT",
+	10: "E_FADE",
+	11: "E_FADE_OLD",
+	12: "E_FADE_RANGE",
+	20: "E_SUN",
+	21: "E_STARS",
+	31: "E_ITERS",
+};
 
-const N_NORMAL =0;
-const N_GLOOP = 1;
-const N_ANTI =	2;
-const N_FOG =	4;
-const N_SMOOTH =8;
-const N_GRAVITY=16;
-const N_FIELD = 32;
+const N_NORMAL =	0;
+const N_GLOOP = 	1;
+const N_ANTI =		2;
+const N_FOG =		4;
+const N_SMOOTH =	8;
+const N_GRAVITY=	16;
+const N_FIELD =		32;
+const N_EXTRUDE =	64;
 
 const M_COLOR =		0;
 const M_CONCRETE =	1;
@@ -41,6 +48,7 @@ const M_RUBBER =	2;
 const M_NORMAL =	3;
 const M_GLASS =		10;
 const M_GHOST =		11;
+const M_PLEXI =		12;
 const M_PORTAL =	20;
 const M_GRAVITY =	25;
 const M_MIRROR =	30;
@@ -54,6 +62,7 @@ const TYPE_CLASS_LOOP =		-4;
 const TYPE_CLASS_GROUP =	-5;
 const TYPE_CLASS_LGROUP =	-6;
 const TYPE_CLASS_SPUN =		-7;
+const TYPE_CLASS_EXTRUDE =	-8;
 
 
 const TYPE_SPHERE =			0;
@@ -61,7 +70,7 @@ const TYPE_ELLIPSE =		1;
 const TYPE_CAPSULE =		2;
 const TYPE_CYLINDER =		3;
 const TYPE_SHELL =			4;
-const TYPE_CONE =			5;
+const TYPE_BLOB =			5;
 const TYPE_SINGULARITY =	9;
 const TYPE_BOX =			10;
 const TYPE_BOXFRAME =		11;
@@ -71,9 +80,13 @@ const TYPE_CUBE =			14;
 const TYPE_LINE =			20;
 const TYPE_TRIANGLE =		21;
 const TYPE_DISH =			22;
+const TYPE_CATENARY =		23;
 const TYPE_OCTAHEDRON =		30;
 const TYPE_RING =			40;
+const TYPE_RING_BOX =		41;
+const TYPE_RING_TRI =		42;
 const TYPE_PRISM_RHOMBUS =	51;
+const TYPE_PRISM_TRI =		52;
 const TYPE_PRISM_HEX =		53;
 const TYPE_PRISM_OCT =		55;
 const TYPE_FRACTAL =		70;
@@ -81,9 +94,11 @@ const TYPE_TERRAIN =		71;
 
 //not groups, but not primitives
 const TYPE_MESH_DOT =		201;
-const TYPE_MESH_SKYBUNNY =	202;
 const TYPE_MESH_LAMPPOST =	203;
 const TYPE_TREE =			210;
+
+const TYPE_ENT_SKYBUNNY =	250;
+const TYPE_ENT_WORM =		251;
 
 //other enums
 const ABSOLUTE = 0;
@@ -165,23 +180,36 @@ var debug_listening = false;
 	autoScale: the program will increase/decrease the resolution based on lag
 	bunnyTargets: you can see where SkyBunnies are targeting
 	collisionRaycast: uses CPU collision raycasts to create a second image layer in red
+	crosshair: whether to show the crosshair or not
 	showLoopBounds: shows a wireframe around all Scene3dLoop objects
-	realCrosshair: ???????
+	showObjBounds: shows a wireframe around all objects
  */
 var debug_flags = {
 	autoScale: false,
 	bunnyTargets: false,
 	collisionRaycast: false,
+	crosshair: true,
+	showGrid: false,
 	showLoopBounds: false,
-	realCrosshair: true,
+	showObjBounds: false,
 };
 
+var editor_flags = {
+	snapToSurface: true,
+	snapToPos: true,
+	snapToGrid: true,
+	snapDist: 25,
+	gridDist: 1,
+}
+
+
+var editHistory = {};
 var editor_active = false;
 var editor_local = false;
 var editor_placeOffset = 100;
 var editor_placeRange = [10, 2000];
 var editor_axisType = null;
-var editor_axis = null;
+var editor_axis = ``;
 
 const pxdata_world = [
 	0xF9999F,
@@ -231,7 +259,7 @@ var rand_seed = 3;
 
 //ray properties
 const ray_maxDist = 3000;
-const ray_nearDist = 3;
+const ray_nearDist = 10;
 const ray_minDist = 0.1;
 const ray_maxIters = 500;
 var ray_safetyMult = 1;
@@ -239,7 +267,7 @@ var ray_safetyMult = 1;
 
 var render_crosshair = true;
 //goalN is used to change n. Changing n directly will mess up internal functions
-var render_n = 180;
+var render_n = 240;
 var render_nAutoRange = [120, 512];
 var render_lastScaleTime = -1;
 var render_colN = 60;
@@ -370,7 +398,7 @@ var uTexes;
 
 var loading_world;
 
-const world_maxObjs = 500;
+const world_maxObjs = 2 ** 11;
 const world_maxID = 20;
 var worlds = {};
 var world_time = 0;

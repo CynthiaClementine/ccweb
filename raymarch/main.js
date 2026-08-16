@@ -39,7 +39,7 @@ async function setup() {
 
 	banvas.requestPointerLock = banvas.requestPointerLock || banvas.mozRequestPointerLock;
 	document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
-	banvas.onclick = function() {banvas.requestPointerLock({unadjustedMovement: true});}
+	banvas.onclick = function() {banvas.requestPointerLock();}
 
 	player = new Player_Debug(loading_world, Pos(...loading_world.spawn), ...loading_world.spawn.slice(3));
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
@@ -142,7 +142,6 @@ function tick() {
 		
 		//idk where to put this
 		if (!isPlayer && es.tick) {
-			console.log(`ticking selected ${es.constructor.name}`);
 			es.tick();
 		}
 		if (es.material) {
@@ -160,6 +159,16 @@ function tick() {
 		o.tick();
 	});
 	loading_world.tick();
+
+	var stableGuess = !(controls.shouldDrag) && (editor_axis == ``);
+	//if we're stable now but unstable in the past, save the current state
+	if ((!editor_isStable && stableGuess) || (editor_isStable && stableGuess && world_time % 60 == 1)) {
+		saveWorldState();
+	}
+
+	editor_isStable = stableGuess;
+
+	
 	perf_logEnd(`tick`);
 }
 
@@ -228,6 +237,7 @@ function drawEditorGizmo() {
 		return;
 	}
 	var len = dist * 0.4;
+	const screenSize = 20;
 	
 	var axes = [
 		{axis: "x", color: "#E55", vec: editor_getAxisVec("x")},
@@ -252,15 +262,14 @@ function drawEditorGizmo() {
 		// draw line
 	
 		// arrowhead
-		btx.strokeStyle = (editor_axis == def.axis) ? "#FFF" : def.color;
-		btx.fillStyle = (editor_axis == def.axis) ? "#FFF" : def.color;
+		btx.strokeStyle = (editor_axis.includes(def.axis)) ? "#FFF" : def.color;
+		btx.fillStyle = (editor_axis.includes(def.axis)) ? "#FFF" : def.color;
 		btx.globalAlpha = 1.0;
 		btx.lineWidth = banvas.height * 0.01;
-		var angle = Math.atan2(end[1] - origin[1], end[0] - origin[0]);
-		var headSize = 20;
+		var vec = normalize([end[0] - origin[0], end[1] - origin[1]]);
 		var lineEnd = [
-			end[0] - Math.cos(angle) * headSize,
-			end[1] - Math.sin(angle) * headSize
+			end[0] - vec[0] * screenSize,
+			end[1] - vec[1] * screenSize
 		];
 	
 		btx.beginPath();
@@ -298,8 +307,9 @@ function handleWorkerMsg(e) {
 function screenshot() {
 	var url = canvas.toDataURL(`image/png`);
 	var link = document.createElement("a");
+	var dateStr = new Date().toString();
 	link.href = url;
-	link.download = `render ${months[date.getMonth()]}-${date.getDate()}-${date.getFullYear()}.png`;
+	link.download = `render ${dateStr.slice(4, 24)}.png`;
 	document.body.appendChild(link);
 	link.click();
 	document.body.removeChild(link);
@@ -323,12 +333,16 @@ function handleKeyPress(a) {
 				alt-click - deselect object
 				click + drag or E - move object around
 
+			\ - bring up editor options panel
+
 			MODIFICATION:
 
 
+			Backspace - delete currently selected item
 
-
-
+			Z - undo
+			shift + Z - redo
+			
 			
 			C - copy selected object
 			V - paste selected object
@@ -361,88 +375,128 @@ function handleKeyPress(a) {
 				Z - z axis (rz)
 		*/
 		
-		if (editor_axisType) {
+		if (controls.cursorLock) {
+			if (editor_axisType) {
+				switch (a.code) {
+					case "KeyX":
+						editor_toggleAxis(`x`);
+						return;
+					case "KeyY":
+						editor_toggleAxis(`y`);
+						return;
+					case "KeyZ":
+						editor_toggleAxis(`z`);
+						return;
+					case "Escape":
+					case "Backquote":
+						if (editor_axis) {
+							editor_axis = ``;
+							return;
+						}
+						editor_axisType = null;
+						return;
+				}
+			}
+
 			switch (a.code) {
-				case "KeyX":
-					editor_toggleAxis(`x`);
+				case "Digit1":
+					var oldPlayer = player;
+					player = new Player(player.world, player.pos, player.theta, player.phi);
+					if (editor_selected == oldPlayer) {
+						editor_deselect(editor_selected);
+					}
 					return;
-				case "KeyY":
-					editor_toggleAxis(`y`);
+				case "Digit2":
+					var oldPlayer = player;
+					player = new Player_Debug(player.world, player.pos, player.theta, player.phi);
+					if (editor_selected == oldPlayer) {
+						editor_deselect(editor_selected);
+					}
 					return;
-				case "KeyZ":
-					editor_toggleAxis(`z`);
+				case "Digit3":
+					var oldPlayer = player;
+					player = new Player_Noclip(player.world, player.pos, player.theta, player.phi);
+					if (editor_selected == oldPlayer) {
+						editor_deselect(editor_selected);
+					}
+					return;
+				case "Backspace":
+					//delete currently selected
+					editor_removeObj();
+					editor_deselect(editor_selected);
+					return;
+				case "KeyE":
+					controls.shouldDrag = true;
+					return;
+				case "KeyN":
+					//TODO: don't do this.
+					if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != E_ITERS) {
+						loading_world.postEffects.splice(0, 0, [E_ITERS]);
+					} else if (loading_world.postEffects[0][0] == E_ITERS) {
+						loading_world.postEffects.splice(0, 1);
+					}
+					loading_world.shouldRegen = true;
+					return;
+				case "KeyC":
+					if (editor_selected != player) {
+						var select = editor_selected;
+						if (controls.shift && select.material) {
+							select = select.material;
+						}
+						clipboard = select.serialize();
+					}
+					return;
+				case "KeyV":
+					if (clipboard) {
+						//material case
+						if (!clipboard.includes(`|`)) {
+							var objs = (editor_selected.type == TYPE_CLASS_LGROUP) ? editor_selected.objects : new Set([editor_selected]);
+							objs.forEach(o => {
+								if (o.material) {
+									o.material = deserializeMat(clipboard);
+								}
+							});
+							loading_world.shouldRegen = true;
+							return;
+						}
+	
+						//object case
+						var newObj = deserialize(clipboard);
+						newObj.pos = calcPlacePos();
+						loading_world.objects.push(newObj);
+						if (newObj.type == TYPE_CLASS_LGROUP) {
+							newObj.tick();
+							newObj.break(loading_world.objects);
+						}
+						loading_world.shouldRegen = true;
+					}
+					return;
+				case "KeyG":
+					editor_toggleAxisSet(`grab`);
+					return;
+				case "KeyR":
+					editor_toggleAxisSet(`rotate`);
+					return;
+				case "KeyF":
+					editor_toggleAxisSet(`scale`);
+					return;
+				case `KeyZ`:
+					//undo
+					editor_deselect(editor_selected);
+					loadWorldState(controls.shift ? 1 : -1);
 					return;
 			}
 		}
 		
 		switch (a.code) {
-			case "Digit1":
-				var oldPlayer = player;
-				player = new Player(player.world, player.pos, player.theta, player.phi);
-				if (editor_selected == oldPlayer) {
-					editor_deselect(editor_selected);
+			case "Backslash":
+				//toggle the editor settings panel
+				if (overlay.style.display == `none` || overlay.style.display == ``) {
+					document.exitPointerLock();
+					activateOverlay(true);
+				} else {
+					overlay.style.display = `none`;
 				}
-				break;
-			case "Digit2":
-				var oldPlayer = player;
-				player = new Player_Debug(player.world, player.pos, player.theta, player.phi);
-				if (editor_selected == oldPlayer) {
-					editor_deselect(editor_selected);
-				}
-				break;
-			case "Digit3":
-				var oldPlayer = player;
-				player = new Player_Noclip(player.world, player.pos, player.theta, player.phi);
-				if (editor_selected == oldPlayer) {
-					editor_deselect(editor_selected);
-				}
-				break;
-		
-			case "KeyB":
-				//TODO: don't do this.
-				if (loading_world.preEffects.length < 1 || loading_world.preEffects[0][0] != E_BRIGHTEN) {
-					loading_world.preEffects.splice(0, 0, [E_BRIGHTEN, [4, 4, 4, 4]]);
-				} else if (loading_world.preEffects[0][0] == E_BRIGHTEN) {
-					loading_world.preEffects.splice(0, 1);
-				}
-				loading_world.shouldRegen = true;
-				return;
-			case "KeyE":
-				controls.shouldDrag = true;
-				return;
-			case "KeyN":
-				if (loading_world.postEffects.length < 1 || loading_world.postEffects[0][0] != E_ITERS) {
-					loading_world.postEffects.splice(0, 0, [E_ITERS]);
-				} else if (loading_world.postEffects[0][0] == E_ITERS) {
-					loading_world.postEffects.splice(0, 1);
-				}
-				loading_world.shouldRegen = true;
-				return;
-			case "KeyC":
-				if (editor_selected != player) {
-					clipboard = editor_selected.serialize();
-				}
-				return;
-			case "KeyV":
-				if (clipboard) {
-					var newObj = deserialize(clipboard);
-					newObj.pos = calcPlacePos();
-					loading_world.objects.push(newObj);
-					if (newObj.type == TYPE_CLASS_LGROUP) {
-						newObj.tick();
-						newObj.break();
-					}
-					loading_world.shouldRegen = true;
-				}
-				return;
-			case "KeyG":
-				editor_toggleAxisSet(`grab`);
-				return;
-			case "KeyR":
-				editor_toggleAxisSet(`rotate`);
-				return;
-			case "KeyF":
-				editor_toggleAxisSet(`scale`);
 				return;
 			case "KeyL":
 				editor_local = !editor_local;
@@ -460,15 +514,9 @@ function handleKeyPress(a) {
 				navigator.clipboard.writeText(`${r(c.pos[0])},${r(c.pos[1])},${r(c.pos[2])}, ${c.theta.toFixed(3)},${c.phi.toFixed(3)}`);
 				return;
 			case "Escape":
-				//escape from whatever wherever
-				if (editor_axis) {
-					editor_axis = null;
-					return;
-				}
-				if (editor_axisType) {
-					editor_axisType = null;
-					return;
-				}
+			case "Backquote":
+				overlay.style.display = `none`;
+				document.exitPointerLock();
 				return;
 		}
 	}
@@ -561,7 +609,6 @@ function handleKeyNegate(a) {
 }
 
 function handleCursorLockChange() {
-	console.log(`cursor lock is changing`);
 	const isOn = (document.pointerLockElement === banvas || document.mozPointerLockElement === banvas);
 	controls.cursorLock = isOn;
 	document.onmousedown = isOn ? handleMouseDown : null;
@@ -578,7 +625,6 @@ function handleMouseDown(a) {
 		if (debug_listening) {
 			editor_raycast();
 		}
-		controls.shouldDrag = true;
 		return;
 	}
 
@@ -593,12 +639,8 @@ function handleMouseMove(a) {
 	if (editor_axis) {
 		//figure out how much to move by, which direction to move, and then move there
 		var dragSpeed = 1.0;
-		var dragOffset = -(a.movementX + a.movementY) * dragSpeed;
-		if (Math.abs(dragOffset) < 0.01) {
-			return;
-		}
+		var dragOffset = [a.movementX * dragSpeed, a.movementY * -dragSpeed];
 		editor_applyDrag(dragOffset);
-		loading_world.shouldRegen = true;
 		return;
 	}
 	var dTheta = a.movementX * controls.sensitivity;
@@ -616,7 +658,6 @@ function handleMouseMove(a) {
 
 function handleMouseUp(a) {
 	controls.mButton = 0;
-	controls.shouldDrag = false;
 }
 
 function handleWheel(a) {

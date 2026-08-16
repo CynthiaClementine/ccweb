@@ -64,6 +64,12 @@
 			.grid-button-2 {
 				background: #AF8;
 			}
+
+			#group_edit {
+				background: slateblue;
+				padding: 2em 4em 2em 4em;
+				border: #FFF 5px solid;
+			}
 			
 			#wrapper canvas {
 				position: absolute;
@@ -185,15 +191,16 @@
 				background-color: #111;
 			}
 		</style>
-		<!--<script src="../common/quaternions.js"></script>-->
-		<script src="../common/functions-coordinate.js"></script>
-		<script src="../common/functions-math.js"></script>
+		<script src="./common/quaternions.js"></script>
+		<script src="./common/functions-coordinate.js"></script>
+		<script src="./common/functions-math.js"></script>
 		<script src="functions-helper.js"></script>
 		<script src="functions-gpu.js"></script>
 	
 		<script src="config.js"></script>
 		<script src="resources/cobble_stone.png"></script>
 		<script src="editor.js"></script>
+		<script src="editor-components.js"></script>
 		<script src="objects-player.js"></script>
 		<script src="objects-engine.js"></script>
 		<script src="materials.js"></script>
@@ -226,6 +233,11 @@
 					</div>
 				</div>
 				<div class="editor-panel">
+					<div class="separator">MATERIAL: <span id="label_material">[!]</span></div>
+					<div id="group_matSpecial">
+					</div>
+				</div>
+				<div class="editor-panel">
 					<div class="separator">OBJECT: <span id="label_obj">[!]</span></div>
 					<button onclick="editor_preAdd()">+</button>
 					<button onclick="editor_removeObj()">-</button>
@@ -233,14 +245,12 @@
 					<div id="group_nature">
 					</div>
 				</div>
-				<div class="editor-panel">
-					<div class="separator">MATERIAL: <span id="label_material">[!]</span></div>
-					<div id="group_matSpecial">
-					</div>
-				</div>
 			</div>
 			<div id="overlay">
 				<div id="grid"></div>
+				<div id="group_edit" style="display: none;">
+					
+				</div>
 			</div>
 
 		</div>

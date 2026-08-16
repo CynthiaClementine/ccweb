@@ -55,7 +55,7 @@ class Player {
 		this.grounded = 0;
 		this.maxGroundDot = 0.1;
 
-		this.height = player_width;
+		this.height = player_width*3;
 		this.width = player_width;
 
 		this.colPoints = 16;
@@ -73,6 +73,7 @@ class Player {
 			Pos(this.pos[0] - this.trueMax, this.pos[1] - this.trueMax, this.pos[2] - this.trueMax),
 			Pos(this.pos[0] + this.trueMax, this.pos[1] + this.trueMax, this.pos[2] + this.trueMax)
 		);
+		this.possibleObjs = this.possibleObjs.filter(a => !(a.intangible));
 	}
 
 	tick() {
@@ -152,6 +153,9 @@ class Player {
 		}
 		this.dPos[1] = clamp(this.dPos[1], -this.fallMax, this.fallMax);
 		this.dPos[1] *= this.frictionAir;
+		if (Math.abs(this.dPos[1]) < this.dMin) {
+			this.dPos[1] = 0;
+		}
 		
 		this.updateMomentumAxis(2);
 	}
@@ -170,6 +174,9 @@ class Player {
 		}
 		if (!inRange) {
 			this.dPos[num] *= this.frictionAir;
+		}
+		if (Math.abs(this.dPos[num]) < this.dMin) {
+			this.dPos[num] = 0;
 		}
 	}
 	
@@ -308,7 +315,6 @@ class Player {
 		//"sideways" (in reality can have a vertical component. This just means apply dPos)
 		var speed = getDistancePos(this.dPos, zeroPos);
 		if (speed > this.trueMax) {
-			console.log(`too fast!`);
 			speed = this.trueMax;
 		}
 		
@@ -462,8 +468,8 @@ class Player {
 	portalTest(obj, coords) {
 		var mat = obj.material;
 		if (obj.distanceToPos(coords) < ray_nearDist && mat.constructor.name == "M_Portal") {
-			if (mat.newWorld) {
-				this.world = mat.newWorld;
+			if (worlds[mat.str]) {
+				this.world = worlds[mat.str];
 				coords[0] += mat.offset[0];
 				coords[1] += mat.offset[1];
 				coords[2] += mat.offset[2];

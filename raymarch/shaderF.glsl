@@ -1,6 +1,12 @@
 #version 300 es
 
+//SEE: http://www.humus.name/Articles/Persson_LowLevelThinking.pdf
+//     http://www.humus.name/Articles/Persson_LowlevelShaderOptimization.pdf
+
 //constants
+#define PI 3.14159265359
+#define TAU 6.2831853072
+#define PHI 1.6180339887
 #define fencepost 4278259968.
 #define grav_constant 6.674
 
@@ -19,7 +25,7 @@
 #define ray_numLights 4
 #define ray_maxBounces 22
 
-#define obj_maxNum 500
+#define obj_maxNum 2048
 
 
 #define fractal_iters 10
@@ -34,6 +40,7 @@
 #define CAPSULE		2
 #define CYLINDER	3
 #define SHELL		4
+#define BLOB		5
 #define SINGULARITY	9
 #define BOX			10
 #define BOXFRAME	11
@@ -45,17 +52,14 @@
 #define DISH		22
 #define OCTAHEDRON	30
 #define RING		40
+#define RING_BOX	41
+#define RING_TRI	42
 #define PRISM_RHOMB	51
+#define PRISM_TRI	52
 #define PRISM_HEX	53
 #define PRISM_OCT	55
 #define FRACTAL		70
 #define TERRAIN		71
-
-//pre-effects
-#define E_LOOP			10
-#define E_BRIGHTEN		20
-#define E_WHITEN		21
-#define E_SPHERIZE		30
 
 //post-effects
 #define E_BG			0
@@ -67,25 +71,29 @@
 #define E_SUN			20
 #define E_STARS			21
 #define E_ITERS			31
+#define E_GREYSCALE		32
 
 //natures
 #define N_NORMAL	0
 #define N_GLOOPY	1
 #define N_ANTI		2
+#define N_GLANTI	3
 #define N_FOG		4
+#define N_SMOOTH	8
 // Gravity objects allow rays to pass through them but constrains the maximum step size that they can take. 
 //Surround interesting spacetime in a gravity object to ensure that rays don't just jump over it. 
 //The constraint on maximum step size is stored in data[3][0]
 #define N_GRAVITY	16
 #define N_FIELD		32
+#define N_EXTRUDE	64
 
 //materials
 #define M_COLOR		0
-#define M_CONCRETE	1
 #define M_RUBBER	2
 #define M_NORMAL	3
 #define M_GLASS		10
 #define M_GHOST		11
+#define M_PLEXI		12
 #define M_PORTAL	20
 #define M_GRAVITY	25
 #define M_MIRROR	30
@@ -142,9 +150,10 @@ int lightIndices[ray_numLights];
 
 bool hit = false;
 int bounceCount = 0;
+int iterCount = 0;
 float bvhTolerance = 8.0;
 float pixelGamma = 0.7;
-float fudgeFactor = 1.0;
+float fudgeFactor = 1.001;
 
 Raydata stage[ray_numLights+1] = Raydata[ray_numLights+1](
 	Raydata(0, 0, 0., 0., 0., 0, Path(vec4(0.), vec3(0.), vec4(0.)), 1., vec4(0.,0.,0.,0.)),
@@ -163,6 +172,11 @@ float fractalNoise(vec2, int, float, float, float, float);
 mat4 metric(vec4, vec3, float);
 Path geodesicStep(Path, float, vec3, float);
 
+vec3 getGrad(vec3, int, int);
+vec3 getNormal(vec3, int, int);
+vec3 getSNormal(vec3, int);
+
+float sceneSDF(vec3, int);
 
 void setStageRay(int stg, vec3 newPos, vec3 newDPos) {
 	vec3 dposn = normalize(newDPos);
@@ -185,6 +199,14 @@ void setStageRay_hack(int stg, vec3 newPos, vec3 newDPos) {
 	stage[stg].path.vel = dposn;
 	stage[stg].path.momentum = vec4(1, dposn);
 	bounceCount += 1;
+}
+
+vec3 reflectStage(int stg, float density) {
+	stage[stg].density = density;
+	vec3 norm = getNormal(stage[stg].path.spot.yzw, stage[stg].world, stage[stg].closestInd);
+	vec3 incident = stage[stg].path.vel;
+	// float mu = stage[stg].density / density;
+	return normalize((stage[stg].density * incident - norm) / density);
 }
 
 void teleport(int stg, vec3 newPos) {
@@ -236,7 +258,13 @@ vec2 rotate(vec2 pos, float rad) {
 }
 
 float smootherstep(float t) {
-	return 6.0*t*t*t*t*t - 15.0 * t*t*t*t + 10.0*t*t*t;
+	float t3 = t*t*t;
+	return 6.0*t*t*t3 - 15.0 * t*t3 + 10.0*t3;
+}
+
+float smoothererstep(float t) {
+	float t4 = t*t*t*t;
+	return -20.0*t*t*t*t4 + 70.0*t*t*t4 - 84.0*t*t4 + 35.0*t4;
 }
 
 float linearstep(float t) {
@@ -265,9 +293,9 @@ vec2 w_effectCounts(int worldID) {
 }
 
 mat4 objData(int world, int index) {
-	//data0 is: ID, materialID, nature, __
+	//data0 is: matType|objType, nature, theta|phi|rot, smoothness|gloopiness OR loopX|loopY|loopZ
 	//data1 is x, y, z, r
-	//data2 is //rx, ry, rz, ?
+	//data2 is rx, ry, rz, ?
 	//data3 and data4 are more misc. 
 	//num, world, index
 	vec4 data0 = texelFetch(uUniverseTex, ivec3(index, 0, world), 0);
@@ -345,7 +373,7 @@ void postEffect(vec4 data0, vec4 data1, vec4 data2) {
 	switch (effectType) {
 		//bg
 		case E_BG: {
-			if (stage[1].iters > 0) {
+			if (hit) {
 				return;
 			}
 			groundColor = arg0;
@@ -371,13 +399,14 @@ void postEffect(vec4 data0, vec4 data1, vec4 data2) {
 			}
 			float distPerc = stage[0].totalDist;
 			vec3 transmittance = vec3(0.5 + 0.5 * arg0.rgb);
-			// stage[0].color.rgb = mix(stage[1].color.rgb, arg0.rgb, clamp(exp(-5. + 5.*distPerc), 0., 1.));
-			stage[0].color.rgb = mix(stage[1].color.rgb, arg0.rgb, clamp(1. - exp(-distPerc * transmittance / data1[0]), 0., 1.));
+			transmittance = clamp(1. - exp(-distPerc * transmittance / data1[0]), 0., 1.);
+			groundColor = mix(groundColor, arg0.rgb, transmittance);
 		} return;
 		//bg_fadeToOld
 		case E_FADE_OLD: {
 			float distPerc = clamp((stage[0].totalDist + stage[1].totalDist) / data1[0], 0.0, 0.9);
-			stage[0].color.rgb = mix(stage[0].color.rgb, arg0.rgb, distPerc * distPerc);
+			groundColor = mix(groundColor, arg0.rgb, distPerc*distPerc);
+			stage[2].color.rgb = vec3(gamma_max*distPerc*distPerc);
 		} return;
 		//bg_fadeToRange
 		case E_FADE_RANGE: {
@@ -386,7 +415,7 @@ void postEffect(vec4 data0, vec4 data1, vec4 data2) {
 			}
 			vec3 col = vec3(rand(arg0.r, data1.r), rand(arg0.g, data1.g), rand(arg0.b, data1.b));
 			float distPerc = clamp(stage[0].totalDist / data1[3], 0.0, 0.9);
-			stage[0].color.rgb = mix(stage[0].color.rgb, col, distPerc * distPerc);
+			groundColor = mix(groundColor, col, distPerc * distPerc);
 		} return;
 		//sun
 		case E_SUN: {
@@ -401,25 +430,24 @@ void postEffect(vec4 data0, vec4 data1, vec4 data2) {
 			}
 		} return;
 		case E_ITERS: {
-			float gweh = 3. * (
-				float(stage[0].iters) + 
-				float(stage[1].iters) + 
-				float(stage[2].iters) + 
-				float(stage[3].iters)
-				) / float(maxIters);
-				stage[0].color.rgba = vec4(
-					gweh * gweh, 
-					0.1 + groundColor.g / 4., 
-					float(bounceCount) / float(ray_maxBounces),
-					1.0
-				);
-				stage[1].color = stage[0].color;
+			float gweh = 3. * float(iterCount) / float(maxIters);
+			stage[0].color.rgba = vec4(
+				gweh * gweh, 
+				0.1 + 0.4*groundColor.g, 
+				float(bounceCount) / float(ray_maxBounces),
+				1.0
+			);
 		} return;
 		case E_STARS: {
 			if (!hit) {
 				float f = backgroundStarAmpl(stage[0].path.vel, data1[0], data1[1]);
-				groundColor = mix(stage[0].color.rgb, arg0, f);
+				groundColor = mix(groundColor, arg0, f);
 			}
+		} return;
+		case E_GREYSCALE: {
+			vec3 c = stage[0].color.rgb;
+			stage[0].color.rgb = vec3(0.2989*c.r + 0.5870*c.g + 0.1140*c.b);
+			groundColor = vec3(0.2989*groundColor.r + 0.5870*groundColor.g + 0.1140*groundColor.b);
 		} return;
 	}
 }
@@ -428,13 +456,38 @@ void postEffect(vec4 data0, vec4 data1, vec4 data2) {
 
 
 //2d SDFs
+float circleSDF(vec2 point, float r) {
+	return length(point) - r;
+}
+
+float squircleSDF() {
+	return 1.1;
+}
+
+float rectSDF(vec2 point, float rx, float ry) {
+	point = abs(point) - vec2(rx, ry);
+	return length(max(point, 0.)) + min(max(point.x, point.y), 0.);
+}
+
+float isoTriSDF(vec2 p, vec2 wh) {
+	p.y += wh.y;
+	wh.y *= 2.;
+	p.x = abs(p.x);
+	vec2 a = p - wh * clamp(dot(p, wh) / dot(wh, wh), 0., 1.);
+	vec2 b = p - wh * vec2(clamp(p.x / wh.x, 0., 1.), 1.);
+	float k = sign(wh.y);
+	float d = min(dot(a, a), dot(b, b));
+	float s = max(k*(p.x*wh.y - p.y*wh.x), k * (p.y-wh.y));
+	return sqrt(d) * sign(s);
+}
+
 float hexagonSDF(vec2 point, float r) {
 	vec3 magicNums = vec3(-0.86603, 0.5, 0.57735);
 	point = abs(point);
 	point -= 2. * min(dot(magicNums.xy, point), 0.) * magicNums.xy;
 	point.x -= clamp(point.x, -magicNums[2] * r, magicNums[2] * r);
 	point.y -= r;
-	return length(point) * sign(point.y);
+	return (point.y > 0.) ? length(point) : -length(point);
 }
 
 float octagonSDF(vec2 point, float r) {
@@ -444,9 +497,14 @@ float octagonSDF(vec2 point, float r) {
 	point -= 2. * min(dot(vec2(-magicNums.x, magicNums.y), point), 0.) * vec2(-magicNums.x, magicNums.y);
 	point.x -= clamp(point.x, -magicNums.z * r, magicNums.z * r);
 	point.y -= r;
-	return length(point) * sign(point.y);
+	return (point.y > 0.) ? length(point) : -length(point);
 }
 
+float vesicaSDF(vec2 p, float r, float d) {
+	p = abs(p);
+	float b = sqrt(r*r - d*d);
+	return ((p.y-b)*d > p.x * b) ? length(p - vec2(0.0,b)) * sign(d) : length(p - vec2(-d,0.)) - r;
+}
 
 float rhombusSDF(vec2 point, vec2 r, float skew) {
 	float relX = point.x;
@@ -486,15 +544,16 @@ float rhombusSDF(vec2 point, vec2 r, float skew) {
 	d0 = min(d0, vv);
 	d1 = min(d1, widt * hegt - abs(s));
 	
-	return sqrt(d0) * sign(-d1);
+	return (d1 < 0.) ? sqrt(d0) : -sqrt(d0);
 }
 
 float prismSDF(vec3 point, int type, float data1, vec4 data2) {
-	//data1: [x, y, z, null]
+	//data1: [1][3]
 	float shapeDist = 9999.;
 	//data2: [rx, ry, rz, skew]
 	switch (type) {
 		case PRISM_RHOMB:{shapeDist = rhombusSDF(point.xy, data2.xy, data2[3]);} break;
+		case PRISM_TRI:  {shapeDist = isoTriSDF(point.xy, data2.xy);} break;
 		case PRISM_HEX:  {shapeDist = hexagonSDF(point.xy, data2.x);} break;
 		case PRISM_OCT:  {shapeDist = octagonSDF(point.xy, data2.x);} break;
 		default:
@@ -505,6 +564,22 @@ float prismSDF(vec3 point, int type, float data1, vec4 data2) {
 	float negPart = min(max(shapeDist, vertDist), 0.);
 	float posPart = length(vec2(max(shapeDist, 0.), max(vertDist, 0.)));
 	return negPart + posPart;
+}
+
+float spunSDF(vec3 point, int type, float data1, vec4 data2) {
+	point.xy = abs(point.xy);
+	vec2 trueP = vec2(length(point.xy) - data1, point.z);
+	float shapeDist = 9999.;
+
+	switch (type) {
+		case RING:		{shapeDist = circleSDF(trueP, data2[0]);} break;
+		case RING_BOX:	{shapeDist = rectSDF(trueP, data2[0], data2[1]);} break;
+		case RING_TRI:	{shapeDist = isoTriSDF(trueP, data2.xy);} break;
+		default:
+			break;
+	}
+
+	return shapeDist;
 }
 
 
@@ -529,6 +604,24 @@ float boxSDF(vec3 point, vec4 data2) {
 	return length(max(q, vec3(0.))) + min(max(q.x, max(q.y, q.z)), 0.) - r;
 }
 
+float blobSDF(vec3 p, float r) {
+	r *= 0.75;
+	p = abs(p) / r;
+	if (p.x < max(p.y, p.z)) {
+		p = p.yzx;
+	}
+	if (p.x < max(p.y, p.z)) {
+		p = p.yzx;
+	}
+	float b = max(max(max(
+		dot(p, vec3(1./sqrt(3.))),
+		dot(p.xz, normalize(vec2(PHI+1., 1.)))),
+		dot(p.yx, normalize(vec2(1., PHI)))),
+		dot(p.xz, normalize(vec2(1., PHI))));
+	float l = length(p);
+	return r * (l - 1.5 - 0.2 * 0.75 * cos(min(sqrt(1.01 - b / l)*(4.*PI), PI)));
+}
+
 float capsuleSDF(vec3 point, float data1, vec4 data2) {
 	vec3 q = vec3(point.x, point.y, point.z - clamp(point.z, -data2[0], data2[0]));
 	return length(q) - data1;
@@ -544,17 +637,14 @@ float cylinderSDF(vec3 point, float data1, vec4 data2) {
 float dishSDF(vec3 point, float data1, vec4 data2) {
 	float rba = data2[3] - data1;
 	float baba = dot(data2.xyz, data2.xyz);
-	float papa = dot(point, point);
 	float paba = dot(point, data2.xyz) / baba;
-	float x = sqrt(papa - paba * paba * baba);
-	// float cax = max(0.0, x - select(data2[3], data1, paba < 0.5));
+	float x = sqrt(dot(point, point) - paba * paba * baba);
 	float cax = max(0.0, x - ((paba < 0.5) ? data1 : data2[3]));
 	float cay = abs(paba - 0.5) - 0.5;
 	float k = rba * rba + baba;
 	float f = clamp((rba * (x - data1) + paba * baba) / k, 0.0, 1.0);
 	float cbx = x - data1 - f * rba;
 	float cby = paba - f;
-	// float s = select(1., -1., cbx < 0.0 && cay < 0.0);
 	float s = ((cbx < 0.0 && cay < 0.0) ? -1.0 : 1.0);
 	return s * sqrt(min(cax * cax + cay * cay * baba, cbx * cbx + cby * cby * baba));
 }
@@ -636,12 +726,6 @@ float octahedronSDF(vec3 point, float data1, vec4 data2) {
 	return abs(1. + dot(coeffs, point)) / length(coeffs);
 }
 
-float ringSDF(vec3 point, float data1, vec4 data2) {
-	vec3 dist = abs(point);
-	float q = length(dist.xy) - data2[0];
-	return sqrt(q * q + dist.z * dist.z) - data2[1];
-}
-
 float shellSDF(vec3 point, float data1, vec4 data2) {
 	float sphereD = length(point) - data2[0];
 	return abs(sphereD) - data2[1];
@@ -717,27 +801,38 @@ float objSDF(vec3 p, int world, int index) {
 	if (type >= 100) {
 		type -= 100;
 		p -= data[1].xyz;
-		int loopAngles = floatBitsToInt(data[3][2]);
-		int lTheta = loopAngles       & 0x1FF;
-		int lPhi = ((loopAngles >> 9) & 0x1FF) - 90;
-		int lRot = (loopAngles >> 18) & 0x1FF;
+		int anglBits = floatBitsToInt(data[3][2]);
+		int lTheta = anglBits       & 0x1FF;
+		int lPhi = ((anglBits >> 9) & 0x1FF) - 90;
+		int lRot = (anglBits >> 18) & 0x1FF;
 		p.xz = rotate(p.xz, -lTheta);
 		p.yz = rotate(p.yz, lPhi);
 		p.xy = rotate(p.xy, -lRot);
 
-		int loopBits = floatBitsToInt(data[0][3]);
+		int iterBits = floatBitsToInt(data[0][3]);
 		vec3 loopNums = vec3(
-			float((loopBits >> 20) & 0x3FF),
-			float((loopBits >> 10) & 0x3FF),
-			float(loopBits         & 0x3FF)
+			float((iterBits >> 20) & 0x3FF),
+			float((iterBits >> 10) & 0x3FF),
+			float(iterBits         & 0x3FF)
+		);
+		int sizeBits = floatBitsToInt(data[3][3]);
+		vec3 loopSize = vec3(
+			float((sizeBits >> 20) & 0x3FF),
+			float((sizeBits >> 10) & 0x3FF),
+			float(sizeBits         & 0x3FF)
 		);
 
-		float loopSize = data[3][3];
-		float loopHalf = loopSize / 2.;
-		vec3 insideP = clamp(p, -(loopNums) * loopSize, (loopNums) * loopSize);
+		vec3 loopHalf = loopSize / 2.;
+		vec3 insideP = vec3(
+			clamp(p.x, -loopNums.x * loopSize.x, loopNums.x * loopSize.x),
+			clamp(p.y, -loopNums.y * loopSize.y, loopNums.y * loopSize.y),
+			clamp(p.z, -loopNums.z * loopSize.z, loopNums.z * loopSize.z)
+		);
 		data[1].xyz = vec3(0.);
 		//stupid centered modulate
-		p = mod(insideP - loopHalf, loopSize) - loopHalf + (p - insideP);
+		p.x = mod(insideP.x - loopHalf.x, loopSize.x) - loopHalf.x + (p.x - insideP.x);
+		p.y = mod(insideP.y - loopHalf.y, loopSize.y) - loopHalf.y + (p.y - insideP.y);
+		p.z = mod(insideP.z - loopHalf.z, loopSize.z) - loopHalf.z + (p.z - insideP.z);
 	}
 	
 	//transform to object coordinates
@@ -745,8 +840,29 @@ float objSDF(vec3 p, int world, int index) {
 	p.xz = rotate(p.xz, -theta);
 	p.yz = rotate(p.yz, phi);
 	p.xy = rotate(p.xy, -rot);
+
+	//extrusion??????
+	if ((nature & N_EXTRUDE) > 0) {
+		int xyBits = floatBitsToInt(data[3][0]);
+		vec3 extrusions = vec3(
+			float((xyBits >> 16) & 0xFFFF),
+			float(xyBits & 0xFFFF),
+			data[3][1]
+		) / 10.;
+		vec3 extrP = vec3(
+			clamp(p.x, -extrusions.x, extrusions.x),
+			clamp(p.y, -extrusions.y, extrusions.y),
+			clamp(p.z, -extrusions.z, extrusions.z)
+		);
+		p.x -= extrP.x;
+		p.y -= extrP.y;
+		p.z -= extrP.z;
+	}
+	
 	
 	switch (type) {
+		case BLOB:
+			{d = blobSDF(p, data[1][3]);} break;
 		case CAPSULE:
 			{d = capsuleSDF(p, data[1][3], data[2]);} break;
 		case CYLINDER:
@@ -769,8 +885,11 @@ float objSDF(vec3 p, int world, int index) {
 		case OCTAHEDRON:
 			{d = octahedronSDF(p, data[1][3], data[2]);} break;
 		case RING:
-			{d = ringSDF(p, data[1][3], data[2]);} break;
+		case RING_BOX:
+		case RING_TRI:
+			{d = spunSDF(p, type, data[1][3], data[2]);} break;
 		case PRISM_RHOMB:
+		case PRISM_TRI:
 		case PRISM_HEX:
 		case PRISM_OCT: 
 			{d = prismSDF(p, type, data[1][3], data[2]);} break;
@@ -787,6 +906,10 @@ float objSDF(vec3 p, int world, int index) {
 			{d = voxelSDF(p, data[1][3], data[2], data[3]);} break;
 		default:
 			{d = 999.;} break;
+	}
+	if ((nature & N_SMOOTH) > 0) {
+		int gAmt = floatBitsToInt(data[0][3]);
+		d -= 0.5*float(gAmt & 0xFFFF);
 	}
 	if ((nature & N_ANTI) > 0) {
 		d = -d;
@@ -810,7 +933,7 @@ vec3 getGrad(vec3 p, int worldIndex, int objIndex) {
 		objSDF(p + e.yxy, worldIndex, objIndex),
 		objSDF(p + e.yyx, worldIndex, objIndex)
 	);
-	return (n / e[0]);
+	return (-n / e[0]);
 }
 
 //gets the sdf's normal at a particular point (gradient with length 1)
@@ -821,6 +944,18 @@ vec3 getNormal(vec3 p, int worldIndex, int objIndex) {
 		objSDF(p + e.xyy, worldIndex, objIndex),
 		objSDF(p + e.yxy, worldIndex, objIndex),
 		objSDF(p + e.yyx, worldIndex, objIndex)
+	);
+	n = -n;
+	return normalize(n);
+}
+
+vec3 getSNormal(vec3 p, int stg) {
+	float d = sceneSDF(p, stg);
+	vec2 e = vec2(0.001, 0.);
+	vec3 n = vec3(d) - vec3(
+		sceneSDF(p + e.xyy, stg),
+		sceneSDF(p + e.yxy, stg),
+		sceneSDF(p + e.yyx, stg)
 	);
 	n = -n;
 	return normalize(n);
@@ -846,7 +981,8 @@ int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 da
 				//theoretically this should work. try 0 -> stg if not
 				findHitPos(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd, oldLocalDist, stage[0].localDist);
 				vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
-				groundColor = vec3((norm + 1.) / 2.);
+				// vec3 norm = getSNormal(stage[0].path.spot.yzw, 0);
+				groundColor = norm*0.5 + 0.5;
 			}
 			res = 1;
 		} break;
@@ -862,7 +998,8 @@ int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 da
 			res = 1;
 		} break;
 		
-		case M_GLASS: {
+		case M_GLASS:
+		case M_PLEXI: {
 			//if the ray is outside entering, or inside exiting, apply glass effect
 			//for outside -> inside, we can check density
 			//for inside -> outside, we can check distance
@@ -876,30 +1013,25 @@ int applyHitEffect(int stg, float oldLocalDist, int matType, vec4 data0, vec4 da
 			
 			float oldDist = objSDF(oldPos, stage[stg].world, stage[stg].closestInd);
 			float newDist = stage[stg].localDist;
+			vec3 nextPos = currPos + stage[stg].path.vel * newLocalDist;
+			float futureDist = objSDF(nextPos, stage[stg].world, stage[stg].closestInd);
+
+			bool entering = (oldDist > minDist && newDist <= minDist);
+			bool exiting = (newDist < minDist && futureDist >= minDist);
 			
 			//entering
-			if (oldDist > minDist && newDist <= minDist) {
-				stage[stg].density = density;
-				vec3 norm = getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
-				vec3 incident = stage[0].path.vel;
-				float mu = stage[stg].density / density;
-				vec3 reflected = (stage[stg].density * incident - norm) / density;
-				setStageRay_hack(stg, stage[stg].path.spot.yzw, normalize(reflected));
+			if (entering) {
+				if (matType == M_GLASS) {
+					setStageRay_hack(stg, stage[stg].path.spot.yzw, reflectStage(stg, density));
+				}
 				applyColor(stg, data0);
 			}
 			
-			vec3 nextPos = currPos + stage[stg].path.vel * newLocalDist;
-			float futureDist = objSDF(nextPos, stage[stg].world, stage[stg].closestInd);
-			
 			//exiting
-			if (newDist < minDist && futureDist >= minDist) {
-				density = 1.0;
-				stage[stg].density = density;
-				vec3 norm = -getNormal(stage[0].path.spot.yzw, stage[0].world, stage[0].closestInd);
-				vec3 incident = stage[0].path.vel;
-				float mu = stage[stg].density / density;
-				vec3 reflected = (stage[stg].density * incident - norm) / density;
-				setStageRay(stg, nextPos, normalize(reflected));
+			if (exiting) {
+				if (matType == M_GLASS) {
+					setStageRay(stg, nextPos, reflectStage(stg, 1.0));
+				}
 				applyColor(stg, data0);
 			}
 			
@@ -984,9 +1116,12 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 		default:
 			return;
 		//ghost
-		case M_GHOST: {
+		case M_GHOST:
+		case M_LIGHT: {
 			if (stg == 0) {
-				applyColor(stg, data0);
+				applyColor(stg, vec4(data0.rgb, data0.a * ((matType == M_GHOST) ? 0.03125 : 0.03125 / 256.)));
+			} else if (matType == M_GHOST) {
+				stage[stg].color[3] = max(stage[stg].color[3] - data0.a * 0.03125 * stage[stg].localDist, 0.);
 			}
 		} return;
 		case M_GRAVITY: {
@@ -1008,7 +1143,6 @@ void applyNearEffect(int stg, int matType, vec4 data0, vec4 data1, vec4 data2) {
 			}
 			//swarzchild radius
 			if (r < grav_constant * abs(data0[3])) {
-			// if (stage[stg].iters > 200) {
 				applyColor(stg, vec4(vec3(sign(-data0[3])), 1.0));
 				return;
 			}
@@ -1049,7 +1183,7 @@ void calcSceneObjs(int stg, float tolerance) {
 	//traverse tree
 	int currNode = 0;
 	//there are 2*objs nodes in the tree. At maximum, we explore every one of them
-	int len = 2 * w_objCount(stage[stg].world);
+	int len = 4 * w_objCount(stage[stg].world);
 	int explored = 0;
 	for (int f=0; f<len; f++) {
 		//valid node checks
@@ -1106,7 +1240,7 @@ void calcLightPositions() {
 	int currLights = 1;
 	float dists[ray_numLights+1];
 	//
-	for (int l=0; l<objCount; l++) {
+	for (int l=int(w_effectCounts(world)[1]); l<objCount; l++) {
 		//only apply to lights:
 		if (matType(world, l) != M_LIGHT) {
 			continue;
@@ -1158,33 +1292,50 @@ float smoothMin(float d1, float d2, float k) {
 //given oldDist and a index/newDist/nature pairing, returns what the new sceneDist should be
 //also sets closestInd if necessary to set materials
 float applyDist(int stg, float oldDist, float newDist, int nature, int index) {
-	if ((nature & N_FOG) > 0) {
-		nature ^= N_FOG;
-	}
-	if (nature == N_NORMAL || (nature & N_GRAVITY) > 0) {
+	//tnd = trueNewDist
+	int gAmt = floatBitsToInt(objData(stage[stg].world, index)[0][3]);
+	int deletables = N_SMOOTH | N_EXTRUDE;
+	int ignorables = N_FOG;
+	nature = nature & ~deletables;
+	
+	if ((nature & ~ignorables) == N_NORMAL || (nature & N_GRAVITY) > 0) {
 		stage[stg].closestInd = (newDist < oldDist) ? index : stage[stg].closestInd;
 		return min(oldDist, newDist);
 	}
-	if ((nature & N_GLOOPY) > 0) {
-		float trueNewDist = smoothMin(oldDist, newDist, 2.5);
-		if (trueNewDist < oldDist - minDist / 2.) {
+	if ((nature & N_GLANTI) == N_GLANTI) {
+		newDist = -newDist;
+		newDist = -smoothMin(newDist, -oldDist, 0.25*float((gAmt >> 16) & 0xFFFF));
+		
+		newDist = (newDist > -minDist) ? max(newDist, minDist) : newDist;
+		float tnd = max(oldDist, newDist);
+		if (tnd > minDist*0.5 + oldDist) {
 			stage[stg].closestInd = index;
 		}
-		return min(trueNewDist, oldDist);
+		return tnd;
+	}
+	if ((nature & N_GLOOPY) > 0) {
+		float tnd = smoothMin(oldDist, newDist, 0.25*float((gAmt >> 16) & 0xFFFF));
+		if ((nature & N_FOG) > 0) {
+			tnd = max(tnd, nearDist - minDist);
+		}
+		if (tnd < -minDist*0.5 + oldDist) {
+			stage[stg].closestInd = index;
+		}
+		return min(tnd, oldDist);
 	}
 	if ((nature & N_ANTI) > 0) {
-		newDist = -newDist;
-		if (newDist < minDist) {
-			newDist = min(newDist, -minDist);
-		}
-		float trueNewDist = max(oldDist, -newDist);
-		if (trueNewDist != oldDist) {
+		newDist = (newDist > -minDist) ? max(newDist, minDist) : newDist;
+		float tnd = max(oldDist, newDist);
+		if (tnd != oldDist) {
 			stage[stg].closestInd = index;
 		}
 		//if it's different, return TND. if it's the same, return the old distance.. but it's the same so it doesn't matter.
-		return trueNewDist;
+		return tnd;
 	}
 	if ((nature & N_FIELD) > 0) {
+		if (newDist > nearDist) {
+			return oldDist;
+		}
 		if (newDist < 0.) {
 			stage[stg].closestInd = index;
 		}
@@ -1203,7 +1354,6 @@ float sceneSDF(vec3 p, int stg) {
 		int nature = natureData(stage[stg].world, objIndices[i]);
 		sceneDist = applyDist(stg, sceneDist, d, nature, objIndices[i]);
 	}
-	
 	return sceneDist;
 }
 
@@ -1233,6 +1383,7 @@ void findHitPos(vec3 startPos, int world, int objID, float oldLocalDist, float n
 
 void raymarch() {
 	for (int i=0; i<maxIters; i++) {
+		iterCount += 1;
 		// vec3 p = startP + dPos * totalDist;
 		stage[0].iters = i;
 		float oldLocalDist = stage[0].localDist;
@@ -1241,7 +1392,6 @@ void raymarch() {
 		if (stage[0].localDist < nearDist) {
 			mat4 matDat = matData(stage[0].world, stage[0].closestInd);
 			int type = matType(stage[0].world, stage[0].closestInd);
-			// stage[1].color = fetched;
 		
 			if (stage[0].localDist < minDist) {
 				int res = applyHitEffect(0, oldLocalDist, type, matDat[0], matDat[1], matDat[2]);
@@ -1280,21 +1430,27 @@ void shadow(int stg, vec3 startPos, vec3 normal, vec3 lightVec) {
 
 	//IN THE LOOP PART HERE: color[3] represents unscaled gamma. Between [0,1]
 	for(int i=0; i<count; i++) {
+		iterCount += 1;
 		stage[stg].iters = i;
 		stage[stg].localDist = sceneSDF(stage[stg].path.spot.yzw, stg);
 		
 		// if (stg == 2) {
 		// 	outColor = vec4(vec3(float(i) / 120.), 1.);
 		// }
-		if (stage[stg].localDist < minDist) {
+		if (stage[stg].localDist < nearDist) {
 			mat4 matDat = matData(stage[stg].world, stage[stg].closestInd);
 			int type = matType(stage[stg].world, stage[stg].closestInd);
-			int res = applyHitEffect(stg, stage[stg].localDist, type, matDat[0], matDat[1], matDat[2]);
-			if (res > 0) {
-				//IN HERE THE GAMMA IS RESCALED TO THE LIGHT COLOR
-				stage[stg].color[3] *= float(res - 1);
-				// stage[stg].color[3] = 500.0;
-				return;
+			
+			if (stage[stg].localDist < minDist) {
+				int res = applyHitEffect(stg, stage[stg].localDist, type, matDat[0], matDat[1], matDat[2]);
+				if (res > 0) {
+					//IN HERE THE GAMMA IS RESCALED TO THE LIGHT COLOR
+					stage[stg].color[3] *= float(res - 1);
+					// stage[stg].color[3] = 500.0;
+					return;
+				}
+			} else {
+				applyNearEffect(stg, type, matDat[0], matDat[1], matDat[2]);
 			}
 		}
 
@@ -1476,7 +1632,7 @@ Path geodesicStep(Path current, float maxStep, vec3 singularityPos, float mass) 
 }
 
 //actual fragment shader: what's done for a pixel
-void drawVal(float val, vec2 pos) {
+void drawVal(float val, ivec2 pos) {
 	if (val < 0.0) {
 		outColor = vec4(-val, 0., 0., 1.0);
 		return;
@@ -1489,7 +1645,7 @@ void drawVal(float val, vec2 pos) {
 		}
 		return;
 	}
-	if (mod(pos[0] / 10., 1.) < 0.03 || fract(pos[1]) < 0.02) {
+	if (pos[0] % 10 < 1 || pos[1] % 10 < 1) {
 		return;
 	}
 	outColor = vec4(0.25, 0.1, 0.25, 1.0);
@@ -1501,16 +1657,17 @@ void drawWorld() {
 		outColor = vec4(0.4, 0.3, 0.4, 1.0);
 		return;
 	}
-	float worldWidth = float(obj_maxNum) + 6.;
+	float worldWidth = float(256) + 6.;
 	float worldHeight = 7.;
 	
 	vec2 texPos = vec2((worldWidth + 1.) * uv.x, (worldHeight + 1.) * uv.y);
 	int subpx = int(floor(mod(texPos[1], 1.0) * 4.0));
+
+	ivec2 iTexPos = ivec2(texPos);
 	
-	
-	vec4 fetched = texelFetch(uUniverseTex, ivec3(int(texPos.x), int(texPos.y), uCamWorld), 0);
+	vec4 fetched = texelFetch(uUniverseTex, ivec3(iTexPos, uCamWorld), 0);
 	float val = fetched[subpx];
-	drawVal(val, texPos);
+	drawVal(val, iTexPos);
 }
 
 void drawBvh() {
@@ -1519,16 +1676,17 @@ void drawBvh() {
 		outColor = vec4(0.5, 0.2, 0.5, 1.0);
 		return;
 	}
-	float width = float(obj_maxNum);
+	float width = 2.*float(obj_maxNum);
 	float height = 40.;
 	
 	vec2 texPos = vec2((width + 1.) * uv.x, (height + 1.) * uv.y);
+	ivec2 iTexPos = ivec2(texPos);
 	int subpx = int(floor(mod(texPos[1], 1.0) * 4.0));
 	
 	
-	vec4 fetched = texelFetch(uUniverseBVHs, ivec2(int(texPos.x), int(texPos.y)), 0);
+	vec4 fetched = texelFetch(uUniverseBVHs, ivec2(iTexPos), 0);
 	float val = fetched[subpx];
-	drawVal(val, texPos);
+	drawVal(val, iTexPos);
 }
 
 void main() {
@@ -1553,14 +1711,21 @@ void main() {
 	}
 	objIndices[obj_maxNum - 1] = 0;
 	
-	//TODO: why does this go from -1 to 1?
 	seed = vec2(vUV * 0.5 + 0.5);
-	vec3 camVecs = vec3(
-		vUV.x * uResFov.x / uResFov.y * uResFov[2],
-		vUV.y * uResFov[2],
-		1
-	);
-	
+
+	vec3 camVecs = vec3(vUV.x, vUV.y, 1.);
+	if (uResFov[2] > 10.) {
+		//octahedral mapping
+		camVecs.z -= abs(vUV.x) + abs(vUV.y);
+		float t = clamp(-camVecs.z, 0., 1.);
+		camVecs.x += (camVecs.x >= 0.) ? -t : t;
+		camVecs.y += (camVecs.y >= 0.) ? -t : t;
+		camVecs = normalize(camVecs);
+	} else {
+		//perspective mapping
+		camVecs.x *= uResFov.x / uResFov.y * uResFov[2];
+		camVecs.y *= uResFov[2];
+	}
 	
 	stage[0].world = uCamWorld;
 	setStageRay(0, uCamPos, normalize(uCamRot * camVecs));
@@ -1604,7 +1769,7 @@ void main() {
 	
 	// post effects go here??????? this is mint
 	// MAID!!!! FEtch me my textures~~!!
-	int effCount = int(w_effectCounts(stage[0].world)[1]);
+	int effCount = int(w_effectCounts(stage[0].world)[0]);
 	for (int d=0; d<effCount; d++) {
 		mat4 dat = effectData(stage[0].world, d);
 		postEffect(dat[0], dat[1], dat[2]);

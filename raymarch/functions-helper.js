@@ -43,23 +43,43 @@ function applyColor(paintColor, baseColor) {
 /**
 * returns an updated signed distance based on an old/new distance and an object's nature.
  */
-function applyDist(oldDist, testDist, nature) {
+function applyDist(oldDist, testDist, nature, gloopiness, smoothness) {
+	if (nature & N_SMOOTH) {
+		testDist -= smoothness;
+	}
 	if (nature & N_FOG || nature & N_GRAVITY) {
 		testDist = Math.max(testDist, ray_nearDist * 0.9);
 	}
 	if (nature & N_ANTI) {
 		return Math.max(-testDist, oldDist);
 	}
+	if (nature & N_GLOOP) {
+		var res = Math.min(smoothMin(oldDist, testDist, gloopiness / 2), oldDist);
+		if (nature & N_FOG && res < 0) {
+			console.log(oldDist, testDist, res);
+		}
+		return res;
+	}
 	return Math.min(testDist, oldDist);
 }
 
-function augmentBounds(bounds, extraDist) {
+function bounds_expandU(bounds, extraDist) {
 	bounds[0][0] -= extraDist;
 	bounds[0][1] -= extraDist;
 	bounds[0][2] -= extraDist;
 	bounds[1][0] += extraDist;
 	bounds[1][1] += extraDist;
 	bounds[1][2] += extraDist;
+	return bounds;
+}
+
+function bounds_expand(bounds, extraDists) {
+	bounds[0][0] -= extraDists[0];
+	bounds[0][1] -= extraDists[1];
+	bounds[0][2] -= extraDists[2];
+	bounds[1][0] += extraDists[0];
+	bounds[1][1] += extraDists[1];
+	bounds[1][2] += extraDists[2];
 	return bounds;
 }
 
@@ -269,11 +289,13 @@ function drawUI() {
 	}
 	
 	//debug bars
-	btx.fillStyle = color_editor_border;
+	btx.fillStyle = editor_isStable ? color_editor_border : `#F99`;
 	btx.fillRect(0, 0, cvs.width, pxH * 12);
 	btx.fillRect(0, ch - pxH * 12, cvs.width, pxH * 12);
-	
-	drawEditorGizmo();
+
+	if (editor_axisType) {
+		drawEditorGizmo();
+	}
 	
 	//selected object ghost
 	if (editor_selected != player) {
@@ -345,15 +367,16 @@ function getDistancePos(pos1, pos2) {
 	return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function giveBounds(pos, rx, ry, rz, theta, phi, rot) {
+function bounds_gen(pos, rx, ry, rz, theta, phi, rot) {
+	const abs = Math.abs;
 	var xVec = transform([rx, 0, 0], [0, 0, 0], theta, phi, rot);
 	var yVec = transform([0, ry, 0], [0, 0, 0], theta, phi, rot);
 	var zVec = transform([0, 0, rz], [0, 0, 0], theta, phi, rot);
 	
 	//since a cube gives every combination of ±vec, it's possible to just decompose the vectors and take the min / max variance
-	const bestX = (Math.abs(xVec[0]) + Math.abs(yVec[0]) + Math.abs(zVec[0]));
-	const bestY = (Math.abs(xVec[1]) + Math.abs(yVec[1]) + Math.abs(zVec[1]));
-	const bestZ = (Math.abs(xVec[2]) + Math.abs(yVec[2]) + Math.abs(zVec[2]));
+	const bestX = (abs(xVec[0]) + abs(yVec[0]) + abs(zVec[0]));
+	const bestY = (abs(xVec[1]) + abs(yVec[1]) + abs(zVec[1]));
+	const bestZ = (abs(xVec[2]) + abs(yVec[2]) + abs(zVec[2]));
 
 	return [
 		Pos(pos[0] - bestX, pos[1] - bestY, pos[2] - bestZ),
@@ -388,9 +411,6 @@ function keyDiff(dictA, dictB) {
 	opp.forEach(e => {
 		s.add(e);
 	});
-
-	console.log(`hi`);
-	console.log(dictA, dictB, s, opp);
 	
 	return s;
 }
@@ -403,6 +423,8 @@ function loadWorld(worldName) {
 		return;
 	}
 	player.world = obj;
+	camera.world = obj;
+	loading_world = obj;
 }
 
 /**
@@ -430,6 +452,81 @@ function proj(a, b) {
 	const mult = ab / bb;
 	//proj = v(u•v / v•v)
 	return [b[0] * mult, b[1] * mult, b[2] * mult];
+}
+
+/**
+ * performs the Forward And Backward Reaching Inverse Kinematic algorithm,
+ * given an array of vectors (relative Pos[] starting at 0,0) points the vectors to a specified end point.
+ * @param {Pos[]} vectorSet
+ * @param {Pos} targetPoint
+ * @param {Integer} iterations
+ */
+function fabrik(vectorSet, targetPoint, iterations) {
+	//	1. mark A and B
+	//	2. pull end of chain to B
+	//		trace backwards for all S
+	//		S end = B
+	//		S start points from S start -> B
+	//	3. pull start of chain to A
+	//	4. repeat 2, 3
+
+	//STEP 1: setup
+	//in this case start is always [0,0,0] and all vectors are RELATIVE. So that makes it.. simpler?
+	var endSet = [[...vectorSet[0]]];
+	var lenSet = [Math.hypot(...vectorSet[0])];
+
+	for (var g=1; g<vectorSet.length; g++) {
+		lenSet[g] = Math.hypot(...vectorSet[g]);
+		endSet[g] = [
+			endSet[g-1][0] + vectorSet[g][0], 
+			endSet[g-1][1] + vectorSet[g][1], 
+			endSet[g-1][2] + vectorSet[g][2]
+		];
+	}
+
+	for (var w=0; w<iterations; w++) {
+		//STEP 2: pull vectors to end
+		endSet[vectorSet.length-1] = targetPoint;
+		for (var g=vectorSet.length-1; g>0; g--) {
+			//L = norm(B-A)
+			var pointVec = normalize([
+				endSet[g][0] - endSet[g-1][0],
+				endSet[g][1] - endSet[g-1][1],
+				endSet[g][2] - endSet[g-1][2]
+			]);
+			//A = B - L*l
+			endSet[g-1][0] = endSet[g][0] - pointVec[0] * lenSet[g];
+			endSet[g-1][1] = endSet[g][1] - pointVec[1] * lenSet[g];
+			endSet[g-1][2] = endSet[g][2] - pointVec[2] * lenSet[g];
+		}
+	
+		//STEP 3: pull vectors to start
+		endSet[-1] = [0,0,0];
+		for (var g=0; g<vectorSet.length; g++) {
+			//L = norm(B - A)
+			var pointVec = normalize([
+				endSet[g][0] - endSet[g-1][0],
+				endSet[g][1] - endSet[g-1][1],
+				endSet[g][2] - endSet[g-1][2],
+			]);
+			//B = A + L*l
+			endSet[g][0] = endSet[g-1][0] + pointVec[0] * lenSet[g]
+			endSet[g][1] = endSet[g-1][1] + pointVec[1] * lenSet[g]
+			endSet[g][2] = endSet[g-1][2] + pointVec[2] * lenSet[g]
+		}
+	}
+
+	//STEP 4: un-setup
+	var finals = [];
+	for (var h=0; h<vectorSet.length; h++) {
+		finals[h] = [
+			endSet[h][0] - endSet[h-1][0],
+			endSet[h][1] - endSet[h-1][1],
+			endSet[h][2] - endSet[h-1][2],
+		];
+	}
+
+	return finals;
 }
 
 
@@ -729,13 +826,49 @@ function sceneSDF(sceneCollection, pos) {
 	var testDist;
 	sceneCollection.forEach(o => {
 		testDist = o.distanceToPos(pos);
-		testDist = applyDist(dist, testDist, o.nature);
+		testDist = applyDist(dist, testDist, o.nature, o.gloopiness, o.smoothness);
 		if (testDist != dist) {
 			dist = testDist;
 			distObj = o;
 		}
 	});
 	return [dist, distObj];
+}
+
+function serializeRot(theta, phi, rot) {
+	phi += pi/2;
+	theta /= degToRad;
+	phi /= degToRad;
+	rot /= degToRad;
+	theta = modulate(Math.round(theta), 360);
+	phi = modulate(Math.round(phi), 360);
+	rot = modulate(Math.round(rot), 360);
+
+	var res = `${theta}~${phi}~${rot}`;
+	return (res == `0~90~0`) ? `R` : res;
+}
+
+
+function serializeNat(nature, gloop, smooth, ex, ey, ez) {
+	const r = Math.round;
+
+	if (nature & N_EXTRUDE) {
+		return `${nature}.${2*gloop}.${2*smooth}.${r(10*ex)}.${r(10*ey)}.${r(10*ez)}`;
+	}
+	if ((nature & N_GLOOP && gloop != 0.5) || (nature & N_SMOOTH && smooth != 0.5)) {
+		nature = `${nature}.${2*gloop}.${2*smooth}`;
+	}
+	return `${nature}`;
+}
+
+function deserializeNat(natStr) {
+	var s = natStr.split(`.`).map(a => +a);
+	s[1] = (s[1] ?? 1) / 2;
+	s[2] = (s[2] ?? 1) / 2;
+	s[3] = (s[3] ?? 0) / 10;
+	s[4] = (s[4] ?? 0) / 10;
+	s[5] = (s[5] ?? 0) / 10;
+	return s;
 }
 
 function updateFOV(newFOV) {
@@ -758,4 +891,23 @@ function updateFOV(newFOV) {
 			camera_halfTanVert = Math.tan((vertFOV / 2) * degToRad);
 			break;
 	}
+}
+
+
+function sdfTri(relX, relY, w, h) {
+	h *= 2;
+	relX = Math.abs(relX);
+	relY += h/2;
+
+	const buf1 = clamp((relX*w + relY*h) / (w*w + h*h), 0, 1);
+
+	const ax = relX - w * buf1;
+	const ay = relY - h * buf1;
+
+	const bx = relX - w * clamp(relX / w, 0, 1);
+	const by = relY - h;
+	const k = Math.sign(h);
+	const d = Math.min(ax*ax + ay*ay, bx*bx + by*by);
+	const s = Math.max(k*(relX*h - relY*w), k*(relY - h));
+	return Math.sqrt(d) * Math.sign(s) - 0.1;
 }
