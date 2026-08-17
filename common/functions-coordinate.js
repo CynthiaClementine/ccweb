@@ -4,7 +4,7 @@ like functions-math, but dealing with multi-dimensional problems instead of sing
 INDEX
 cartToPol(x, y, z);
 cross(a, b);
-magnitude(v);
+magnitude(vector);
 clipToZ0(polyPoints, tolerance, invertClipDirection);
 polToCart(theta, phi, radius);
 polToXY(startX, startY, angle, magnitude);

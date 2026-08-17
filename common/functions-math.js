@@ -18,6 +18,7 @@ rootsCubic(a, b, c, d);
 rootsQuadratic(a, b, c);
 rotate(x, z, radians);
 sigmoid(input, outputLowerBound, outputUpperBound);
+smoothMin(d1, d2, k);
 easerp(a, b, percentage);
 Ξ(x); -takes the factorial of a number
 
@@ -252,6 +253,12 @@ function si(x) {
 function sigmoid(input, outputLowerBound, outputUpperBound) {
 	//haha good luck reading this ;)
 	return (1 / (1 + (Math.E ** input))) * (outputLowerBound - outputUpperBound) + outputUpperBound;
+}
+
+function smoothMin(d1, d2, k) {
+	k *= 16/3;
+	var h = Math.max(k - Math.abs(d1 - d2), 0) / k;
+	return Math.min(d1, d2) - h*h*h * (4 - h) * (k / 16);
 }
 
 //an interpolation, but with an ease in + out
