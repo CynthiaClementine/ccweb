@@ -4,6 +4,7 @@ like functions-math, but dealing with multi-dimensional problems instead of sing
 INDEX
 cartToPol(x, y, z);
 cross(a, b);
+dot(a, b);
 magnitude(vector);
 clipToZ0(polyPoints, tolerance, invertClipDirection);
 polToCart(theta, phi, radius);
@@ -23,6 +24,16 @@ function cartToPol(x, y, z) {
 
 function cross(a, b) {
 	return [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
+}
+
+/**
+ * dot product of two vectors
+ * @param {Number[]} a first 3d vector
+ * @param {Number[]} b second 3d vector
+ * @returns {Number}
+ */
+function dot(a, b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 function magnitude(vector) {

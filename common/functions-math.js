@@ -116,6 +116,11 @@ function modularDifference(a, b, modulo) {
 }
 
 //returns a vector with the same direction but magnitude 1
+/**
+ * takes in an N-dimensional vector and returns a vector with the same direction but magnitude 1
+ * @param {Number[]} vector
+ * @returns {Number[]}
+ */
 function normalize(vector) {
 	var running = 0;
 	const vLen = vector.length;
