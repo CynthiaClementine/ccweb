@@ -1,10 +1,5 @@
 //all the things that have to do with the JS-facing part of the editor
 
-var editor_selected = undefined;
-var editor_initBuffer = null;
-var editor_isStable = true;
-
-
 /**
 * creates a default object given a constructor type. For the list of types, see all TYPE_ declarations in config.js
 * @param {Integer} objType an integer representing the type of object to create. If left undefined, defaults to 0
@@ -131,6 +126,7 @@ function deserialize(str) {
 	
 	//base structure is consistent across objects
 	var [type, pos, nature, theta, phi, rot] = base;
+	
 	type = map_strObj[type];
 	if (!type) {
 		throw new Error(`cannot deserialize type "${type}"!`);
@@ -138,15 +134,14 @@ function deserialize(str) {
 	pos = JSON.parse(pos);
 	var gloop, smooth, ex, ey, ez;
 	[nature, gloop, smooth, ex, ey, ez] = deserializeNat(nature);
-	if (theta == `R`) {
-		[theta, phi, rot] = [`0`, `90`, `0`];
-	}
-	[theta, phi, rot] = [+theta, +phi, +rot];
+	[quat, theta, phi, rot] = deserializeRot(theta, phi, rot);
+	
 	var posRotObj = {
 		pos: Pos(...pos),
-		theta: theta * degToRad,
-		phi: (phi - 90) * degToRad,
-		rot: rot * degToRad
+		quat: quat,
+		theta: theta,
+		phi: phi,
+		rot: rot
 	};
 	
 	var finalArgs = [posRotObj];
@@ -160,6 +155,21 @@ function deserialize(str) {
 		finalArgs.push(...params.map(a => +a));
 	}
 	return new type(...finalArgs, objs);
+}
+
+function deserializeRot(theta, phi, rot) {
+	if (theta == `R`) {
+		return [quatIdentity(), null, null, null];
+	}
+	
+	//figure out if it's a quaternion or not
+	if (phi == undefined) {
+		//quat case
+		return [unpackageQrot(parseInt(theta, 32)), null, null, null];
+	}
+
+	//euler case
+	return [null, theta * degToRad, (phi - 90) * degToRad, rot * degToRad];
 }
 
 function deserializeMat(str) {
@@ -191,14 +201,13 @@ function deserializeMat(str) {
 }
 
 function calcPlacePos() {
-	var offset = polToCart(camera.theta, camera.phi, editor_placeOffset);
-	var r = Math.round;
+	var offset = polToCart(camera.theta, camera.phi, editor.placeOff);
 	var base = Pos(camera.pos[0] + offset[0], camera.pos[1] + offset[1], camera.pos[2] + offset[2]);
-	const sd = editor_flags.snapDist;
+	const sd = editor.snapDist;
 
-	if (editor_flags.snapToGrid) {
+	if (editor.flags.snapGrid) {
 		for (var d=0; d<3; d++) {
-			base[d] = r(base[d] / editor_flags.gridDist) * editor_flags.gridDist;
+			base[d] = snapToGrid(base[d]);
 		}
 	}
 
@@ -210,12 +219,12 @@ function calcPlacePos() {
 	}
 
 	//snap to objects pos if necessary
-	var exclude = trueObj(editor_selected);
+	var exclude = trueObj(editor.selected);
 	var pos = null;
 	var dist = 1e101;
-	var snapSet = loading_world.bvh.objectsInBox(...bounds_expand([[...base], [...base]], 4*editor_flags.snapDist));
+	var snapSet = loading_world.bvh.objectsInBox(...bounds_expandU([[...base], [...base]], 4*editor.snapDist));
 	snapSet = snapSet.filter(o => trueObj(o) != exclude);
-	if (editor_flags.snapToPos) {
+	if (editor.flags.snapPos) {
 		//direct pos snapping
 		snapSet.forEach(o => {
 			//direct pos snapping
@@ -229,7 +238,7 @@ function calcPlacePos() {
 			base[0] = pos[0];
 			base[1] = pos[1];
 			base[2] = pos[2];
-		} else {
+		} else if (editor.flags.snapAxis) {
 			snapSet.forEach(o => {
 				//2/3 axis snapping
 				var px = Pos(base[0], o.pos[1], o.pos[2]);
@@ -260,9 +269,9 @@ function calcPlacePos() {
 	}
 
 	// //snap to surface is a bit more tricky. We have to figure out where distance=0 is, but excluding the SDF of the current held object
-	// if (editor_flags.snapToSurface) {
+	// if (editor.flags.surfaceSnap) {
 	// 	var countingObjs = loading_world.bvh.objectsInBox(...augmentBounds(
-	// 		bounds, editor_flags.snapDist));
+	// 		bounds, editor.snapDist));
 
 	// 	countingObjs = countingObjs.filter(a => trueObj(a) != exclude);
 
@@ -284,10 +293,10 @@ var objectEditables = {};
 var materialEditables = {};
 
 function editor_setMaterial(val) {
-	var mat = createDefaultMaterial(val, editor_selected.material.color);
-	editor_selected.material = mat;
+	var mat = createDefaultMaterial(val, editor.selected.material.color);
+	editor.selected.material = mat;
 	loading_world.shouldRegen = true;
-	editor_updatePanelsFor(editor_selected);
+	ec_updatePanelsFor(editor.selected);
 }
 
 
@@ -308,8 +317,8 @@ function editor_addObj(objType) {
 * @param {[Number,Number]} dragVec the screen-space vector to drag in
 */
 function editor_applyDrag(dragVec) {
-	const ea = editor_axis;
-	if (ea == ``) {
+	var ea = editor.axis;
+	if (!ea.size) {
 		return;
 	}
 	if (Math.hypot(...dragVec) < 0.01) {
@@ -317,25 +326,43 @@ function editor_applyDrag(dragVec) {
 	}
 	loading_world.shouldRegen = true;
 	const [max, round] = [Math.max, Math.round];
-	const es = editor_selected;
+	const es = editor.selected;
+
+	//TODO:
+	var cMat = camera.calcMatrix();
+	var worldVecX = cMat.slice(0, 3);
+	var worldVecY = cMat.slice(3, 6);
+	// new system. Any dimensional projection can be represented as [full space] - [space not in subspace]
+	// when projecting onto a plane, it's 3d - 1d. When projecting onto a line it's 3d - 2d. 
+	// to have a system with 1, 2, or 3 vectors selected, just subtract out all the non-selected vectors.
+	[`x`, `y`, `z`].forEach(v => {
+		if (ea.has(v)) {
+			return;
+		}
+		const vec = editor_getAxisVec(v);
+		
+		const XoN = proj(worldVecX, vec);
+		worldVecX = [
+			worldVecX[0] - XoN[0],
+			worldVecX[1] - XoN[1],
+			worldVecX[2] - XoN[2]
+		];
+		const YoN = proj(worldVecY, vec);
+		worldVecY = [
+			worldVecY[0] - YoN[0],
+			worldVecY[1] - YoN[1],
+			worldVecY[2] - YoN[2]
+		];
+	});
 
 	// Apply accumulated drag offset to actual position
-	//sometimes there's only 1 axisVec, but that's ok. In that case one of these will be 0hat
-	var aVecX = editor_getAxisVec(ea[0]);
-	var aVecY = editor_getAxisVec(ea[1]);
-	var aVec = [aVecX[0]+aVecY[0], aVecX[1]+aVecY[1], aVecX[2]+aVecY[2]];
-
-	var cMat = camera.calcMatrix();
-	var cVecX = cMat.slice(0, 3);
-	var cVecY = cMat.slice(3, 6);
-	
-	var xDelta = cVecX[0]*aVec[0]*dragVec[0] + cVecY[0]*aVec[0]*dragVec[1];
-	var yDelta = cVecX[1]*aVec[1]*dragVec[0] + cVecY[1]*aVec[1]*dragVec[1];
-	var zDelta = cVecX[2]*aVec[2]*dragVec[0] + cVecY[2]*aVec[2]*dragVec[1];
+	const xDelta = worldVecX[0]*dragVec[0] + worldVecY[0]*dragVec[1];
+	const yDelta = worldVecX[1]*dragVec[0] + worldVecY[1]*dragVec[1];
+	const zDelta = worldVecX[2]*dragVec[0] + worldVecY[2]*dragVec[1];
 
 	//logic is messy but idk how best to organize this. It doesn't feel like it's worth full OOP
 	//local scale
-	if (editor_local && editor_axisType == `scale`) {
+	if (editor.local && editor.axisType == `scale`) {
 		if (es.rx != undefined) {
 			//loop objects should expand slower
 			if (es.type == TYPE_CLASS_LOOP) {
@@ -362,51 +389,50 @@ function editor_applyDrag(dragVec) {
 	}
 
 	//global scale
-	if (editor_axisType == `scale`) {
+	if (editor.axisType == `scale`) {
 		return;
 	}
 	
 
 	//global and local grab both work well
-	if (editor_axisType == `grab`) {
-		es.pos[0] += xDelta;
-		es.pos[1] += yDelta;
-		es.pos[2] += zDelta;
+	if (editor.axisType == `grab`) {
+		//dragging will move the HOLP, and then the HOLP controls where the object goes. 
+		//This is so we can have grid snapping as well as smooth movement
+		editor.holp[0] += xDelta;
+		editor.holp[1] += yDelta;
+		editor.holp[2] += zDelta;
+
+		if (editor.flags.snapGrid) {
+			es.pos[0] = snapToGrid(editor.holp[0]);
+			es.pos[1] = snapToGrid(editor.holp[1]);
+			es.pos[2] = snapToGrid(editor.holp[2]);
+		} else {
+			es.pos[0] = editor.holp[0];
+			es.pos[1] = editor.holp[1];
+			es.pos[2] = editor.holp[2];
+		}
 		return;
 	}
 
 	//global rotate
-	if (editor_axisType == `rotate`) {
+	if (editor.axisType == `rotate`) {
+		ea = Array.from(ea).sort();
 		dragVec[0] *= 0.01;
 		dragVec[1] *= 0.01;
-		if (editor_local) {
-			es.theta += dragVec[0]*(ea[0] == `x`) + dragVec[1]*(ea[1] == `x`);
-			es.phi +=   dragVec[0]*(ea[0] == `y`) + dragVec[1]*(ea[1] == `y`);
-			es.rot +=   dragVec[0]*(ea[0] == `z`) + dragVec[1]*(ea[1] == `z`);
-		} else {
-			var res = transformTransform([0, 0, 0], es.theta, es.phi, es.rot, [0, 0, 0], 
+
+		//just give up
+		if (editor.local) {
+			es.quat = normalize(quatMultiply(quatFromEuler(
 				dragVec[0]*(ea[0] == `x`) + dragVec[1]*(ea[1] == `x`), 
-				dragVec[0]*(ea[0] == `y`) + dragVec[1]*(ea[1] == `y`), 
-				dragVec[0]*(ea[0] == `z`) + dragVec[1]*(ea[1] == `z`));
-			[es.theta, es.phi, es.rot] = [res.theta, res.phi, res.rot];
+				dragVec[0]*(ea[0] == `y`) + dragVec[1]*(ea[1] == `y`),
+				dragVec[0]*(ea[0] == `z`) + dragVec[1]*(ea[1] == `z`)), es.quat));
+		} else {
+			es.quat = normalize(quatMultiply(es.quat, quatFromEuler(
+				dragVec[0]*(ea[0] == `y`) + dragVec[1]*(ea[1] == `y`),
+				dragVec[0]*(ea[0] == `x`) + dragVec[1]*(ea[1] == `x`), 
+				dragVec[0]*(ea[0] == `z`) + dragVec[1]*(ea[1] == `z`))));
 		}
-		es.theta = modulate(es.theta, Math.PI * 2);
-		es.phi = clamp(es.phi, -Math.PI / 2, Math.PI / 2);
-		es.rot = modulate(es.rot, Math.PI * 2);
 		return;
-	}
-	
-
-	
-
-	switch (editor_axisType) {
-		case `scale`:
-			
-			break;
-		case `grab`:
-			break;
-		case `rotate`:
-			break;
 	}
 }
 
@@ -417,7 +443,7 @@ function editor_applyDrag(dragVec) {
 * @returns {Scene3dObject} the removed object. Returns null if unable to remove.
  */
 function editor_removeObj(e, object) {
-	object = object ?? editor_selected;
+	object = object ?? editor.selected;
 	if (object == player) {
 		return null;
 	}
@@ -447,8 +473,8 @@ function editor_removeObj(e, object) {
 }
 
 function editor_loopify(e, object) {
-	object = object ?? editor_selected;
-	editor_deselect(editor_selected);
+	object = object ?? editor.selected;
+	editor_deselect(editor.selected);
 	if (object == player) {
 		return null;
 	}
@@ -465,7 +491,7 @@ function editor_loopify(e, object) {
 	const targetSize = [b[1][0] - b[0][0], b[1][1] - b[0][1], b[1][2] - b[0][2]];
 	const loopObj = new Scene3dLoop({
 		pos: posStore,
-		theta: 0, phi: 0, rot: 0
+		quat: quatIdentity(),
 	}, 1, 1, 1, ...targetSize, [object]);
 
 	
@@ -483,19 +509,15 @@ function editor_unloopify(e, object) {
 	editor_removeObj(null, object);
 	var base = {
 		pos: object.pos,
-		theta: object.theta,
-		phi: object.phi,
-		rot: object.rot,
+		quat: object.quat,
 	};
 
 	var list = object.objects;
 
 	list.forEach(o => {
-		var final = transformTransform(o.pos, o.theta, o.phi, o.rot, base.pos, base.theta, base.phi, base.rot);
+		var final = transformTransform(o.pos, o.quat, base.pos, base.quat);
 		o.pos = final.pos;
-		o.theta = final.theta;
-		o.phi = final.phi;
-		o.rot = final.rot;
+		o.quat = final.quat;
 		loading_world.objects.push(o);
 	});
 
@@ -503,8 +525,8 @@ function editor_unloopify(e, object) {
 	return [list];
 }
 
-function editor_raycast() {
-	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist, ray_nearDist);
+function editor_raycastSimple(minDist) {
+	var ray = new Ray_Tracking(loading_world, camera.pos, polToCart(camera.theta, camera.phi, 1), ray_maxDist, minDist);
 	ray.iterate();
 	if (ray.world != loading_world) {
 		//it's gone through a portal. It's hard to tell which one though because of the whole teleporting business
@@ -518,21 +540,43 @@ function editor_raycast() {
 		validPortals.sort((a, b) => a.distanceToPos(camera.pos) - b.distanceToPos(camera.pos));
 		ray.object = validPortals[0];
 	}
+	return ray;
+}
+
+function editor_raycast() {
+	var obj;
+	var rayL = editor_raycastSimple(ray_nearDist);
+	var rayT = editor_raycastSimple(ray_minDist);
+
+	console.log(rayL.object, rayT.object);
+
+	//if they've selected the same object, we're good
+	if (rayL.object == rayT.object) {
+		obj = rayL.object;
+	} else {
+		//if the difference is fog, then it's important to select that
+		if (rayL.object.nature & (N_FOG | N_GRAVITY)) {
+			obj = rayL.object;
+		} else {
+			obj = rayT.object;
+		}
+	}
+
 	if (controls.alt) {
-		editor_deselect(ray.object);
+		editor_deselect(obj);
 		return;
 	}
 	if (!controls.shift) {
-		editor_deselect(editor_selected);
+		editor_deselect(editor.selected);
 	}
-	editor_select(ray.object);
+	editor_select(obj);
 	//set the placeOffset to match
-	editor_placeOffset = getDistancePos(editor_selected.pos, camera.pos);
+	editor.placeOff = getDistancePos(editor.selected.pos, camera.pos);
 }
 
 
 /**
- * removes an object from the list of selected objects. If `editor_selected` is passed in, deselects everything and selects the player.
+ * removes an object from the list of selected objects. If `editor.selected` is passed in, deselects everything and selects the player.
  * Logs an error and returns if asked to deselect something not selected.
  * @param {Scene3dObject} object the object to deselect.
  */
@@ -543,30 +587,30 @@ function editor_deselect(object) {
 	}
 
 	//if the goal is to deselect everything, then select the player
-	if (editor_selected == object) {
-		editor_selected = undefined;
+	if (editor.selected == object) {
+		editor.selected = undefined;
 		editor_select(player);
 		return;
 	}
 
 	//if there's multiple things selected, remove it from the group
-	if (editor_selected.type == TYPE_CLASS_LGROUP) {
-		editor_selected.removeObj(object);
+	if (editor.selected.type == TYPE_CLASS_LGROUP) {
+		editor.selected.removeObj(object);
+		editor.holp = Pos(...editor.selected.pos);
 		return;
 	}
 
 	//we're still here? then there's only one thing selected.. but the goal is NOT to deselect it. What?
-	console.log(`deselection error: trying to deselect`, object, `but the only object selected is`, editor_selected);
+	console.log(`deselection error: trying to deselect`, object, `but the only object selected is`, editor.selected);
 
 }
 
 /**
- * adds an object to the list of selected objects. Transforms editor_selected to be whatever is required for this.
+ * adds an object to the list of selected objects. Transforms editor.selected to be whatever is required for this.
  * @param {Scene3dObject} object the object to select
  */
 function editor_select(object) {
 	if (!object) {
-		console.error(`cannot select nothing!`);
 		return;
 	}
 	//only select top-level collections
@@ -579,18 +623,19 @@ function editor_select(object) {
 	}
 
 	//if the player's selected, this is the first object and therefore easy.
-	if (!editor_selected || editor_selected == player) {
-		editor_selected = object;
+	if (!editor.selected || editor.selected == player) {
+		editor.selected = object;
 	} else {
 		//player is NOT selected. We need to select multiple objects
-		if (editor_selected.type != TYPE_CLASS_LGROUP) {
-			editor_selected = new SceneCollectionLoose({}, editor_selected);
+		if (editor.selected.type != TYPE_CLASS_LGROUP) {
+			editor.selected = new SceneCollectionLoose({}, editor.selected);
 		}
 
-		editor_selected.addObj(object);
+		editor.selected.addObj(object);
 	}
 
-	editor_updatePanelsFor(editor_selected);
+	editor.holp = Pos(...editor.selected.pos);
+	ec_updatePanelsFor(editor.selected);
 }
 
 function pathGet(path) {
@@ -614,68 +659,62 @@ function pathSet(path, value) {
 }
 
 function editor_updateHolp() {
-	if (editor_selected == player) {
+	if (editor.selected == player) {
 		return;
 	}
-	if (!controls.shouldDrag) {
+	if (!controls.grab) {
 		return;
 	}
 	var newPos = calcPlacePos();
-	if (getDistancePos(newPos, editor_selected.pos) > 0.1) {
-		editor_selected.pos = newPos;
+	editor.holp = Pos(...newPos);
+	if (getDistancePos(newPos, editor.selected.pos) > 0.05) {
+		editor.selected.pos = newPos;
 		loading_world.shouldRegen = true;
 	}
 }
 
-//the editor_axis var stores which axes you're allowed to scroll along. It can store up to 2.
+//the editor.axis var stores which axes you're allowed to scroll along.
 function editor_toggleAxis(axisID) {
-	var ea = editor_axis;
-	//remove case
-	if (ea.includes(axisID)) {
-		editor_axis = (ea[0] == axisID) ? ea.slice(1) : ea.slice(0,1);
+	if (editor.axis.has(axisID)) {
+		editor.axis.delete(axisID);
 		return;
 	}
-	//add case
-	if (ea.length < 2) {
-		editor_axis += axisID;
-	}
+	editor.axis.add(axisID);
 }
 
 function editor_toggleAxisSet(setType) {
-	editor_axis = ``;
-	if (editor_axisType == setType) {
-		editor_axisType = null;
+	editor.axis.clear();
+	if (editor.axisType == setType) {
+		editor.axisType = null;
 		return;
 	}
-	editor_axisType = setType;
+	editor.axisType = setType;
 }
 
-// local axis vector is the axis vector of the world based on the selected objects given rotation. 
-//This could maybe be a helper function, but you'd need to pass the object in
+// local axis vector is the world-space vector of the object-space axis.
+//This could maybe be an honest function, but you'd need to pass the object in
 function editor_getAxisVec(axis) {
-	if (!axis || !editor_axisType) {
+	if (!axis || !editor.axisType) {
 		return [0, 0, 0];
 	}
-	var theta = editor_selected.theta ?? 0;
-	var phi = editor_selected.phi ?? 0;
-	var rot = editor_selected.rot ?? 0;
+	var qLocal = editor.selected.quat ?? quatIdentity();
 	const zeroPos = [0, 0, 0];
 	
-	if (editor_axisType == `grab` || editor_axisType == `scale`) {
-		if (!editor_local) {
-			[theta, phi, rot] = [0, 0, 0];
+	if (editor.axisType == `grab` || editor.axisType == `scale`) {
+		if (!editor.local) {
+			qLocal = quatIdentity();
 		}
-		return transform([+(axis == `x`), +(axis == `y`), +(axis == `z`)], zeroPos, theta, phi, rot);
+		return transform([+(axis == `x`), +(axis == `y`), +(axis == `z`)], zeroPos, qLocal);
 	}
-	if (editor_axisType == `rotate`) {
-		if (editor_local) {
+	if (editor.axisType == `rotate`) {
+		if (editor.local) {
 			switch (axis) {
 				case `x`:
-					return transform([0, 1, 0], zeroPos, theta, 0, 0);
+					return transform([0, 1, 0], zeroPos, qLocal);
 				case `y`:
-					return transform([1, 0, 0], zeroPos, theta, phi, 0);
+					return transform([1, 0, 0], zeroPos, qLocal);
 				case `z`:
-					return transform([0, 0, 1], zeroPos, theta, phi, 0);
+					return transform([0, 0, 1], zeroPos, qLocal);
 			}
 		}
 		return [+(axis == `x`), +(axis == `y`), +(axis == `z`)];

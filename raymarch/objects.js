@@ -41,20 +41,20 @@ class Scene3dObject {
 		this.gloopiness = nature[1] ?? 0.5;
 		this.smoothness = nature[2] ?? 0.5;
 		this.gloopExt = 0;
-
+		
 		this.ex = nature[3] ?? 0;
 		this.ey = nature[4] ?? 0;
 		this.ez = nature[5] ?? 0;
 		
-
-		this.theta = posRot.theta ?? 0;
-		this.phi = posRot.phi ?? 0;
-		this.rot = posRot.rot ?? 0;
+		this.quat = posRot.quat ?? quatIdentity();
+		if (posRot.theta != undefined) {
+			this.quat = quatFromEuler(posRot.theta ?? 0, posRot.phi ?? 0, posRot.rot ?? 0);
+		}
 	}
 	
 	//gives the axis-aligned bounding box of the object, in [smallest pos, largest pos] terms
 	bounds() {
-		return bounds_expand(bounds_gen(this.pos, ...this.bAxes(), this.theta, this.phi, this.rot), this.bAugAmt());
+		return bounds_expand(bounds_gen(this.pos, ...this.bAxes(), this.quat), this.bAugAmt());
 	}
 
 	bAxes() {
@@ -84,7 +84,7 @@ class Scene3dObject {
 	 * returns a position in object-relative coordinates given a world position. Factors in rotations and extrusions. 
 	 */
 	relPos(pos) {
-		pos = transformInverse(pos, this.pos, this.theta, this.phi, this.rot);
+		pos = quatUnrotate([pos[0] - this.pos[0], pos[1] - this.pos[1], pos[2] - this.pos[2]], this.quat);
 		if (this.ex) {
 			pos[0] -= clamp(pos[0], -this.ex, this.ex);
 		}
@@ -114,9 +114,9 @@ class Scene3dObject {
 	}
 
 	serialize() {
-		const tpr = serializeRot(this.theta, this.phi, this.rot);
+		const rot = packageQrot(this.quat).toString(32);
 		var nature = serializeNat(this.nature, this.gloopiness, this.smoothness, this.ex, this.ey, this.ez);
-		return `~[${this.pos}]~${nature}~${tpr}|${this.material.serialize()}|`;
+		return `~[${this.pos}]~${nature}~${rot}|${this.material.serialize()}|`;
 	}
 	
 	serializeGPU() {
@@ -138,7 +138,7 @@ class Scene3dObject_Axes extends Scene3dObject {
 	}
 	
 	bounds() {
-		return bounds_expand(bounds_gen(this.pos, ...this.bAxes(), this.theta, this.phi, this.rot), this.bAugAmt());
+		return bounds_expand(bounds_gen(this.pos, ...this.bAxes(), this.quat), this.bAugAmt());
 	}
 	
 	serialize() {
@@ -195,9 +195,10 @@ class Scene3dLoop {
 	constructor(posRot, xRepeats, yRepeats, zRepeats, dx, dy, dz, objects) {
 		this.type = this.constructor.type;
 		this.pos = posRot.pos;
-		this.theta = posRot.theta;
-		this.phi = posRot.phi;
-		this.rot = posRot.rot;
+		this.quat = posRot.quat ?? quatIdentity();
+		if (posRot.theta != undefined) {
+			this.quat = quatFromEuler(posRot.theta ?? 0, posRot.phi ?? 0, posRot.rot ?? 0);
+		}
 		
 		this.rx = xRepeats;
 		this.ry = yRepeats;
@@ -225,17 +226,16 @@ class Scene3dLoop {
 		var arr = this.objects.map((o) => {
 			var newO = deserialize(o.serialize());
 			newO.pos = Pos(0, 0, 0);
-			var a = new Scene3dLoop({pos: [self.pos[0] + o.pos[0], self.pos[1] + o.pos[1], self.pos[2] + o.pos[2]],
-									theta: self.theta, phi: self.phi, rot: self.rot},
+			var a = new Scene3dLoop({pos: [self.pos[0] + o.pos[0], self.pos[1] + o.pos[1], self.pos[2] + o.pos[2]], quat: [...self.quat]},
 									self.rx, self.ry, self.rz, self.dx, self.dy, self.dz, [newO]);
 			a.parent = self;
 			return a;
 		});
 
 		if (debug_flags.showLoopBounds) {
-			arr.push(new BoxFrame({pos: [self.pos[0] + o0.pos[0], self.pos[1] + o0.pos[1], self.pos[2] + o0.pos[2]],
-										theta: self.theta, phi: self.phi, rot: self.rot}, createDefaultMaterial(), N_NORMAL, 
-										(this.rx + 0.5) * this.dx, (this.ry + 0.5) * this.dy, (this.rz + 0.5) * this.dz, 1));
+			arr.push(new BoxFrame({pos: [self.pos[0] + o0.pos[0], self.pos[1] + o0.pos[1], self.pos[2] + o0.pos[2]], quat: [...self.quat]}, 
+									createDefaultMaterial(), N_NORMAL, 
+									(this.rx + 0.5) * this.dx, (this.ry + 0.5) * this.dy, (this.rz + 0.5) * this.dz, 1));
 		}
 		return arr;
 	}
@@ -247,12 +247,15 @@ class Scene3dLoop {
 	
 	bounds() {
 		return bounds_gen(this.pos,
-			(this.rx + 0.5) * this.dx, (this.ry + 0.5) * this.dy, (this.rz + 0.5) * this.dz, 
-			this.theta, this.phi, this.rot);
+			(this.rx + 0.5) * this.dx, (this.ry + 0.5) * this.dy, (this.rz + 0.5) * this.dz, this.quat);
+	}
+
+	relPos(pos) {
+		return quatUnrotate([pos[0] - this.pos[0], pos[1] - this.pos[1], pos[2] - this.pos[2]], this.quat);
 	}
 	
 	distanceToPos(pos) {
-		const relPos = this.relativePos(pos);
+		const relPos = this.relPos(pos);
 		const dx = this.dx | 0;
 		const dy = this.dy | 0;
 		const dz = this.dz | 0;
@@ -278,15 +281,15 @@ class Scene3dLoop {
 	serialize() {
 		const grStr = this.objects.map(a => a.serialize()).join(`\n\t||`);
 		const pos = this.pos;
-		const [t, p, r] = [this.theta, this.phi, this.rot];
-		return `LOOP~[${pos}]~X~${serializeRot(t,p,r)}|${this.rx}~${this.ry}~${this.rz}~${this.dx}~${this.dy}~${this.dz}\n\t||${grStr}`;
+		const rot = packageQrot(this.quat).toString(32);
+		return `LOOP~[${pos}]~X~${rot}|${this.rx}~${this.ry}~${this.rz}~${this.dx}~${this.dy}~${this.dz}\n\t||${grStr}`;
 	}
 	
 	serializeGPU() {
 		//assume self has exactly ONE object.
 		var obj = this.objects[0];
 		var serial = obj.serializeGPU();
-		serial[7] = packageRot(this.theta, this.phi, this.rot);
+		serial[7] = packageQrot(this.quat);
 		buf32_int[0] = ((this.dx & 0x3FF) << 20) | ((this.dy & 0x3FF) << 10) | (this.dz & 0x3FF);
 		serial[8] = buf32_float[0];
 		return serial;
@@ -303,25 +306,18 @@ class SceneCollection {
 	constructor(posRot, objects) {
 		this.type = this.constructor.type;
 		this.pos = posRot.pos;
-		this.theta = posRot.theta;
-		this.phi = posRot.phi;
-		this.rot = posRot.rot;
+		this.quat = posRot.quat ?? quatIdentity();
+		if (posRot.theta != undefined) {
+			this.quat = quatFromEuler(posRot.theta ?? 0, posRot.phi ?? 0, posRot.rot ?? 0);
+		}
 		
 		this.baseObjects = objects;
 		this.expObjs = [];
 	}
 	
-	fixRotations() {
-		this.theta = modulate(this.theta, Math.PI * 2);
-		this.phi += Math.PI / 2;
-		this.phi = modulate(this.phi, Math.PI);
-		this.phi -= Math.PI / 2;
-		this.rot = modulate(this.rot, Math.PI * 2);
-	}
-	
 	bounds() {
 		console.error(`bounds are not defined for ${this.constructor.name}!`);
-		return bounds_gen(this.pos, 1,1,1, 0,0,0);
+		return bounds_gen(this.pos, 1,1,1, quatIdentity());
 	}
 	
 	/**
@@ -348,17 +344,15 @@ class SceneCollection {
 			-> apply standard transform
 			-> profit!
 		 */
-		const [basePos, baseTheta, basePhi, baseRot] = [this.pos, this.theta, this.phi, this.rot];
+		const [basePos, baseQuat] = [this.pos, this.quat];
 		const self = this;
 		var objs = this.baseObjects.map(s => deserialize(s));
 		this.animate(objs);
 		objs.forEach(o => {
-			var t = transformTransform(o.pos, o.theta, o.phi, o.rot, basePos, baseTheta, basePhi, baseRot);
+			var t = transformTransform(o.pos, o.quat, basePos, baseQuat);
 			o.parent = self;
 			o.pos = t.pos;
-			o.theta = t.theta;
-			o.phi = t.phi;
-			o.rot = t.rot;
+			o.quat = t.quat;
 		});
 		this.transform(objs);
 		this.expObjs = objs;
@@ -373,17 +367,12 @@ class SceneCollection {
 	}
 	
 	serializeKernel() {
-		const [t, p, r] = [this.theta, this.phi, this.rot];
-		function deg(radians) {
-			radians /= degToRad;
-			return modulate(Math.round(radians), 360);
-		}
-		return `~[${this.pos}]~X~${deg(t)}~${deg(p + (Math.PI / 2))}~${deg(r)}||`;
+		const rotInt = packageQrot(this.quat).toString(32);
+		return `~[${this.pos}]~X~${rotInt}||`;
 	}
 
 	serialize() {
-		const [t, p, r] = [this.theta, this.phi, this.rot];
-		return `COLLECTION~[${this.pos}]~X~${serializeRot(t,p,r)}||${this.objects}`;
+		return `COLLECTION${this.serializeKernel()}${this.objects}`;
 	}
 }
 
@@ -407,14 +396,10 @@ class SceneCollectionLoose {
 	createTransform() {
 		//variables that others will update
 		this.pos = Pos(0, 0, 0);
-		this.theta = 0;
-		this.phi = 0;
-		this.rot = 0;
+		this.quat = quatIdentity();
 		//stable variants - used to track what should actually be updated
 		this.sPos = Pos(0, 0, 0);
-		this.sTheta = 0;
-		this.sPhi = 0;
-		this.sRot = 0;
+		this.sQuat = quatIdentity();
 
 		[this.minPos, this.maxPos] = boundsForList(this.objects);
 		for (var x=0; x<3; x++) {
@@ -440,25 +425,21 @@ class SceneCollectionLoose {
 	tick() {
 		//apply transform delta, if there is one
 		console.log(`ticking`);
-		if (this.theta != this.sTheta || this.phi != this.sPhi || this.rot != this.sRot) {
-			const dt = this.theta - this.sTheta;
-			const dp = this.phi - this.sPhi;
-			const dr = this.rot - this.sRot;
+		const q1 = this.quat;
+		const q2 = this.sQuat;
+		if (q1[0] != q2[0] || q1[1] != q2[1] || q1[2] != q2[2] || q1[3] != q2[3]) {
+			//TODO: figure this out
 
 			this.objects.forEach(o => {
 				o.pos[0] -= this.sPos[0];
 				o.pos[1] -= this.sPos[1];
 				o.pos[2] -= this.sPos[2];
-				var newTrans = transformTransform(o.pos, o.theta, o.phi, o.rot, this.sPos, dt, dp, dr);
+				var newTrans = transformTransform(o.pos, o.quat, this.sPos, offsetQuat);
 				o.pos = newTrans.pos;
-				o.theta = newTrans.theta;
-				o.phi = newTrans.phi;
-				o.rot = newTrans.rot;
+				o.quat = [...newTrans.quat];
 			});
 
-			this.sTheta = this.theta;
-			this.sPhi = this.phi;
-			this.sRot = this.rot;
+			this.sQuat = [...this.quat];
 			
 			loading_world.shouldRegen = true;
 		}
@@ -759,7 +740,7 @@ class Fractal extends Scene3dObject {
 	}
 	
 	bounds() {
-		return bounds_expand(bounds_gen(this.pos, 10000, 10000, 10000, 0,0,0),this.bAugAmt());
+		return bounds_expand(bounds_gen(this.pos, 10000, 10000, 10000, quatIdentity()),this.bAugAmt());
 	}
 	
 	serialize() {
@@ -826,13 +807,6 @@ class Line extends Scene3dObject {
 			this.pos[1] + ry,
 			this.pos[2] + rz
 		);
-		//it doesn't really make sense for lines to be affected by transformations. So they're not.
-		if (this.theta || this.phi || this.rot) {
-			console.error(`${this.serialize()}: Lines should not be rotated!`);
-			this.theta = 0;
-			this.phi = 0;
-			this.rot = 0;
-		}
 		this.r = thickness;
 	}
 
@@ -923,8 +897,9 @@ class Dish extends Line {
 
 	express() {
 		var base = super.express();
-		for (var o=1; o<base.length; o++) {
-			base[o].r = 5;
+		if (base.length > 1) {
+			base[1].r = Math.min(4, this.r + 2);
+			base[2].r = Math.min(4, this.ringR + 2);
 		}
 		return base;
 	}
@@ -947,7 +922,7 @@ class Dish extends Line {
 	distanceToPos(pos) {
 		const rba = this.ringR - this.r;
 		const b_a = this.offP;
-		const p_a = getDistancePos(pos, this.pos);
+		const p_a = [pos[0] - this.pos[0], pos[1] - this.pos[1], pos[2] - this.pos[2]];
 		const baba = dot(b_a, b_a);
 		const papa = dot(p_a, p_a);
 		const paba = dot(p_a, b_a) / baba;
@@ -1094,12 +1069,10 @@ class Point {
 	constructor(pt, offset, invertPts) {
 		offset = offset ?? Pos(0, 0, 0);
 		this.pos = Pos(pt[0] + offset[0], pt[1] + offset[1], pt[2] + offset[2]);
+		this.quat = quatIdentity();
 		this.store = pt;
 		this.invStore = invertPts ?? [];
 		this.offset = offset;
-		this.theta = 0;
-		this.phi = 0;
-		this.rot = 0;
 
 		this.nature = N_NORMAL;
 	}
@@ -1124,18 +1097,14 @@ class Triangle extends Scene3dObject {
 	static type = TYPE_TRIANGLE;
 	constructor(posRot, material, nature, p2x, p2y, p2z, thickness, p3x, p3y, p3z) {
 		super(posRot, material, nature);
+		this.quat = quatIdentity();
 		this.p1 = this.pos;
 		this.off2 = Pos(p2x, p2y, p2z);
 		this.off3 = Pos(p3x, p3y, p3z);
 		this.p2 = Pos(this.pos[0] + p2x, this.pos[1] + p2y, this.pos[2] + p2z);
 		this.p3 = Pos(this.pos[0] + p3x, this.pos[1] + p3y, this.pos[2] + p3z);
+
 		
-		if (this.theta || this.phi || this.rot) {
-			console.error(`${this.serialize()}: Lines should not be rotated!`);
-			this.theta = 0;
-			this.phi = 0;
-			this.rot = 0;
-		}
 		this.r = thickness;
 		// this.posData = [
 		// 	[this.pos, ABSOLUTE],
@@ -1440,20 +1409,6 @@ class Spun extends Scene3dObject {
 		return -1;
 	}
 
-	relPos(pos) {
-		pos = transformInverse(pos, this.pos, this.theta, this.phi, 0);
-		if (this.ex) {
-			pos[0] -= clamp(pos[0], -this.ex, this.ex);
-		}
-		if (this.ey) {
-			pos[1] -= clamp(pos[1], -this.ey, this.ey);
-		}
-		if (this.ez) {
-			pos[2] -= clamp(pos[2], -this.ez, this.ez);
-		}
-		return pos;
-	}
-
 	distanceToPos(pos) {
 		const relPos = this.relPos(pos);
 		const distX = Math.abs(relPos[0]);
@@ -1580,7 +1535,7 @@ class Shell extends Scene3dObject {
 	
 	bounds() {
 		const re = this.r + this.h;
-		return bounds_expand(bounds_gen(this.pos, re + this.ex, re + this.ey, re + this.ez, 0, 0, 0),this.bAugAmt());
+		return bounds_expand(bounds_gen(this.pos, re + this.ex, re + this.ey, re + this.ez, quatIdentity()),this.bAugAmt());
 	}
 	
 	distanceToPos(pos) {
@@ -1606,7 +1561,7 @@ class Sphere extends Scene3dObject {
 	
 	bounds() {
 		return bounds_expandU(bounds_expand(
-			bounds_gen(this.pos, this.r + this.ex, this.r + this.ey, this.r + this.ez, 0, 0, 0),
+			bounds_gen(this.pos, this.r + this.ex, this.r + this.ey, this.r + this.ez, this.quat),
 			this.bAugAmt()), 10*(this.material.type == M_GRAVITY));
 	}
 

@@ -63,6 +63,39 @@ function applyDist(oldDist, testDist, nature, gloopiness, smoothness) {
 	return Math.min(testDist, oldDist);
 }
 
+function benchmark(pxMult) {
+	const tMult = 4000;
+	var score = 0;
+	var miniscores = [];
+	var f = 0;
+	const startSpot = {
+		pos: [...(player.pos), loading_world.name],
+		rot: [player.theta, player.phi],
+		fov: camera_FOV,
+		px: render_n
+	};
+
+	loadSpot(benchmark_locs[0], pxMult);
+
+	//after 3 seconds of each benchmark spot, record the average time taken. This contributes to the score
+	for (f=1; f<benchmark_locs.length; f++) {
+		const trueF = f;
+		window.setTimeout(() => {
+			miniscores.push(+(debugTA.innerHTML));
+			score += +(debugTA.innerHTML);
+			loadSpot(benchmark_locs[trueF], pxMult);
+		}, tMult*trueF);
+	}
+
+	//at the end of it all, lower score is better
+	window.setTimeout(() => {
+		miniscores.push(+(debugTA.innerHTML));
+		score += +(debugTA.innerHTML);
+		console.log(`benchmark finished! Times are [${miniscores.map(a => Math.round(a))}].\nTotal Score is [${Math.round(score)}].`);
+		loadSpot(startSpot);
+	}, tMult*f);
+}
+
 function bounds_expandU(bounds, extraDist) {
 	bounds[0][0] -= extraDist;
 	bounds[0][1] -= extraDist;
@@ -194,7 +227,7 @@ function calcScreenPos(worldPos) {
 		return null;
 	}
 	var delta = [worldPos[0] - camera.pos[0], worldPos[1] - camera.pos[1], worldPos[2] - camera.pos[2]];
-	var offset = dot(delta, polToCart(camera.theta, camera.phi, 1)); 
+	var offset = dot(delta, polToCart(camera.theta, camera.phi, 1));
 	if (offset <= 0) {
 		return null;
 	}
@@ -216,16 +249,6 @@ function constrainPlayer(xRange, yRange, zRange) {
 	player.pos[0] = modulate(player.pos[0] + xRange, 2 * xRange) - xRange;
 	player.pos[1] = modulate(player.pos[1] + yRange, 2 * yRange) - yRange;
 	player.pos[2] = modulate(player.pos[2] + zRange, 2 * zRange) - zRange;
-}
-
-/**
- * dot product of two positions/vectors
- * @param {Number[]} a first 3d vector
- * @param {Number[]} b second 3d vector
- * @returns {Number}
- */
-function dot(a, b) {
-	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 /**
@@ -289,17 +312,17 @@ function drawUI() {
 	}
 	
 	//debug bars
-	btx.fillStyle = editor_isStable ? color_editor_border : `#F99`;
+	btx.fillStyle = editor.stable ? color_editor_border : `#F99`;
 	btx.fillRect(0, 0, cvs.width, pxH * 12);
 	btx.fillRect(0, ch - pxH * 12, cvs.width, pxH * 12);
 
-	if (editor_axisType) {
+	if (editor.axisType) {
 		drawEditorGizmo();
 	}
 	
 	//selected object ghost
-	if (editor_selected != player) {
-		var ghostPos = calcScreenPos(editor_selected.pos);
+	if (editor.selected != player) {
+		var ghostPos = calcScreenPos(editor.selected.pos);
 		if (ghostPos) {
 			btx.globalAlpha = 1;
 			btx.lineWidth = 1;
@@ -313,7 +336,7 @@ function drawUI() {
 	
 	//global/local indicator
 	btx.globalAlpha = 0.6;
-	drawPixelArt(editor_local ? pxdata_box : pxdata_world, 4 * pxW, 16 * pxH, pxW * 4);
+	drawPixelArt(editor.local ? pxdata_box : pxdata_world, 4 * pxW, 16 * pxH, pxW * 4);
 	btx.globalAlpha = 1;
 }
 
@@ -367,11 +390,11 @@ function getDistancePos(pos1, pos2) {
 	return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function bounds_gen(pos, rx, ry, rz, theta, phi, rot) {
+function bounds_gen(pos, rx, ry, rz, quat) {
 	const abs = Math.abs;
-	var xVec = transform([rx, 0, 0], [0, 0, 0], theta, phi, rot);
-	var yVec = transform([0, ry, 0], [0, 0, 0], theta, phi, rot);
-	var zVec = transform([0, 0, rz], [0, 0, 0], theta, phi, rot);
+	const xVec = quatRotate([rx, 0, 0], quat);
+	const yVec = quatRotate([0, ry, 0], quat);
+	const zVec = quatRotate([0, 0, rz], quat);
 	
 	//since a cube gives every combination of ±vec, it's possible to just decompose the vectors and take the min / max variance
 	const bestX = (abs(xVec[0]) + abs(yVec[0]) + abs(zVec[0]));
@@ -425,6 +448,20 @@ function loadWorld(worldName) {
 	player.world = obj;
 	camera.world = obj;
 	loading_world = obj;
+}
+
+/**
+ * a spotObj has `pos`, `rot`, `fov`, and `px` fields. Pos is the position with the world name tacked on.
+ */
+function loadSpot(spotObj, pxMult) {
+	loadWorld(spotObj.pos[3]);
+	
+	player.pos = Pos(...(spotObj.pos));
+	player.theta = spotObj.rot[0];
+	player.phi = spotObj.rot[1];
+	
+	camera_FOV = spotObj.fov;
+	render_goalN = spotObj.px * (pxMult ?? 1);
 }
 
 /**
@@ -726,16 +763,11 @@ function segmentDist2(seg, p) {
  * Returns the image of a given point when transformed by the given offset / angles
  * @param {Number[]} point the point to transform
  * @param {Number[]} offset the Pos to transform by
- * @param {Number} theta XZ rotation, in radians
- * @param {Number} phi YZ rotation, in radians 
- * @param {Number} rot XY rotation, in radians
+ * @param {Number[]} quat quaternion to use for the transformation
  */
-function transform(point, offset, theta, phi, rot) {
-	var [x, y, z] = point;
-	[x, y] = rotate(x, y, rot);
-	[y, z] = rotate(y, z, -phi);
-	[x, z] = rotate(x, z, theta);
-	return [x + offset[0], y + offset[1], z + offset[2]];
+function transform(point, offset, quat) {
+	point = quatRotate(point, quat);
+	return [point[0] + offset[0], point[1] + offset[1], point[2] + offset[2]];
 }
 
 function cartToThetaPhi(x, y, z) {
@@ -745,45 +777,29 @@ function cartToThetaPhi(x, y, z) {
 	return [(theta < 0) ? (Math.PI * 2 + theta) : theta, phi];
 }
 
+function snapToGrid(num) {
+	return Math.round(num / editor.gridDist) * editor.gridDist;
+}
+
 
 /**
  * transforms a standard transform. In this case, the first 4 args are the transform to modify, and the last 4 args are the base to apply.
  * @param {Pos} pos
- * @param {Number} theta
- * @param {Number} phi
- * @param {Number} rot
+ * @param {Number[]} quat
  * @param {Pos} basePos
- * @param {Number} baseTheta
- * @param {Number} basePhi
- * @param {Number} baseRot
+ * @param {Number[]} baseQuat
+ * @returns {{pos: Number, quat: Number[]}}
  */
-function transformTransform(pos, theta, phi, rot, basePos, baseTheta, basePhi, baseRot) {
-	//set up
-	var e = 0.1;
-	var zeroPos = Pos(0, 0, 0);
-	var p1 = pos;
-	var p2 = transform(Pos(0, 0, e), zeroPos, theta, phi, rot);
-	var p3 = transform(Pos(0, e*e, e), zeroPos, theta, phi, rot);
-	
-	//transform
-	p1 = transform(p1, basePos, baseTheta, basePhi, baseRot);
-	p2 = transform(p2, zeroPos, baseTheta, basePhi, baseRot);
-	p3 = transform(p3, zeroPos, baseTheta, basePhi, baseRot);
-	
-	//convert back
-	var [t2, h2] = cartToThetaPhi(p2[0], p2[1], p2[2]);
-	var [t3, h3] = cartToThetaPhi(p3[0], p3[1], p3[2]);
-	// var finalRot = Math.atan2((h3 - h2), (t3 - t2));
-	// var finalRot = modulate(baseRot + rot, Math.PI * 2);
-	// if (finalRot < 0) {
-	// 	finalRot = Math.PI * 2 + finalRot;
-	// }
+function transformTransform(pos, quat, basePos, baseQuat) {
+	//rotate, then translate
+	pos = quatRotate(pos, baseQuat);
+	quat = quatMultiply(quat, baseQuat);
+
+	pos = Pos(pos[0] + basePos[0], pos[1] + basePos[1], pos[2] + basePos[2]);
 	
 	return {
-		pos: p1,
-		theta: Math.PI * 2 - t2,
-		phi: h2,
-		rot: rot + baseRot
+		pos: pos,
+		quat: normalize(quat),
 	};
 }
 
@@ -791,27 +807,10 @@ function transformTransform(pos, theta, phi, rot, basePos, baseTheta, basePhi, b
  * Returns the pre-image of a given point under the given offset / angles
  * @param {Number[]} point the point to transform
  * @param {Number[]} offset the Pos to transform by
- * @param {Number} theta XZ rotation, in radians
- * @param {Number} phi YZ rotation, in radians 
- * @param {Number} rot XY rotation, in radians
+ * @param {Number[]} rotation quaternion
  */
-function transformInverse(point, offset, theta, phi, rot) {
-	var [x, y, z] = [point[0] - offset[0], point[1] - offset[1], point[2] - offset[2]];
-
-	if (theta) {
-		[x, z] = rotate(x, z, -theta);
-	}
-	if (phi) {
-		[y, z] = rotate(y, z, phi);
-	}
-	if (rot) {
-		[x, y] = rotate(x, y, -rot);
-	}
-	
-	return [x, y, z];
-}
-
-function transformInverseMat(point, offset, rotMatrix) {
+function transformInverse(point, offset, quat) {
+	return quatUnrotate([point[0] - offset[0], point[1] - offset[1], point[2] - offset[2]], quat);
 }
 
 /**

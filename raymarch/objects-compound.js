@@ -18,7 +18,7 @@ var mesh_skyBunny = [
 var mesh_lamppost = [
 	`CYLINDER~[0,1,0]~0~0~0~0|color:38~43~95|5~68.1`,
 	`CAPSULE~[0,68,24]~0~0~90~0|color:38~43~95|5~24`,
-	`SPHERE~[1,62,44]~0~0~90~0|light:255~235~162~255|4`,
+	`SPHERE~[1,62,44]~0~0~90~0|light:255~235~162~384|4`,
 ];
 
 var mesh_turtle = [
@@ -117,17 +117,34 @@ class SkyBunny extends SceneCollection {
 			);
 		}
 	}
+
+	pickGoal(n) {
+		n = n ?? 0;
+		if (n > 10) {
+			return;
+		}
+		
+		//pick a new goal
+		this.posGoal = [
+			randomBounded(-this.homeR, this.homeR) | 0, 
+			randomBounded(-this.homeR / 4, this.homeR / 4) | 0, 
+			randomBounded(-this.homeR, this.homeR) | 0, 
+		];
+
+		//check to make sure the goal isn't inside anything
+		var potentialObjs = loading_world.bvh.objectsInBox(this.posGoal, this.posGoal);
+		if (sceneSDF(potentialObjs, this.posGoal) < this.satisfyDist * 2) {
+			this.pickGoal(n + 1);
+		}
+	}
 	
 	tick() {
+		//all coordinates here are relative to typical pos
+		//TODO: don't do the relative thing. This is stupid
 		super.tick();
-		
+
 		if (getDistancePos(this.posGoal, this.posOffset) < this.satisfyDist) {
-			//pick a new goal
-			this.posGoal = [
-				randomBounded(-this.homeR, this.homeR) | 0, 
-				randomBounded(-this.homeR / 4, this.homeR / 4) | 0, 
-				randomBounded(-this.homeR, this.homeR) | 0, 
-			];
+			this.pickGoal();
 		}
 		
 		//attract towards goal
@@ -140,10 +157,10 @@ class SkyBunny extends SceneCollection {
 		const force = this.force - Math.min(this.force / goalDist, this.force);
 		goalVec = normalizeTo(goalVec, force);
 		this.dPos[0] -= goalVec[0];
-		this.dPos[0] *= this.friction;
 		this.dPos[1] -= goalVec[1];
-		this.dPos[1] *= this.friction;
 		this.dPos[2] -= goalVec[2];
+		this.dPos[0] *= this.friction;
+		this.dPos[1] *= this.friction;
 		this.dPos[2] *= this.friction;
 		var mag = getDistancePos(this.dPos, [0, 0, 0]);
 		if (mag > this.dMax) {
@@ -151,27 +168,15 @@ class SkyBunny extends SceneCollection {
 			this.dPos[1] = (this.dPos[1] / mag) * this.dMax;
 			this.dPos[2] = (this.dPos[2] / mag) * this.dMax;
 		}
-		
-		//rotate
-		var rots = cartToThetaPhi(...this.dPos);
-		var oldTheta = this.theta;
-		var newTheta = modulate(Math.PI / 2 - rots[0], Math.PI * 2);
-		//this is super messy.. sorry
-		var delta = Math.abs(newTheta - oldTheta);
-		if (delta > Math.PI) {
-			if (oldTheta > Math.PI) {
-				oldTheta -= Math.PI * 2;
-			} else {
-				oldTheta += Math.PI * 2;
-			}
-			delta = Math.abs(newTheta - oldTheta);
-		}
-		if (delta > 0.1) {
-			newTheta = oldTheta + 0.1 * Math.sign(newTheta - oldTheta);
-		}
-		this.theta = newTheta;
 
-		this.rot = rots[1] / 2;
+		//step 1: get goal rotation from dPos
+		var angles = cartToPol(...this.dPos);
+		var goalQ = quatFromAA(pi/2, [0, 1, 0]);
+		goalQ = quatMultiply(quatFromAA(angles[1] / 4, [1, 0, 0]), goalQ);
+		goalQ = quatMultiply(quatFromAA(angles[0], [0, -1, 0]), goalQ);
+
+		//step 2: take a little step towards that goal rotation
+		this.quat = nlerp(this.quat, goalQ, 1);
 		
 		//move
 		this.posOffset[0] += this.dPos[0];
@@ -179,14 +184,14 @@ class SkyBunny extends SceneCollection {
 		this.posOffset[2] += this.dPos[2];
 		
 		loading_world.shouldRegen = true;
-		this.fixRotations();
 	}
 	
 	serialize() {
-		var tprSave = [this.theta, this.phi, this.rot];
-		[this.theta, this.phi, this.rot] = [0, 0, 0];
+		
+		var qSave = this.quat;
+		this.quat = quatIdentity();
 		var sup = super.serializeKernel();
-		[this.theta, this.phi, this.rot] = tprSave;
+		this.quat = qSave;
 		return `SKYBUNNY${sup}`;
 	}
 }
@@ -251,14 +256,21 @@ class Tree extends SceneCollection {
 		var ampl = this.ampl;
 		this.bbStore = [Pos(-ampl, -ampl, -ampl), Pos(ampl, ampl, ampl)];
 
-		var currVecs = [[Pos(0, 0, 0), [this.rand(0 + this.theta, tau + this.theta), this.rand(pi*0.5, pi*0.4)]]];
+		var spin = this.rand(0, tau);
+		var height = this.rand(pi*0.5, pi*0.4);
+
+		var qStart = this.quat;
+		qStart = quatMultiply(quatFromAA(height, [1, 0, 0]), qStart);
+		qStart = quatMultiply(quatFromAA(spin, [0, 1, 0]), qStart);
+
+		var currVecs = [[Pos(0, 0, 0), normalize(qStart)]];
 		var newCurrs = [];
 		var cRadius = Math.cbrt(ampl);
 		for (var a=0; a<this.iters; a++) {
 			currVecs.forEach(c => {
 				//c__ for current, f__ for future (next iteration)
-				const [cPos, cAng] = c;
-				const cVec = polToCart(cAng[0], cAng[1], ampl);
+				const [cPos, cQuat] = c;
+				const cVec = quatRotate([0,0,ampl], cQuat);
 				const fPos = Pos(
 					cPos[0] + cVec[0],
 					cPos[1] + cVec[1],
@@ -266,24 +278,19 @@ class Tree extends SceneCollection {
 				);
 				this.includeBoundsP(fPos, cRadius);
 				//generate the branch based on the vector
-				var o = new Line({pos: cPos, theta:0,phi:0,rot:0}, material, N_NORMAL, ...cVec, cRadius);
+				var o = new Line({pos: cPos, quat: quatIdentity()}, material, N_NORMAL, ...cVec, cRadius);
 				o.parent = this;
 				objGroup.push(o);
 
 				//decide what new vectors should look like
 				var numBranches = (this.rand(0,1) > _rr % 1) ? Math.floor(_rr) : 1;
 				for (var n=0; n<numBranches; n++) {
-					//adjust the angle by a bit. It should be equal in every direction, so we do this gimbal conversion
-					var xHat = polToCart(cAng[0] - (pi/2), 0,		ampl*this.rand(-_a, _a));
-					var yHat = polToCart(cAng[0], cAng[1] + (pi/2), ampl*this.rand(-_a, _a));
-
-					var fVec = [
-						cVec[0] + xHat[0] + yHat[0],
-						cVec[1] + xHat[1] + yHat[1],
-						cVec[2] + xHat[2] + yHat[2]
-					];
-					var fAngle = cartToPol(...fVec);
-					newCurrs.push([fPos, fAngle]);
+					//adjust the angle by a bit.
+					var qOff = quatIdentity();
+					qOff = quatMultiply(quatFromAA(this.rand(-_a, _a), [0, 1, 0]), qOff);
+					qOff = quatMultiply(quatFromAA(this.rand(-_a, _a), [1, 0, 0]), qOff);
+					var fQuat = normalize(quatMultiply(cQuat, qOff));
+					newCurrs.push([fPos, fQuat]);
 				}
 			});
 			currVecs = newCurrs;
@@ -299,9 +306,9 @@ class Tree extends SceneCollection {
 	}
 
 	serialize() {
-		const ts = this;
+		const rot = packageQrot(this.quat);
 		const mat = this.material.serialize();
-		const rot = serializeRot(this.theta,this.phi,this.rot);
+		const ts = this;
 		return `TREE~[${ts.pos}]~X~${rot}|${mat}|${ts.seed}~${ts.ampl}~${ts.rr}~${ts.a}~${ts.b}~${ts.iters}`;
 	}
 }

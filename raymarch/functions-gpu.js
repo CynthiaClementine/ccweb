@@ -143,7 +143,7 @@ function createGPUWorld(worldObj) {
 		}
 		try {
 			setObject(worldOffset, rowOffset, o, objs[o]);
-			setMaterial(worldOffset, rowOffset, o, ...objs[o].material.serializeGPU());
+			setMaterial(worldOffset, rowOffset, o, objs[o].material);
 		} catch (error) {
 			console.error(`cannot send object ${worldObj.name}:${o} to the GPU!`, error);
 		}
@@ -152,7 +152,6 @@ function createGPUWorld(worldObj) {
 	
 	//attributes, post-effects
 	setWorldAttribs(worldObj, worldOffset, rowOffset, firstLightInd);
-	setLightSkips(worldOffset, rowOffset, firstLightInd, lightSkips);
 	setEffects(worldObj, worldOffset, rowOffset);
 	
 	//bvh
@@ -181,7 +180,7 @@ function setupGLState(vertexShaderCode, fragmentShaderCode) {
 	if (!success) {
 		console.error(`program creation failure: ${success}`);
 		gl.deleteProgram(program);
-		return;xw
+		return;
 	}
 	
 	gl.useProgram(program);
@@ -335,15 +334,14 @@ function updateWorldTexture() {
 function setObject(worldOff, rowOff, objInd, objRef) {
 	const data = texture_universeArr;
 	const type = objRef.type;
-	const material = objRef.material.type;
-	var [theta, phi, rot] = [0, 90, 0];
+	// var quat = quatIdentity();
 	var pos;
 	var nature;
 	
 	if (objRef.constructor.type == TYPE_CLASS_LOOP) {
 		var shadow = objRef.objects[0];
 		pos = objRef.pos;
-		[theta, phi, rot] = [shadow.theta, shadow.phi, shadow.rot];
+		// quat = shadow.quat;
 		nature = shadow.nature;
 	} else {
 		if (objRef.constructor.type != TYPE_FRACTAL) {
@@ -356,18 +354,16 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 	const args = objRef.serializeGPU();
 	
 	//bit packing to fit the common params into row 0
-	buf32_int[0] = ((type & 0xFFFF) << 0) | ((material & 0xFFFF) << 16);
-	const typeMat = buf32_float[0];
 	buf32_int[0] = ((2*objRef.smoothness & 0xFFFF) << 0) | ((2*objRef.gloopiness & 0xFFFF) << 16);
 	const gloopiSmooth = buf32_float[0];
-	const rotation = packageRot(theta, phi, rot);
+	const quat = objRef.quat;
 	
 	// Row 0: object type + material type, nature, unused
 	var base = worldOff + objInd * 4;
-	data[base + 0] = typeMat;
+	data[base + 0] = type;
 	data[base + 1] = nature;
-	data[base + 2] = rotation;
-	data[base + 3] = gloopiSmooth;
+	data[base + 2] = gloopiSmooth;
+	data[base + 3] = fencepost32;
 	if (objRef.constructor.type == TYPE_CLASS_LOOP) {
 		//replace with loop counts
 		buf32_int[0] = ((objRef.rx & 0x3FF) << 20) | ((objRef.ry & 0x3FF) << 10) | ((objRef.rz & 0x3FF) << 0)
@@ -379,6 +375,11 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 		args[5] = buf32_float[0];
 		args[6] = 10*objRef.ez;
 	}
+	base += rowOff;
+	data[base + 0] = quat[0];
+	data[base + 1] = quat[1];
+	data[base + 2] = quat[2];
+	data[base + 3] = quat[3];
 	base += rowOff;
 	data[base + 0] = pos[0];
 	data[base + 1] = pos[1];
@@ -416,36 +417,27 @@ function setObject(worldOff, rowOff, objInd, objRef) {
 	// console.log(args[5], args[6], args[7], rots2, args[8]);
 }
 
-function setMaterial(worldOff, rowOff, objInd, matID, color4, pram1_1, pram1_2, pram1_3, pram1_4, pram2_1, pram2_2, pram2_3, pram2_4) {
+function setMaterial(worldOff, rowOff, objInd, matRef) {
 	var base = worldOff + objInd * 4;
 	const data = texture_universeArr;
+	const material = matRef.type;
+	const args = matRef.serializeGPU();
 	
-	base += rowOff * 4;
-	data[base + 0] = color4[0];  //color
-	data[base + 1] = color4[1];
-	data[base + 2] = color4[2];
-	data[base + 3] = color4[3];
+	base += rowOff * texture_rowsPerObj;
+	data[base + 0] = material;  //type, then simple params
+	data[base + 1] = args[0];
+	data[base + 2] = args[1];
+	data[base + 3] = args[2];
 	base += rowOff;
-	data[base + 0] = pram1_1; // param space 1
-	data[base + 1] = pram1_2; 
-	data[base + 2] = pram1_3;
-	data[base + 3] = pram1_4;
+	data[base + 0] = args[3];  //color
+	data[base + 1] = args[4];
+	data[base + 2] = args[5];
+	data[base + 3] = args[6];
 	base += rowOff;
-	data[base + 0] = pram2_1; //param space 2
-	data[base + 1] = pram2_2;
-	data[base + 2] = pram2_3;
-	data[base + 3] = pram2_4;
-}
-
-function setLightSkips(worldOff, rowOff, firstLightInd, lightSkips) {
-	var base = worldOff + (rowOff * 5) + (firstLightInd * 4);
-	const data = texture_universeArr;
-
-	while (lightSkips.length > 0) {
-		data[base] = lightSkips[0];
-		base += 4*lightSkips[0];
-		lightSkips.splice(0, 1);
-	}
+	data[base + 0] = args[7]; //param space 2
+	data[base + 1] = args[8];
+	data[base + 2] = args[9];
+	data[base + 3] = args[10];
 }
 
 function feedGPU() {

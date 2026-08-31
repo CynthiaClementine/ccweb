@@ -7,10 +7,10 @@ class Textbox()
 activateOverlay(showEditor)
 createHTMLCheckboxAt(parentName, checkboxName, label)
 ec_compile(arr, destination)
-editor_initialize()
-editor_preAdd()
-editor_preMat()
-editor_updatePanelsFor(obj)
+ec_initialize()
+ec_preAdd()
+ec_preMat()
+ec_updatePanelsFor(obj)
 */
 class Checkbox {
 	constructor(destination, label, get, set) {
@@ -249,7 +249,7 @@ function ec_compile(arr, destination) {
 		//text boxes
 		if (tok[0] == `___`) {
 			if (tok[2][0] == `.`) {
-				tok[2] = `editor_selected` + tok[2];
+				tok[2] = `editor.selected` + tok[2];
 			}
 			elements.push(new Textbox(destination, label, tok[2]));
 			continue;
@@ -289,7 +289,7 @@ function ec_compile(arr, destination) {
 
 		//sliders:
 		if (tok[0][0] == `.`) {
-			tok[0] = `editor_selected` + tok[0];
+			tok[0] = `editor.selected` + tok[0];
 		}
 		
 		var sigfigs = [1, 1, false];
@@ -345,13 +345,13 @@ function ec_compile(arr, destination) {
 	return elements;
 }
 
-function editor_initialize() {
+function ec_initialize() {
 	function syncC(val, id) {
 		if (val != null) {
-			editor_selected.c[id] = -((val * 2) - 1);
+			editor.selected.c[id] = -((val * 2) - 1);
 			loading_world.shouldRegen = true;
 		}
-		return (-editor_selected.c[id] + 1) / 2;
+		return (-editor.selected.c[id] + 1) / 2;
 	}
 	
 	//settings
@@ -360,7 +360,7 @@ function editor_initialize() {
 		sliders start with the name of the variable they're editing. The syntax is
 
 		VARNAME (DISPLAY [±][###.##]) rNUM [vNUM [NUM] [NUM]] MIN—MAX uNUM 
-			VARNAME is the full name of the variable. If it starts with a dot, editor_selected is automatically prepended
+			VARNAME is the full name of the variable. If it starts with a dot, editor.selected is automatically prepended
 			± indicates to display a sign before the number readout
 			# indicates number of places to 
 			rNUM indicates relative range for sliders if necessary
@@ -479,8 +479,8 @@ function editor_initialize() {
 	materialEditables = {
 		"color":	[...rgb],
 		"ghost":	[...rgba],
-		"glass":	[...rgba, `.material.density (d: #.##) 0.05—10 u0.05`],
-		"light":	[...rgb, `.material.lumi (l: ###) 0—255 u1`],
+		"glass":	[...rgba, `.material.density (d: #.##) 0.064—2.00 u0.02`],
+		"light":	[...rgb, `.material.lumi (l: ###) 0—1000 u1`],
 		"mirror":	[...rgba],
 		"normal":	[],
 		"plexi":	[...rgba],
@@ -498,21 +498,22 @@ function editor_initialize() {
 			`.material.blend (b: #.##) 0.25—9.5 u0.25`,
 			`C relative`, (val) => {
 				if (val != null) {
-					editor_selected.material.rel = val;
+					editor.selected.material.rel = val;
 					loading_world.shouldRegen = true;
 				}
-				return editor_selected.material.rel;
+				return editor.selected.material.rel;
 			},
 		],
 	}
 
 	editor_controls.edit = ec_compile([
-		`C Surface_snap editor_flags.snapToSurface`,
-		`C Pos_snap editor_flags.snapToPos`,
-		`editor_flags.snapDist (snapDist: ##) 1—99 u1`,
+		`C Surface_snap editor.flags.snapSurface`,
+		`C Pos_snap editor.flags.snapPos`,
+		`C Axis_snap editor.flags.snapAxis`,
+		`editor.snapDist (snapDist: ##) 1—99 u1`,
 		`C Show_grid debug_flags.showGrid`,
-		`C Grid_snap editor_flags.snapToGrid`,
-		`editor_flags.gridDist (gridDist: ###.#) 0.1—100 u0.1`,
+		`C Grid_snap editor.flags.snapGrid`,
+		`editor.gridDist (gridDist: ###.#) 0.1—100 u0.1`,
 	], group_edit);
 
 	editor_controls.set = ec_compile([
@@ -533,7 +534,7 @@ function editor_initialize() {
 	editor_select(player);
 }
 
-function editor_preAdd() {
+function ec_preAdd() {
 	activateOverlay(false);
 	
 	//set up object addition grid
@@ -559,7 +560,7 @@ function editor_preAdd() {
 	}
 }
 
-function editor_preMat() {
+function ec_preMat() {
 	activateOverlay(false);
 	
 	//set up object addition grid
@@ -582,7 +583,7 @@ function editor_preMat() {
 	}
 }
 
-function editor_updatePanelsFor(obj) {
+function ec_updatePanelsFor(obj) {
 	const cons = obj.constructor;
 	const consName = cons.name;
 	var matName;
@@ -591,7 +592,7 @@ function editor_updatePanelsFor(obj) {
 	}
 
 	label_world.innerHTML = loading_world.name ?? `[!]`;
-	label_obj.innerHTML = map_objStr[editor_selected.constructor.name] ?? `[!]`;
+	label_obj.innerHTML = map_objStr[editor.selected.constructor.name] ?? `[!]`;
 	
 	//show the appropriate editor panel and appropriate material panel
 	
@@ -611,26 +612,26 @@ function editor_updatePanelsFor(obj) {
 		Lamppost
 	];
 	
-	if (!thetaless.includes(cons)) {
-		shouldSee.push(`.theta (<br>θ: #.###) 0—6.283 u0.01745`);
-	}
-	if (!philess.includes(cons)) {
-		shouldSee.push(`.phi (φ: ±#.###) -1.571—1.571 u0.01745`);
-	}
-	if (!rotless.includes(cons)) {
-		shouldSee.push(`.rot (ρ: #.###) 0—6.283 u0.01745`);
-	}
+	// if (!thetaless.includes(cons)) {
+	// 	shouldSee.push(`.theta (<br>θ: #.###) 0—6.283 u0.01745`);
+	// }
+	// if (!philess.includes(cons)) {
+	// 	shouldSee.push(`.phi (φ: ±#.###) -1.571—1.571 u0.01745`);
+	// }
+	// if (!rotless.includes(cons)) {
+	// 	shouldSee.push(`.rot (ρ: #.###) 0—6.283 u0.01745`);
+	// }
 
 	function syncNature(val, nat) {
 		if (val != null) {
 			if (val) {
-				editor_selected.nature = editor_selected.nature | nat;
+				editor.selected.nature = editor.selected.nature | nat;
 			} else {
-				editor_selected.nature = editor_selected.nature & ~nat;
+				editor.selected.nature = editor.selected.nature & ~nat;
 			}
 			loading_world.shouldRegen = true;
 		}
-		return editor_selected.nature & nat;
+		return editor.selected.nature & nat;
 	}
 	
 	if (obj != player && obj.type != TYPE_CLASS_LGROUP && obj.type != TYPE_CLASS_LOOP) {
@@ -662,7 +663,7 @@ function editor_updatePanelsFor(obj) {
 	if (matName) {
 		label_material.innerHTML = matName;
 	
-		shouldSee.push(`|Change_Material| editor_preMat`);
+		shouldSee.push(`|Change_Material| ec_preMat`);
 		shouldSee = shouldSee.concat(materialEditables[map_matStr[matName]]);
 	}
 

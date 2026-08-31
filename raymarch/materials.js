@@ -54,7 +54,8 @@ class Material {
 	}
 	
 	serializeGPU() {
-		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255]];
+		return [null, null, null, 
+				this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255];
 	}
 }
 
@@ -72,6 +73,10 @@ class M_Color extends Material {
 	
 	serialize() {
 		return `color:${this.color[0]}~${this.color[1]}~${this.color[2]}`;
+	}
+
+	serializeGPU() {
+		return [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255];
 	}
 }
 
@@ -97,7 +102,8 @@ class M_Gravity extends Material {
 	
 	
 	serializeGPU() {
-		return [this.type, [...this.pos, this.mass]];
+		return [null, null, null, 
+				...this.pos, this.mass];
 	}
 }
 
@@ -109,6 +115,11 @@ class M_Ghost extends Material {
 	
 	serialize() {
 		return `ghost:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
+	}
+
+	serializeGPU() {
+		return [null, null, this.color[3] / 255, 
+				this.color[0] / 255, this.color[1] / 255, this.color[2] / 255];
 	}
 }
 
@@ -128,7 +139,8 @@ class M_Glass extends Material {
 	}
 	
 	serializeGPU() {
-		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255], this.density];
+		return [this.density, null, null, 
+				this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255];
 	}
 }
 
@@ -144,10 +156,6 @@ class M_Plexiglass extends Material {
 	
 	serialize() {
 		return `plexi:${this.color[0]}~${this.color[1]}~${this.color[2]}~${this.color[3]}`;
-	}
-	
-	serializeGPU() {
-		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, this.color[3] / 255]];
 	}
 }
 
@@ -171,7 +179,8 @@ class M_Light extends Material {
 
 	serializeGPU() {
 		//max. distance is sent to the GPU
-		return [this.type, [this.color[0] / 255, this.color[1] / 255, this.color[2] / 255, Math.sqrt(this.lumi / this.epsilon)]];
+		return [null, null, Math.sqrt(this.lumi / this.epsilon),
+				this.color[0] / 255, this.color[1] / 255, this.color[2] / 255];
 	}
 }
 
@@ -238,7 +247,8 @@ class M_Portal extends Material {
 	serializeGPU() {
 		//indirection on newWorld reference so that it works even before syncing
 		var newWorld = worlds[this.str] ?? {id: 9999};
-		return [this.type, [...this.offset], newWorld.id];
+		return [...this.offset, 
+				newWorld.id];
 	}
 }
 
@@ -305,6 +315,10 @@ class M_Rubber extends Material {
 	serialize() {
 		return `rubber`;
 	}
+
+	serializeGPU() {
+		return [];
+	}
 }
 
 class M_Texture extends Material {
@@ -328,7 +342,8 @@ class M_Texture extends Material {
 	}
 
 	serializeGPU() {
-		return [this.type, [this.mat, this.scale, this.rel, this.blend]];
+		return [null, null, null,
+				this.mat, this.scale, this.rel, this.blend];
 	}
 }
 

@@ -44,7 +44,7 @@ async function setup() {
 	player = new Player_Debug(loading_world, Pos(...loading_world.spawn), ...loading_world.spawn.slice(3));
 	camera = new Camera(loading_world, Pos(...loading_world.spawn));
 	
-	editor_initialize();
+	ec_initialize();
 	document.title = `Raymarching: ${splashes[(Math.random() * splashes.length) | 0]}`;
 	
 	//serializing / editor error checking
@@ -133,7 +133,7 @@ function tick() {
 	
 	//editor syncing
 	if (debug_listening && controls.cursorLock) {
-		const es = editor_selected;
+		const es = editor.selected;
 		const isPlayer = (es == player);
 
 		if (getDistancePos(player.dPos, Pos(0, 2, 0)) > 0.1) {
@@ -160,15 +160,14 @@ function tick() {
 	});
 	loading_world.tick();
 
-	var stableGuess = !(controls.shouldDrag) && (editor_axis == ``);
+	var stableGuess = !(controls.grab) && (!editor.axis.size);
 	//if we're stable now but unstable in the past, save the current state
-	if ((!editor_isStable && stableGuess) || (editor_isStable && stableGuess && world_time % 60 == 1)) {
+	if ((!editor.stable && stableGuess) || (editor.stable && stableGuess && world_time % 60 == 1)) {
 		saveWorldState();
 	}
 
-	editor_isStable = stableGuess;
+	editor.stable = stableGuess;
 
-	
 	perf_logEnd(`tick`);
 }
 
@@ -224,15 +223,15 @@ function calcFrameTime() {
 
 // Mint stuff! Draws the little three arrow gizmo on selected objects
 function drawEditorGizmo() {
-	if (!debug_listening || editor_selected == player) {
+	if (!debug_listening || editor.selected == player) {
 		return;
 	}
-	var origin = calcScreenPos(editor_selected.pos);
+	var origin = calcScreenPos(editor.selected.pos);
 	if (!origin) {
 		return;  // offscreen
 	}
 	
-	var dist = getDistancePos(camera.pos, editor_selected.pos);
+	var dist = getDistancePos(camera.pos, editor.selected.pos);
 	if (dist < 0.01) {
 		return;
 	}
@@ -250,9 +249,9 @@ function drawEditorGizmo() {
 			return;
 		}
 		var endWorld = [
-			editor_selected.pos[0] + def.vec[0] * len,
-			editor_selected.pos[1] + def.vec[1] * len,
-			editor_selected.pos[2] + def.vec[2] * len
+			editor.selected.pos[0] + def.vec[0] * len,
+			editor.selected.pos[1] + def.vec[1] * len,
+			editor.selected.pos[2] + def.vec[2] * len
 		];
 		var end = calcScreenPos(endWorld);
 		if (!end) {
@@ -262,8 +261,8 @@ function drawEditorGizmo() {
 		// draw line
 	
 		// arrowhead
-		btx.strokeStyle = (editor_axis.includes(def.axis)) ? "#FFF" : def.color;
-		btx.fillStyle = (editor_axis.includes(def.axis)) ? "#FFF" : def.color;
+		btx.strokeStyle = (editor.axis.has(def.axis)) ? "#FFF" : def.color;
+		btx.fillStyle = (editor.axis.has(def.axis)) ? "#FFF" : def.color;
 		btx.globalAlpha = 1.0;
 		btx.lineWidth = banvas.height * 0.01;
 		var vec = normalize([end[0] - origin[0], end[1] - origin[1]]);
@@ -317,6 +316,7 @@ function screenshot() {
 
 
 function handleKeyPress(a) {
+	const ec = editor;
 	if (!player) {
 		return;
 	}
@@ -346,6 +346,8 @@ function handleKeyPress(a) {
 			
 			C - copy selected object
 			V - paste selected object
+				shift C + V will copy/paste materials
+				alt + V directly duplicates the object. Normal behavior places the new object at your crosshair
 
 			1-2-3 - switch player type (regular, debug, noclip)
 			
@@ -376,7 +378,7 @@ function handleKeyPress(a) {
 		*/
 		
 		if (controls.cursorLock) {
-			if (editor_axisType) {
+			if (editor.axisType) {
 				switch (a.code) {
 					case "KeyX":
 						editor_toggleAxis(`x`);
@@ -389,11 +391,11 @@ function handleKeyPress(a) {
 						return;
 					case "Escape":
 					case "Backquote":
-						if (editor_axis) {
-							editor_axis = ``;
+						if (ec.axis.size) {
+							ec.axis.clear();
 							return;
 						}
-						editor_axisType = null;
+						ec.axisType = null;
 						return;
 				}
 			}
@@ -402,31 +404,31 @@ function handleKeyPress(a) {
 				case "Digit1":
 					var oldPlayer = player;
 					player = new Player(player.world, player.pos, player.theta, player.phi);
-					if (editor_selected == oldPlayer) {
-						editor_deselect(editor_selected);
+					if (ec.selected == oldPlayer) {
+						editor_deselect(ec.selected);
 					}
 					return;
 				case "Digit2":
 					var oldPlayer = player;
 					player = new Player_Debug(player.world, player.pos, player.theta, player.phi);
-					if (editor_selected == oldPlayer) {
-						editor_deselect(editor_selected);
+					if (ec.selected == oldPlayer) {
+						editor_deselect(ec.selected);
 					}
 					return;
 				case "Digit3":
 					var oldPlayer = player;
 					player = new Player_Noclip(player.world, player.pos, player.theta, player.phi);
-					if (editor_selected == oldPlayer) {
-						editor_deselect(editor_selected);
+					if (ec.selected == oldPlayer) {
+						editor_deselect(ec.selected);
 					}
 					return;
 				case "Backspace":
 					//delete currently selected
 					editor_removeObj();
-					editor_deselect(editor_selected);
+					editor_deselect(ec.selected);
 					return;
 				case "KeyE":
-					controls.shouldDrag = true;
+					controls.grab = true;
 					return;
 				case "KeyN":
 					//TODO: don't do this.
@@ -438,8 +440,8 @@ function handleKeyPress(a) {
 					loading_world.shouldRegen = true;
 					return;
 				case "KeyC":
-					if (editor_selected != player) {
-						var select = editor_selected;
+					if (ec.selected != player) {
+						var select = ec.selected;
 						if (controls.shift && select.material) {
 							select = select.material;
 						}
@@ -450,7 +452,7 @@ function handleKeyPress(a) {
 					if (clipboard) {
 						//material case
 						if (!clipboard.includes(`|`)) {
-							var objs = (editor_selected.type == TYPE_CLASS_LGROUP) ? editor_selected.objects : new Set([editor_selected]);
+							var objs = (ec.selected.type == TYPE_CLASS_LGROUP) ? ec.selected.objects : new Set([ec.selected]);
 							objs.forEach(o => {
 								if (o.material) {
 									o.material = deserializeMat(clipboard);
@@ -462,12 +464,14 @@ function handleKeyPress(a) {
 	
 						//object case
 						var newObj = deserialize(clipboard);
-						newObj.pos = calcPlacePos();
+						newObj.pos = controls.alt ? Pos(...ec.selected.pos) : calcPlacePos();
 						loading_world.objects.push(newObj);
 						if (newObj.type == TYPE_CLASS_LGROUP) {
 							newObj.tick();
 							newObj.break(loading_world.objects);
 						}
+						editor_deselect(editor.selected);
+						editor_select(newObj);
 						loading_world.shouldRegen = true;
 					}
 					return;
@@ -482,7 +486,7 @@ function handleKeyPress(a) {
 					return;
 				case `KeyZ`:
 					//undo
-					editor_deselect(editor_selected);
+					editor_deselect(ec.selected);
 					loadWorldState(controls.shift ? 1 : -1);
 					return;
 			}
@@ -499,11 +503,11 @@ function handleKeyPress(a) {
 				}
 				return;
 			case "KeyL":
-				editor_local = !editor_local;
+				editor.local = !editor.local;
 				return;
 			case "KeyO":
 				if (controls.alt) {
-					editor_deselect(editor_selected);
+					editor_deselect(editor.selected);
 					return;
 				}
 				editor_raycast();
@@ -601,9 +605,8 @@ function handleKeyNegate(a) {
 			player.aPos[1] = Math.min(player.aPos[1], 0);
 			break;
 
-
 		case "KeyE":
-			controls.shouldDrag = false;
+			controls.grab = false;
 			break;
 	}
 }
@@ -636,23 +639,23 @@ function handleMouseDown(a) {
 
 var testOut = [];
 function handleMouseMove(a) {
-	if (editor_axis) {
+	if (editor.axis.size) {
 		//figure out how much to move by, which direction to move, and then move there
-		var dragSpeed = 1.0;
+		const dragSpeed = controls.sensDrag * (getDistancePos(editor.selected.pos, camera.pos) || 1);
 		var dragOffset = [a.movementX * dragSpeed, a.movementY * -dragSpeed];
 		editor_applyDrag(dragOffset);
 		return;
 	}
-	var dTheta = a.movementX * controls.sensitivity;
+	var dTheta = a.movementX * controls.sensLook;
 	var phiLimit = (camera_projFunc == projectPanini) ? pi * 0.2 : pi * 0.49;
 	player.theta = modulate(player.theta + dTheta, tau);
-	player.phi = clamp(player.phi - a.movementY * controls.sensitivity, -phiLimit, phiLimit);
+	player.phi = clamp(player.phi - a.movementY * controls.sensLook, -phiLimit, phiLimit);
 
 	editor_updateHolp();
 	
 	//change velocity in the case of rotating, since dPos is based on view angle
 	if (Math.abs(a.movementX) > 2) {
-		[player.dPos[0], player.dPos[2]] = rotate(player.dPos[0], player.dPos[2], dTheta - (2 * controls.sensitivity));
+		[player.dPos[0], player.dPos[2]] = rotate(player.dPos[0], player.dPos[2], dTheta - (2 * controls.sensLook));
 	}
 }
 
@@ -662,7 +665,7 @@ function handleMouseUp(a) {
 
 function handleWheel(a) {
 	a.preventDefault();
-	editor_placeOffset *= (1 + a.deltaY / 50);
-	editor_placeOffset = clamp(editor_placeOffset, ...editor_placeRange);
+	editor.placeOff *= (1 + a.deltaY / 50);
+	editor.placeOff = clamp(editor.placeOff, ...editor.placeRange);
 	editor_updateHolp();
 }

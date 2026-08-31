@@ -155,17 +155,17 @@ class World {
 				expObjs.push(q);
 			});
 		});
-		if (debug_flags.showGrid && editor_selected != player) {
+		if (debug_flags.showGrid && editor.selected != player) {
 			const r = Math.round;
-			var eDist = editor_flags.gridDist;
+			var eDist = editor.gridDist;
 			while (eDist < 6) {
 				eDist *= 2;
 			}
 			const heDist = eDist/2;
 			const center = Pos(
-				r(editor_selected.pos[0] / eDist) * eDist,
-				r(editor_selected.pos[1] / eDist) * eDist,
-				r(editor_selected.pos[2] / eDist) * eDist,
+				r(editor.selected.pos[0] / eDist) * eDist,
+				r(editor.selected.pos[1] / eDist) * eDist,
+				r(editor.selected.pos[2] / eDist) * eDist,
 			);
 			const gd = 3;
 			var create = (x, y, z, rx, ry, rz) => {
@@ -484,8 +484,11 @@ function createWorlds() {
 		`SPHERE~[1172,86,-407]~0~R|light:207~247~255~255|10`,
 		`CYLINDER~[430,70,800]~64.2.2.40.0.0~R|color:0~165~238|6~2`,
 		`SPHERE~[425,70,800]~0~R|color:255~255~255|3`,
-		`SPHERE~[435,70,800]~0~R|color:255~255~255|3`
+		`SPHERE~[435,70,800]~0~R|color:255~255~255|3`,
+		`SPHERE~[430,70,800]~0~R|color:255~255~255|3`,
+		`DISH~[428,65,800]~1.2.2~R|color:0~165~238|7~-8~0~2~0`,
 	);
+	//"god's grace is infinite.. my grace is 4 days"
 	
 	new World(0, `voxels:
 			E_BG [80,90,80]
@@ -516,10 +519,11 @@ function createWorlds() {
 		`CYLINDER~[81,433,1527]~0~241~0~0|color:143~16~37|25~626.1`,
 		`CYLINDER~[529,370,1196]~0~241~0~0|color:143~16~37|25~626.1`,
 		`CYLINDER~[1106,371,225]~0~241~17~0|color:143~16~37|25~626.1`,
+			
 		`CYLINDER~[13,2841,-455]~0~241~0~0|color:143~16~37|132~2850`,
-		`TERRAIN~[-578,1859,575]~4~0~90~0|ghost:255~255~255~14|20000~87~20000~206.74~0.001~3~2~1`,
-		`TERRAIN~[-1979,3280,-1121]~4~0~90~0|ghost:255~255~255~2|20000~87~20000~400~0.006~7~0.61~1`,
-		`TERRAIN~[479,4503,-1153]~4~64~90~0|ghost:255~255~255~10|20000~87~20000~400~0.006~7~0.36~1`,
+		`TERRAIN~[-578,1859,575]~4~0~90~0|ghost:255~255~255~70|20000~87~20000~206.74~0.001~3~2~1`,
+		`TERRAIN~[-1979,3280,-1121]~4~0~90~0|ghost:255~255~255~19|20000~87~20000~400~0.006~7~0.61~1`,
+		`TERRAIN~[479,4503,-1153]~4~64~90~0|ghost:255~255~255~20|20000~87~20000~400~0.006~7~0.36~1`,
 		`BOX~[14,54,-332]~0~0~90~0|portal:start~[40,4,-53]|10~40~10`,
 		`LAMPPOST~[396,109,-690]~X~303~90~0||`,
 		`LAMPPOST~[-101,96,-897]~X~243~93~0||`,
@@ -3009,5 +3013,5 @@ function createWorlds() {
 	
 	console.log(`finished loading ${worldsByID.length} worlds.`);
 	
-	loading_world = worlds["start"];
+	loading_world = worlds["desert"];
 }

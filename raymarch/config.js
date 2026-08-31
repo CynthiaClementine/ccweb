@@ -145,6 +145,53 @@ const frameTime = 1000 / 60;
 
 const bvhTolerance = 0;
 
+const benchmark_locs = [{
+	pos: [-333,398,-346, `gyroidCaves`],
+	rot: [0.755,-0.675],
+	fov: 40,
+	px: 600
+}, {
+	pos: [28,1676,9, `cubes`],
+	rot: [0.010,-1.539],
+	fov: 80,
+	px: 500
+}, {
+	pos: [-1570,786,5125, `cubes`],
+	rot: [3.185,-0.329],
+	fov: 90,
+	px: 512
+}, {
+	pos: [0,27,0, `turtleHell`],
+	rot: [6.283,-1.571],
+	fov: 90,
+	px: 720
+}, {
+	pos: [333,139,-1224, `start`],
+	rot: [3.695,0.211],
+	fov: 64,
+	px: 600
+}, {
+	pos: [184,119,-360, `start`],
+	rot: [4.190,-0.489],
+	fov: 64,
+	px: 600
+}, {
+	pos: [-278,139,694, `plains`],
+	rot: [1.645,0.241],
+	fov: 80,
+	px: 480
+}, {
+	pos: [543,503,-542, `plains`],
+	rot: [4.205,-0.696],
+	fov: 80,
+	px: 480
+}, {
+	pos: [103,-42,-720, `desert`],
+	rot: [0.162,0.524],
+	fov: 90,
+	px: 720
+}];
+
 var camera_FOV = 90;
 var camera_halfTan = Math.tan((camera_FOV / 2) * degToRad);
 var camera_halfTanVert = Math.tan((camera_FOV / 2) * degToRad);
@@ -165,13 +212,14 @@ const colors16 = [
 const color_editor_border = colors16[15];
 
 let controls = {
-	shouldDrag: false,
+	grab: false,
 	cursorLock: false,
 	alt: false,
 	shift: false,
 	mButton: 0,
-	sensitivity: 0.005
-}
+	sensLook: 0.005,
+	sensDrag: 0.0015,
+};
 
 var debug_listening = false;
 
@@ -194,22 +242,29 @@ var debug_flags = {
 	showObjBounds: false,
 };
 
-var editor_flags = {
-	snapToSurface: true,
-	snapToPos: true,
-	snapToGrid: true,
+var editor = {
+	active: false,
+	local: false,
+	placeOff: 100,
+	placeRange: [10, 2000],
+	axisType: null,
+	axis: new Set(),
+	initBuffer: null,
+	stable: true,
+	
 	snapDist: 25,
 	gridDist: 1,
-}
-
+	flags: {
+		snapSurface: true,
+		snapGrid: true,
+		snapPos: true,
+		snapAxis: true,
+	},
+	holp: Pos(0,0,0),
+	selected: undefined,
+};
 
 var editHistory = {};
-var editor_active = false;
-var editor_local = false;
-var editor_placeOffset = 100;
-var editor_placeRange = [10, 2000];
-var editor_axisType = null;
-var editor_axis = ``;
 
 const pxdata_world = [
 	0xF9999F,
@@ -365,10 +420,10 @@ const tree_minD = 2;
 const tree_l = 41;
 var tree_sets = 7;
 
-const texture_rowsPerObj = 4;
+const texture_rowsPerObj = 5;
 const texture_rowsPerMat = 3;
 const texture_rowsPerNode = 2;
-const texture_worldCols = 6;
+const texture_worldCols = 8;
 const texture_n = 64;
 const texture_maxID = 10;
 const texture_sources = [
@@ -382,6 +437,8 @@ var texture_bvh;
 var texture_bvhArr;
 var texture_exes;
 var texture_exesArr;
+var texture_sin;
+var texture_sinArr;
 
 
 //uniforms
